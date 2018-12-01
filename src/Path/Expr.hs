@@ -23,7 +23,7 @@ data Type
   | Expr (Expr Type)
   deriving (Eq, Ord, Show)
 
-data Elab = Elab { elabExpr :: Expr Elab, elabType :: Type }
+newtype Elab = Elab { unElab :: ElabF Elab }
   deriving (Eq, Ord, Show)
 
 data ElabF a = ElabF { elabFExpr :: Expr a, elabFType :: Type }
