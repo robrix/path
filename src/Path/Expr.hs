@@ -73,6 +73,11 @@ infer (Term (Core (Var name))) = do
   pure (Elab (ElabF (Var name) ty))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
+inferType :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Type Surface -> m (Type Core)
+inferType (Type TypeT) = pure (Type TypeT)
+inferType (Type (Expr (Core (Var name)))) = asks (lookup name) >>= maybe (fail ("free variable: " <> name)) pure
+inferType ty = fail ("no rule to infer type of type: " <> show ty)
+
 
 identity :: Term Surface
 identity = Term (Core (Abs "x" (Term (Core (Var "x")))))
