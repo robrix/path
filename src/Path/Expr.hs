@@ -33,3 +33,6 @@ eval (App f a) = do
 
 identity :: Expr
 identity = Abs "x" (Var "x")
+
+constant :: Expr
+constant = Abs "x" (Abs "y" (Var "x"))
