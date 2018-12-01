@@ -96,12 +96,24 @@ erase = cata (Term . elabFExpr)
 data Value
   = Closure Name (Maybe (Term Core)) (Term Core) Env
   | TypeV
+  | Neutral Neutral
+  deriving (Eq, Ord, Show)
+
+data Neutral
+  = Free Name
+  | AppN Neutral Value
   deriving (Eq, Ord, Show)
 
 quote :: Value -> Term Core
 quote TypeV = Term Type
 quote (Closure n Nothing b _) = Term (Abs n b)
 quote (Closure n (Just t) b _) = Term (Pi n t b)
+quote (Neutral n) = quoteN n
+
+quoteN :: Neutral -> Term Core
+quoteN (Free n) = Term (Var n)
+quoteN (AppN n a) = Term (App (quoteN n) (quote a))
+
 
 type Env = [(Name, Value)]
 
