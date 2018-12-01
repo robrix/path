@@ -124,6 +124,16 @@ infer (Term (Core (Var name))) = do
   pure (Elab (ElabF (Var name) ty))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
+check :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> Type Surface -> m Elab
+check tm ty = do
+  Elab (ElabF tm' elabTy) <- infer tm
+  ty' <- inferType ty
+  if ty' `aeq` elabTy then
+    pure (Elab (ElabF tm' ty'))
+  else
+    fail ("could not judge " <> show ty' <> " = " <> show elabTy)
+
+
 inferType :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Type Surface -> m (Type Core)
 inferType (Type TypeT) = pure (Type TypeT)
 inferType (Type (Expr (Core (Var name)))) = asks (lookup name) >>= maybe (fail ("free variable: " <> name)) pure
