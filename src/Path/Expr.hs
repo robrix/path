@@ -29,6 +29,9 @@ newtype Elab = Elab { unElab :: ElabF Elab }
 data ElabF a = ElabF { elabFExpr :: Expr a, elabFType :: Type }
   deriving (Eq, Functor, Ord, Show)
 
+instance Recursive ElabF Elab where project = unElab
+
+
 data Val
   = Closure Name Term Env
   deriving (Eq, Ord, Show)
