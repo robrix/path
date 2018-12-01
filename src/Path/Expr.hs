@@ -161,10 +161,8 @@ check :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surfa
 check tm ty = do
   Elab (ElabF tm' elabTy) <- infer tm
   ty' <- inferType ty
-  if ty' `aeq` elabTy then
-    pure (Elab (ElabF tm' ty'))
-  else
-    fail ("could not judge " <> show ty' <> " = " <> show elabTy)
+  equate ty' elabTy
+  pure (Elab (ElabF tm' ty'))
 
 
 inferType :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Type Surface -> m (Type Core)
