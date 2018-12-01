@@ -4,12 +4,16 @@ module Path.Expr where
 import Control.Effect
 import Control.Effect.Fail
 import Control.Effect.Reader
+import qualified Data.Set as Set
 import Prelude hiding (fail)
 
 type Name = String
 
 prime :: Name -> Name
 prime n = n <> "ʹ"
+
+fresh :: Set.Set Name -> Name
+fresh = maybe "x" (prime . fst) . Set.maxView
 
 
 data Core a
