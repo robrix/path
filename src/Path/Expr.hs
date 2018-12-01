@@ -123,6 +123,10 @@ data ValT
   | VClosureT Name (Type Core) Context
   deriving (Eq, Ord, Show)
 
+quoteType :: ValT -> Type Core
+quoteType VTypeT = Type TypeT
+quoteType (VClosureT n b _) = Type (Expr (Abs n b))
+
 evalType :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Type Core -> m ValT
 evalType (Type TypeT) = pure VTypeT
 evalType (Type (Pi n _ b)) = VClosureT n b <$> ask
