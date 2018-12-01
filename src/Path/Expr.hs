@@ -120,8 +120,6 @@ eval (Term Type) = pure TypeV
 eval (Term (Pi name _ body)) = Closure name body <$> ask
 
 
-type Context = [(Name, Type Core)]
-
 equate :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Type Core -> Type Core -> m ()
 equate ty1 ty2 | ty1 `aeq` ty2 = pure ()
                | otherwise     = do
