@@ -14,6 +14,8 @@ data Expr
   | App Expr Expr
   deriving (Eq, Ord, Show)
 
+type Type = Expr
+
 data Val
   = Closure Name Expr Env
   deriving (Eq, Ord, Show)
