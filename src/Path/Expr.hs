@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FunctionalDependencies, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, StandaloneDeriving, UndecidableInstances #-}
 module Path.Expr where
 
 import Control.Effect
@@ -37,13 +37,13 @@ data TypeF f a
   | Expr (f a)
   deriving (Eq, Functor, Ord, Show)
 
-newtype Elab = Elab { unElab :: ElabF Elab }
+newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
 
-data ElabF a = ElabF { elabFExpr :: Core a, elabFType :: Type Core }
+data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Type Core }
   deriving (Eq, Functor, Ord, Show)
 
-instance Recursive ElabF Elab where project = unElab
+instance Recursive (ElabF Core) Elab where project = unElab
 
 erase :: Elab -> Term Core
 erase = cata (Term . elabFExpr)
