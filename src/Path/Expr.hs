@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FunctionalDependencies #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FunctionalDependencies, StandaloneDeriving, UndecidableInstances #-}
 module Path.Expr where
 
 import Control.Effect
@@ -14,36 +14,47 @@ data Core a
   | App a a
   deriving (Eq, Functor, Ord, Show)
 
-newtype Term = Term { unTerm :: Core Term }
-  deriving (Eq, Ord, Show)
+data Surface a
+  = Core (Core a)
+  | Ann a (Type Surface)
+  deriving (Eq, Functor, Ord, Show)
 
-newtype Type = Type { unType :: TypeF Type }
-  deriving (Eq, Ord, Show)
+newtype Term f = Term { unTerm :: f (Term f) }
 
-data TypeF a
+deriving instance Eq (f (Term f)) => Eq (Term f)
+deriving instance Ord (f (Term f)) => Ord (Term f)
+deriving instance Show (f (Term f)) => Show (Term f)
+
+newtype Type f = Type { unType :: TypeF f (Type f) }
+
+deriving instance Eq (f (Type f)) => Eq (Type f)
+deriving instance Ord (f (Type f)) => Ord (Type f)
+deriving instance Show (f (Type f)) => Show (Type f)
+
+data TypeF f a
   = TypeT
   | Pi Name a a
-  | Expr (Core a)
+  | Expr (f a)
   deriving (Eq, Functor, Ord, Show)
 
 newtype Elab = Elab { unElab :: ElabF Elab }
   deriving (Eq, Ord, Show)
 
-data ElabF a = ElabF { elabFExpr :: Core a, elabFType :: Type }
+data ElabF a = ElabF { elabFExpr :: Core a, elabFType :: Type Core }
   deriving (Eq, Functor, Ord, Show)
 
 instance Recursive ElabF Elab where project = unElab
 
-erase :: Elab -> Term
+erase :: Elab -> Term Core
 erase = cata (Term . elabFExpr)
 
 data Val
-  = Closure Name Term Env
+  = Closure Name (Term Core) Env
   deriving (Eq, Ord, Show)
 
 type Env = [(Name, Val)]
 
-eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term -> m Val
+eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m Val
 eval (Term (Var name)) = do
   val <- asks (lookup name)
   maybe (fail ("free variable: " <> name)) pure val
@@ -54,19 +65,19 @@ eval (Term (App f a)) = do
   local (const ((n, a') : e)) (eval b)
 
 
-type Context = [(Name, Type)]
+type Context = [(Name, Type Core)]
 
-infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term -> m Elab
-infer (Term (Var name)) = do
+infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> m Elab
+infer (Term (Core (Var name))) = do
   ty <- asks (lookup name) >>= maybe (fail ("free variable: " <> name)) pure
   pure (Elab (ElabF (Var name) ty))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
-identity :: Term
-identity = Term (Abs "x" (Term (Var "x")))
+identity :: Term Surface
+identity = Term (Core (Abs "x" (Term (Core (Var "x")))))
 
-constant :: Term
-constant = Term (Abs "x" (Term (Abs "y" (Term (Var "x")))))
+constant :: Term Surface
+constant = Term (Core (Abs "x" (Term (Core (Abs "y" (Term (Core (Var "x"))))))))
 
 
 class Functor f => Recursive f t | t -> f where
