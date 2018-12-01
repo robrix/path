@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, FunctionalDependencies #-}
 module Path.Expr where
 
 import Control.Effect
@@ -48,3 +48,7 @@ identity = Term (Abs "x" (Term (Var "x")))
 
 constant :: Term
 constant = Term (Abs "x" (Term (Abs "y" (Term (Var "x")))))
+
+
+class Functor f => Recursive f t | t -> f where
+  project :: t -> f t
