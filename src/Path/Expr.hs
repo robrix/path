@@ -8,25 +8,25 @@ import Prelude hiding (fail)
 
 type Name = String
 
-data Expr a
+data Core a
   = Var Name
   | Abs Name a
   | App a a
   deriving (Eq, Functor, Ord, Show)
 
-newtype Term = Term { unTerm :: Expr Term }
+newtype Term = Term { unTerm :: Core Term }
   deriving (Eq, Ord, Show)
 
 data Type
   = Type
   | Pi Name Type Type
-  | Expr (Expr Type)
+  | Expr (Core Type)
   deriving (Eq, Ord, Show)
 
 newtype Elab = Elab { unElab :: ElabF Elab }
   deriving (Eq, Ord, Show)
 
-data ElabF a = ElabF { elabFExpr :: Expr a, elabFType :: Type }
+data ElabF a = ElabF { elabFExpr :: Core a, elabFType :: Type }
   deriving (Eq, Functor, Ord, Show)
 
 instance Recursive ElabF Elab where project = unElab
