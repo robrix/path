@@ -19,6 +19,7 @@ newtype Term = Term { unTerm :: Expr Term }
 
 data Type
   = Type
+  | Pi Name Type Type
   | Expr (Expr Type)
   deriving (Eq, Ord, Show)
 
