@@ -149,6 +149,11 @@ infer (Term (Ann tm ty)) = do
   ty'' <- eval ty'
   check tm ty''
 infer (Term (Core Type)) = pure (Elab (ElabF Type TypeV))
+infer (Term (Core (Pi n t b))) = do
+  t' <- check t TypeV
+  t'' <- eval (erase t')
+  b' <- local ((n, t'') :) (check b TypeV)
+  pure (Elab (ElabF (Pi n t' b') TypeV))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
 check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
