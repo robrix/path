@@ -26,6 +26,9 @@ data Type
 data Elab = Elab { elabExpr :: Expr Elab, elabType :: Type }
   deriving (Eq, Ord, Show)
 
+data ElabF a = ElabF { elabFExpr :: Expr a, elabFType :: Type }
+  deriving (Eq, Functor, Ord, Show)
+
 data Val
   = Closure Name Term Env
   deriving (Eq, Ord, Show)
