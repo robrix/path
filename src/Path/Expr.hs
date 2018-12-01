@@ -8,6 +8,10 @@ import Prelude hiding (fail)
 
 type Name = String
 
+prime :: Name -> Name
+prime n = n <> "ʹ"
+
+
 data Core a
   = Var Name
   | Abs Name a
