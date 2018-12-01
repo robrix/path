@@ -40,6 +40,9 @@ data TypeF f a
 newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
 
+newtype ElabT = ElabT { unElabT :: ElabF (TypeF Core) ElabT }
+  deriving (Eq, Ord, Show)
+
 data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Type Core }
   deriving (Eq, Functor, Ord, Show)
 
