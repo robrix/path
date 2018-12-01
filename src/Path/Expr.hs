@@ -123,6 +123,20 @@ data ValT
   | VClosureT Name (Type Core) [(Name, ValT)]
   deriving (Eq, Ord, Show)
 
+evalType :: (Carrier sig m, Member (Reader [(Name, ValT)]) sig, MonadFail m) => Type Core -> m ValT
+evalType (Type TypeT) = pure VTypeT
+evalType (Type (Pi n _ b)) = VClosureT n b <$> ask
+evalType (Type (Expr (Var n))) = asks (lookup n) >>= maybe (fail ("free variable: " <> n)) pure
+evalType (Type (Expr (Abs n b))) = VClosureT n b <$> ask
+evalType (Type (Expr (App f a))) = do
+  f' <- evalType f
+  case f' of
+    VClosureT n b c -> do
+      a' <- evalType a
+      local (const ((n, a') : c)) (evalType b)
+    v -> fail ("attempting to apply " <> show v)
+
+
 infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> m Elab
 infer (Term (Core (Var name))) = do
   ty <- asks (lookup name) >>= maybe (fail ("free variable: " <> name)) pure
