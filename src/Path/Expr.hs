@@ -94,13 +94,14 @@ erase :: Elab -> Term Core
 erase = cata (Term . elabFExpr)
 
 data Value
-  = Closure Name (Term Core) Env
+  = Closure Name (Maybe (Term Core)) (Term Core) Env
   | TypeV
   deriving (Eq, Ord, Show)
 
 quote :: Value -> Term Core
 quote TypeV = Term Type
-quote (Closure n b _) = Term (Abs n b)
+quote (Closure n Nothing b _) = Term (Abs n b)
+quote (Closure n (Just t) b _) = Term (Pi n t b)
 
 type Env = [(Name, Value)]
 
@@ -108,16 +109,16 @@ eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m 
 eval (Term (Var name)) = do
   val <- asks (lookup name)
   maybe (fail ("free variable: " <> name)) pure val
-eval (Term (Abs name body)) = Closure name body <$> ask
+eval (Term (Abs name body)) = Closure name Nothing body <$> ask
 eval (Term (App f a)) = do
   f' <- eval f
   case f' of
-    Closure n b e -> do
+    Closure n _ b e -> do
       a' <- eval a
       local (const ((n, a') : e)) (eval b)
     v -> fail ("cannot apply " <> show v)
 eval (Term Type) = pure TypeV
-eval (Term (Pi name _ body)) = Closure name body <$> ask
+eval (Term (Pi name ty body)) = Closure name (Just ty) body <$> ask
 
 
 equate :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Type Core -> Type Core -> m ()
