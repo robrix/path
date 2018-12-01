@@ -17,7 +17,9 @@ data Expr a
 newtype Term = Term { unTerm :: Expr Term }
   deriving (Eq, Ord, Show)
 
-newtype Type = Type { unType :: Expr Type }
+data Type
+  = Type
+  | Expr (Expr Type)
   deriving (Eq, Ord, Show)
 
 data Val
