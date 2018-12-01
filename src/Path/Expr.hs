@@ -136,6 +136,20 @@ eval (Term (App f a)) = do
 eval (Term Type) = pure TypeV
 eval (Term (Pi name ty body)) = PiV name <$> eval ty <*> eval body
 
+evalV :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Value -> m Value
+evalV (Neutral n) = evalN n
+evalV v = pure v
+
+evalN :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Neutral -> m Value
+evalN (Free n) = asks (lookup n) >>= maybe (pure (Neutral (Free n))) pure
+evalN (AppN n a) = do
+  n' <- evalN n
+  case n' of
+    Closure n b e -> do
+      a' <- evalV a
+      local (const ((n, a') : e)) (eval b)
+    Neutral n'' -> Neutral . AppN n'' <$> evalV a
+    v -> fail ("cannot apply " <> show v)
 
 equate :: MonadFail m => Value -> Value -> m ()
 equate ty1 ty2 =
