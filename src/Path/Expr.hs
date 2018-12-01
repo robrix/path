@@ -47,6 +47,15 @@ data TypeF f a
 
 instance Functor f => Recursive (TypeF f) (Type f) where project = unType
 
+freeTypeVariables :: Type Core -> Set.Set Name
+freeTypeVariables = cata $ \ ty -> case ty of
+  TypeT -> mempty
+  Pi n t b -> t <> Set.delete n b
+  Expr (Var n) -> Set.singleton n
+  Expr (Abs n b) -> Set.delete n b
+  Expr (App f a) -> f <> a
+
+
 newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
 
