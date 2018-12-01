@@ -9,5 +9,5 @@ data Expr
   deriving (Eq, Ord, Show)
 
 data Val
-  = Closure Name Expr
+  = Closure Name Expr Env
   deriving (Eq, Ord, Show)
