@@ -3,8 +3,9 @@ module Path.Expr where
 type Name = String
 
 data Expr
-  = Lam (Expr -> Expr)
+  = Var Name
+  | Abs Name Expr
   | App Expr Expr
 
 data Val
-  = Closure Name (Expr -> Expr)
+  = Closure Name Expr
