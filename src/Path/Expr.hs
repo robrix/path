@@ -140,6 +140,7 @@ infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surfa
 infer (Term (Core (Var name))) = do
   ty <- asks (lookup name) >>= maybe (fail ("free variable: " <> name)) pure
   pure (Elab (ElabF (Var name) ty))
+infer (Term (Ann tm ty)) = check tm ty
 infer term = fail ("no rule to infer type of term: " <> show term)
 
 check :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> Type Surface -> m Elab
