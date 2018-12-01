@@ -41,6 +41,8 @@ data TypeF f a
   | Expr (f a)
   deriving (Eq, Functor, Ord, Show)
 
+instance Functor f => Recursive (TypeF f) (Type f) where project = unType
+
 newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
 
