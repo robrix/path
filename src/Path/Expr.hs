@@ -4,6 +4,7 @@ module Path.Expr where
 import Control.Effect
 import Control.Effect.Fail
 import Control.Effect.Reader
+import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Prelude hiding (fail)
 
@@ -55,6 +56,37 @@ freeTypeVariables = cata $ \ ty -> case ty of
   Expr (Abs n b) -> Set.delete n b
   Expr (App f a) -> f <> a
 
+aeq :: Type Core -> Type Core -> Bool
+aeq t1 t2 = run (runReader ([] :: [(Name, Name)]) (aeq' t1 t2))
+
+aeq' :: (Carrier sig m, Member (Reader [(Name, Name)]) sig, Monad m) => Type Core -> Type Core -> m Bool
+aeq' (Type TypeT) (Type TypeT) = pure True
+aeq' (Type (Pi n1 t1 b1)) (Type (Pi n2 t2 b2)) = do
+  t <- t1 `aeq'` t2
+  if t then
+    if n1 == n2 then
+      b1 `aeq'` b2
+    else do
+      let n = fresh (freeTypeVariables b1 <> freeTypeVariables b2)
+      local (((n1, n) :) . ((n2, n) :)) (b1 `aeq'` b2)
+  else
+    pure False
+aeq' (Type (Expr (Var n1))) (Type (Expr (Var n2))) = do
+  env <- ask
+  pure (fromMaybe n1 (lookup n1 env) == fromMaybe n2 (lookup n2 env))
+aeq' (Type (Expr (Abs n1 b1))) (Type (Expr (Abs n2 b2))) = do
+  if n1 == n2 then
+    b1 `aeq'` b2
+  else do
+    let n = fresh (freeTypeVariables b1 <> freeTypeVariables b2)
+    local (((n1, n) :) . ((n2, n) :)) (b1 `aeq'` b2)
+aeq' (Type (Expr (App f1 a1))) (Type (Expr (App f2 a2))) = do
+  f <- f1 `aeq'` f2
+  if f then
+    a1 `aeq'` a2
+  else
+    pure False
+aeq' _ _ = pure False
 
 newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
