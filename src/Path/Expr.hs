@@ -73,6 +73,7 @@ infer (Term (Core (Var name))) = do
   pure (Elab (ElabF (Var name) ty))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
+
 identity :: Term Surface
 identity = Term (Core (Abs "x" (Term (Core (Var "x")))))
 
