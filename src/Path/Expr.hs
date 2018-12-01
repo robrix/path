@@ -93,18 +93,18 @@ instance Recursive (ElabF Core) Elab where project = unElab
 erase :: Elab -> Term Core
 erase = cata (Term . elabFExpr)
 
-data Val
+data Value
   = Closure Name (Term Core) Env
   | TypeV
   deriving (Eq, Ord, Show)
 
-quote :: Val -> Term Core
+quote :: Value -> Term Core
 quote TypeV = Term Type
 quote (Closure n b _) = Term (Abs n b)
 
-type Env = [(Name, Val)]
+type Env = [(Name, Value)]
 
-eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m Val
+eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m Value
 eval (Term (Var name)) = do
   val <- asks (lookup name)
   maybe (fail ("free variable: " <> name)) pure val
