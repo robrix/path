@@ -31,6 +31,8 @@ data ElabF a = ElabF { elabFExpr :: Expr a, elabFType :: Type }
 
 instance Recursive ElabF Elab where project = unElab
 
+erase :: Elab -> Term
+erase = cata (Term . elabFExpr)
 
 data Val
   = Closure Name Term Env
