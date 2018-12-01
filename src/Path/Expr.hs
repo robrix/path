@@ -118,6 +118,11 @@ eval (Term (App f a)) = do
 
 type Context = [(Name, Type Core)]
 
+data ValT
+  = VTypeT
+  | VClosureT Name (Type Core) [(Name, ValT)]
+  deriving (Eq, Ord, Show)
+
 infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> m Elab
 infer (Term (Core (Var name))) = do
   ty <- asks (lookup name) >>= maybe (fail ("free variable: " <> name)) pure
