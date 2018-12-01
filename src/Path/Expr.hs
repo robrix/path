@@ -51,6 +51,14 @@ eval (Term (App f a)) = do
   local (const ((n, a') : e)) (eval b)
 
 
+type Context = [(Name, Type)]
+
+infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term -> m Elab
+infer (Term (Var name)) = do
+  ty <- asks (lookup name) >>= maybe (fail ("free variable: " <> name)) pure
+  pure (Elab (ElabF (Var name) ty))
+infer term = fail ("no rule to infer type of term: " <> show term)
+
 identity :: Term
 identity = Term (Abs "x" (Term (Var "x")))
 
