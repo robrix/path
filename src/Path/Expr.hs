@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FunctionalDependencies #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FunctionalDependencies #-}
 module Path.Expr where
 
 import Control.Effect
@@ -12,7 +12,7 @@ data Expr a
   = Var Name
   | Abs Name a
   | App a a
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Functor, Ord, Show)
 
 newtype Term = Term { unTerm :: Expr Term }
   deriving (Eq, Ord, Show)
