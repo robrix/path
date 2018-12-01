@@ -17,11 +17,14 @@ data Core a
 newtype Term = Term { unTerm :: Core Term }
   deriving (Eq, Ord, Show)
 
-data Type
-  = Type
-  | Pi Name Type Type
-  | Expr (Core Type)
+newtype Type = Type { unType :: TypeF Type }
   deriving (Eq, Ord, Show)
+
+data TypeF a
+  = TypeT
+  | Pi Name a a
+  | Expr (Core a)
+  deriving (Eq, Functor, Ord, Show)
 
 newtype Elab = Elab { unElab :: ElabF Elab }
   deriving (Eq, Ord, Show)
