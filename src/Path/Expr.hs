@@ -1,11 +1,10 @@
 module Path.Expr where
 
+type Name = String
+
 data Expr
   = Lam (Expr -> Expr)
   | App Expr Expr
-
-
-type Name = String
 
 data Val
   = Closure Name (Expr -> Expr)
