@@ -162,6 +162,15 @@ infer (Term (Ann tm ty)) = do
   ty' <- erase <$> check ty TypeV
   ty'' <- eval ty'
   check tm ty''
+infer (Term (Core (App f a))) = do
+  f' <- infer f
+  case f' of
+    Elab (ElabF _ (PiV n t b)) -> do
+      a' <- check a t
+      a'' <- eval (erase a')
+      b' <- local ((n, a'') :) (evalV b)
+      pure (Elab (ElabF (App f' a') b'))
+    _ -> fail ("illegal application of " <> show f <> " to " <> show a)
 infer (Term (Core Type)) = pure (Elab (ElabF Type TypeV))
 infer (Term (Core (Pi n t b))) = do
   t' <- check t TypeV
