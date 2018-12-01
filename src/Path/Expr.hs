@@ -29,3 +29,7 @@ eval (App f a) = do
   Closure n b e <- eval f
   a' <- eval a
   local (const ((n, a') : e)) (eval b)
+
+
+identity :: Expr
+identity = Abs "x" (Var "x")
