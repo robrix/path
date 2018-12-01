@@ -17,7 +17,8 @@ data Expr a
 newtype Term = Term { unTerm :: Expr Term }
   deriving (Eq, Ord, Show)
 
-type Type = Expr
+newtype Type = Type { unType :: Expr Type }
+  deriving (Eq, Ord, Show)
 
 data Val
   = Closure Name Term Env
