@@ -4,6 +4,7 @@ module Path.Expr where
 import Control.Effect
 import Control.Effect.Fail
 import Control.Effect.Reader
+import Control.Monad (unless)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Prelude hiding (fail)
@@ -145,9 +146,7 @@ equate ty1 ty2 | ty1 `aeq` ty2 = pure ()
                | otherwise     = do
   ty1' <- evalType ty1
   ty2' <- evalType ty2
-  if quoteType ty1' `aeq` quoteType ty2' then
-    pure ()
-  else
+  unless (quoteType ty1' `aeq` quoteType ty2') $
     fail ("could not judge " <> show ty1 <> " = " <> show ty2)
 
 infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> m Elab
