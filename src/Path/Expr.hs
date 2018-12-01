@@ -85,7 +85,7 @@ aeq' _ _ = pure False
 newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
 
-data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Type Core }
+data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Value }
   deriving (Eq, Functor, Ord, Show)
 
 instance Recursive (ElabF Core) Elab where project = unElab
@@ -137,28 +137,25 @@ eval (Term Type) = pure TypeV
 eval (Term (Pi name ty body)) = PiV name <$> eval ty <*> eval body
 
 
-equate :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Type Core -> Type Core -> m ()
-equate ty1 ty2 | ty1 `aeq` ty2 = pure ()
-               | otherwise     = do
-  ty1' <- eval ty1
-  ty2' <- eval ty2
-  unless (quote ty1' `aeq` quote ty2') $
+equate :: MonadFail m => Value -> Value -> m ()
+equate ty1 ty2 =
+  unless (quote ty1 `aeq` quote ty2) $
     fail ("could not judge " <> show ty1 <> " = " <> show ty2)
 
 infer :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> m Elab
-infer (Term (Core (Var name))) = do
-  ty <- asks (lookup name) >>= maybe (fail ("free variable: " <> name)) (pure . quote)
-  pure (Elab (ElabF (Var name) ty))
-infer (Term (Ann tm ty)) = check tm ty
-infer (Term (Core Type)) = pure (Elab (ElabF Type (Term Type)))
+infer (Term (Core (Var name))) = asks (lookup name) >>= maybe (fail ("free variable: " <> name)) (pure . Elab . ElabF (Var name))
+infer (Term (Ann tm ty)) = do
+  ty' <- erase <$> check ty TypeV
+  ty'' <- eval ty'
+  check tm ty''
+infer (Term (Core Type)) = pure (Elab (ElabF Type TypeV))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
-check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type Surface -> m Elab
+check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
 check tm ty = do
   Elab (ElabF tm' elabTy) <- infer tm
-  ty' <- erase <$> check ty (Term (Core Type))
-  equate ty' elabTy
-  pure (Elab (ElabF tm' ty'))
+  equate ty elabTy
+  pure (Elab (ElabF tm' ty))
 
 
 identity :: Term Surface
