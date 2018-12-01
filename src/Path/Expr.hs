@@ -23,6 +23,9 @@ data Type
   | Expr (Expr Type)
   deriving (Eq, Ord, Show)
 
+data Elab = Elab { elabExpr :: Expr Elab, elabType :: Type }
+  deriving (Eq, Ord, Show)
+
 data Val
   = Closure Name Term Env
   deriving (Eq, Ord, Show)
