@@ -27,6 +27,9 @@ data Surface a
 (-->) :: Term Surface -> Term Surface -> Term Surface
 a --> b = Term (Core (Pi a b))
 
+typeT :: Term Surface
+typeT = Term (Core Type)
+
 newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
