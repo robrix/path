@@ -68,7 +68,7 @@ piType vs = ((do
   (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type")
   <|> functionType vs
 
-functionType vs = makePi <$> type' <*> optional (op "->" *> piType vs) <?> "function type"
+functionType vs = makePi <$> atom vs <*> optional (op "->" *> piType vs) <?> "function type"
   where makePi ty1 Nothing = ty1
         makePi ty1 (Just ty2) = ty1 Expr.--> ty2
 
