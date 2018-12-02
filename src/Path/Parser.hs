@@ -52,20 +52,20 @@ indentst = mkIndentationState 0 infIndentation True Gt
 whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
 
-globalTerm :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
+globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
-term, type', piType, functionType, var :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, piType, functionType, var :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
-term = type'
+term _ = type'
 
-type' _ = Expr.typeT <$ keyword "Type"
+type' = Expr.typeT <$ keyword "Type"
 
 piType vs = (do
   (v, ty) <- parens ((,) <$> identifier <* colon <*> term vs) <* op "->"
   (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type"
 
-functionType vs = makePi <$> type' vs <*> optional (op "->" *> piType vs) <?> "function type"
+functionType vs = makePi <$> type' <*> optional (op "->" *> piType vs) <?> "function type"
   where makePi ty1 Nothing = ty1
         makePi ty1 (Just ty2) = ty1 Expr.--> ty2
 
