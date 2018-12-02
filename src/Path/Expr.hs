@@ -170,10 +170,10 @@ check' i ctx tm ty = do
 
 
 identity :: Term Surface
-identity = Term (Core (Lam (Term (Core (Bound 0)))))
+identity = lam (var 0)
 
 constant :: Term Surface
-constant = Term (Core (Lam (Term (Core (Lam (Term (Core (Bound 1))))))))
+constant = lam (lam (var 1))
 
 
 class Functor f => Recursive f t | t -> f where
