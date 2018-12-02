@@ -79,7 +79,7 @@ lambda vs = (do
   vs' <- op "\\" *> some pattern <* dot
   bind vs' vs) <?> "lambda"
   where pattern = identifier <|> token (string "_") <?> "pattern"
-        bind [] vs = Expr.lam <$> term vs
+        bind [] vs = term vs
         bind ("_":vv) vs = Expr.lam <$> bind vv vs
         bind (v:vv) vs = Expr.lam <$> bind vv (v:vs)
 
