@@ -56,8 +56,14 @@ newtype Elab = Elab (ElabF Core Elab)
 unElab :: Elab -> ElabF Core Elab
 unElab (Elab elabF) = elabF
 
-data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Type }
+data ElabF f a = ElabF (f a) Type
   deriving (Eq, Functor, Ord, Show)
+
+elabFExpr :: ElabF f a -> f a
+elabFExpr (ElabF expr _) = expr
+
+elabFType :: ElabF f a -> Type
+elabFType (ElabF _ ty) = ty
 
 instance Recursive (ElabF Core) Elab where project = unElab
 
