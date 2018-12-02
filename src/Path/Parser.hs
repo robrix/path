@@ -44,3 +44,6 @@ directed = Directed BS.empty 0 0 0 0
 
 indentst :: IndentationState
 indentst = mkIndentationState 0 infIndentation True Gt
+
+whole :: TokenParsing m => m a -> m a
+whole p = whiteSpace *> p <* eof
