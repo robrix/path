@@ -72,10 +72,6 @@ functionType vs = makePi <$> type' vs <*> optional (op "->" *> piType vs) <?> "f
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
 
-name :: (Monad m, TokenParsing m) => [String] -> m Expr.Name
-name vs = toName <$> identifier <?> "name"
-  where toName n = maybe (Expr.Global n) Expr.Local (elemIndex n vs)
-
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
 
