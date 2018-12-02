@@ -134,7 +134,7 @@ eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m 
 eval (Term (Bound name)) = do
   val <- asks (lookup (Local name))
   maybe (fail ("free variable: " <> show name)) pure val
-eval (Term (Free name)) = pure (VNeutral (NFree name))
+eval (Term (Free name)) = pure (vfree name)
 eval (Term (Abs name body)) = VLam name body <$> ask
 eval (Term (App f a)) = do
   f' <- eval f
@@ -154,7 +154,7 @@ evalV (VNeutral n) = evalN n
 evalV v = pure v
 
 evalN :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Neutral -> m Value
-evalN (NFree n) = asks (lookup n) >>= maybe (pure (VNeutral (NFree n))) pure
+evalN (NFree n) = asks (lookup n) >>= maybe (pure (vfree n)) pure
 evalN (NApp n a) = do
   n' <- evalN n
   case n' of
@@ -194,7 +194,7 @@ infer term = fail ("no rule to infer type of term: " <> show term)
 
 check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
 check (Term (Core (Abs n b))) (VPi tn tt tb) = do
-  b' <- local ((Local n, tt) :) (local ((Local tn, VNeutral (NFree (Local tn))) :) (check b tb))
+  b' <- local ((Local n, tt) :) (local ((Local tn, vfree (Local tn)) :) (check b tb))
   pure (Elab (ElabF (Abs n b') (VPi tn tt tb)))
 check tm ty = do
   Elab (ElabF tm' elabTy) <- infer tm
