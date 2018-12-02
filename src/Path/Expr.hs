@@ -23,11 +23,12 @@ fresh = maybe (Local 0) (prime . fst) . Set.maxView
 
 
 data Core a
-  = Var Name
-  | Abs Name a
+  = Bound Int
+  | Free String
+  | Abs Int a
   | App a a
   | Type
-  | Pi Name a a
+  | Pi Int a a
   deriving (Eq, Functor, Ord, Show)
 
 data Surface a
@@ -48,11 +49,12 @@ type Type = Term
 
 freeVariables :: Type Core -> Set.Set Name
 freeVariables = cata $ \ ty -> case ty of
-  Var n -> Set.singleton n
-  Abs n b -> Set.delete n b
+  Bound n -> Set.singleton (Local n)
+  Free n -> Set.singleton (Global n)
+  Abs n b -> Set.delete (Local n) b
   App f a -> f <> a
   Type -> mempty
-  Pi n t b -> t <> Set.delete n b
+  Pi n t b -> t <> Set.delete (Local n) b
 
 aeq :: Type Core -> Type Core -> Bool
 aeq t1 t2 = run (runReader ([] :: [(Name, Name)]) (aeq' t1 t2))
@@ -66,18 +68,21 @@ aeq' (Term (Pi n1 t1 b1)) (Term (Pi n2 t2 b2)) = do
       b1 `aeq'` b2
     else do
       let n = fresh (freeVariables b1 <> freeVariables b2)
-      local (((n1, n) :) . ((n2, n) :)) (b1 `aeq'` b2)
+      local (((Local n1, n) :) . ((Local n2, n) :)) (b1 `aeq'` b2)
   else
     pure False
-aeq' (Term (Var n1)) (Term (Var n2)) = do
+aeq' (Term (Bound n1)) (Term (Bound n2)) = do
   env <- ask
-  pure (fromMaybe n1 (lookup n1 env) == fromMaybe n2 (lookup n2 env))
+  pure (fromMaybe (Local n1) (lookup (Local n1) env) == fromMaybe (Local n2) (lookup (Local n2) env))
+aeq' (Term (Free n1)) (Term (Free n2)) = do
+  env <- ask
+  pure (fromMaybe (Global n1) (lookup (Global n1) env) == fromMaybe (Global n2) (lookup (Global n2) env))
 aeq' (Term (Abs n1 b1)) (Term (Abs n2 b2)) = do
   if n1 == n2 then
     b1 `aeq'` b2
   else do
     let n = fresh (freeVariables b1 <> freeVariables b2)
-    local (((n1, n) :) . ((n2, n) :)) (b1 `aeq'` b2)
+    local (((Local n1, n) :) . ((Local n2, n) :)) (b1 `aeq'` b2)
 aeq' (Term (App f1 a1)) (Term (App f2 a2)) = do
   f <- f1 `aeq'` f2
   if f then
@@ -98,14 +103,14 @@ erase :: Elab -> Term Core
 erase = cata (Term . elabFExpr)
 
 data Value
-  = Closure Name (Term Core) Env
+  = Closure Int (Term Core) Env
   | TypeV
-  | PiV Name Value Value
+  | PiV Int Value Value
   | Neutral Neutral
   deriving (Eq, Ord, Show)
 
 data Neutral
-  = Free Name
+  = FreeN Name
   | AppN Neutral Value
   deriving (Eq, Ord, Show)
 
@@ -116,23 +121,25 @@ quote (PiV n t b) = Term (Pi n (quote t) (quote b))
 quote (Neutral n) = quoteN n
 
 quoteN :: Neutral -> Term Core
-quoteN (Free n) = Term (Var n)
+quoteN (FreeN (Global n)) = Term (Free n)
+quoteN (FreeN (Local n)) = Term (Bound n)
 quoteN (AppN n a) = Term (App (quoteN n) (quote a))
 
 
 type Env = [(Name, Value)]
 
 eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m Value
-eval (Term (Var name)) = do
-  val <- asks (lookup name)
+eval (Term (Bound name)) = do
+  val <- asks (lookup (Local name))
   maybe (fail ("free variable: " <> show name)) pure val
+eval (Term (Free name)) = pure (Neutral (FreeN (Global name)))
 eval (Term (Abs name body)) = Closure name body <$> ask
 eval (Term (App f a)) = do
   f' <- eval f
   case f' of
     Closure n b e -> do
       a' <- eval a
-      local (const ((n, a') : e)) (eval b)
+      local (const ((Local n, a') : e)) (eval b)
     Neutral n -> do
       a' <- eval a
       pure (Neutral (AppN n a'))
@@ -145,13 +152,13 @@ evalV (Neutral n) = evalN n
 evalV v = pure v
 
 evalN :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Neutral -> m Value
-evalN (Free n) = asks (lookup n) >>= maybe (pure (Neutral (Free n))) pure
+evalN (FreeN n) = asks (lookup n) >>= maybe (pure (Neutral (FreeN n))) pure
 evalN (AppN n a) = do
   n' <- evalN n
   case n' of
     Closure n b e -> do
       a' <- evalV a
-      local (const ((n, a') : e)) (eval b)
+      local (const ((Local n, a') : e)) (eval b)
     Neutral n'' -> Neutral . AppN n'' <$> evalV a
     v -> fail ("cannot apply " <> show v)
 
@@ -161,7 +168,7 @@ equate ty1 ty2 =
     fail ("could not judge " <> show ty1 <> " = " <> show ty2)
 
 infer :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> m Elab
-infer (Term (Core (Var name))) = asks (lookup name) >>= maybe (fail ("free variable: " <> show name)) (pure . Elab . ElabF (Var name))
+infer (Term (Core (Bound name))) = asks (lookup (Local name)) >>= maybe (fail ("free variable: " <> show name)) (pure . Elab . ElabF (Bound name))
 infer (Term (Ann tm ty)) = do
   ty' <- erase <$> check ty TypeV
   ty'' <- eval ty'
@@ -172,20 +179,20 @@ infer (Term (Core (App f a))) = do
     Elab (ElabF _ (PiV n t b)) -> do
       a' <- check a t
       a'' <- eval (erase a')
-      b' <- local ((n, a'') :) (evalV b)
+      b' <- local ((Local n, a'') :) (evalV b)
       pure (Elab (ElabF (App f' a') b'))
     _ -> fail ("illegal application of " <> show f <> " to " <> show a)
 infer (Term (Core Type)) = pure (Elab (ElabF Type TypeV))
 infer (Term (Core (Pi n t b))) = do
   t' <- check t TypeV
   t'' <- eval (erase t')
-  b' <- local ((n, t'') :) (check b TypeV)
+  b' <- local ((Local n, t'') :) (check b TypeV)
   pure (Elab (ElabF (Pi n t' b') TypeV))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
 check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
 check (Term (Core (Abs n b))) (PiV tn tt tb) = do
-  b' <- local ((n, tt) :) (local ((tn, Neutral (Free tn)) :) (check b tb))
+  b' <- local ((Local n, tt) :) (local ((Local tn, Neutral (FreeN (Local tn))) :) (check b tb))
   pure (Elab (ElabF (Abs n b') (PiV tn tt tb)))
 check tm ty = do
   Elab (ElabF tm' elabTy) <- infer tm
@@ -194,10 +201,10 @@ check tm ty = do
 
 
 identity :: Term Surface
-identity = Term (Core (Abs (Local 0) (Term (Core (Var (Local 0))))))
+identity = Term (Core (Abs 0 (Term (Core (Bound 0)))))
 
 constant :: Term Surface
-constant = Term (Core (Abs (Local 0) (Term (Core (Abs (Local 1) (Term (Core (Var (Local 0)))))))))
+constant = Term (Core (Abs 0 (Term (Core (Abs 1 (Term (Core (Bound 0))))))))
 
 
 class Functor f => Recursive f t | t -> f where
