@@ -2,7 +2,7 @@
 module Path.Expr where
 
 import Control.Monad (unless)
-import Data.Function (on)
+import Data.Function (fix, on)
 
 data Name
   = Global String
@@ -66,18 +66,13 @@ showCore go vs d c = case c of
   Type -> showString "Type"
   Pi t b -> let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
 
-showSurfaceTerm :: [String] -> Int -> Term Surface -> ShowS
-showSurfaceTerm vs d (Term (Core core)) = showCore showSurfaceTerm vs d core
-showSurfaceTerm vs d (Term (Ann e t)) = showParen (d > 0) $ showSurfaceTerm vs 1 e . showString " : " . showSurfaceTerm vs 1 t
-
 instance Show (Term Surface) where
-  showsPrec = showSurfaceTerm []
-
-showCoreTerm :: [String] -> Int -> Term Core -> ShowS
-showCoreTerm vs d (Term core) = showCore showCoreTerm vs d core
+  showsPrec = fix (\ f vs d (Term surface) -> case surface of
+    Core core -> showCore f vs d core
+    Ann e t -> showParen (d > 0) $ f vs 1 e . showString " : " . f vs 1 t) []
 
 instance Show (Term Core) where
-  showsPrec = showCoreTerm []
+  showsPrec = fix (\ f vs d (Term core) -> showCore f vs d core) []
 
 
 type Type = Value
