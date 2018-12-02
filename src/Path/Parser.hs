@@ -64,7 +64,7 @@ application vs = functionType vs `chainl1` pure (Expr.#) <?> "function applicati
 type' = Expr.typeT <$ keyword "Type"
 
 piType vs = (do
-  (v, ty) <- parens ((,) <$> identifier <* colon <*> term vs) <* op "->"
+  (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
   (ty Expr.-->) <$> term (v : vs)) <?> "dependent function type"
 
 functionType vs = atom vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"

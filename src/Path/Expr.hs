@@ -74,7 +74,11 @@ showCore go vs d c = case c of
   Lam b -> let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
   f :@ a -> showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
   Type -> showString "Type"
-  Pi t b -> let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
+  Pi t b -> let v = fresh vs in showParen (d > 0) $ showBrace True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
+
+showBrace :: Bool -> ShowS -> ShowS
+showBrace True s = showChar '{' . s . showChar '}'
+showBrace False s = s
 
 showCoreTerm :: [String] -> Int -> Term Core -> ShowS
 showCoreTerm = fix (\ f vs d (Term core) -> showCore f vs d core)
