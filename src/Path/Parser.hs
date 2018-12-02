@@ -59,7 +59,7 @@ term, application, piType, functionType, var, lambda, atom :: (Monad m, TokenPar
 
 term = application
 
-application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
+application vs = functionType vs `chainl1` pure (Expr.#) <?> "function application"
 
 type' = Expr.typeT <$ keyword "Type"
 
