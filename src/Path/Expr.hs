@@ -32,8 +32,8 @@ infixr 0 -->
 typeT :: Term Surface
 typeT = Term (Core Type)
 
-tvar :: Int -> Term Surface
-tvar = Term . Core . Bound
+var :: Int -> Term Surface
+var = Term . Core . Bound
 
 lam :: Term Surface -> Term Surface
 lam = Term . Core . Lam
