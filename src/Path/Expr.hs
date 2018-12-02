@@ -25,7 +25,7 @@ fresh = maybe (Local 0) (prime . fst) . Set.maxView
 data Core a
   = Bound Int
   | Free Name
-  | Abs Int a
+  | Lam Int a
   | a :@ a
   | Type
   | Pi Int a a
@@ -51,7 +51,7 @@ freeVariables :: Term Core -> Set.Set Name
 freeVariables = cata $ \ ty -> case ty of
   Bound n -> Set.singleton (Local n)
   Free n -> Set.singleton n
-  Abs n b -> Set.delete (Local n) b
+  Lam n b -> Set.delete (Local n) b
   f :@ a -> f <> a
   Type -> mempty
   Pi n t b -> t <> Set.delete (Local n) b
@@ -77,7 +77,7 @@ aeq' (Term (Bound n1)) (Term (Bound n2)) = do
 aeq' (Term (Free n1)) (Term (Free n2)) = do
   env <- ask
   pure (fromMaybe n1 (lookup n1 env) == fromMaybe n2 (lookup n2 env))
-aeq' (Term (Abs n1 b1)) (Term (Abs n2 b2)) = do
+aeq' (Term (Lam n1 b1)) (Term (Lam n2 b2)) = do
   if n1 == n2 then
     b1 `aeq'` b2
   else do
@@ -119,7 +119,7 @@ data Neutral
 
 quote :: Value -> Term Core
 quote VType = Term Type
-quote (VLam n b _) = Term (Abs n b)
+quote (VLam n b _) = Term (Lam n b)
 quote (VPi n t b) = Term (Pi n (quote t) (quote b))
 quote (VNeutral n) = quoteN n
 
@@ -135,7 +135,7 @@ eval (Term (Bound name)) = do
   val <- asks (lookup (Local name))
   maybe (fail ("free variable: " <> show name)) pure val
 eval (Term (Free name)) = pure (vfree name)
-eval (Term (Abs name body)) = VLam name body <$> ask
+eval (Term (Lam name body)) = VLam name body <$> ask
 eval (Term (f :@ a)) = do
   f' <- eval f
   case f' of
@@ -193,9 +193,9 @@ infer (Term (Core (Pi n t b))) = do
 infer term = fail ("no rule to infer type of term: " <> show term)
 
 check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
-check (Term (Core (Abs n b))) (VPi tn tt tb) = do
+check (Term (Core (Lam n b))) (VPi tn tt tb) = do
   b' <- local ((Local n, tt) :) (local ((Local tn, vfree (Local tn)) :) (check b tb))
-  pure (Elab (ElabF (Abs n b') (VPi tn tt tb)))
+  pure (Elab (ElabF (Lam n b') (VPi tn tt tb)))
 check tm ty = do
   Elab (ElabF tm' elabTy) <- infer tm
   equate ty elabTy
@@ -203,10 +203,10 @@ check tm ty = do
 
 
 identity :: Term Surface
-identity = Term (Core (Abs 0 (Term (Core (Bound 0)))))
+identity = Term (Core (Lam 0 (Term (Core (Bound 0)))))
 
 constant :: Term Surface
-constant = Term (Core (Abs 0 (Term (Core (Abs 1 (Term (Core (Bound 0))))))))
+constant = Term (Core (Lam 0 (Term (Core (Lam 1 (Term (Core (Bound 0))))))))
 
 
 class Functor f => Recursive f t | t -> f where
