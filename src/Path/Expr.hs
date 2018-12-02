@@ -24,6 +24,9 @@ data Surface a
   | Ann a (Term Surface)
   deriving (Eq, Functor, Ord, Show)
 
+(-->) :: Term Surface -> Term Surface -> Term Surface
+a --> b = Term (Core (Pi a b))
+
 newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
