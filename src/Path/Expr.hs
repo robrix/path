@@ -181,7 +181,7 @@ infer term = fail ("no rule to infer type of term: " <> show term)
 
 check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
 check (Term (Core (Abs n b))) (PiV tn tt tb) = do
-  b' <- local ((n, tt) :) (check b tb)
+  b' <- local ((n, tt) :) (local ((tn, Neutral (Free tn)) :) (check b tb))
   pure (Elab (ElabF (Abs n b') (PiV tn tt tb)))
 check tm ty = do
   Elab (ElabF tm' elabTy) <- infer tm
