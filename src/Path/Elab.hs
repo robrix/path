@@ -25,8 +25,6 @@ instance Effect Elaborate where
 
 type Context = Map.Map Name Value
 
-type Result = Either String
-
 infer :: (Carrier sig m, MonadFail m) => Int -> Context -> Term Surface -> m Elab
 infer i ctx (Term (Ann e t)) = do
   t' <- check i ctx t VType
