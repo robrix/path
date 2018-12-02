@@ -66,30 +66,15 @@ showCore go vs d c = case c of
   Type -> showString "Type"
   Pi t b -> let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
 
-
 showSurfaceTerm :: [String] -> Int -> Term Surface -> ShowS
-showSurfaceTerm vs _ (Term (Core (Bound i))) = showString (vs !! i)
-showSurfaceTerm _  _ (Term (Core (Free (Global s)))) = showString s
-showSurfaceTerm _  _ (Term (Core (Free (Local i)))) = showChar '_' . shows i
-showSurfaceTerm _  _ (Term (Core (Free (Quote i)))) = showChar '\'' . showChar '_' . shows i
-showSurfaceTerm vs d (Term (Core (Lam b))) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . showSurfaceTerm (v : vs) 0 b
-showSurfaceTerm vs d (Term (Core (f :@ a))) = showParen (d > 10) $ showSurfaceTerm vs 10 f . showChar ' ' . showSurfaceTerm vs 11 a
-showSurfaceTerm _  _ (Term (Core Type)) = showString "Type"
-showSurfaceTerm vs d (Term (Core (Pi t b))) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . showSurfaceTerm vs 0 t) . showString " -> " . showSurfaceTerm (v : vs) 0 b
+showSurfaceTerm vs d (Term (Core core)) = showCore showSurfaceTerm vs d core
 showSurfaceTerm vs d (Term (Ann e t)) = showParen (d > 0) $ showSurfaceTerm vs 1 e . showString " : " . showSurfaceTerm vs 1 t
 
 instance Show (Term Surface) where
   showsPrec = showSurfaceTerm []
 
 showCoreTerm :: [String] -> Int -> Term Core -> ShowS
-showCoreTerm vs _ (Term (Bound i)) = showString (vs !! i)
-showCoreTerm _  _ (Term (Free (Global s))) = showString s
-showCoreTerm _  _ (Term (Free (Local i))) = showChar '_' . shows i
-showCoreTerm _  _ (Term (Free (Quote i))) = showString "'_" . shows i
-showCoreTerm vs d (Term (Lam b)) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . showCoreTerm (v : vs) 0 b
-showCoreTerm vs d (Term (f :@ a)) = showParen (d > 10) $ showCoreTerm vs 10 f . showChar ' ' . showCoreTerm vs 11 a
-showCoreTerm _  _ (Term Type) = showString "Type"
-showCoreTerm vs d (Term (Pi t b)) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . showCoreTerm vs 0 t) . showString " -> " . showCoreTerm (v : vs) 0 b
+showCoreTerm vs d (Term core) = showCore showCoreTerm vs d core
 
 instance Show (Term Core) where
   showsPrec = showCoreTerm []
