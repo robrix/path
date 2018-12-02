@@ -67,9 +67,7 @@ piType vs = (do
   (v, ty) <- parens ((,) <$> identifier <* colon <*> term vs) <* op "->"
   (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type"
 
-functionType vs = makePi <$> atom vs <*> optional (op "->" *> piType vs) <?> "function type"
-  where makePi ty1 Nothing = ty1
-        makePi ty1 (Just ty2) = ty1 Expr.--> ty2
+functionType vs = atom vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
 
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
