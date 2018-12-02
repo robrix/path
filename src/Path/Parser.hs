@@ -6,6 +6,7 @@ import Control.Monad.IO.Class
 import Control.Monad (MonadPlus(..))
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
+import qualified Data.HashSet as HashSet
 import qualified Path.Expr as Expr
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -55,6 +56,9 @@ term, type':: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 term = type'
 
 type' = Expr.typeT <$ keyword "Type"
+
+reservedWords :: HashSet.HashSet String
+reservedWords =  HashSet.fromList [ "Type" ]
 
 keyword, op :: TokenParsing m => String -> m String
 
