@@ -38,6 +38,10 @@ tvar = Term . Core . Bound
 lam :: Term Surface -> Term Surface
 lam = Term . Core . Lam
 
+(.:)  :: Term Surface -> Term Surface -> Term Surface
+a .: t = Term (Ann a t)
+
+
 newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
