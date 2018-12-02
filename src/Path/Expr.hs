@@ -109,6 +109,9 @@ data Value
   | VNeutral Neutral
   deriving (Eq, Ord, Show)
 
+vfree :: Name -> Value
+vfree = VNeutral . NFree
+
 data Neutral
   = NFree Name
   | NApp Neutral Value
