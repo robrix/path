@@ -55,7 +55,7 @@ whole p = whiteSpace *> p <* eof
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
-term, application, piType, functionType, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, application, annotation, piType, functionType, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
 term = application
 
@@ -67,7 +67,9 @@ piType vs = (do
   (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
   (ty Expr.-->) <$> term (v : vs)) <?> "dependent function type"
 
-functionType vs = atom vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
+functionType vs = annotation vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
+
+annotation vs = atom vs `chainr1` ((Expr..:) <$ op ":")
 
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
