@@ -57,9 +57,9 @@ globalTerm = term []
 
 term, application, annotation, piType, functionType, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
-term = application
+term = annotation
 
-application vs = annotation vs `chainl1` pure (Expr.#) <?> "function application"
+application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
 
 type' = Expr.typeT <$ keyword "Type"
 
@@ -69,7 +69,7 @@ piType vs = (do
 
 annotation vs = functionType vs `chainr1` ((Expr..:) <$ op ":")
 
-functionType vs = atom vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
+functionType vs = application vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
 
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
