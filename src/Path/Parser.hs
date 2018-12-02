@@ -72,7 +72,7 @@ functionType vs = makePi <$> type' <*> optional (op "->" *> piType vs) <?> "func
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
 
-atom vs = var vs <|> type'
+atom vs = var vs <|> type' <|> parens (term vs)
 
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
