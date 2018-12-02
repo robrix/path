@@ -78,7 +78,10 @@ instance Show (Term Core) where
 type Type = Value
 
 newtype Elab = Elab (ElabF Core Elab)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord)
+
+instance Show Elab where
+  showsPrec = fix (\ f vs d (Elab (ElabF core ty)) -> showParen (d > 0) $ showCore f vs 1 core . showString " : " . showsPrec 1 ty) []
 
 unElab :: Elab -> ElabF Core Elab
 unElab (Elab elabF) = elabF
