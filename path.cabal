@@ -18,8 +18,11 @@ library
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.11 && <4.12
+                     , bytestring
                      , containers
                      , fused-effects < 0.2
+                     , indentation-trifecta
+                     , parsers
                      , trifecta
   hs-source-dirs:      src
   default-language:    Haskell2010
