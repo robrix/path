@@ -55,17 +55,19 @@ prime :: String -> String
 prime [c] | c < 'z' = [succ c]
 prime s = s <> "ʹ"
 
+showSurface :: [String] -> Int -> Term Surface -> ShowS
+showSurface vs _ (Term (Core (Bound i))) = showString (vs !! i)
+showSurface _  _ (Term (Core (Free (Global s)))) = showString s
+showSurface _  _ (Term (Core (Free (Local i)))) = showChar '_' . shows i
+showSurface _  _ (Term (Core (Free (Quote i)))) = showChar '\'' . showChar '_' . shows i
+showSurface vs d (Term (Core (Lam b))) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . showSurface (v : vs) 0 b
+showSurface vs d (Term (Core (f :@ a))) = showParen (d > 10) $ showSurface vs 10 f . showChar ' ' . showSurface vs 11 a
+showSurface _  _ (Term (Core Type)) = showString "Type"
+showSurface vs d (Term (Core (Pi t b))) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . showSurface vs 0 t) . showString " -> " . showSurface (v : vs) 0 b
+showSurface vs d (Term (Ann e t)) = showParen (d > 0) $ showSurface vs 1 e . showString " : " . showSurface vs 1 t
+
 instance Show (Term Surface) where
-  showsPrec = go []
-    where go vs _ (Term (Core (Bound i))) = showString (vs !! i)
-          go _  _ (Term (Core (Free (Global s)))) = showString s
-          go _  _ (Term (Core (Free (Local i)))) = showChar '_' . shows i
-          go _  _ (Term (Core (Free (Quote i)))) = showChar '\'' . showChar '_' . shows i
-          go vs d (Term (Core (Lam b))) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
-          go vs d (Term (Core (f :@ a))) = showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
-          go _  _ (Term (Core Type)) = showString "Type"
-          go vs d (Term (Core (Pi t b))) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
-          go vs d (Term (Ann e t)) = showParen (d > 0) $ go vs 1 e . showString " : " . go vs 1 t
+  showsPrec = showSurface []
 
 instance Show (Term Core) where
   showsPrec = go []
