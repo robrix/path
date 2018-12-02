@@ -13,3 +13,6 @@ data Elaborate (m :: * -> *) k
 
 instance HFunctor Elaborate where
   hmap _ = coerce
+
+instance Effect Elaborate where
+  handle state handler = coerce . fmap (handler . (<$ state))
