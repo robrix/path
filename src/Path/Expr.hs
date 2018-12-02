@@ -26,7 +26,7 @@ data Core a
   = Bound Int
   | Free Name
   | Abs Int a
-  | App a a
+  | a :@ a
   | Type
   | Pi Int a a
   deriving (Eq, Functor, Ord, Show)
@@ -52,7 +52,7 @@ freeVariables = cata $ \ ty -> case ty of
   Bound n -> Set.singleton (Local n)
   Free n -> Set.singleton n
   Abs n b -> Set.delete (Local n) b
-  App f a -> f <> a
+  f :@ a -> f <> a
   Type -> mempty
   Pi n t b -> t <> Set.delete (Local n) b
 
@@ -83,7 +83,7 @@ aeq' (Term (Abs n1 b1)) (Term (Abs n2 b2)) = do
   else do
     let n = fresh (freeVariables b1 <> freeVariables b2)
     local ((Local n1, n) :) (local ((Local n2, n) :) (b1 `aeq'` b2))
-aeq' (Term (App f1 a1)) (Term (App f2 a2)) = do
+aeq' (Term (f1 :@ a1)) (Term (f2 :@ a2)) = do
   f <- f1 `aeq'` f2
   if f then
     a1 `aeq'` a2
@@ -125,7 +125,7 @@ quote (VNeutral n) = quoteN n
 
 quoteN :: Neutral -> Term Core
 quoteN (NFree n) = Term (Free n)
-quoteN (NApp n a) = Term (App (quoteN n) (quote a))
+quoteN (NApp n a) = Term (quoteN n :@ quote a)
 
 
 type Env = [(Name, Value)]
@@ -136,7 +136,7 @@ eval (Term (Bound name)) = do
   maybe (fail ("free variable: " <> show name)) pure val
 eval (Term (Free name)) = pure (vfree name)
 eval (Term (Abs name body)) = VLam name body <$> ask
-eval (Term (App f a)) = do
+eval (Term (f :@ a)) = do
   f' <- eval f
   case f' of
     VLam n b e -> do
@@ -175,14 +175,14 @@ infer (Term (Ann tm ty)) = do
   ty' <- erase <$> check ty VType
   ty'' <- eval ty'
   check tm ty''
-infer (Term (Core (App f a))) = do
+infer (Term (Core (f :@ a))) = do
   f' <- infer f
   case f' of
     Elab (ElabF _ (VPi n t b)) -> do
       a' <- check a t
       a'' <- eval (erase a')
       b' <- local ((Local n, a'') :) (evalV b)
-      pure (Elab (ElabF (App f' a') b'))
+      pure (Elab (ElabF (f' :@ a') b'))
     _ -> fail ("illegal application of " <> show f <> " to " <> show a)
 infer (Term (Core Type)) = pure (Elab (ElabF Type VType))
 infer (Term (Core (Pi n t b))) = do
