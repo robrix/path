@@ -63,10 +63,9 @@ application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
 
 type' = Expr.typeT <$ keyword "Type"
 
-piType vs = ((do
+piType vs = (do
   (v, ty) <- parens ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type")
-  <|> functionType vs
+  (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type"
 
 functionType vs = makePi <$> atom vs <*> optional (op "->" *> piType vs) <?> "function type"
   where makePi ty1 Nothing = ty1
