@@ -94,7 +94,7 @@ aeq' _ _ = pure False
 newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
 
-data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Value }
+data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Type }
   deriving (Eq, Functor, Ord, Show)
 
 instance Recursive (ElabF Core) Elab where project = unElab
