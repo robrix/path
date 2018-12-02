@@ -73,6 +73,9 @@ showCore go vs d c = case c of
 showCoreTerm :: [String] -> Int -> Term Core -> ShowS
 showCoreTerm = fix (\ f vs d (Term core) -> showCore f vs d core)
 
+showType :: [String] -> Int -> Type -> ShowS
+showType vs d = showCoreTerm vs d . quote
+
 instance Show (Term Surface) where
   showsPrec = fix (\ f vs d (Term surface) -> case surface of
     Core core -> showCore f vs d core
