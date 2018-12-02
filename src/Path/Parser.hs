@@ -51,6 +51,11 @@ indentst = mkIndentationState 0 infIndentation True Gt
 whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
 
+
+definition :: (Monad m, TokenParsing m) => m (String, Expr.Term Expr.Surface)
+definition = (,) <$> identifier <* op "=" <*> globalTerm
+
+
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
