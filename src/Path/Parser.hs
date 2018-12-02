@@ -28,19 +28,16 @@ instance TokenParsing Inner where
 
 
 parseFile :: MonadIO m => Parser a -> FilePath -> m (Maybe a)
-parseFile p = Trifecta.parseFromFile (runInner (whiteSpace *> evalCharIndentationParserT p indentst))
+parseFile p = Trifecta.parseFromFile (runInner (whiteSpace *> evalIndentationParserT p indentst))
 
 parseString :: Parser a -> String -> Either String a
-parseString p = toResult . Trifecta.parseString (runInner (evalCharIndentationParserT p indentst)) directed
+parseString p = toResult . Trifecta.parseString (runInner (evalIndentationParserT p indentst)) directed
 
 toResult :: Trifecta.Result a -> Either String a
 toResult r = case r of
   Trifecta.Success a -> Right a
   Trifecta.Failure info -> Left (show (Trifecta._errDoc info))
 
-
-evalCharIndentationParserT :: Monad m => IndentationParserT Char m a -> IndentationState -> m a
-evalCharIndentationParserT = evalIndentationParserT
 
 directed :: Delta
 directed = Directed BS.empty 0 0 0 0
