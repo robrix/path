@@ -3,19 +3,23 @@ module Path.Expr where
 
 import Control.Effect
 import Control.Effect.Fail
-import Control.Effect.Reader
+import Control.Effect.Reader hiding (Local)
 import Control.Monad (unless)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Prelude hiding (fail)
 
-type Name = String
+data Name
+  = Global String
+  | Local Int
+  deriving (Eq, Ord, Show)
 
 prime :: Name -> Name
-prime n = n <> "ʹ"
+prime (Global n) = Global (n <> "ʹ")
+prime (Local i) = Local (succ i)
 
 fresh :: Set.Set Name -> Name
-fresh = maybe "x" (prime . fst) . Set.maxView
+fresh = maybe (Local 0) (prime . fst) . Set.maxView
 
 
 data Core a
@@ -121,7 +125,7 @@ type Env = [(Name, Value)]
 eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m Value
 eval (Term (Var name)) = do
   val <- asks (lookup name)
-  maybe (fail ("free variable: " <> name)) pure val
+  maybe (fail ("free variable: " <> show name)) pure val
 eval (Term (Abs name body)) = Closure name body <$> ask
 eval (Term (App f a)) = do
   f' <- eval f
@@ -157,7 +161,7 @@ equate ty1 ty2 =
     fail ("could not judge " <> show ty1 <> " = " <> show ty2)
 
 infer :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> m Elab
-infer (Term (Core (Var name))) = asks (lookup name) >>= maybe (fail ("free variable: " <> name)) (pure . Elab . ElabF (Var name))
+infer (Term (Core (Var name))) = asks (lookup name) >>= maybe (fail ("free variable: " <> show name)) (pure . Elab . ElabF (Var name))
 infer (Term (Ann tm ty)) = do
   ty' <- erase <$> check ty TypeV
   ty'' <- eval ty'
@@ -190,10 +194,10 @@ check tm ty = do
 
 
 identity :: Term Surface
-identity = Term (Core (Abs "x" (Term (Core (Var "x")))))
+identity = Term (Core (Abs (Local 0) (Term (Core (Var (Local 0))))))
 
 constant :: Term Surface
-constant = Term (Core (Abs "x" (Term (Core (Abs "y" (Term (Core (Var "x"))))))))
+constant = Term (Core (Abs (Local 0) (Term (Core (Abs (Local 1) (Term (Core (Var (Local 0)))))))))
 
 
 class Functor f => Recursive f t | t -> f where
