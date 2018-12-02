@@ -68,7 +68,7 @@ aeq' (Term (Pi n1 t1 b1)) (Term (Pi n2 t2 b2)) = do
       b1 `aeq'` b2
     else do
       let n = fresh (freeVariables b1 <> freeVariables b2)
-      local (((Local n1, n) :) . ((Local n2, n) :)) (b1 `aeq'` b2)
+      local ((Local n1, n) :) (local ((Local n2, n) :) (b1 `aeq'` b2))
   else
     pure False
 aeq' (Term (Bound n1)) (Term (Bound n2)) = do
@@ -82,7 +82,7 @@ aeq' (Term (Abs n1 b1)) (Term (Abs n2 b2)) = do
     b1 `aeq'` b2
   else do
     let n = fresh (freeVariables b1 <> freeVariables b2)
-    local (((Local n1, n) :) . ((Local n2, n) :)) (b1 `aeq'` b2)
+    local ((Local n1, n) :) (local ((Local n2, n) :) (b1 `aeq'` b2))
 aeq' (Term (App f1 a1)) (Term (App f2 a2)) = do
   f <- f1 `aeq'` f2
   if f then
