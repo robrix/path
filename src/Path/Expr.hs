@@ -35,6 +35,9 @@ typeT = Term (Core Type)
 tvar :: Int -> Term Surface
 tvar = Term . Core . Bound
 
+lam :: Term Surface -> Term Surface
+lam = Term . Core . Lam
+
 newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
