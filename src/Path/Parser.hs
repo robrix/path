@@ -20,7 +20,6 @@ import Text.Trifecta.Delta
 import Text.Trifecta.Indentation
 
 type Parser = IndentationParserT Char Inner
--- type MonadParsing m = (IndentationParsing m, Monad m, TokenParsing m)
 
 newtype Inner a = Inner { runInner :: Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, Trifecta.DeltaParsing, Functor, LookAheadParsing, Trifecta.MarkParsing Delta, Monad, MonadPlus, Parsing)
