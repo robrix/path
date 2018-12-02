@@ -103,10 +103,10 @@ erase :: Elab -> Term Core
 erase = cata (Term . elabFExpr)
 
 data Value
-  = Closure Int (Term Core) Env
-  | TypeV
-  | PiV Int Value Value
-  | Neutral Neutral
+  = VLam Int (Term Core) Env
+  | VType
+  | VPi Int Value Value
+  | VNeutral Neutral
   deriving (Eq, Ord, Show)
 
 data Neutral
@@ -115,10 +115,10 @@ data Neutral
   deriving (Eq, Ord, Show)
 
 quote :: Value -> Term Core
-quote TypeV = Term Type
-quote (Closure n b _) = Term (Abs n b)
-quote (PiV n t b) = Term (Pi n (quote t) (quote b))
-quote (Neutral n) = quoteN n
+quote VType = Term Type
+quote (VLam n b _) = Term (Abs n b)
+quote (VPi n t b) = Term (Pi n (quote t) (quote b))
+quote (VNeutral n) = quoteN n
 
 quoteN :: Neutral -> Term Core
 quoteN (NFree n) = Term (Free n)
@@ -131,34 +131,34 @@ eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m 
 eval (Term (Bound name)) = do
   val <- asks (lookup (Local name))
   maybe (fail ("free variable: " <> show name)) pure val
-eval (Term (Free name)) = pure (Neutral (NFree name))
-eval (Term (Abs name body)) = Closure name body <$> ask
+eval (Term (Free name)) = pure (VNeutral (NFree name))
+eval (Term (Abs name body)) = VLam name body <$> ask
 eval (Term (App f a)) = do
   f' <- eval f
   case f' of
-    Closure n b e -> do
+    VLam n b e -> do
       a' <- eval a
       local (const ((Local n, a') : e)) (eval b)
-    Neutral n -> do
+    VNeutral n -> do
       a' <- eval a
-      pure (Neutral (NApp n a'))
+      pure (VNeutral (NApp n a'))
     v -> fail ("cannot apply " <> show v)
-eval (Term Type) = pure TypeV
-eval (Term (Pi name ty body)) = PiV name <$> eval ty <*> eval body
+eval (Term Type) = pure VType
+eval (Term (Pi name ty body)) = VPi name <$> eval ty <*> eval body
 
 evalV :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Value -> m Value
-evalV (Neutral n) = evalN n
+evalV (VNeutral n) = evalN n
 evalV v = pure v
 
 evalN :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Neutral -> m Value
-evalN (NFree n) = asks (lookup n) >>= maybe (pure (Neutral (NFree n))) pure
+evalN (NFree n) = asks (lookup n) >>= maybe (pure (VNeutral (NFree n))) pure
 evalN (NApp n a) = do
   n' <- evalN n
   case n' of
-    Closure n b e -> do
+    VLam n b e -> do
       a' <- evalV a
       local (const ((Local n, a') : e)) (eval b)
-    Neutral n'' -> Neutral . NApp n'' <$> evalV a
+    VNeutral n'' -> VNeutral . NApp n'' <$> evalV a
     v -> fail ("cannot apply " <> show v)
 
 equate :: MonadFail m => Value -> Value -> m ()
@@ -169,30 +169,30 @@ equate ty1 ty2 =
 infer :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> m Elab
 infer (Term (Core (Bound name))) = asks (lookup (Local name)) >>= maybe (fail ("free variable: " <> show name)) (pure . Elab . ElabF (Bound name))
 infer (Term (Ann tm ty)) = do
-  ty' <- erase <$> check ty TypeV
+  ty' <- erase <$> check ty VType
   ty'' <- eval ty'
   check tm ty''
 infer (Term (Core (App f a))) = do
   f' <- infer f
   case f' of
-    Elab (ElabF _ (PiV n t b)) -> do
+    Elab (ElabF _ (VPi n t b)) -> do
       a' <- check a t
       a'' <- eval (erase a')
       b' <- local ((Local n, a'') :) (evalV b)
       pure (Elab (ElabF (App f' a') b'))
     _ -> fail ("illegal application of " <> show f <> " to " <> show a)
-infer (Term (Core Type)) = pure (Elab (ElabF Type TypeV))
+infer (Term (Core Type)) = pure (Elab (ElabF Type VType))
 infer (Term (Core (Pi n t b))) = do
-  t' <- check t TypeV
+  t' <- check t VType
   t'' <- eval (erase t')
-  b' <- local ((Local n, t'') :) (check b TypeV)
-  pure (Elab (ElabF (Pi n t' b') TypeV))
+  b' <- local ((Local n, t'') :) (check b VType)
+  pure (Elab (ElabF (Pi n t' b') VType))
 infer term = fail ("no rule to infer type of term: " <> show term)
 
 check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
-check (Term (Core (Abs n b))) (PiV tn tt tb) = do
-  b' <- local ((Local n, tt) :) (local ((Local tn, Neutral (NFree (Local tn))) :) (check b tb))
-  pure (Elab (ElabF (Abs n b') (PiV tn tt tb)))
+check (Term (Core (Abs n b))) (VPi tn tt tb) = do
+  b' <- local ((Local n, tt) :) (local ((Local tn, VNeutral (NFree (Local tn))) :) (check b tb))
+  pure (Elab (ElabF (Abs n b') (VPi tn tt tb)))
 check tm ty = do
   Elab (ElabF tm' elabTy) <- infer tm
   equate ty elabTy
