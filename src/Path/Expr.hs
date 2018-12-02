@@ -24,7 +24,7 @@ fresh = maybe (Local 0) (prime . fst) . Set.maxView
 
 data Core a
   = Bound Int
-  | Free String
+  | Free Name
   | Abs Int a
   | App a a
   | Type
@@ -50,7 +50,7 @@ type Type = Term
 freeVariables :: Type Core -> Set.Set Name
 freeVariables = cata $ \ ty -> case ty of
   Bound n -> Set.singleton (Local n)
-  Free n -> Set.singleton (Global n)
+  Free n -> Set.singleton n
   Abs n b -> Set.delete (Local n) b
   App f a -> f <> a
   Type -> mempty
@@ -76,7 +76,7 @@ aeq' (Term (Bound n1)) (Term (Bound n2)) = do
   pure (fromMaybe (Local n1) (lookup (Local n1) env) == fromMaybe (Local n2) (lookup (Local n2) env))
 aeq' (Term (Free n1)) (Term (Free n2)) = do
   env <- ask
-  pure (fromMaybe (Global n1) (lookup (Global n1) env) == fromMaybe (Global n2) (lookup (Global n2) env))
+  pure (fromMaybe n1 (lookup n1 env) == fromMaybe n2 (lookup n2 env))
 aeq' (Term (Abs n1 b1)) (Term (Abs n2 b2)) = do
   if n1 == n2 then
     b1 `aeq'` b2
@@ -121,8 +121,7 @@ quote (PiV n t b) = Term (Pi n (quote t) (quote b))
 quote (Neutral n) = quoteN n
 
 quoteN :: Neutral -> Term Core
-quoteN (FreeN (Global n)) = Term (Free n)
-quoteN (FreeN (Local n)) = Term (Bound n)
+quoteN (FreeN n) = Term (Free n)
 quoteN (AppN n a) = Term (App (quoteN n) (quote a))
 
 
@@ -132,7 +131,7 @@ eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m 
 eval (Term (Bound name)) = do
   val <- asks (lookup (Local name))
   maybe (fail ("free variable: " <> show name)) pure val
-eval (Term (Free name)) = pure (Neutral (FreeN (Global name)))
+eval (Term (Free name)) = pure (Neutral (FreeN name))
 eval (Term (Abs name body)) = Closure name body <$> ask
 eval (Term (App f a)) = do
   f' <- eval f
