@@ -55,7 +55,7 @@ whole p = whiteSpace *> p <* eof
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
-term, piType, functionType, var :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, piType, functionType, var, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
 term _ = type'
 
@@ -71,6 +71,8 @@ functionType vs = makePi <$> type' <*> optional (op "->" *> piType vs) <?> "func
 
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
+
+atom vs = var vs <|> type'
 
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
