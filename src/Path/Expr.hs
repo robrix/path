@@ -32,6 +32,9 @@ infixr 0 -->
 typeT :: Term Surface
 typeT = Term (Core Type)
 
+tvar :: Int -> Term Surface
+tvar = Term . Core . Bound
+
 newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
