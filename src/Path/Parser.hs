@@ -10,6 +10,7 @@ import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
 import Text.Parser.Token
+import Text.Parser.Token.Highlight
 import Text.Parser.Token.Style
 import qualified Text.Trifecta as Trifecta
 import Text.Trifecta.Delta
@@ -47,3 +48,9 @@ indentst = mkIndentationState 0 infIndentation True Gt
 
 whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
+
+keyword, op :: TokenParsing m => String -> m String
+
+keyword s = token (highlight ReservedIdentifier (try (string s <* notFollowedBy alphaNum))) <?> s
+
+op s = token (highlight Operator (string s)) <?> s
