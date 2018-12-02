@@ -74,7 +74,7 @@ showCore go vs d c = case c of
   Lam b -> let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
   f :@ a -> showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
   Type -> showString "Type"
-  Pi t b -> let v = fresh vs in showParen (d > 0) $ showBrace True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
+  Pi t b -> let v = fresh vs in showParen (d > 1) $ showBrace True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 1 b
 
 showBrace :: Bool -> ShowS -> ShowS
 showBrace True s = showChar '{' . s . showChar '}'
@@ -89,7 +89,7 @@ showType vs d = showCoreTerm vs d . quote
 instance Show (Term Surface) where
   showsPrec = fix (\ f vs d (Term surface) -> case surface of
     Core core -> showCore f vs d core
-    Ann e t -> showParen (d > 0) $ f vs 1 e . showString " : " . f vs 1 t) []
+    Ann e t -> showParen (d > 0) $ f vs 1 e . showString " : " . f vs 0 t) []
 
 instance Show (Term Core) where
   showsPrec = showCoreTerm []
