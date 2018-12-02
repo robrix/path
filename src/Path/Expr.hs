@@ -27,6 +27,8 @@ data Surface a
 (-->) :: Term Surface -> Term Surface -> Term Surface
 a --> b = Term (Core (Pi a b))
 
+infixr 0 -->
+
 typeT :: Term Surface
 typeT = Term (Core Type)
 
