@@ -99,6 +99,9 @@ data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Type }
 
 instance Recursive (ElabF Core) Elab where project = unElab
 
+elab :: Core Elab -> Type -> Elab
+elab = fmap Elab . ElabF
+
 elabType :: Elab -> Type
 elabType = elabFType . unElab
 
