@@ -50,8 +50,11 @@ deriving instance Show (f (Term f)) => Show (Term f)
 
 type Type = Value
 
-newtype Elab = Elab { unElab :: ElabF Core Elab }
+newtype Elab = Elab (ElabF Core Elab)
   deriving (Eq, Ord, Show)
+
+unElab :: Elab -> ElabF Core Elab
+unElab (Elab elabF) = elabF
 
 data ElabF f a = ElabF { elabFExpr :: f a, elabFType :: Type }
   deriving (Eq, Functor, Ord, Show)
