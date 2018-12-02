@@ -55,7 +55,7 @@ whole p = whiteSpace *> p <* eof
 globalTerm :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
-term, type', piType, functionType :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, type', piType, functionType, var :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
 term = type'
 
@@ -68,6 +68,9 @@ piType vs = (do
 functionType vs = makePi <$> type' vs <*> optional (op "->" *> piType vs) <?> "function type"
   where makePi ty1 Nothing = ty1
         makePi ty1 (Just ty2) = ty1 Expr.--> ty2
+
+var vs = toVar <$> identifier <?> "variable"
+  where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
 
 name :: (Monad m, TokenParsing m) => [String] -> m Expr.Name
 name vs = toName <$> identifier <?> "name"
