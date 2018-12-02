@@ -55,9 +55,11 @@ whole p = whiteSpace *> p <* eof
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
-term, piType, functionType, var, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, application, piType, functionType, var, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
-term _ = type'
+term = application
+
+application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
 
 type' = Expr.typeT <$ keyword "Type"
 
