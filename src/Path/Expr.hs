@@ -46,7 +46,38 @@ newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
 deriving instance Ord (f (Term f)) => Ord (Term f)
-deriving instance Show (f (Term f)) => Show (Term f)
+
+fresh :: [String] -> String
+fresh [] = "a"
+fresh (s:_) = prime s
+
+prime :: String -> String
+prime [c] | c < 'z' = [succ c]
+prime s = s <> "ʹ"
+
+instance Show (Term Surface) where
+  showsPrec = go []
+    where go vs _ (Term (Core (Bound i))) = showString (vs !! i)
+          go _  _ (Term (Core (Free (Global s)))) = showString s
+          go _  _ (Term (Core (Free (Local i)))) = showChar '_' . shows i
+          go _  _ (Term (Core (Free (Quote i)))) = showChar '\'' . showChar '_' . shows i
+          go vs d (Term (Core (Lam b))) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
+          go vs d (Term (Core (f :@ a))) = showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
+          go _  _ (Term (Core Type)) = showString "Type"
+          go vs d (Term (Core (Pi t b))) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
+          go vs d (Term (Ann e t)) = showParen (d > 0) $ go vs 1 e . showString " : " . go vs 1 t
+
+instance Show (Term Core) where
+  showsPrec = go []
+    where go vs _ (Term (Bound i)) = showString (vs !! i)
+          go _  _ (Term (Free (Global s))) = showString s
+          go _  _ (Term (Free (Local i))) = showChar '_' . shows i
+          go _  _ (Term (Free (Quote i))) = showString "'_" . shows i
+          go vs d (Term (Lam b)) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
+          go vs d (Term (f :@ a)) = showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
+          go _  _ (Term Type) = showString "Type"
+          go vs d (Term (Pi t b)) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
+
 
 type Type = Value
 
