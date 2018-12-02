@@ -79,7 +79,6 @@ lambda vs = (do
   bind vs' vs) <?> "lambda"
   where pattern = identifier <|> token (string "_") <?> "pattern"
         bind [] vs = term vs
-        bind ("_":vv) vs = Expr.lam <$> bind vv vs
         bind (v:vv) vs = Expr.lam <$> bind vv (v:vs)
 
 atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
