@@ -202,7 +202,9 @@ infer' i ctx (Term (Core (f :@ a))) = do
 infer' _ _ tm = Left ("no rule to infer type of " <> show tm)
 
 check' :: Int -> Context -> Term Surface -> Type -> Result Elab
-check' i ctx (Term (Core (Lam e))) (VPi t t') = check' (succ i) ((Local i, t) : ctx) (subst 0 (Term (Core (Free (Local i)))) e) (t' (vfree (Local i)))
+check' i ctx (Term (Core (Lam e))) (VPi t t') = do
+  e' <- check' (succ i) ((Local i, t) : ctx) (subst 0 (Term (Core (Free (Local i)))) e) (t' (vfree (Local i)))
+  pure (elab (Lam e') (VPi t t'))
 check' i ctx tm ty = do
   v <- infer' i ctx tm
   unless (elabType v == ty) (Left ("type mismatch: " <> show v <> " vs. " <> show ty))
