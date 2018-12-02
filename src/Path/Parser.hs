@@ -57,6 +57,9 @@ term = type'
 
 type' = Expr.typeT <$ keyword "Type"
 
+identifier :: (Monad m, TokenParsing m) => m String
+identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
+
 reservedWords :: HashSet.HashSet String
 reservedWords =  HashSet.fromList [ "Type" ]
 
