@@ -61,9 +61,10 @@ term _ = type'
 
 type' = Expr.typeT <$ keyword "Type"
 
-piType vs = (do
+piType vs = ((do
   (v, ty) <- parens ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type"
+  (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type")
+  <|> functionType vs
 
 functionType vs = makePi <$> type' <*> optional (op "->" *> piType vs) <?> "function type"
   where makePi ty1 Nothing = ty1
