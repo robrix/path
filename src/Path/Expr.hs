@@ -55,6 +55,18 @@ prime :: String -> String
 prime [c] | c < 'z' = [succ c]
 prime s = s <> "ʹ"
 
+showCore :: ([String] -> Int -> x -> ShowS) -> [String] -> Int -> Core x -> ShowS
+showCore go vs d c = case c of
+  Bound i -> showString (vs !! i)
+  Free (Global s) -> showString s
+  Free (Local i) -> showChar '_' . shows i
+  Free (Quote i) -> showString "'_" . shows i
+  Lam b -> let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
+  f :@ a -> showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
+  Type -> showString "Type"
+  Pi t b -> let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
+
+
 showSurfaceTerm :: [String] -> Int -> Term Surface -> ShowS
 showSurfaceTerm vs _ (Term (Core (Bound i))) = showString (vs !! i)
 showSurfaceTerm _  _ (Term (Core (Free (Global s)))) = showString s
