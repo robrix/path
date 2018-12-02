@@ -65,7 +65,7 @@ type' = Expr.typeT <$ keyword "Type"
 
 piType vs = (do
   (v, ty) <- parens ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type"
+  (ty Expr.-->) <$> term (v : vs)) <?> "dependent function type"
 
 functionType vs = atom vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
 
