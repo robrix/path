@@ -1,34 +1,22 @@
 {-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, StandaloneDeriving, UndecidableInstances #-}
 module Path.Expr where
 
-import Control.Effect
-import Control.Effect.Fail
-import Control.Effect.Reader hiding (Local)
 import Control.Monad (unless)
-import Data.Maybe (fromMaybe)
-import qualified Data.Set as Set
-import Prelude hiding (fail)
+import Data.Function (on)
 
 data Name
   = Global String
   | Local Int
+  | Quote Int
   deriving (Eq, Ord, Show)
-
-prime :: Name -> Name
-prime (Global n) = Global (n <> "ʹ")
-prime (Local i) = Local (succ i)
-
-fresh :: Set.Set Name -> Name
-fresh = maybe (Local 0) (prime . fst) . Set.maxView
-
 
 data Core a
   = Bound Int
   | Free Name
-  | Lam Int a
+  | Lam a
   | a :@ a
   | Type
-  | Pi Int a a
+  | Pi a a
   deriving (Eq, Functor, Ord, Show)
 
 data Surface a
@@ -36,60 +24,13 @@ data Surface a
   | Ann a (Term Surface)
   deriving (Eq, Functor, Ord, Show)
 
-newtype Term f = Term { unTerm :: f (Term f) }
+newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
 deriving instance Ord (f (Term f)) => Ord (Term f)
 deriving instance Show (f (Term f)) => Show (Term f)
 
-instance Functor f => Recursive f (Term f) where
-  project = unTerm
-
 type Type = Value
-
-freeVariables :: Term Core -> Set.Set Name
-freeVariables = cata $ \ ty -> case ty of
-  Bound n -> Set.singleton (Local n)
-  Free n -> Set.singleton n
-  Lam n b -> Set.delete (Local n) b
-  f :@ a -> f <> a
-  Type -> mempty
-  Pi n t b -> t <> Set.delete (Local n) b
-
-aeq :: Term Core -> Term Core -> Bool
-aeq t1 t2 = run (runReader ([] :: [(Name, Name)]) (aeq' t1 t2))
-
-aeq' :: (Carrier sig m, Member (Reader [(Name, Name)]) sig, Monad m) => Term Core -> Term Core -> m Bool
-aeq' (Term Type) (Term Type) = pure True
-aeq' (Term (Pi n1 t1 b1)) (Term (Pi n2 t2 b2)) = do
-  t <- t1 `aeq'` t2
-  if t then
-    if n1 == n2 then
-      b1 `aeq'` b2
-    else do
-      let n = fresh (freeVariables b1 <> freeVariables b2)
-      local ((Local n1, n) :) (local ((Local n2, n) :) (b1 `aeq'` b2))
-  else
-    pure False
-aeq' (Term (Bound n1)) (Term (Bound n2)) = do
-  env <- ask
-  pure (fromMaybe (Local n1) (lookup (Local n1) env) == fromMaybe (Local n2) (lookup (Local n2) env))
-aeq' (Term (Free n1)) (Term (Free n2)) = do
-  env <- ask
-  pure (fromMaybe n1 (lookup n1 env) == fromMaybe n2 (lookup n2 env))
-aeq' (Term (Lam n1 b1)) (Term (Lam n2 b2)) = do
-  if n1 == n2 then
-    b1 `aeq'` b2
-  else do
-    let n = fresh (freeVariables b1 <> freeVariables b2)
-    local ((Local n1, n) :) (local ((Local n2, n) :) (b1 `aeq'` b2))
-aeq' (Term (f1 :@ a1)) (Term (f2 :@ a2)) = do
-  f <- f1 `aeq'` f2
-  if f then
-    a1 `aeq'` a2
-  else
-    pure False
-aeq' _ _ = pure False
 
 newtype Elab = Elab { unElab :: ElabF Core Elab }
   deriving (Eq, Ord, Show)
@@ -109,11 +50,19 @@ erase :: Elab -> Term Core
 erase = cata (Term . elabFExpr)
 
 data Value
-  = VLam Int (Term Core) Env
+  = VLam (Value -> Value)
   | VType
-  | VPi Int Value Value
+  | VPi Value (Value -> Value)
   | VNeutral Neutral
-  deriving (Eq, Ord, Show)
+
+instance Eq Value where
+  (==) = (==) `on` quote
+
+instance Ord Value where
+  compare = compare `on` quote
+
+instance Show Value where
+  showsPrec d = showsPrec d . quote
 
 vfree :: Name -> Value
 vfree = VNeutral . NFree
@@ -124,95 +73,89 @@ data Neutral
   deriving (Eq, Ord, Show)
 
 quote :: Value -> Term Core
-quote VType = Term Type
-quote (VLam n b _) = Term (Lam n b)
-quote (VPi n t b) = Term (Pi n (quote t) (quote b))
-quote (VNeutral n) = quoteN n
+quote = quote' 0
 
-quoteN :: Neutral -> Term Core
-quoteN (NFree n) = Term (Free n)
-quoteN (NApp n a) = Term (quoteN n :@ quote a)
+quote' :: Int -> Value -> Term Core
+quote' _ VType = Term Type
+quote' i (VLam f) = Term (Lam (quote' (succ i) (f (vfree (Quote i)))))
+quote' i (VPi t f) = Term (Pi (quote' i t) (quote' (succ i) (f (vfree (Quote i)))))
+quote' i (VNeutral n) = quoteN i n
+
+quoteN :: Int -> Neutral -> Term Core
+quoteN i (NFree n) = boundFree i n
+quoteN i (NApp n a) = Term (quoteN i n :@ quote' i a)
+
+boundFree :: Int -> Name -> Term Core
+boundFree i (Quote k) = Term (Bound (i - k - 1))
+boundFree _ n = Term (Free n)
+
+type Env = [Value]
+
+eval :: Term Core -> Env -> Value
+eval (Term (Bound i)) d = d !! i
+eval (Term (Free name)) _ = vfree name
+eval (Term (Lam b)) d = VLam (eval b . (: d))
+eval (Term (f :@ a)) d = eval f d `vapp` eval a d
+eval (Term Type) _ = VType
+eval (Term (Pi ty body)) d = VPi (eval ty d) (eval body . (: d))
+
+vapp :: Value -> Value -> Value
+vapp (VLam f) v = f v
+vapp (VNeutral n) v = VNeutral (NApp n v)
 
 
-type Env = [(Name, Value)]
+subst :: Int -> Term Surface -> Term Surface -> Term Surface
+subst i r (Term (Ann e t)) = Term (Ann (subst i r e) (subst i r t))
+subst i r (Term (Core (Bound j)))
+  | i == j    = r
+  | otherwise = Term (Core (Bound j))
+subst _ _ (Term (Core (Free n))) = Term (Core (Free n))
+subst i r (Term (Core (Lam b))) = Term (Core (Lam (subst (succ i) r b)))
+subst i r (Term (Core (f :@ a))) = Term (Core (subst i r f :@ subst i r a))
+subst _ _ (Term (Core Type)) = Term (Core Type)
+subst i r (Term (Core (Pi t t'))) = Term (Core (Pi (subst i r t) (subst (succ i) r t')))
 
-eval :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Core -> m Value
-eval (Term (Bound name)) = do
-  val <- asks (lookup (Local name))
-  maybe (fail ("free variable: " <> show name)) pure val
-eval (Term (Free name)) = pure (vfree name)
-eval (Term (Lam name body)) = VLam name body <$> ask
-eval (Term (f :@ a)) = do
-  f' <- eval f
-  case f' of
-    VLam n b e -> do
-      a' <- eval a
-      local (const ((Local n, a') : e)) (eval b)
-    VNeutral n -> do
-      a' <- eval a
-      pure (VNeutral (NApp n a'))
-    v -> fail ("cannot apply " <> show v)
-eval (Term Type) = pure VType
-eval (Term (Pi name ty body)) = VPi name <$> eval ty <*> eval body
+type Context = [(Name, Value)]
 
-evalV :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Value -> m Value
-evalV (VNeutral n) = evalN n
-evalV v = pure v
+type Result = Either String
 
-evalN :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Neutral -> m Value
-evalN (NFree n) = asks (lookup n) >>= maybe (pure (vfree n)) pure
-evalN (NApp n a) = do
-  n' <- evalN n
-  case n' of
-    VLam n b e -> do
-      a' <- evalV a
-      local (const ((Local n, a') : e)) (eval b)
-    VNeutral n'' -> VNeutral . NApp n'' <$> evalV a
-    v -> fail ("cannot apply " <> show v)
+infer :: Context -> Term Surface -> Result Elab
+infer = infer' 0
 
-equate :: MonadFail m => Value -> Value -> m ()
-equate ty1 ty2 =
-  unless (quote ty1 `aeq` quote ty2) $
-    fail ("could not judge " <> show ty1 <> " = " <> show ty2)
+infer' :: Int -> Context -> Term Surface -> Result Elab
+infer' i ctx (Term (Ann e t)) = do
+  t' <- check' i ctx t VType
+  let t'' = eval (erase t') []
+  check' i ctx e t''
+infer' _ _ (Term (Core Type)) = pure (elab Type VType)
+infer' i ctx (Term (Core (Pi t b))) = do
+  t' <- check' i ctx t VType
+  let t'' = eval (erase t') []
+  b' <- check' (succ i) ((Local i, t'') : ctx) (subst 0 (Term (Core (Free (Local i)))) b) VType
+  pure (elab (Pi t' b') VType)
+infer' _ ctx (Term (Core (Free n))) = maybe (Left ("free variable: " <> show n)) (pure . elab (Free n)) (lookup n ctx)
+infer' i ctx (Term (Core (f :@ a))) = do
+  f' <- infer' i ctx f
+  case elabType f' of
+    VPi t t' -> do
+      a' <- check' i ctx a t
+      pure (elab (f' :@ a') (t' (eval (erase a') [])))
+    _ -> Left ("illegal application of " <> show f')
+infer' _ _ tm = Left ("no rule to infer type of " <> show tm)
 
-infer :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> m Elab
-infer (Term (Core (Bound name))) = asks (lookup (Local name)) >>= maybe (fail ("free variable: " <> show name)) (pure . Elab . ElabF (Bound name))
-infer (Term (Ann tm ty)) = do
-  ty' <- erase <$> check ty VType
-  ty'' <- eval ty'
-  check tm ty''
-infer (Term (Core (f :@ a))) = do
-  f' <- infer f
-  case f' of
-    Elab (ElabF _ (VPi n t b)) -> do
-      a' <- check a t
-      a'' <- eval (erase a')
-      b' <- local ((Local n, a'') :) (evalV b)
-      pure (Elab (ElabF (f' :@ a') b'))
-    _ -> fail ("illegal application of " <> show f <> " to " <> show a)
-infer (Term (Core Type)) = pure (Elab (ElabF Type VType))
-infer (Term (Core (Pi n t b))) = do
-  t' <- check t VType
-  t'' <- eval (erase t')
-  b' <- local ((Local n, t'') :) (check b VType)
-  pure (Elab (ElabF (Pi n t' b') VType))
-infer term = fail ("no rule to infer type of term: " <> show term)
-
-check :: (Carrier sig m, Member (Reader Env) sig, MonadFail m) => Term Surface -> Value -> m Elab
-check (Term (Core (Lam n b))) (VPi tn tt tb) = do
-  b' <- local ((Local n, tt) :) (local ((Local tn, vfree (Local tn)) :) (check b tb))
-  pure (Elab (ElabF (Lam n b') (VPi tn tt tb)))
-check tm ty = do
-  Elab (ElabF tm' elabTy) <- infer tm
-  equate ty elabTy
-  pure (Elab (ElabF tm' ty))
+check' :: Int -> Context -> Term Surface -> Type -> Result Elab
+check' i ctx (Term (Core (Lam e))) (VPi t t') = check' (succ i) ((Local i, t) : ctx) (subst 0 (Term (Core (Free (Local i)))) e) (t' (vfree (Local i)))
+check' i ctx tm ty = do
+  v <- infer' i ctx tm
+  unless (elabType v == ty) (Left ("type mismatch: " <> show v <> " vs. " <> show ty))
+  pure v
 
 
 identity :: Term Surface
-identity = Term (Core (Lam 0 (Term (Core (Bound 0)))))
+identity = Term (Core (Lam (Term (Core (Bound 0)))))
 
 constant :: Term Surface
-constant = Term (Core (Lam 0 (Term (Core (Lam 1 (Term (Core (Bound 0))))))))
+constant = Term (Core (Lam (Term (Core (Lam (Term (Core (Bound 1))))))))
 
 
 class Functor f => Recursive f t | t -> f where
