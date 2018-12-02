@@ -32,6 +32,9 @@ infixr 0 -->
 typeT :: Term Surface
 typeT = Term (Core Type)
 
+global :: String -> Term Surface
+global = Term . Core . Free . Global
+
 var :: Int -> Term Surface
 var = Term . Core . Bound
 
