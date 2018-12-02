@@ -55,32 +55,32 @@ prime :: String -> String
 prime [c] | c < 'z' = [succ c]
 prime s = s <> "ʹ"
 
-showSurface :: [String] -> Int -> Term Surface -> ShowS
-showSurface vs _ (Term (Core (Bound i))) = showString (vs !! i)
-showSurface _  _ (Term (Core (Free (Global s)))) = showString s
-showSurface _  _ (Term (Core (Free (Local i)))) = showChar '_' . shows i
-showSurface _  _ (Term (Core (Free (Quote i)))) = showChar '\'' . showChar '_' . shows i
-showSurface vs d (Term (Core (Lam b))) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . showSurface (v : vs) 0 b
-showSurface vs d (Term (Core (f :@ a))) = showParen (d > 10) $ showSurface vs 10 f . showChar ' ' . showSurface vs 11 a
-showSurface _  _ (Term (Core Type)) = showString "Type"
-showSurface vs d (Term (Core (Pi t b))) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . showSurface vs 0 t) . showString " -> " . showSurface (v : vs) 0 b
-showSurface vs d (Term (Ann e t)) = showParen (d > 0) $ showSurface vs 1 e . showString " : " . showSurface vs 1 t
+showSurfaceTerm :: [String] -> Int -> Term Surface -> ShowS
+showSurfaceTerm vs _ (Term (Core (Bound i))) = showString (vs !! i)
+showSurfaceTerm _  _ (Term (Core (Free (Global s)))) = showString s
+showSurfaceTerm _  _ (Term (Core (Free (Local i)))) = showChar '_' . shows i
+showSurfaceTerm _  _ (Term (Core (Free (Quote i)))) = showChar '\'' . showChar '_' . shows i
+showSurfaceTerm vs d (Term (Core (Lam b))) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . showSurfaceTerm (v : vs) 0 b
+showSurfaceTerm vs d (Term (Core (f :@ a))) = showParen (d > 10) $ showSurfaceTerm vs 10 f . showChar ' ' . showSurfaceTerm vs 11 a
+showSurfaceTerm _  _ (Term (Core Type)) = showString "Type"
+showSurfaceTerm vs d (Term (Core (Pi t b))) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . showSurfaceTerm vs 0 t) . showString " -> " . showSurfaceTerm (v : vs) 0 b
+showSurfaceTerm vs d (Term (Ann e t)) = showParen (d > 0) $ showSurfaceTerm vs 1 e . showString " : " . showSurfaceTerm vs 1 t
 
 instance Show (Term Surface) where
-  showsPrec = showSurface []
+  showsPrec = showSurfaceTerm []
 
-showCore :: [String] -> Int -> Term Core -> ShowS
-showCore vs _ (Term (Bound i)) = showString (vs !! i)
-showCore _  _ (Term (Free (Global s))) = showString s
-showCore _  _ (Term (Free (Local i))) = showChar '_' . shows i
-showCore _  _ (Term (Free (Quote i))) = showString "'_" . shows i
-showCore vs d (Term (Lam b)) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . showCore (v : vs) 0 b
-showCore vs d (Term (f :@ a)) = showParen (d > 10) $ showCore vs 10 f . showChar ' ' . showCore vs 11 a
-showCore _  _ (Term Type) = showString "Type"
-showCore vs d (Term (Pi t b)) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . showCore vs 0 t) . showString " -> " . showCore (v : vs) 0 b
+showCoreTerm :: [String] -> Int -> Term Core -> ShowS
+showCoreTerm vs _ (Term (Bound i)) = showString (vs !! i)
+showCoreTerm _  _ (Term (Free (Global s))) = showString s
+showCoreTerm _  _ (Term (Free (Local i))) = showChar '_' . shows i
+showCoreTerm _  _ (Term (Free (Quote i))) = showString "'_" . shows i
+showCoreTerm vs d (Term (Lam b)) = let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . showCoreTerm (v : vs) 0 b
+showCoreTerm vs d (Term (f :@ a)) = showParen (d > 10) $ showCoreTerm vs 10 f . showChar ' ' . showCoreTerm vs 11 a
+showCoreTerm _  _ (Term Type) = showString "Type"
+showCoreTerm vs d (Term (Pi t b)) = let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . showCoreTerm vs 0 t) . showString " -> " . showCoreTerm (v : vs) 0 b
 
 instance Show (Term Core) where
-  showsPrec = showCore []
+  showsPrec = showCoreTerm []
 
 
 type Type = Value
