@@ -80,7 +80,7 @@ lambda vs = (do
         bind ("_":vv) vs = Expr.lam <$> bind vv vs
         bind (v:vv) vs = Expr.lam <$> bind vv (v:vs)
 
-atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
+atom vs = var vs <|> type' <|> lambda vs <|> piType vs <|> parens (term vs)
 
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
