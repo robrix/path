@@ -41,6 +41,9 @@ lam = Term . Core . Lam
 (.:)  :: Term Surface -> Term Surface -> Term Surface
 a .: t = Term (Ann a t)
 
+(#) :: Term Surface -> Term Surface -> Term Surface
+f # a = Term (Core (f :@ a))
+
 
 newtype Term f = Term (f (Term f))
 
