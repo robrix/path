@@ -55,7 +55,7 @@ whole p = whiteSpace *> p <* eof
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
-term, application, piType, functionType, var, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, application, piType, functionType, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
 term = application
 
@@ -75,7 +75,15 @@ functionType vs = makePi <$> atom vs <*> optional (op "->" *> piType vs) <?> "fu
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
 
-atom vs = var vs <|> type' <|> parens (term vs)
+lambda vs = (do
+  vs' <- op "\\" *> some pattern <* dot
+  bind vs' vs) <?> "lambda"
+  where pattern = identifier <|> token (string "_") <?> "pattern"
+        bind [] vs = Expr.lam <$> term vs
+        bind ("_":vv) vs = Expr.lam <$> bind vv vs
+        bind (v:vv) vs = Expr.lam <$> bind vv (v:vs)
+
+atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
 
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
