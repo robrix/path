@@ -70,13 +70,16 @@ showCore go vs d c = case c of
   Type -> showString "Type"
   Pi t b -> let v = fresh vs in showParen (d > 0) $ showParen True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 0 b
 
+showCoreTerm :: [String] -> Int -> Term Core -> ShowS
+showCoreTerm = fix (\ f vs d (Term core) -> showCore f vs d core)
+
 instance Show (Term Surface) where
   showsPrec = fix (\ f vs d (Term surface) -> case surface of
     Core core -> showCore f vs d core
     Ann e t -> showParen (d > 0) $ f vs 1 e . showString " : " . f vs 1 t) []
 
 instance Show (Term Core) where
-  showsPrec = fix (\ f vs d (Term core) -> showCore f vs d core) []
+  showsPrec = showCoreTerm []
 
 
 type Type = Value
