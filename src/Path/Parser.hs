@@ -59,7 +59,7 @@ term, application, annotation, piType, functionType, var, lambda, atom :: (Monad
 
 term = application
 
-application vs = functionType vs `chainl1` pure (Expr.#) <?> "function application"
+application vs = annotation vs `chainl1` pure (Expr.#) <?> "function application"
 
 type' = Expr.typeT <$ keyword "Type"
 
@@ -67,9 +67,9 @@ piType vs = (do
   (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
   (ty Expr.-->) <$> term (v : vs)) <?> "dependent function type"
 
-functionType vs = annotation vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
+annotation vs = functionType vs `chainr1` ((Expr..:) <$ op ":")
 
-annotation vs = atom vs `chainr1` ((Expr..:) <$ op ":")
+functionType vs = atom vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
 
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
