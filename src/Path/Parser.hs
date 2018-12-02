@@ -7,6 +7,7 @@ import Control.Monad (MonadPlus(..))
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
+import Data.List (elemIndex)
 import qualified Path.Expr as Expr
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -56,6 +57,10 @@ term, type':: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 term = type'
 
 type' = Expr.typeT <$ keyword "Type"
+
+name :: (Monad m, TokenParsing m) => [String] -> m Expr.Name
+name vs = toName <$> identifier <?> "name"
+  where toName n = maybe (Expr.Global n) Expr.Local (elemIndex n vs)
 
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
