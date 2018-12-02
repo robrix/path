@@ -52,11 +52,18 @@ indentst = mkIndentationState 0 infIndentation True Gt
 whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
 
-term, type':: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
+globalTerm :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
+globalTerm = term []
+
+term, type', piType :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
 
 term = type'
 
-type' = Expr.typeT <$ keyword "Type"
+type' _ = Expr.typeT <$ keyword "Type"
+
+piType vs = (do
+  (v, ty) <- parens ((,) <$> identifier <* colon <*> term vs) <* op "->"
+  (ty Expr.-->) <$> piType (v : vs)) <?> "dependent function type"
 
 name :: (Monad m, TokenParsing m) => [String] -> m Expr.Name
 name vs = toName <$> identifier <?> "name"
