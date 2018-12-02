@@ -33,7 +33,7 @@ data Core a
 
 data Surface a
   = Core (Core a)
-  | Ann a (Type Surface)
+  | Ann a (Term Surface)
   deriving (Eq, Functor, Ord, Show)
 
 newtype Term f = Term { unTerm :: f (Term f) }
@@ -45,9 +45,9 @@ deriving instance Show (f (Term f)) => Show (Term f)
 instance Functor f => Recursive f (Term f) where
   project = unTerm
 
-type Type = Term
+type Type = Value
 
-freeVariables :: Type Core -> Set.Set Name
+freeVariables :: Term Core -> Set.Set Name
 freeVariables = cata $ \ ty -> case ty of
   Bound n -> Set.singleton (Local n)
   Free n -> Set.singleton n
@@ -56,10 +56,10 @@ freeVariables = cata $ \ ty -> case ty of
   Type -> mempty
   Pi n t b -> t <> Set.delete (Local n) b
 
-aeq :: Type Core -> Type Core -> Bool
+aeq :: Term Core -> Term Core -> Bool
 aeq t1 t2 = run (runReader ([] :: [(Name, Name)]) (aeq' t1 t2))
 
-aeq' :: (Carrier sig m, Member (Reader [(Name, Name)]) sig, Monad m) => Type Core -> Type Core -> m Bool
+aeq' :: (Carrier sig m, Member (Reader [(Name, Name)]) sig, Monad m) => Term Core -> Term Core -> m Bool
 aeq' (Term Type) (Term Type) = pure True
 aeq' (Term (Pi n1 t1 b1)) (Term (Pi n2 t2 b2)) = do
   t <- t1 `aeq'` t2
