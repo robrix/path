@@ -60,6 +60,20 @@ data Command
   deriving (Eq, Ord, Show)
 
 
+
+command, quit, help, typeof, eval :: (Monad m, TokenParsing m) => m Command
+
+command = quit <|> help <|> typeof <|> eval
+
+quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
+
+help = Help <$ token (string ":h") <|> Help <$ token (string ":h") <|> Help <$ token (string ":help") <?> "help"
+
+typeof = Type <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm
+
+eval = Eval <$> globalTerm
+
+
 definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Expr.Term Expr.Surface)
 definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
 
