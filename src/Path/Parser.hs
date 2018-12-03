@@ -59,7 +59,9 @@ definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
 globalTerm = term []
 
-term, application, annotation, piType, functionType, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, application, annotation, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+
+piType, functionType :: (Monad m, TokenParsing m) => Int -> [String] -> m (Expr.Term Expr.Surface)
 
 term = annotation
 
@@ -67,14 +69,14 @@ application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
 
 type' = Expr.typeT <$ keyword "Type"
 
-piType vs = (do
+piType i vs = (do
   (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  ((v, ty) Expr.-->) <$> application (v : vs)) <?> "dependent function type"
+  ((v, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
 
-annotation vs = (piType vs <|> functionType vs) `chainr1` ((Expr..:) <$ op ":")
+annotation vs = functionType 0 vs `chainr1` ((Expr..:) <$ op ":")
 
-functionType vs = go (0 :: Int) vs <?> "function type"
-  where go i vs = application vs <**> (flip arrow <$ op "->" <*> go (succ i) vs <|> pure id)
+functionType i vs = application vs <**> (flip arrow <$ op "->" <*> functionType (succ i) vs <|> pure id)
+              <|> piType i vs
           where arrow = (Expr.-->) . (,) ('_' : show i)
 
 var vs = toVar <$> identifier <?> "variable"
