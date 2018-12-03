@@ -67,15 +67,17 @@ erase = cata (Term . elabFExpr)
 
 type Context = Map.Map Name Value
 
-infer :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> m Elab
+infer :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> m Elab
 infer (Term (Ann e t)) = do
   t' <- check t VType
-  let t'' = eval (erase t') mempty
+  env <- ask
+  let t'' = eval (erase t') env
   check e t''
 infer (Term (Core Type)) = pure (elab Type VType)
 infer (Term (Core (Pi n t b))) = do
   t' <- check t VType
-  let t'' = eval (erase t') mempty
+  env <- ask
+  let t'' = eval (erase t') env
   b' <- local (Map.insert (Local n) t'') (check (subst n (Term (Core (Free (Local n)))) b) VType)
   pure (elab (Pi n t' b') VType)
 infer (Term (Core (Free n))) = asks (Map.lookup n) >>= maybe (fail ("free variable: " <> show n)) (pure . elab (Free n))
@@ -84,11 +86,12 @@ infer (Term (Core (f :@ a))) = do
   case elabType f' of
     VPi _ t t' -> do
       a' <- check a t
-      pure (elab (f' :@ a') (t' (eval (erase a') mempty)))
+      env <- ask
+      pure (elab (f' :@ a') (t' (eval (erase a') env)))
     _ -> fail ("illegal application of " <> show f')
 infer tm = fail ("no rule to infer type of " <> show tm)
 
-check :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Term Surface -> Type -> m Elab
+check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m Elab
 check (Term (Core (Lam n e))) (VPi tn t t') = do
   e' <- local (Map.insert (Local n) t) (check (subst n (Term (Core (Free (Local n)))) e) (t' (vfree (Local n))))
   pure (elab (Lam n e') (VPi tn t t'))
