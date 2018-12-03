@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, StandaloneDeriving, UndecidableInstances #-}
 module Path.Expr where
 
-import Data.Function (fix, on)
+import Data.Function (fix)
 
 data Name
   = Global String
@@ -90,44 +90,6 @@ instance Show (Term Surface) where
 instance Show (Term Core) where
   showsPrec = showCoreTerm []
 
-
-data Value
-  = VLam (Value -> Value)
-  | VType
-  | VPi Value (Value -> Value)
-  | VNeutral Neutral
-
-instance Eq Value where
-  (==) = (==) `on` quote 0
-
-instance Ord Value where
-  compare = compare `on` quote 0
-
-instance Show Value where
-  showsPrec d = showsPrec d . quote 0
-
-vfree :: Name -> Value
-vfree = VNeutral . NFree
-
-data Neutral
-  = NFree Name
-  | NApp Neutral Value
-  deriving (Eq, Ord, Show)
-
-prettyVar :: Int -> String
-prettyVar d = let (n, i) = d `divMod` 26 in replicate (succ n) (alphabet !! i)
-  where alphabet = ['a'..'z']
-
-quote :: Int -> Value -> Term Core
-quote _ VType = Term Type
-quote i (VLam f) = let v = prettyVar i in Term (Lam v (quote (succ i) (f (vfree (Quote v)))))
-quote i (VPi t f) = let v = prettyVar i in Term (Pi v (quote i t) (quote (succ i) (f (vfree (Quote v)))))
-quote i (VNeutral n) = quoteN i n
-
-quoteN :: Int -> Neutral -> Term Core
-quoteN _ (NFree (Quote s)) = Term (Bound s)
-quoteN _ (NFree n) = Term (Free n)
-quoteN i (NApp n a) = Term (quoteN i n :@ quote i a)
 
 subst :: String -> Term Surface -> Term Surface -> Term Surface
 subst i r (Term (Ann e t)) = Term (Ann (subst i r e) (subst i r t))
