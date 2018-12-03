@@ -82,9 +82,6 @@ showBrace False s = s
 showCoreTerm :: [String] -> Int -> Term Core -> ShowS
 showCoreTerm = fix (\ f vs d (Term core) -> showCore f vs d core)
 
-showType :: [String] -> Int -> Type -> ShowS
-showType vs d = showCoreTerm vs d . quote 0
-
 instance Show (Term Surface) where
   showsPrec = fix (\ f vs d (Term surface) -> case surface of
     Core core -> showCore f vs d core
@@ -93,8 +90,6 @@ instance Show (Term Surface) where
 instance Show (Term Core) where
   showsPrec = showCoreTerm []
 
-
-type Type = Value
 
 data Value
   = VLam (Value -> Value)

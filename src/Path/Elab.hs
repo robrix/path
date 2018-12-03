@@ -25,6 +25,11 @@ instance HFunctor Elaborate where
 instance Effect Elaborate where
   handle state handler = coerce . fmap (handler . (<$ state))
 
+type Type = Value
+
+showType :: [String] -> Int -> Type -> ShowS
+showType vs d = showCoreTerm vs d . quote 0
+
 
 newtype Elab = Elab (ElabF Core Elab)
   deriving (Eq, Ord)
