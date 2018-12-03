@@ -67,7 +67,7 @@ command = quit <|> help <|> typeof <|> eval <?> "command; use :? for help"
 
 quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
-help = Help <$ token (string ":h") <|> Help <$ token (string ":h") <|> Help <$ token (string ":help") <?> "help"
+help = Help <$ token (string ":h") <|> Help <$ token (string ":?") <|> Help <$ token (string ":help") <?> "help"
 
 typeof = Type <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm <?> "type of"
 
