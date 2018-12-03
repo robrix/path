@@ -2,6 +2,7 @@
 module Path.Expr where
 
 import Data.Function (fix)
+import qualified Data.Set as Set
 
 data Name
   = Global String
@@ -59,6 +60,14 @@ fresh (s:_) = prime s
 prime :: String -> String
 prime [c] | c < 'z' = [succ c]
 prime s = s <> "ʹ"
+
+coreFVs :: Core (Set.Set Name) -> Set.Set Name
+coreFVs (Bound s) = Set.singleton (Local s)
+coreFVs (Free n) = Set.singleton n
+coreFVs (Lam v b) = Set.delete (Local v) b
+coreFVs (f :@ a) = f <> a
+coreFVs Type = Set.empty
+coreFVs (Pi v t b) = t <> Set.delete (Local v) b
 
 showCore :: (Int -> x -> ShowS) -> Int -> Core x -> ShowS
 showCore go d c = case c of
