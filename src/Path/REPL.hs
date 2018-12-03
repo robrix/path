@@ -10,7 +10,7 @@ import Control.Monad.IO.Class
 import Data.Coerce
 import Path.Elab
 import Path.Eval
-import Path.Parser (Command(..), parseString, command)
+import Path.Parser (Command(..), command, parseString, whole)
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 
@@ -66,7 +66,7 @@ script :: (Carrier sig m, Member REPL sig, Monad m) => m ()
 script = do
   a <- prompt "λ: "
   maybe script runCommand a
-  where runCommand s = case parseString command s of
+  where runCommand s = case parseString (whole command) s of
           Left err -> output err *> script
           Right Quit -> pure ()
           Right Help -> output helpText *> script
