@@ -144,3 +144,23 @@ zero = mempty
 
 class (Monoid r, Semiring r) => Unital r where
   one :: r
+
+
+data Erasure = Erased | Present
+  deriving (Eq, Ord, Show)
+
+instance Semigroup Erasure where
+  Present <> _       = Present
+  _       <> Present = Present
+  _       <> _       = Erased
+
+instance Monoid Erasure where
+  mempty = Erased
+
+instance Semiring Erasure where
+  Erased >< _      = Erased
+  _      >< Erased = Erased
+  _      >< _      = Present
+
+instance Unital Erasure where
+  one = Present
