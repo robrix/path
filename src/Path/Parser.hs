@@ -52,6 +52,13 @@ whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
 
 
+data Command
+  = Quit
+  | Type (Expr.Term Expr.Surface)
+  | Eval (Expr.Term Expr.Surface)
+  deriving (Eq, Ord, Show)
+
+
 definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Expr.Term Expr.Surface)
 definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
 
