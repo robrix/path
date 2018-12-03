@@ -64,7 +64,7 @@ data Command
 quit, help, typeof, eval :: (Monad m, TokenParsing m) => m Command
 command, def :: (IndentationParsing m, Monad m, TokenParsing m) => m Command
 
-command = quit <|> help <|> typeof <|> def <|> eval <?> "command; use :? for help"
+command = quit <|> help <|> typeof <|> try def <|> eval <?> "command; use :? for help"
 
 quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
