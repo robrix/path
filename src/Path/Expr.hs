@@ -96,35 +96,6 @@ instance Show (Term Core) where
 
 type Type = Value
 
-newtype Elab = Elab (ElabF Core Elab)
-  deriving (Eq, Ord)
-
-instance Show Elab where
-  showsPrec = fix (\ f vs d (Elab (ElabF core ty)) -> showParen (d > 0) $ showCore f vs 1 core . showString " : " . showType vs 1 ty) []
-
-unElab :: Elab -> ElabF Core Elab
-unElab (Elab elabF) = elabF
-
-data ElabF f a = ElabF (f a) Type
-  deriving (Eq, Functor, Ord, Show)
-
-elabFExpr :: ElabF f a -> f a
-elabFExpr (ElabF expr _) = expr
-
-elabFType :: ElabF f a -> Type
-elabFType (ElabF _ ty) = ty
-
-instance Recursive (ElabF Core) Elab where project = unElab
-
-elab :: Core Elab -> Type -> Elab
-elab = fmap Elab . ElabF
-
-elabType :: Elab -> Type
-elabType = elabFType . unElab
-
-erase :: Elab -> Term Core
-erase = cata (Term . elabFExpr)
-
 data Value
   = VLam (Value -> Value)
   | VType
