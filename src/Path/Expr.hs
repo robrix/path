@@ -21,7 +21,7 @@ data Core a
 
 data Surface a
   = Core (Core a)
-  | Ann a (Term Surface)
+  | Ann a a
   deriving (Eq, Functor, Ord, Show)
 
 (-->) :: (String, Term Surface) -> Term Surface -> Term Surface
