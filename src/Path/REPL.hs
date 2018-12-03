@@ -8,6 +8,7 @@ import Control.Effect.Reader
 import Control.Effect.Sum
 import Control.Monad.IO.Class
 import Data.Coerce
+import qualified Data.Map as Map
 import Path.Elab
 import Path.Eval
 import Path.Parser (Command(..), command, parseString, whole)
@@ -60,9 +61,9 @@ repl = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings script))
+  liftIO (runM (runREPL prefs settings (runReader (mempty :: Env) (runReader (mempty :: Context) script))))
 
-script :: (Carrier sig m, Member REPL sig, Monad m) => m ()
+script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => m ()
 script = do
   a <- prompt "λ: "
   maybe script runCommand a
@@ -70,12 +71,21 @@ script = do
           Left err -> output err *> script
           Right Quit -> pure ()
           Right Help -> output helpText *> script
-          Right (Type tm) -> case run (runFail (runReader (mempty :: Context) (infer tm))) of
-            Left err -> output err *> script
-            Right elab -> output (show (elabType elab)) *> script
-          Right (Eval tm) -> case run (runFail (runReader (mempty :: Context) (infer tm))) of
-            Left err -> output err *> script
-            Right elab -> output (show (eval (erase elab) mempty)) *> script
+          Right (TypeOf tm) -> do
+            res <- runFail (infer tm)
+            case res of
+              Left err -> output err *> script
+              Right elab -> output (show (elabType elab)) *> script
+          Right (Def name tm) -> do
+            res <- runFail (infer tm)
+            case res of
+              Left err -> output err *> script
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in output (show v) *> local (Map.insert name (elabType elab)) (local (Map.insert name v) script)
+          Right (Eval tm) -> do
+            res <- runFail (infer tm)
+            case res of
+              Left err -> output err *> script
+              Right elab -> ask >>= \ env -> output (show (eval (erase elab) env)) *> script
 
 helpText :: String
 helpText

@@ -55,20 +55,24 @@ whole p = whiteSpace *> p <* eof
 data Command
   = Quit
   | Help
-  | Type (Expr.Term Expr.Surface)
+  | TypeOf (Expr.Term Expr.Surface)
+  | Def String (Expr.Term Expr.Surface)
   | Eval (Expr.Term Expr.Surface)
   deriving (Eq, Ord, Show)
 
 
-command, quit, help, typeof, eval :: (Monad m, TokenParsing m) => m Command
+quit, help, typeof, eval :: (Monad m, TokenParsing m) => m Command
+command, def :: (IndentationParsing m, Monad m, TokenParsing m) => m Command
 
-command = quit <|> help <|> typeof <|> eval <?> "command; use :? for help"
+command = quit <|> help <|> typeof <|> def <|> eval <?> "command; use :? for help"
 
 quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
 help = Help <$ token (string ":h") <|> Help <$ token (string ":?") <|> Help <$ token (string ":help") <?> "help"
 
-typeof = Type <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm <?> "type of"
+typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm <?> "type of"
+
+def = uncurry Def <$> definition
 
 eval = Eval <$> globalTerm <?> "term"
 
