@@ -3,9 +3,14 @@ module Path.REPL where
 
 import Control.Effect
 import Control.Effect.Carrier
+import Control.Effect.Fail
+import Control.Effect.Reader
 import Control.Effect.Sum
 import Control.Monad.IO.Class
 import Data.Coerce
+import Path.Elab
+import Path.Eval
+import Path.Parser (Command(..), parseString, command)
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 
@@ -60,4 +65,19 @@ repl = do
 script :: (Carrier sig m, Member REPL sig, Monad m) => m ()
 script = do
   a <- prompt "λ: "
-  maybe (pure ()) output a
+  maybe script runCommand a
+  where runCommand s = case parseString command s of
+          Left err -> output err *> script
+          Right Quit -> pure ()
+          Right Help -> output helpText *> script
+          Right (Type tm) -> case run (runFail (runReader (mempty :: Context) (infer tm))) of
+            Left err -> output err *> script
+            Right elab -> output (show (elabType elab)) *> script
+          Right (Eval tm) -> case run (runFail (runReader (mempty :: Context) (infer tm))) of
+            Left err -> output err *> script
+            Right elab -> output (show (eval (erase elab) mempty)) *> script
+
+helpText :: String
+helpText
+  =  ":help, :?   display this list of commands\n"
+  <> ":quit, :q   exit the repl"
