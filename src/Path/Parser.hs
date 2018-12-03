@@ -60,7 +60,6 @@ data Command
   deriving (Eq, Ord, Show)
 
 
-
 command, quit, help, typeof, eval :: (Monad m, TokenParsing m) => m Command
 
 command = quit <|> help <|> typeof <|> eval <?> "command; use :? for help"
