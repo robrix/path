@@ -54,6 +54,7 @@ whole p = whiteSpace *> p <* eof
 
 data Command
   = Quit
+  | Help
   | Type (Expr.Term Expr.Surface)
   | Eval (Expr.Term Expr.Surface)
   deriving (Eq, Ord, Show)
