@@ -7,6 +7,7 @@ import Control.Effect.Sum
 import Control.Monad.IO.Class
 import Data.Coerce
 import System.Console.Haskeline
+import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 
 data REPL (m :: * -> *) k
   = Prompt String (Maybe String -> k)
@@ -41,3 +42,22 @@ cyan = "\ESC[1;36m\STX"
 
 plain :: String
 plain = "\ESC[0m\STX"
+
+
+repl :: MonadIO m => m ()
+repl = do
+  homeDir <- liftIO getHomeDirectory
+  prefs <- liftIO (readPrefs (homeDir <> "/.haskeline"))
+  let settingsDir = homeDir <> "/.local/path"
+  liftIO $ createDirectoryIfMissing True settingsDir
+  let settings = Settings
+        { complete = noCompletion
+        , historyFile = Just (settingsDir <> "/repl_history")
+        , autoAddHistory = True
+        }
+  liftIO (runM (runREPL prefs settings script))
+
+script :: (Carrier sig m, Member REPL sig, Monad m) => m ()
+script = do
+  a <- prompt "hello"
+  maybe (pure ()) output a

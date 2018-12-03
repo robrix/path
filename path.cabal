@@ -23,6 +23,7 @@ library
   build-depends:       base >=4.11 && <4.12
                      , bytestring
                      , containers
+                     , directory
                      , fused-effects < 0.2
                      , haskeline
                      , indentation-trifecta
