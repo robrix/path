@@ -23,6 +23,7 @@ library
                      , bytestring
                      , containers
                      , fused-effects < 0.2
+                     , haskeline
                      , indentation-trifecta
                      , parsers
                      , trifecta
