@@ -69,6 +69,10 @@ coreFVs (f :@ a) = f <> a
 coreFVs Type = Set.empty
 coreFVs (Pi v t b) = t <> Set.delete (Local v) b
 
+surfaceFVs :: Surface (Set.Set Name) -> Set.Set Name
+surfaceFVs (Core core) = coreFVs core
+surfaceFVs (Ann tm ty) = tm <> ty
+
 showCore :: (Int -> x -> ShowS) -> Int -> Core x -> ShowS
 showCore go d c = case c of
   Bound s -> showString s
