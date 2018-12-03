@@ -59,5 +59,5 @@ repl = do
 
 script :: (Carrier sig m, Member REPL sig, Monad m) => m ()
 script = do
-  a <- prompt "hello"
+  a <- prompt "λ: "
   maybe (pure ()) output a
