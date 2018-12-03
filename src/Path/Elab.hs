@@ -78,7 +78,7 @@ infer (Term (Core (Pi n t b))) = do
   let t'' = eval (erase t') mempty
   b' <- local (Map.insert (Local n) t'') (check (subst n (Term (Core (Free (Local n)))) b) VType)
   pure (elab (Pi n t' b') VType)
-infer (Term (Core (Free n))) = (asks (Map.lookup n)) >>= maybe (fail ("free variable: " <> show n)) (pure . elab (Free n))
+infer (Term (Core (Free n))) = asks (Map.lookup n) >>= maybe (fail ("free variable: " <> show n)) (pure . elab (Free n))
 infer (Term (Core (f :@ a))) = do
   f' <- infer f
   case elabType f' of
