@@ -8,6 +8,7 @@ import Control.Effect.Reader hiding (Local)
 import Control.Monad (unless)
 import Data.Coerce
 import qualified Data.Map as Map
+import Path.Eval
 import Path.Expr
 import Prelude hiding (fail)
 

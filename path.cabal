@@ -14,6 +14,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Path.Elab
+                     , Path.Eval
                      , Path.Expr
                      , Path.Parser
   -- other-modules:

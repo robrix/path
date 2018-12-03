@@ -2,7 +2,6 @@
 module Path.Expr where
 
 import Data.Function (fix, on)
-import qualified Data.Map as Map
 
 data Name
   = Global String
@@ -163,21 +162,6 @@ quoteN :: Int -> Neutral -> Term Core
 quoteN _ (NFree (Quote s)) = Term (Bound s)
 quoteN _ (NFree n) = Term (Free n)
 quoteN i (NApp n a) = Term (quoteN i n :@ quote i a)
-
-type Env = Map.Map String Value
-
-eval :: Term Core -> Env -> Value
-eval (Term (Bound i)) d = d Map.! i
-eval (Term (Free name)) _ = vfree name
-eval (Term (Lam n b)) d = VLam (eval b . flip (Map.insert n) d)
-eval (Term (f :@ a)) d = eval f d `vapp` eval a d
-eval (Term Type) _ = VType
-eval (Term (Pi n ty body)) d = VPi (eval ty d) (eval body . flip (Map.insert n) d)
-
-vapp :: Value -> Value -> Value
-vapp (VLam f) v = f v
-vapp (VNeutral n) v = VNeutral (NApp n v)
-
 
 subst :: String -> Term Surface -> Term Surface -> Term Surface
 subst i r (Term (Ann e t)) = Term (Ann (subst i r e) (subst i r t))
