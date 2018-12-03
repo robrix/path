@@ -60,10 +60,6 @@ prime :: String -> String
 prime [c] | c < 'z' = [succ c]
 prime s = s <> "ʹ"
 
-showVar :: [String] -> Int -> ShowS
-showVar vs i | i < length vs = showString (vs !! i)
-             | otherwise     = showChar '_' . shows i
-
 showCore :: ([String] -> Int -> x -> ShowS) -> [String] -> Int -> Core x -> ShowS
 showCore go vs d c = case c of
   Bound s -> showString s
