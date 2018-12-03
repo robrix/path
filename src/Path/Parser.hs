@@ -69,9 +69,9 @@ quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
 help = Help <$ token (string ":h") <|> Help <$ token (string ":h") <|> Help <$ token (string ":help") <?> "help"
 
-typeof = Type <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm
+typeof = Type <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm <?> "type of"
 
-eval = Eval <$> globalTerm
+eval = Eval <$> globalTerm <?> "term"
 
 
 definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Expr.Term Expr.Surface)
