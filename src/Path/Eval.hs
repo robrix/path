@@ -2,6 +2,7 @@ module Path.Eval where
 
 import Data.Function (on)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Path.Expr
 
 data Value
@@ -43,7 +44,9 @@ type Env = Map.Map String Value
 
 eval :: Term Core -> Env -> Value
 eval (Term (Bound i)) d = d Map.! i
-eval (Term (Free name)) _ = vfree name
+eval (Term (Free (Local n))) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
+eval (Term (Free (Global n))) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
+eval (Term (Free (Quote n))) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
 eval (Term (Lam n b)) d = VLam n (eval b . flip (Map.insert n) d)
 eval (Term (f :@ a)) d = eval f d `vapp` eval a d
 eval (Term Type) _ = VType
