@@ -60,31 +60,31 @@ prime :: String -> String
 prime [c] | c < 'z' = [succ c]
 prime s = s <> "ʹ"
 
-showCore :: ([String] -> Int -> x -> ShowS) -> [String] -> Int -> Core x -> ShowS
-showCore go vs d c = case c of
+showCore :: (Int -> x -> ShowS) -> Int -> Core x -> ShowS
+showCore go d c = case c of
   Bound s -> showString s
   Free (Global s) -> showString s
   Free (Local s) -> showString s
   Free (Quote s) -> showChar '\'' . showString s
-  Lam v b -> showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
-  f :@ a -> showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
+  Lam v b -> showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go 0 b
+  f :@ a -> showParen (d > 10) $ go 10 f . showChar ' ' . go 11 a
   Type -> showString "Type"
-  Pi v t b -> showParen (d > 1) $ showBrace True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 1 b
+  Pi v t b -> showParen (d > 1) $ showBrace True (showString v . showString " : " . go 0 t) . showString " -> " . go 1 b
 
 showBrace :: Bool -> ShowS -> ShowS
 showBrace True s = showChar '{' . s . showChar '}'
 showBrace False s = s
 
-showCoreTerm :: [String] -> Int -> Term Core -> ShowS
-showCoreTerm = fix (\ f vs d (Term core) -> showCore f vs d core)
+showCoreTerm :: Int -> Term Core -> ShowS
+showCoreTerm = fix (\ f d (Term core) -> showCore f d core)
 
 instance Show (Term Surface) where
-  showsPrec = fix (\ f vs d (Term surface) -> case surface of
-    Core core -> showCore f vs d core
-    Ann e t -> showParen (d > 0) $ f vs 1 e . showString " : " . f vs 0 t) []
+  showsPrec = fix (\ f d (Term surface) -> case surface of
+    Core core -> showCore f d core
+    Ann e t -> showParen (d > 0) $ f 1 e . showString " : " . f 0 t)
 
 instance Show (Term Core) where
-  showsPrec = showCoreTerm []
+  showsPrec = showCoreTerm
 
 
 subst :: String -> Term Surface -> Term Surface -> Term Surface
