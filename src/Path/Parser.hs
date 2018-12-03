@@ -1,13 +1,13 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Path.Parser where
 
-import Control.Applicative (Alternative(..))
+import Control.Applicative ((<**>), Alternative(..))
 import Control.Monad.IO.Class
 import Control.Monad (MonadPlus(..))
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
-import Data.List (elemIndex)
+import Data.List (find)
 import qualified Path.Expr as Expr
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -69,21 +69,23 @@ type' = Expr.typeT <$ keyword "Type"
 
 piType vs = (do
   (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  (ty Expr.-->) <$> application (v : vs)) <?> "dependent function type"
+  ((v, ty) Expr.-->) <$> application (v : vs)) <?> "dependent function type"
 
 annotation vs = (piType vs <|> functionType vs) `chainr1` ((Expr..:) <$ op ":")
 
-functionType vs = application vs `chainr1` ((Expr.-->) <$ op "->") <?> "function type"
+functionType vs = go (0 :: Int) vs <?> "function type"
+  where go i vs = application vs <**> (flip arrow <$ op "->" <*> go (succ i) vs <|> pure id)
+          where arrow = (Expr.-->) . (,) ('_' : show i)
 
 var vs = toVar <$> identifier <?> "variable"
-  where toVar n = maybe (Expr.global n) Expr.var (elemIndex n vs)
+  where toVar n = maybe (Expr.global n) Expr.var (find (== n) vs)
 
 lambda vs = (do
   vs' <- op "\\" *> some pattern <* dot
   bind vs' vs) <?> "lambda"
   where pattern = identifier <|> token (string "_") <?> "pattern"
         bind [] vs = term vs
-        bind (v:vv) vs = Expr.lam <$> bind vv (v:vs)
+        bind (v:vv) vs = Expr.lam v <$> bind vv (v:vs)
 
 atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
 

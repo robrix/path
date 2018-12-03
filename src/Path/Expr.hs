@@ -2,20 +2,21 @@
 module Path.Expr where
 
 import Data.Function (fix, on)
+import qualified Data.Map as Map
 
 data Name
   = Global String
-  | Local Int
-  | Quote Int
+  | Local String
+  | Quote String
   deriving (Eq, Ord, Show)
 
 data Core a
-  = Bound Int
+  = Bound String
   | Free Name
-  | Lam a
+  | Lam String a
   | a :@ a
   | Type
-  | Pi a a
+  | Pi String a a
   deriving (Eq, Functor, Ord, Show)
 
 data Surface a
@@ -23,8 +24,8 @@ data Surface a
   | Ann a (Term Surface)
   deriving (Eq, Functor, Ord, Show)
 
-(-->) :: Term Surface -> Term Surface -> Term Surface
-a --> b = Term (Core (Pi a b))
+(-->) :: (String, Term Surface) -> Term Surface -> Term Surface
+(n, a) --> b = Term (Core (Pi n a b))
 
 infixr 0 -->
 
@@ -34,11 +35,11 @@ typeT = Term (Core Type)
 global :: String -> Term Surface
 global = Term . Core . Free . Global
 
-var :: Int -> Term Surface
+var :: String -> Term Surface
 var = Term . Core . Bound
 
-lam :: Term Surface -> Term Surface
-lam = Term . Core . Lam
+lam :: String -> Term Surface -> Term Surface
+lam n = Term . Core . Lam n
 
 (.:)  :: Term Surface -> Term Surface -> Term Surface
 a .: t = Term (Ann a t)
@@ -66,14 +67,14 @@ showVar vs i | i < length vs = showString (vs !! i)
 
 showCore :: ([String] -> Int -> x -> ShowS) -> [String] -> Int -> Core x -> ShowS
 showCore go vs d c = case c of
-  Bound i -> showVar vs i
+  Bound s -> showString s
   Free (Global s) -> showString s
-  Free (Local i) -> showVar vs i
-  Free (Quote i) -> showString "'_" . shows i
-  Lam b -> let v = fresh vs in showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
+  Free (Local s) -> showString s
+  Free (Quote s) -> showChar '\'' . showString s
+  Lam v b -> showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go (v : vs) 0 b
   f :@ a -> showParen (d > 10) $ go vs 10 f . showChar ' ' . go vs 11 a
   Type -> showString "Type"
-  Pi t b -> let v = fresh vs in showParen (d > 1) $ showBrace True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 1 b
+  Pi v t b -> showParen (d > 1) $ showBrace True (showString v . showString " : " . go vs 0 t) . showString " -> " . go (v : vs) 1 b
 
 showBrace :: Bool -> ShowS -> ShowS
 showBrace True s = showChar '{' . s . showChar '}'
@@ -83,7 +84,7 @@ showCoreTerm :: [String] -> Int -> Term Core -> ShowS
 showCoreTerm = fix (\ f vs d (Term core) -> showCore f vs d core)
 
 showType :: [String] -> Int -> Type -> ShowS
-showType vs d = showCoreTerm vs d . quote
+showType vs d = showCoreTerm vs d . quote 0
 
 instance Show (Term Surface) where
   showsPrec = fix (\ f vs d (Term surface) -> case surface of
@@ -132,13 +133,13 @@ data Value
   | VNeutral Neutral
 
 instance Eq Value where
-  (==) = (==) `on` quote
+  (==) = (==) `on` quote 0
 
 instance Ord Value where
-  compare = compare `on` quote
+  compare = compare `on` quote 0
 
 instance Show Value where
-  showsPrec d = showsPrec d . quote
+  showsPrec d = showsPrec d . quote 0
 
 vfree :: Name -> Value
 vfree = VNeutral . NFree
@@ -148,55 +149,57 @@ data Neutral
   | NApp Neutral Value
   deriving (Eq, Ord, Show)
 
-quote :: Value -> Term Core
-quote = quote' 0
+prettyVar :: Int -> String
+prettyVar d = let (n, i) = d `divMod` 26 in replicate (succ n) (alphabet !! i)
+  where alphabet = ['a'..'z']
 
-quote' :: Int -> Value -> Term Core
-quote' _ VType = Term Type
-quote' i (VLam f) = Term (Lam (quote' (succ i) (f (vfree (Quote i)))))
-quote' i (VPi t f) = Term (Pi (quote' i t) (quote' (succ i) (f (vfree (Quote i)))))
-quote' i (VNeutral n) = quoteN i n
+quote :: Int -> Value -> Term Core
+quote _ VType = Term Type
+quote i (VLam f) = let v = prettyVar i in Term (Lam v (quote (succ i) (f (vfree (Quote v)))))
+quote i (VPi t f) = let v = prettyVar i in Term (Pi v (quote i t) (quote (succ i) (f (vfree (Quote v)))))
+quote i (VNeutral n) = quoteN i n
 
 quoteN :: Int -> Neutral -> Term Core
-quoteN i (NFree n) = boundFree i n
-quoteN i (NApp n a) = Term (quoteN i n :@ quote' i a)
+quoteN _ (NFree (Quote s)) = Term (Bound s)
+quoteN _ (NFree n) = Term (Free n)
+quoteN i (NApp n a) = Term (quoteN i n :@ quote i a)
 
-boundFree :: Int -> Name -> Term Core
-boundFree i (Quote k) = Term (Bound (i - k - 1))
-boundFree _ n = Term (Free n)
-
-type Env = [Value]
+type Env = Map.Map String Value
 
 eval :: Term Core -> Env -> Value
-eval (Term (Bound i)) d = d !! i
+eval (Term (Bound i)) d = d Map.! i
 eval (Term (Free name)) _ = vfree name
-eval (Term (Lam b)) d = VLam (eval b . (: d))
+eval (Term (Lam n b)) d = VLam (eval b . flip (Map.insert n) d)
 eval (Term (f :@ a)) d = eval f d `vapp` eval a d
 eval (Term Type) _ = VType
-eval (Term (Pi ty body)) d = VPi (eval ty d) (eval body . (: d))
+eval (Term (Pi n ty body)) d = VPi (eval ty d) (eval body . flip (Map.insert n) d)
 
 vapp :: Value -> Value -> Value
 vapp (VLam f) v = f v
 vapp (VNeutral n) v = VNeutral (NApp n v)
 
 
-subst :: Int -> Term Surface -> Term Surface -> Term Surface
+subst :: String -> Term Surface -> Term Surface -> Term Surface
 subst i r (Term (Ann e t)) = Term (Ann (subst i r e) (subst i r t))
 subst i r (Term (Core (Bound j)))
   | i == j    = r
   | otherwise = Term (Core (Bound j))
 subst _ _ (Term (Core (Free n))) = Term (Core (Free n))
-subst i r (Term (Core (Lam b))) = Term (Core (Lam (subst (succ i) r b)))
+subst i r (Term (Core (Lam n b)))
+  | i == n    = Term (Core (Lam n b))
+  | otherwise = Term (Core (Lam n (subst i r b)))
 subst i r (Term (Core (f :@ a))) = Term (Core (subst i r f :@ subst i r a))
 subst _ _ (Term (Core Type)) = Term (Core Type)
-subst i r (Term (Core (Pi t t'))) = Term (Core (Pi (subst i r t) (subst (succ i) r t')))
+subst i r (Term (Core (Pi n t t')))
+  | i == n    = Term (Core (Pi n (subst i r t) t'))
+  | otherwise = Term (Core (Pi n (subst i r t) (subst i r t')))
 
 
 identity :: Term Surface
-identity = lam (var 0)
+identity = lam "0" (var "0")
 
 constant :: Term Surface
-constant = lam (lam (var 1))
+constant = lam "1" (lam "0" (var "1"))
 
 
 class Functor f => Recursive f t | t -> f where
