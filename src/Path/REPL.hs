@@ -11,6 +11,7 @@ import Data.Coerce
 import qualified Data.Map as Map
 import Path.Elab
 import Path.Eval
+import Path.Expr (Name(..))
 import Path.Parser (Command(..), command, parseString, whole)
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
@@ -80,7 +81,7 @@ script = do
             res <- runFail (infer tm)
             case res of
               Left err -> output err *> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in output (show v) *> local (Map.insert name (elabType elab)) (local (Map.insert name v) script)
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in output (show v) *> local (Map.insert (Global name) (elabType elab)) (local (Map.insert name v) script)
           Right (Eval tm) -> do
             res <- runFail (infer tm)
             case res of
