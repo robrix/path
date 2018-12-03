@@ -133,3 +133,8 @@ class Functor f => Recursive f t | t -> f where
 cata :: Recursive f t => (f a -> a) -> t -> a
 cata algebra = go
   where go = algebra . fmap go . project
+
+
+class Semigroup r => Semiring r where
+  (><) :: r -> r -> r
+  infixr 7 ><
