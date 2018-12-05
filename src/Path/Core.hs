@@ -25,7 +25,7 @@ instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
     Free (Global s) -> pretty s
     Free (Local s) -> pretty s
     Free (Quote s) -> pretty '\'' <> pretty s
-    Lam v b -> prettyParens (d > 0) $ pretty "\\ " <> pretty v <> pretty " -> " <> prettyPrec 0 b
+    Lam v b -> prettyParens (d > 0) $ pretty "\\ " <> pretty v <> pretty " . " <> prettyPrec 0 b
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <> pretty ' ' <> prettyPrec 11 a
     Type -> pretty "Type"
     Pi v _ t b
