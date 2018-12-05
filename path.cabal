@@ -34,6 +34,7 @@ library
                      , haskeline
                      , indentation-trifecta
                      , parsers
+                     , prettyprinter
                      , trifecta
                      , unordered-containers
   hs-source-dirs:      src
