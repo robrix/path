@@ -18,3 +18,11 @@ layoutOptions = do
 
 class PrettyPrec a where
   prettyPrec :: Int -> a -> Doc ann
+
+prettyParens :: Bool -> Doc ann -> Doc ann
+prettyParens True = parens
+prettyParens False = id
+
+prettyBraces :: Bool -> Doc ann -> Doc ann
+prettyBraces True = braces
+prettyBraces False = id
