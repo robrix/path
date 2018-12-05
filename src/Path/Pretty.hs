@@ -14,3 +14,7 @@ layoutOptions :: IO LayoutOptions
 layoutOptions = do
   s <- maybe 80 Size.width <$> size
   pure LayoutOptions { layoutPageWidth = AvailablePerLine s 1 }
+
+
+class PrettyPrec a where
+  prettyPrec :: Int -> a -> Doc ann
