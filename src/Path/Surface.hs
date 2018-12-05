@@ -2,16 +2,22 @@
 module Path.Surface where
 
 import Data.Function (fix)
+import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.FreeVariables
 import Path.Name
 import Path.Plicity
+import Path.Pretty
 import Path.Term
 
 data Surface a
   = Core (Core a)
   | Ann a a
   deriving (Eq, Functor, Ord, Show)
+
+instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Surface a) where
+  prettyPrec d (Core core) = prettyPrec d core
+  prettyPrec d (Ann tm ty) = prettyParens (d > 0) $ prettyPrec 1 tm <> pretty " : " <> prettyPrec 0 ty
 
 instance FreeVariables1 Surface where
   liftFvs fvs (Core core) = liftFvs fvs core
