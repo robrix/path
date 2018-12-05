@@ -146,21 +146,21 @@ class (Monoid r, Semiring r) => Unital r where
   one :: r
 
 
-data Erasure = Erased | Present
+data Plicity = Implicit | Explicit
   deriving (Eq, Ord, Show)
 
-instance Semigroup Erasure where
-  Present <> _       = Present
-  _       <> Present = Present
-  _       <> _       = Erased
+instance Semigroup Plicity where
+  Explicit <> _        = Explicit
+  _        <> Explicit = Explicit
+  _        <> _        = Implicit
 
-instance Monoid Erasure where
-  mempty = Erased
+instance Monoid Plicity where
+  mempty = Implicit
 
-instance Semiring Erasure where
-  Erased >< _      = Erased
-  _      >< Erased = Erased
-  _      >< _      = Present
+instance Semiring Plicity where
+  Implicit >< _        = Implicit
+  _        >< Implicit = Implicit
+  _        >< _        = Explicit
 
-instance Unital Erasure where
-  one = Present
+instance Unital Plicity where
+  one = Explicit
