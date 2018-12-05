@@ -7,6 +7,7 @@ import Path.Core
 import Path.FreeVariables
 import Path.Name
 import Path.Plicity
+import Path.Pretty
 import Path.Term
 
 data Value
@@ -23,6 +24,9 @@ instance Ord Value where
 
 instance Show Value where
   showsPrec d = showsPrec d . quote
+
+instance PrettyPrec Value where
+  prettyPrec d = prettyPrec d . quote
 
 instance FreeVariables Value where
   fvs = fvs . quote
