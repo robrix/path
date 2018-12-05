@@ -47,14 +47,6 @@ instance FreeVariables a => FreeVariables (Core a) where
   fvs = fvs1
 
 
-fresh :: [String] -> String
-fresh [] = "a"
-fresh (s:_) = prime s
-
-prime :: String -> String
-prime [c] | c < 'z' = [succ c]
-prime s = s <> "ʹ"
-
 showCore :: (Int -> x -> ShowS) -> (x -> Set.Set Name) -> Int -> Core x -> ShowS
 showCore go fvs d c = case c of
   Bound s -> showString s
