@@ -74,17 +74,17 @@ infer (Term (Ann e t)) = do
   let t'' = eval (erase t') env
   check e t''
 infer (Term (Core Type)) = pure (elab Type VType)
-infer (Term (Core (Pi n t b))) = do
+infer (Term (Core (Pi n e t b))) = do
   t' <- check t VType
   env <- ask
   let t'' = eval (erase t') env
   b' <- local (Map.insert (Local n) t'') (check (subst n (Term (Core (Free (Local n)))) b) VType)
-  pure (elab (Pi n t' b') VType)
+  pure (elab (Pi n e t' b') VType)
 infer (Term (Core (Free n))) = asks (Map.lookup n) >>= maybe (fail ("free variable: " <> show n)) (pure . elab (Free n))
 infer (Term (Core (f :@ a))) = do
   f' <- infer f
   case elabType f' of
-    VPi _ t t' -> do
+    VPi _ _ t t' -> do
       a' <- check a t
       env <- ask
       pure (elab (f' :@ a') (t' (eval (erase a') env)))
@@ -92,9 +92,9 @@ infer (Term (Core (f :@ a))) = do
 infer tm = fail ("no rule to infer type of " <> show tm)
 
 check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m Elab
-check (Term (Core (Lam n e))) (VPi tn t t') = do
+check (Term (Core (Lam n e))) (VPi tn ann t t') = do
   e' <- local (Map.insert (Local n) t) (check (subst n (Term (Core (Free (Local n)))) e) (t' (vfree (Local n))))
-  pure (elab (Lam n e') (VPi tn t t'))
+  pure (elab (Lam n e') (VPi tn ann t t'))
 check tm ty = do
   v <- infer tm
   unless (elabType v == ty) (fail ("type mismatch: " <> show v <> " vs. " <> show ty))

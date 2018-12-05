@@ -96,13 +96,13 @@ type' = Expr.typeT <$ keyword "Type"
 
 piType i vs = (do
   (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  ((v, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
+  ((v, Expr.Explicit, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
 
 annotation vs = functionType 0 vs `chainr1` ((Expr..:) <$ op ":")
 
 functionType i vs = application vs <**> (flip arrow <$ op "->" <*> functionType (succ i) vs <|> pure id)
               <|> piType i vs
-          where arrow = (Expr.-->) . (,) ('_' : show i)
+          where arrow = (Expr.-->) . (,,) ('_' : show i) Expr.Explicit
 
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (find (== n) vs)

@@ -8,7 +8,7 @@ import Path.Expr
 data Value
   = VLam String (Value -> Value)
   | VType
-  | VPi String Value (Value -> Value)
+  | VPi String Plicity Value (Value -> Value)
   | VNeutral Neutral
 
 instance Eq Value where
@@ -31,7 +31,7 @@ data Neutral
 quote :: Value -> Term Core
 quote VType = Term Type
 quote (VLam v f) = Term (Lam v (quote (f (vfree (Quote v)))))
-quote (VPi v t f) = Term (Pi v (quote t) (quote (f (vfree (Quote v)))))
+quote (VPi v e t f) = Term (Pi v e (quote t) (quote (f (vfree (Quote v)))))
 quote (VNeutral n) = quoteN n
 
 quoteN :: Neutral -> Term Core
@@ -50,7 +50,7 @@ eval (Term (Free (Quote n))) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
 eval (Term (Lam n b)) d = VLam n (eval b . flip (Map.insert n) d)
 eval (Term (f :@ a)) d = eval f d `vapp` eval a d
 eval (Term Type) _ = VType
-eval (Term (Pi n ty body)) d = VPi n (eval ty d) (eval body . flip (Map.insert n) d)
+eval (Term (Pi n e ty body)) d = VPi n e (eval ty d) (eval body . flip (Map.insert n) d)
 
 vapp :: Value -> Value -> Value
 vapp (VLam _ f) v = f v

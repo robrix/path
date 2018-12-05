@@ -16,7 +16,7 @@ data Core a
   | Lam String a
   | a :@ a
   | Type
-  | Pi String a a
+  | Pi String Plicity a a
   deriving (Eq, Functor, Ord, Show)
 
 data Surface a
@@ -24,8 +24,8 @@ data Surface a
   | Ann a a
   deriving (Eq, Functor, Ord, Show)
 
-(-->) :: (String, Term Surface) -> Term Surface -> Term Surface
-(n, a) --> b = Term (Core (Pi n a b))
+(-->) :: (String, Plicity, Term Surface) -> Term Surface -> Term Surface
+(n, e, a) --> b = Term (Core (Pi n e a b))
 
 infixr 0 -->
 
@@ -69,7 +69,7 @@ coreFVs (Free n) = Set.singleton n
 coreFVs (Lam v b) = Set.delete (Local v) b
 coreFVs (f :@ a) = f <> a
 coreFVs Type = Set.empty
-coreFVs (Pi v t b) = t <> Set.delete (Local v) b
+coreFVs (Pi v _ t b) = t <> Set.delete (Local v) b
 
 surfaceFVs :: Surface (Set.Set Name) -> Set.Set Name
 surfaceFVs (Core core) = coreFVs core
@@ -84,7 +84,7 @@ showCore go fvs d c = case c of
   Lam v b -> showParen (d > 0) $ showString "\\ " . showString v . showString " -> " . go 0 b
   f :@ a -> showParen (d > 10) $ go 10 f . showChar ' ' . go 11 a
   Type -> showString "Type"
-  Pi v t b
+  Pi v _ t b
     | Set.member (Local v) (fvs b) -> showParen (d > 1) $ showBrace True (showString v . showString " : " . go 0 t) . showString " -> " . go 1 b
     | otherwise -> go 2 t . showString " -> " . go 1 b
 
@@ -115,9 +115,9 @@ subst i r (Term (Core (Lam n b)))
   | otherwise = Term (Core (Lam n (subst i r b)))
 subst i r (Term (Core (f :@ a))) = Term (Core (subst i r f :@ subst i r a))
 subst _ _ (Term (Core Type)) = Term (Core Type)
-subst i r (Term (Core (Pi n t t')))
-  | i == n    = Term (Core (Pi n (subst i r t) t'))
-  | otherwise = Term (Core (Pi n (subst i r t) (subst i r t')))
+subst i r (Term (Core (Pi n e t t')))
+  | i == n    = Term (Core (Pi n e (subst i r t) t'))
+  | otherwise = Term (Core (Pi n e (subst i r t) (subst i r t')))
 
 
 identity :: Term Surface
