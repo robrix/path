@@ -15,9 +15,12 @@ data Surface a
   | Ann a a
   deriving (Eq, Functor, Ord, Show)
 
+instance FreeVariables1 Surface where
+  liftFvs fvs (Core core) = liftFvs fvs core
+  liftFvs fvs (Ann tm ty) = fvs tm <> fvs ty
+
 instance FreeVariables a => FreeVariables (Surface a) where
-  fvs (Core core) = fvs core
-  fvs (Ann tm ty) = fvs tm <> fvs ty
+  fvs = fvs1
 
 (-->) :: (String, Plicity, Term Surface) -> Term Surface -> Term Surface
 (n, e, a) --> b = Term (Core (Pi n e a b))
