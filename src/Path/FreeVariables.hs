@@ -13,3 +13,6 @@ instance FreeVariables (Set.Set Name) where
 
 class FreeVariables1 t where
   liftFvs :: (a -> Set.Set Name) -> t a -> Set.Set Name
+
+fvs1 :: (FreeVariables1 t, FreeVariables a) => t a -> Set.Set Name
+fvs1 = liftFvs fvs
