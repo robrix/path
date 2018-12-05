@@ -6,6 +6,7 @@ import qualified Data.Set as Set
 import Path.Expr
 import Path.Plicity
 import Path.Recursive
+import Path.Term
 
 data Surface a
   = Core (Core a)

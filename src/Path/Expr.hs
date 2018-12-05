@@ -5,6 +5,7 @@ import Data.Function (fix)
 import qualified Data.Set as Set
 import Path.Plicity
 import Path.Recursive
+import Path.Term
 
 data Name
   = Global String
@@ -21,13 +22,9 @@ data Core a
   | Pi String Plicity a a
   deriving (Eq, Functor, Ord, Show)
 
+instance Show (Term Core) where
+  showsPrec = fix (\ f d (Term core) -> showCore f (cata coreFVs) d core)
 
-newtype Term f = Term (f (Term f))
-
-deriving instance Eq (f (Term f)) => Eq (Term f)
-deriving instance Ord (f (Term f)) => Ord (Term f)
-
-instance Functor f => Recursive f (Term f) where project (Term f) = f
 
 fresh :: [String] -> String
 fresh [] = "a"
@@ -61,6 +58,3 @@ showCore go fvs d c = case c of
 showBrace :: Bool -> ShowS -> ShowS
 showBrace True s = showChar '{' . s . showChar '}'
 showBrace False s = s
-
-instance Show (Term Core) where
-  showsPrec = fix (\ f d (Term core) -> showCore f (cata coreFVs) d core)

@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Path.Expr
 import Path.Plicity
+import Path.Term
 
 data Value
   = VLam String (Value -> Value)

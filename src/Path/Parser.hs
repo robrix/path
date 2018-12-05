@@ -8,8 +8,8 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
-import qualified Path.Expr as Expr
 import qualified Path.Surface as Expr
+import qualified Path.Term as Expr
 import Path.Plicity
 import Text.Parser.Char
 import Text.Parser.Combinators

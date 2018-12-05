@@ -14,6 +14,7 @@ import Path.Eval
 import Path.Expr
 import Path.Recursive
 import Path.Surface
+import Path.Term
 import Prelude hiding (fail)
 
 data Elaborate (m :: * -> *) k
