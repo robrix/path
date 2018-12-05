@@ -2,8 +2,9 @@
 module Path.Surface where
 
 import Data.Function (fix)
-import Path.Expr
 import qualified Data.Set as Set
+import Path.Expr
+import Path.Plicity
 
 data Surface a
   = Core (Core a)

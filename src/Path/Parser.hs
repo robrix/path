@@ -10,6 +10,7 @@ import qualified Data.HashSet as HashSet
 import Data.List (find)
 import qualified Path.Expr as Expr
 import qualified Path.Surface as Expr
+import Path.Plicity
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
@@ -97,13 +98,13 @@ type' = Expr.typeT <$ keyword "Type"
 
 piType i vs = (do
   (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  ((v, Expr.Explicit, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
+  ((v, Explicit, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
 
 annotation vs = functionType 0 vs `chainr1` ((Expr..:) <$ op ":")
 
 functionType i vs = application vs <**> (flip arrow <$ op "->" <*> functionType (succ i) vs <|> pure id)
               <|> piType i vs
-          where arrow = (Expr.-->) . (,,) ('_' : show i) Expr.Explicit
+          where arrow = (Expr.-->) . (,,) ('_' : show i) Explicit
 
 var vs = toVar <$> identifier <?> "variable"
   where toVar n = maybe (Expr.global n) Expr.var (find (== n) vs)

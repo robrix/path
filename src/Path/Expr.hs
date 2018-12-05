@@ -3,7 +3,7 @@ module Path.Expr where
 
 import Data.Function (fix)
 import qualified Data.Set as Set
-import Path.Semiring
+import Path.Plicity
 
 data Name
   = Global String
@@ -74,23 +74,3 @@ class Functor f => Recursive f t | t -> f where
 cata :: Recursive f t => (f a -> a) -> t -> a
 cata algebra = go
   where go = algebra . fmap go . project
-
-
-data Plicity = Implicit | Explicit
-  deriving (Eq, Ord, Show)
-
-instance Semigroup Plicity where
-  Explicit <> _        = Explicit
-  _        <> Explicit = Explicit
-  _        <> _        = Implicit
-
-instance Monoid Plicity where
-  mempty = Implicit
-
-instance Semiring Plicity where
-  Implicit >< _        = Implicit
-  _        >< Implicit = Implicit
-  _        >< _        = Explicit
-
-instance Unital Plicity where
-  one = Explicit
