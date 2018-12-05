@@ -10,8 +10,8 @@ import Data.Coerce
 import Data.Function (fix)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Path.Core
 import Path.Eval
-import Path.Expr
 import Path.Recursive
 import Path.Surface
 import Path.Term

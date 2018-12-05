@@ -13,9 +13,9 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Path.Elab
+  exposed-modules:     Path.Core
+                     , Path.Elab
                      , Path.Eval
-                     , Path.Expr
                      , Path.Parser
                      , Path.Plicity
                      , Path.Recursive

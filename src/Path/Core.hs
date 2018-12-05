@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, StandaloneDeriving, UndecidableInstances #-}
-module Path.Expr where
+module Path.Core where
 
 import Data.Function (fix)
 import qualified Data.Set as Set

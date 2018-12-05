@@ -9,9 +9,9 @@ import Control.Effect.Sum
 import Control.Monad.IO.Class
 import Data.Coerce
 import qualified Data.Map as Map
+import Path.Core (Name(..))
 import Path.Elab
 import Path.Eval
-import Path.Expr (Name(..))
 import Path.Parser (Command(..), command, parseString, whole)
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)

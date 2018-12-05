@@ -3,7 +3,7 @@ module Path.Eval where
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Path.Expr
+import Path.Core
 import Path.Plicity
 import Path.Term
 
