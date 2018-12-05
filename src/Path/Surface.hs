@@ -2,12 +2,10 @@
 module Path.Surface where
 
 import Data.Function (fix)
-import qualified Data.Set as Set
 import Path.Core
 import Path.FreeVariables
 import Path.Name
 import Path.Plicity
-import Path.Recursive
 import Path.Term
 
 data Surface a
@@ -46,14 +44,9 @@ a .: t = Term (Ann a t)
 f # a = Term (Core (f :@ a))
 
 
-surfaceFVs :: Surface (Set.Set Name) -> Set.Set Name
-surfaceFVs (Core core) = coreFVs core
-surfaceFVs (Ann tm ty) = tm <> ty
-
-
 instance Show (Term Surface) where
   showsPrec = fix (\ f d (Term surface) -> case surface of
-    Core core -> showCore f (cata surfaceFVs) d core
+    Core core -> showCore f fvs d core
     Ann e t -> showParen (d > 0) $ f 1 e . showString " : " . f 0 t)
 
 

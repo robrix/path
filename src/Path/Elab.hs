@@ -9,7 +9,6 @@ import Control.Monad (unless)
 import Data.Coerce
 import Data.Function (fix)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Path.Core
 import Path.Eval
 import Path.FreeVariables
@@ -41,7 +40,7 @@ instance FreeVariables Elab where
   fvs = cata (liftFvs id)
 
 instance Show Elab where
-  showsPrec = fix (\ f d (Elab (ElabF core ty)) -> showParen (d > 0) $ showCore f (cata elabFVs) 1 core . showString " : " . showsPrec 1 ty)
+  showsPrec = fix (\ f d (Elab (ElabF core ty)) -> showParen (d > 0) $ showCore f fvs 1 core . showString " : " . showsPrec 1 ty)
 
 unElab :: Elab -> ElabF Core Elab
 unElab (Elab elabF) = elabF
@@ -57,9 +56,6 @@ elabFExpr (ElabF expr _) = expr
 
 elabFType :: ElabF f a -> Type
 elabFType (ElabF _ ty) = ty
-
-elabFVs :: ElabF Core (Set.Set Name) -> Set.Set Name
-elabFVs (ElabF tm ty) = coreFVs tm <> cata coreFVs (quote ty)
 
 instance Recursive (ElabF Core) Elab where project = unElab
 

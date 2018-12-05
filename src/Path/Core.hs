@@ -6,7 +6,6 @@ import qualified Data.Set as Set
 import Path.FreeVariables
 import Path.Name
 import Path.Plicity
-import Path.Recursive
 import Path.Term
 
 data Core a
@@ -19,7 +18,7 @@ data Core a
   deriving (Eq, Functor, Ord, Show)
 
 instance Show (Term Core) where
-  showsPrec = fix (\ f d (Term core) -> showCore f (cata coreFVs) d core)
+  showsPrec = fix (\ f d (Term core) -> showCore f fvs d core)
 
 instance FreeVariables1 Core where
   liftFvs _   (Bound s) = Set.singleton (Local s)
@@ -40,14 +39,6 @@ fresh (s:_) = prime s
 prime :: String -> String
 prime [c] | c < 'z' = [succ c]
 prime s = s <> "ʹ"
-
-coreFVs :: Core (Set.Set Name) -> Set.Set Name
-coreFVs (Bound s) = Set.singleton (Local s)
-coreFVs (Free n) = Set.singleton n
-coreFVs (Lam v b) = Set.delete (Local v) b
-coreFVs (f :@ a) = f <> a
-coreFVs Type = Set.empty
-coreFVs (Pi v _ t b) = t <> Set.delete (Local v) b
 
 showCore :: (Int -> x -> ShowS) -> (x -> Set.Set Name) -> Int -> Core x -> ShowS
 showCore go fvs d c = case c of
