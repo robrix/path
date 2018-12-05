@@ -2,9 +2,12 @@ module Path.Pretty where
 
 import Data.Text.Lazy
 import Data.Text.Prettyprint.Doc
-import Data.Text.Prettyprint.Doc.Render.Terminal
+import Data.Text.Prettyprint.Doc.Render.Terminal hiding (putDoc)
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
+
+prettyPrint :: Pretty a => a -> IO ()
+prettyPrint = putDoc . pretty
 
 putDoc :: Doc AnsiStyle -> IO ()
 putDoc doc = do
