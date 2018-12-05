@@ -9,10 +9,12 @@ import Control.Monad (unless)
 import Data.Coerce
 import Data.Function (fix)
 import qualified Data.Map as Map
+import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.Eval
 import Path.FreeVariables
 import Path.Name
+import Path.Pretty
 import Path.Recursive
 import Path.Surface
 import Path.Term
@@ -47,6 +49,9 @@ unElab (Elab elabF) = elabF
 
 data ElabF f a = ElabF (f a) Type
   deriving (Eq, Functor, Ord, Show)
+
+instance PrettyPrec (f a) => PrettyPrec (ElabF f a) where
+  prettyPrec d (ElabF core ty) = prettyParens (d > 0) $ prettyPrec 1 core <> pretty " : " <> prettyPrec 1 ty
 
 instance FreeVariables1 f => FreeVariables1 (ElabF f) where
   liftFvs fvs' (ElabF tm ty) = liftFvs fvs' tm <> fvs ty
