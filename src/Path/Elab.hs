@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, KindSignatures, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, MultiParamTypeClasses #-}
 module Path.Elab where
 
 import Control.Effect
@@ -36,7 +36,7 @@ type Type = Value
 
 
 newtype Elab = Elab (ElabF Core Elab)
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, PrettyPrec)
 
 instance FreeVariables Elab where
   fvs = cata (liftFvs id)
