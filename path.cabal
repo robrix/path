@@ -35,6 +35,8 @@ library
                      , indentation-trifecta
                      , parsers
                      , prettyprinter
+                     , prettyprinter-ansi-terminal
+                     , terminal-size
                      , trifecta
                      , unordered-containers
   hs-source-dirs:      src
