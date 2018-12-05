@@ -21,13 +21,16 @@ data Core a
 instance Show (Term Core) where
   showsPrec = fix (\ f d (Term core) -> showCore f (cata coreFVs) d core)
 
+instance FreeVariables1 Core where
+  liftFvs _   (Bound s) = Set.singleton (Local s)
+  liftFvs _   (Free n) = Set.singleton n
+  liftFvs fvs (Lam v b) = Set.delete (Local v) (fvs b)
+  liftFvs fvs (f :@ a) = fvs f <> fvs a
+  liftFvs _   Type = Set.empty
+  liftFvs fvs (Pi v _ t b) = fvs t <> Set.delete (Local v) (fvs b)
+
 instance FreeVariables a => FreeVariables (Core a) where
-  fvs (Bound s) = Set.singleton (Local s)
-  fvs (Free n) = Set.singleton n
-  fvs (Lam v b) = Set.delete (Local v) (fvs b)
-  fvs (f :@ a) = fvs f <> fvs a
-  fvs Type = Set.empty
-  fvs (Pi v _ t b) = fvs t <> Set.delete (Local v) (fvs b)
+  fvs = fvs1
 
 
 fresh :: [String] -> String
