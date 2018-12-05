@@ -9,6 +9,7 @@ import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
 import qualified Path.Expr as Expr
+import qualified Path.Surface as Expr
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
