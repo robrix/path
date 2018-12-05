@@ -39,6 +39,7 @@ library
                      , prettyprinter
                      , prettyprinter-ansi-terminal
                      , terminal-size
+                     , text
                      , trifecta
                      , unordered-containers
   hs-source-dirs:      src

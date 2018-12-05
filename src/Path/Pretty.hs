@@ -1,5 +1,6 @@
 module Path.Pretty where
 
+import Data.Text.Lazy
 import Data.Text.Prettyprint.Doc
 import Data.Text.Prettyprint.Doc.Render.Terminal
 import System.Console.Terminal.Size as Size
@@ -9,6 +10,11 @@ putDoc :: Doc AnsiStyle -> IO ()
 putDoc doc = do
   options <- layoutOptions
   renderIO stdout (layoutPretty options (doc <> line))
+
+showDocIO :: Doc AnsiStyle -> IO String
+showDocIO doc = do
+  options <- layoutOptions
+  pure (unpack (renderLazy (layoutPretty options doc)))
 
 layoutOptions :: IO LayoutOptions
 layoutOptions = do
