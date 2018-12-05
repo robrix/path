@@ -37,6 +37,9 @@ type Type = Value
 newtype Elab = Elab (ElabF Core Elab)
   deriving (Eq, Ord)
 
+instance FreeVariables Elab where
+  fvs = cata (liftFvs id)
+
 instance Show Elab where
   showsPrec = fix (\ f d (Elab (ElabF core ty)) -> showParen (d > 0) $ showCore f (cata elabFVs) 1 core . showString " : " . showsPrec 1 ty)
 
