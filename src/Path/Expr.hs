@@ -3,6 +3,7 @@ module Path.Expr where
 
 import Data.Function (fix)
 import qualified Data.Set as Set
+import Path.Semiring
 
 data Name
   = Global String
@@ -73,17 +74,6 @@ class Functor f => Recursive f t | t -> f where
 cata :: Recursive f t => (f a -> a) -> t -> a
 cata algebra = go
   where go = algebra . fmap go . project
-
-
-class Semigroup r => Semiring r where
-  (><) :: r -> r -> r
-  infixr 7 ><
-
-zero :: Monoid r => r
-zero = mempty
-
-class (Monoid r, Semiring r) => Unital r where
-  one :: r
 
 
 data Plicity = Implicit | Explicit
