@@ -4,6 +4,7 @@ import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Path.Core
+import Path.FreeVariables
 import Path.Name
 import Path.Plicity
 import Path.Term
@@ -22,6 +23,9 @@ instance Ord Value where
 
 instance Show Value where
   showsPrec d = showsPrec d . quote
+
+instance FreeVariables Value where
+  fvs = fvs . quote
 
 vfree :: Name -> Value
 vfree = VNeutral . NFree
