@@ -4,6 +4,7 @@ import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Path.Core
+import Path.Name
 import Path.Plicity
 import Path.Term
 

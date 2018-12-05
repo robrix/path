@@ -4,6 +4,7 @@ module Path.Surface where
 import Data.Function (fix)
 import qualified Data.Set as Set
 import Path.Core
+import Path.Name
 import Path.Plicity
 import Path.Recursive
 import Path.Term

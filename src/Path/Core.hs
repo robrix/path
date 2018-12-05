@@ -3,15 +3,10 @@ module Path.Core where
 
 import Data.Function (fix)
 import qualified Data.Set as Set
+import Path.Name
 import Path.Plicity
 import Path.Recursive
 import Path.Term
-
-data Name
-  = Global String
-  | Local String
-  | Quote String
-  deriving (Eq, Ord, Show)
 
 data Core a
   = Bound String

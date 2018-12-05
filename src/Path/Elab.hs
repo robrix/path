@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Core
 import Path.Eval
+import Path.Name
 import Path.Recursive
 import Path.Surface
 import Path.Term

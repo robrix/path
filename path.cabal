@@ -17,6 +17,7 @@ library
                      , Path.Elab
                      , Path.Eval
                      , Path.FreeVariables
+                     , Path.Name
                      , Path.Parser
                      , Path.Plicity
                      , Path.Pretty
