@@ -16,6 +16,7 @@ library
   exposed-modules:     Path.Core
                      , Path.Elab
                      , Path.Eval
+                     , Path.FreeVariables
                      , Path.Parser
                      , Path.Plicity
                      , Path.Pretty
