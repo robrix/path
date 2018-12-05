@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Core
 import Path.Eval
+import Path.FreeVariables
 import Path.Name
 import Path.Recursive
 import Path.Surface
@@ -44,6 +45,9 @@ unElab (Elab elabF) = elabF
 
 data ElabF f a = ElabF (f a) Type
   deriving (Eq, Functor, Ord, Show)
+
+instance FreeVariables1 f => FreeVariables1 (ElabF f) where
+  liftFvs fvs' (ElabF tm ty) = liftFvs fvs' tm <> fvs ty
 
 elabFExpr :: ElabF f a -> f a
 elabFExpr (ElabF expr _) = expr
