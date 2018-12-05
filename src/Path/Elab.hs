@@ -2,11 +2,9 @@
 module Path.Elab where
 
 import Control.Effect
-import Control.Effect.Carrier
 import Control.Effect.Fail
 import Control.Effect.Reader hiding (Local)
 import Control.Monad (unless)
-import Data.Coerce
 import Data.Function (fix)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
@@ -19,18 +17,6 @@ import Path.Recursive
 import Path.Surface
 import Path.Term
 import Prelude hiding (fail)
-
-data Elaborate (m :: * -> *) k
-  = Infer (Term Surface) (Elab -> k)
-  | Check (Term Surface) Type (Elab -> k)
-  | Define Elab k
-  deriving (Functor)
-
-instance HFunctor Elaborate where
-  hmap _ = coerce
-
-instance Effect Elaborate where
-  handle state handler = coerce . fmap (handler . (<$ state))
 
 type Type = Value
 
