@@ -4,6 +4,7 @@ module Path.Expr where
 import Data.Function (fix)
 import qualified Data.Set as Set
 import Path.Plicity
+import Path.Recursive
 
 data Name
   = Global String
@@ -63,11 +64,3 @@ showBrace False s = s
 
 instance Show (Term Core) where
   showsPrec = fix (\ f d (Term core) -> showCore f (cata coreFVs) d core)
-
-
-class Functor f => Recursive f t | t -> f where
-  project :: t -> f t
-
-cata :: Recursive f t => (f a -> a) -> t -> a
-cata algebra = go
-  where go = algebra . fmap go . project

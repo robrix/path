@@ -12,6 +12,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Eval
 import Path.Expr
+import Path.Recursive
 import Path.Surface
 import Prelude hiding (fail)
 
