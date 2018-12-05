@@ -4,6 +4,7 @@ module Path.Surface where
 import Data.Function (fix)
 import qualified Data.Set as Set
 import Path.Core
+import Path.FreeVariables
 import Path.Name
 import Path.Plicity
 import Path.Recursive
@@ -13,6 +14,10 @@ data Surface a
   = Core (Core a)
   | Ann a a
   deriving (Eq, Functor, Ord, Show)
+
+instance FreeVariables a => FreeVariables (Surface a) where
+  fvs (Core core) = fvs core
+  fvs (Ann tm ty) = fvs tm <> fvs ty
 
 (-->) :: (String, Plicity, Term Surface) -> Term Surface -> Term Surface
 (n, e, a) --> b = Term (Core (Pi n e a b))
