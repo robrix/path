@@ -9,3 +9,7 @@ class FreeVariables t where
 
 instance FreeVariables (Set.Set Name) where
   fvs = id
+
+
+class FreeVariables1 t where
+  liftFvs :: (a -> Set.Set Name) -> t a -> Set.Set Name
