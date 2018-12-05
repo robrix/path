@@ -18,6 +18,7 @@ library
                      , Path.Eval
                      , Path.Parser
                      , Path.Plicity
+                     , Path.Pretty
                      , Path.Recursive
                      , Path.REPL
                      , Path.Semiring
