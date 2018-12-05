@@ -61,11 +61,8 @@ showBrace :: Bool -> ShowS -> ShowS
 showBrace True s = showChar '{' . s . showChar '}'
 showBrace False s = s
 
-showCoreTerm :: Int -> Term Core -> ShowS
-showCoreTerm = fix (\ f d (Term core) -> showCore f (cata coreFVs) d core)
-
 instance Show (Term Core) where
-  showsPrec = showCoreTerm
+  showsPrec = fix (\ f d (Term core) -> showCore f (cata coreFVs) d core)
 
 
 class Functor f => Recursive f t | t -> f where
