@@ -9,6 +9,7 @@ newtype Term f = Term (f (Term f))
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
 deriving instance Ord (f (Term f)) => Ord (Term f)
+deriving instance Show (f (Term f)) => Show (Term f)
 deriving instance PrettyPrec (f (Term f)) => PrettyPrec (Term f)
 
 instance (FreeVariables1 f, Functor f) => FreeVariables (Term f) where

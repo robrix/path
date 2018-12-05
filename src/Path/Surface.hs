@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveFunctor, FlexibleInstances #-}
 module Path.Surface where
 
-import Data.Function (fix)
 import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.FreeVariables
@@ -48,12 +47,6 @@ a .: t = Term (Ann a t)
 
 (#) :: Term Surface -> Term Surface -> Term Surface
 f # a = Term (Core (f :@ a))
-
-
-instance Show (Term Surface) where
-  showsPrec = fix (\ f d (Term surface) -> case surface of
-    Core core -> showCore f fvs d core
-    Ann e t -> showParen (d > 0) $ f 1 e . showString " : " . f 0 t)
 
 
 subst :: String -> Term Surface -> Term Surface -> Term Surface

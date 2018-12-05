@@ -5,7 +5,6 @@ import Control.Effect
 import Control.Effect.Fail
 import Control.Effect.Reader hiding (Local)
 import Control.Monad (unless)
-import Data.Function (fix)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Core
@@ -22,13 +21,10 @@ type Type = Value
 
 
 newtype Elab = Elab (ElabF Core Elab)
-  deriving (Eq, Ord, PrettyPrec)
+  deriving (Eq, Ord, PrettyPrec, Show)
 
 instance FreeVariables Elab where
   fvs = cata (liftFvs id)
-
-instance Show Elab where
-  showsPrec = fix (\ f d (Elab (ElabF core ty)) -> showParen (d > 0) $ showCore f fvs 1 core . showString " : " . showsPrec 1 ty)
 
 unElab :: Elab -> ElabF Core Elab
 unElab (Elab elabF) = elabF
