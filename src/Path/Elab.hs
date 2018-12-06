@@ -62,3 +62,9 @@ data Err
   | NoRuleToInfer (Term Surface)
   | IllegalApplication (Term (Ann Core Type))
   deriving (Eq, Ord, Show)
+
+instance Pretty Err where
+  pretty (FreeVariable name) = pretty "free variable:" <+> pretty name
+  pretty (TypeMismatch expected actual) = vsep [ pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual ]
+  pretty (NoRuleToInfer tm) = pretty "no rule to infer type of term:" <+> pretty tm
+  pretty (IllegalApplication tm) = pretty "illegal application of term:" <+> pretty tm
