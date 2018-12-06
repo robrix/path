@@ -12,8 +12,11 @@ data Decl
 
 type ModuleName = NonEmpty String
 
-data Module
-  = Module ModuleName [Import] [Decl]
+data Module = Module
+  { moduleName    :: ModuleName
+  , moduleImports :: [Import]
+  , moduleDecls   :: [Decl]
+  }
   deriving (Eq, Ord, Show)
 
 data Import
