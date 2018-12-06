@@ -11,16 +11,16 @@ import Path.Term
 
 data Surface a
   = Core (Core a)
-  | Ann a a
+  | a ::: a
   deriving (Eq, Functor, Ord, Show)
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Surface a) where
   prettyPrec d (Core core) = prettyPrec d core
-  prettyPrec d (Ann tm ty) = prettyParens (d > 0) $ prettyPrec 1 tm <> pretty " : " <> prettyPrec 0 ty
+  prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <> pretty " : " <> prettyPrec 0 ty
 
 instance FreeVariables1 Surface where
   liftFvs fvs (Core core) = liftFvs fvs core
-  liftFvs fvs (Ann tm ty) = fvs tm <> fvs ty
+  liftFvs fvs (tm ::: ty) = fvs tm <> fvs ty
 
 instance FreeVariables a => FreeVariables (Surface a) where
   fvs = fvs1
@@ -43,14 +43,14 @@ lam :: String -> Term Surface -> Term Surface
 lam n = Term . Core . Lam n
 
 (.:)  :: Term Surface -> Term Surface -> Term Surface
-a .: t = Term (Ann a t)
+a .: t = Term (a ::: t)
 
 (#) :: Term Surface -> Term Surface -> Term Surface
 f # a = Term (Core (f :@ a))
 
 
 subst :: String -> Term Surface -> Term Surface -> Term Surface
-subst i r (Term (Ann e t)) = Term (Ann (subst i r e) (subst i r t))
+subst i r (Term (e ::: t)) = Term (subst i r e ::: subst i r t)
 subst i r (Term (Core (Bound j)))
   | i == j    = r
   | otherwise = Term (Core (Bound j))

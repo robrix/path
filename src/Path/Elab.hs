@@ -59,7 +59,7 @@ erase = cata (Term . elabFExpr)
 type Context = Map.Map Name Value
 
 infer :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> m (Elab Type)
-infer (Term (Ann e t)) = do
+infer (Term (e ::: t)) = do
   t' <- check t VType
   env <- ask
   let t'' = eval (erase t') env
