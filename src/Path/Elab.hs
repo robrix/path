@@ -57,7 +57,7 @@ check tm = elab tm . Just
 
 
 elabModule :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m ()
-elabModule (Module _ decls) = traverse_ elabDecl decls
+elabModule (Module _ decls) = transactionState (traverse_ elabDecl decls)
 
 
 elabDecl :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
