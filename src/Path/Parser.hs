@@ -89,7 +89,7 @@ load = Load <$ token (string ":load") <*> moduleName
 
 
 module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module
-module' = Module <$ keyword "module" <*> moduleName <* keyword "where" <*> absoluteIndentation (many declaration)
+module' = Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = identifier `sepByNonEmpty` dot
