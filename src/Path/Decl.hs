@@ -12,7 +12,7 @@ data Decl
 type ModuleName = NonEmpty String
 
 data Module
-  = Module ModuleName [Decl]
+  = Module ModuleName [Directive] [Decl]
   deriving (Eq, Ord, Show)
 
 data Directive
