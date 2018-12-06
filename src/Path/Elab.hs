@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect
@@ -20,10 +20,15 @@ import Prelude hiding (fail)
 type Type = Value
 
 
-newtype Ann a = Ann (AnnF Core a (Ann a))
-  deriving (Eq, FreeVariables, Ord, PrettyPrec, Show)
+newtype Ann f a = Ann (AnnF f a (Ann f a))
+  deriving (FreeVariables)
 
-unElab :: Ann a -> AnnF Core a (Ann a)
+deriving instance (Eq a, Eq (f (Ann f a))) => Eq (Ann f a)
+deriving instance (Ord a, Ord (f (Ann f a))) => Ord (Ann f a)
+deriving instance (Show a, Show (f (Ann f a))) => Show (Ann f a)
+deriving instance (PrettyPrec a, PrettyPrec (f (Ann f a))) => PrettyPrec (Ann f a)
+
+unElab :: Ann f a -> AnnF f a (Ann f a)
 unElab (Ann elabF) = elabF
 
 data AnnF f a b = AnnF (f b) a
@@ -44,21 +49,21 @@ elabFExpr (AnnF expr _) = expr
 elabFType :: AnnF f a b -> a
 elabFType (AnnF _ ty) = ty
 
-instance Recursive (AnnF Core a) (Ann a) where project = unElab
+instance Functor f => Recursive (AnnF f a) (Ann f a) where project = unElab
 
-elab :: Core (Ann a) -> a -> Ann a
+elab :: f (Ann f a) -> a -> Ann f a
 elab = fmap Ann . AnnF
 
-elabType :: Ann a -> a
+elabType :: Ann f a -> a
 elabType = elabFType . unElab
 
-erase :: Ann a -> Term Core
+erase :: Functor f => Ann f a -> Term f
 erase = cata (Term . elabFExpr)
 
 
 type Context = Map.Map Name Value
 
-infer :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> m (Ann Type)
+infer :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> m (Ann Core Type)
 infer (Term (e ::: t)) = do
   t' <- check t VType
   env <- ask
@@ -82,7 +87,7 @@ infer (Term (Core (f :@ a))) = do
     _ -> fail ("illegal application of " <> show f')
 infer tm = fail ("no rule to infer type of " <> show tm)
 
-check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m (Ann Type)
+check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m (Ann Core Type)
 check (Term (Core (Lam n e))) (VPi tn ann t t') = do
   e' <- local (Map.insert (Local n) t) (check (subst n (Term (Core (Free (Local n)))) e) (t' (vfree (Local n))))
   pure (elab (Lam n e') (VPi tn ann t t'))
