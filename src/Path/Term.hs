@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
 import Data.Text.Prettyprint.Doc
@@ -23,6 +23,7 @@ instance Functor f => Recursive f (Term f) where project (Term f) = f
 
 
 data Ann f a = Ann { syn :: f (Ann f a), ann :: a }
+  deriving (Functor)
 
 deriving instance (Eq a, Eq (f (Ann f a))) => Eq (Ann f a)
 deriving instance (Ord a, Ord (f (Ann f a))) => Ord (Ann f a)
