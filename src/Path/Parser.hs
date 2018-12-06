@@ -61,13 +61,17 @@ data Command
   | TypeOf (Term Expr.Surface)
   | Decl Decl
   | Eval (Term Expr.Surface)
+  | Show Info
   deriving (Eq, Ord, Show)
 
+data Info
+  = Bindings
+  deriving (Eq, Ord, Show)
 
-quit, help, typeof, eval :: (Monad m, TokenParsing m) => m Command
+quit, help, typeof, eval, show' :: (Monad m, TokenParsing m) => m Command
 command, decl :: (IndentationParsing m, Monad m, TokenParsing m) => m Command
 
-command = quit <|> help <|> typeof <|> try decl <|> eval <?> "command; use :? for help"
+command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <?> "command; use :? for help"
 
 quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
@@ -78,6 +82,8 @@ typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> globalTe
 decl = Decl <$> declaration
 
 eval = Eval <$> globalTerm <?> "term"
+
+show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 
 
 declaration :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl

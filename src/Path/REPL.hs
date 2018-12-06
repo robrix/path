@@ -7,12 +7,15 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
+import Control.Monad ((>=>))
 import Control.Monad.IO.Class
 import Data.Coerce
+import Data.Foldable (traverse_)
+import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Elab
 import Path.Eval
-import Path.Parser (Command(..), command, parseString, whole)
+import Path.Parser (Command(..), Info(..), command, parseString, whole)
 import Path.Pretty
 import Path.Term
 import System.Console.Haskeline
@@ -94,6 +97,15 @@ script = do
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
               Right elab -> get >>= \ env -> showDoc (pretty (eval (erase elab) env)) >>= output >> script
+          Right (Show Bindings) -> do
+            ctx <- get
+            traverse_ (showDoc . prettyCtx >=> output) (Map.toList (ctx :: Context))
+            env <- get
+            traverse_ (showDoc . prettyEnv >=> output) (Map.toList (env :: Env))
+            script
+        prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
+        prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
+
 
 helpText :: String
 helpText
