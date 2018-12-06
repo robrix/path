@@ -57,9 +57,9 @@ whole p = whiteSpace *> p <* eof
 data Command
   = Quit
   | Help
-  | TypeOf (Expr.Term Expr.Surface)
-  | Def String (Expr.Term Expr.Surface)
-  | Eval (Expr.Term Expr.Surface)
+  | TypeOf (Expr.Term Expr.Surface Trifecta.Span)
+  | Def String (Expr.Term Expr.Surface Trifecta.Span)
+  | Eval (Expr.Term Expr.Surface Trifecta.Span)
   deriving (Eq, Ord, Show)
 
 
@@ -79,16 +79,16 @@ def = uncurry Def <$> definition
 eval = Eval <$> globalTerm <?> "term"
 
 
-definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Expr.Term Expr.Surface)
+definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Expr.Term Expr.Surface Trifecta.Span)
 definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
 
 
-globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
+globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface Trifecta.Span)
 globalTerm = term []
 
-term, application, annotation, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, application, annotation, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface Trifecta.Span)
 
-piType, functionType :: (Monad m, TokenParsing m) => Int -> [String] -> m (Expr.Term Expr.Surface)
+piType, functionType :: (Monad m, TokenParsing m) => Int -> [String] -> m (Expr.Term Expr.Surface Trifecta.Span)
 
 term = annotation
 
