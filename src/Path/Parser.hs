@@ -8,6 +8,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
+import Path.Decl
 import Path.Plicity
 import qualified Path.Surface as Expr
 import Path.Term
@@ -78,6 +79,11 @@ def = uncurry Def <$> definition
 
 eval = Eval <$> globalTerm <?> "term"
 
+
+declaration :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl
+declaration
+  =   Declare <$> identifier <* op ":" <*> localIndentation Gt globalTerm
+  <|> Define  <$> identifier <* op "=" <*> localIndentation Gt globalTerm
 
 definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Term Expr.Surface)
 definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
