@@ -63,10 +63,3 @@ subst _ _ (In (Core Type)) = In (Core Type)
 subst i r (In (Core (Pi n e t t')))
   | i == n    = In (Core (Pi n e (subst i r t) t'))
   | otherwise = In (Core (Pi n e (subst i r t) (subst i r t')))
-
-
-identity :: Term Surface
-identity = lam "0" (var "0")
-
-constant :: Term Surface
-constant = lam "1" (lam "0" (var "1"))
