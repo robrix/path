@@ -25,31 +25,31 @@ instance FreeVariables1 Surface where
 instance FreeVariables a => FreeVariables (Surface a) where
   fvs = fvs1
 
-(-->) :: (String, Plicity, Term Surface a) -> Term Surface a -> Term Surface a
+(-->) :: (String, Plicity, Term Surface) -> Term Surface -> Term Surface
 (n, e, a) --> b = Term (Core (Pi n e a b))
 
 infixr 0 -->
 
-typeT :: Term Surface a
+typeT :: Term Surface
 typeT = Term (Core Type)
 
-global :: String -> Term Surface a
+global :: String -> Term Surface
 global = Term . Core . Free . Global
 
-var :: String -> Term Surface a
+var :: String -> Term Surface
 var = Term . Core . Bound
 
-lam :: String -> Term Surface a -> Term Surface a
+lam :: String -> Term Surface -> Term Surface
 lam n = Term . Core . Lam n
 
-(.:)  :: Term Surface a -> Term Surface a -> Term Surface a
+(.:)  :: Term Surface -> Term Surface -> Term Surface
 a .: t = Term (Ann a t)
 
-(#) :: Term Surface a -> Term Surface a -> Term Surface a
+(#) :: Term Surface -> Term Surface -> Term Surface
 f # a = Term (Core (f :@ a))
 
 
-subst :: String -> Term Surface a -> Term Surface a -> Term Surface a
+subst :: String -> Term Surface -> Term Surface -> Term Surface
 subst i r (Term (Ann e t)) = Term (Ann (subst i r e) (subst i r t))
 subst i r (Term (Core (Bound j)))
   | i == j    = r
@@ -65,8 +65,8 @@ subst i r (Term (Core (Pi n e t t')))
   | otherwise = Term (Core (Pi n e (subst i r t) (subst i r t')))
 
 
-identity :: Term Surface a
+identity :: Term Surface
 identity = lam "0" (var "0")
 
-constant :: Term Surface a
+constant :: Term Surface
 constant = lam "1" (lam "0" (var "1"))
