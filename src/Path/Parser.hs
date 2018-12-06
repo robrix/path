@@ -33,8 +33,8 @@ instance TokenParsing Inner where
   highlight h = Inner . highlight h . runInner
 
 
-parseFile :: MonadIO m => Parser a -> FilePath -> m (Maybe a)
-parseFile p = Trifecta.parseFromFile (runInner (whiteSpace *> evalIndentationParserT p indentst))
+parseFile :: MonadIO m => Parser a -> FilePath -> m (Either String a)
+parseFile p = fmap toResult . Trifecta.parseFromFileEx (runInner (whiteSpace *> evalIndentationParserT p indentst))
 
 parseString :: Parser a -> String -> Either String a
 parseString p = toResult . Trifecta.parseString (runInner (evalIndentationParserT p indentst)) directed
