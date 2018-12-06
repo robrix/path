@@ -19,8 +19,7 @@ data Module = Module
   }
   deriving (Eq, Ord, Show)
 
-data Import
-  = Import ModuleName
+newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
 
