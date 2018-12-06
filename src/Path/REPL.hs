@@ -101,7 +101,7 @@ script = do
             traverse_ (showDoc . prettyEnv >=> output) (Map.toList (env :: Env))
             script
           Right (Load moduleName) -> do
-            res <- parseFile module' (toPath moduleName)
+            res <- parseFile (whole module') (toPath moduleName)
             case res of
               Left err -> output err
               Right m -> do
