@@ -14,3 +14,7 @@ type ModuleName = NonEmpty String
 data Module
   = Module ModuleName [Decl]
   deriving (Eq, Ord, Show)
+
+data Directive
+  = Import ModuleName
+  deriving (Eq, Ord, Show)
