@@ -21,7 +21,6 @@ library
                      , Path.Parser
                      , Path.Plicity
                      , Path.Pretty
-                     , Path.Recursive
                      , Path.REPL
                      , Path.Semiring
                      , Path.Surface
