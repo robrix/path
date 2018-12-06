@@ -3,6 +3,7 @@ module Path.Eval where
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.FreeVariables
 import Path.Name
@@ -27,6 +28,9 @@ instance Show Value where
 
 instance PrettyPrec Value where
   prettyPrec d = prettyPrec d . quote
+
+instance Pretty Value where
+  pretty = prettyPrec 0
 
 instance FreeVariables Value where
   fvs = fvs . quote
