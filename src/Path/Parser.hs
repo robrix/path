@@ -86,6 +86,9 @@ eval = Eval <$> globalTerm <?> "term"
 show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 
 
+module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module
+module' = Module <$ keyword "module" <*> (identifier `sepByNonEmpty` dot) <* keyword "where" <*> absoluteIndentation (many declaration)
+
 declaration :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl
 declaration = identifier <**> (Declare <$ op ":" <|> Define  <$ op "=") <*> localIndentation Gt globalTerm
 
