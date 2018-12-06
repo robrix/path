@@ -68,7 +68,7 @@ repl = do
   layoutOptions <- layoutOptions
   liftIO (runM (runREPL prefs settings (runReader layoutOptions (runReader (mempty :: Env) (runReader (mempty :: Context) script)))))
 
-script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader Context) sig, Member (Reader Env) sig, MonadIO m) => m ()
+script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader LayoutOptions) sig, Member (Reader Context) sig, Member (Reader Env) sig, MonadIO m) => m ()
 script = do
   a <- prompt "λ: "
   maybe script runCommand a
@@ -79,18 +79,18 @@ script = do
           Right (TypeOf tm) -> do
             res <- runError (infer tm)
             case res of
-              Left err -> showDocIO (prettyErr err) >>= output >> script
-              Right elab -> showDocIO (pretty (ann (out elab))) >>= output >> script
+              Left err -> showDoc (prettyErr err) >>= output >> script
+              Right elab -> showDoc (pretty (ann (out elab))) >>= output >> script
           Right (Def name tm) -> do
             res <- runError (infer tm)
             case res of
-              Left err -> showDocIO (prettyErr err) >>= output >> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDocIO (pretty v) >>= output >> local (Map.insert (Global name) (ann (out elab))) (local (Map.insert name v) script)
+              Left err -> showDoc (prettyErr err) >>= output >> script
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDoc (pretty v) >>= output >> local (Map.insert (Global name) (ann (out elab))) (local (Map.insert name v) script)
           Right (Eval tm) -> do
             res <- runError (infer tm)
             case res of
-              Left err -> showDocIO (prettyErr err) >>= output >> script
-              Right elab -> ask >>= \ env -> showDocIO (pretty (eval (erase elab) env)) >>= output >> script
+              Left err -> showDoc (prettyErr err) >>= output >> script
+              Right elab -> ask >>= \ env -> showDoc (pretty (eval (erase elab) env)) >>= output >> script
 
 helpText :: String
 helpText

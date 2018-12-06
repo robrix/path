@@ -21,11 +21,6 @@ putDoc doc = do
 showDoc :: (Carrier sig m, Functor m, Member (Reader LayoutOptions) sig) => Doc AnsiStyle -> m String
 showDoc doc = asks (\ options -> unpack (renderLazy (layoutPretty options doc)))
 
-showDocIO :: MonadIO m => Doc AnsiStyle -> m String
-showDocIO doc = do
-  options <- layoutOptions
-  pure (unpack (renderLazy (layoutPretty options doc)))
-
 layoutOptions :: MonadIO m => m LayoutOptions
 layoutOptions = do
   s <- maybe 80 Size.width <$> liftIO size
