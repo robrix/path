@@ -56,7 +56,7 @@ check :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Me
 check tm = elab tm . Just
 
 
-elabModule :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module  -> m ()
+elabModule :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m ()
 elabModule (Module _ decls) = traverse_ elabDecl decls
 
 
