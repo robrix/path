@@ -13,10 +13,10 @@ data Decl
 type ModuleName = NonEmpty String
 
 data Module
-  = Module ModuleName [Directive] [Decl]
+  = Module ModuleName [Import] [Decl]
   deriving (Eq, Ord, Show)
 
-data Directive
+data Import
   = Import ModuleName
   deriving (Eq, Ord, Show)
 
