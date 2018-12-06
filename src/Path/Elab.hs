@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Elab where
 
 import Control.Effect
