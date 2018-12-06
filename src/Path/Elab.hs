@@ -21,10 +21,7 @@ type Type = Value
 
 
 newtype Elab a = Elab (ElabF Core a (Elab a))
-  deriving (Eq, Ord, PrettyPrec, Show)
-
-instance FreeVariables a => FreeVariables (Elab a) where
-  fvs = cata (liftFvs id)
+  deriving (Eq, FreeVariables, Ord, PrettyPrec, Show)
 
 unElab :: Elab a -> ElabF Core a (Elab a)
 unElab (Elab elabF) = elabF
