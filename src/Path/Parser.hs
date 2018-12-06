@@ -81,9 +81,7 @@ eval = Eval <$> globalTerm <?> "term"
 
 
 declaration :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl
-declaration
-  =   Declare <$> identifier <* op ":" <*> localIndentation Gt globalTerm
-  <|> Define  <$> identifier <* op "=" <*> localIndentation Gt globalTerm
+declaration = identifier <**> (Declare <$ op ":" <|> Define  <$ op "=") <*> localIndentation Gt globalTerm
 
 definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Term Expr.Surface)
 definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
