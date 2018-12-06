@@ -69,8 +69,7 @@ data Info
   = Bindings
   deriving (Eq, Ord, Show)
 
-quit, help, typeof, eval, show', load :: (Monad m, TokenParsing m) => m Command
-command, decl :: (IndentationParsing m, Monad m, TokenParsing m) => m Command
+command, quit, help, typeof, decl, eval, show', load :: (Monad m, TokenParsing m) => m Command
 
 command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> load <?> "command; use :? for help"
 
@@ -95,8 +94,8 @@ module' = Module <$ keyword "module" <*> moduleName <* keyword "where" <*> absol
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = identifier `sepByNonEmpty` dot
 
-declaration :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl
-declaration = identifier <**> (Declare <$ op ":" <|> Define  <$ op "=") <*> localIndentation Gt globalTerm
+declaration :: (Monad m, TokenParsing m) => m Decl
+declaration = identifier <**> (Declare <$ op ":" <|> Define  <$ op "=") <*> globalTerm
 
 
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Term Expr.Surface)
