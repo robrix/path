@@ -6,6 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Control.Monad (unless)
+import Data.Foldable (traverse_)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Core
@@ -53,6 +54,10 @@ infer tm = elab tm Nothing
 
 check :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Type -> m (Term (Ann Core Type))
 check tm = elab tm . Just
+
+
+elabModule :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module  -> m ()
+elabModule (Module _ decls) = traverse_ elabDecl decls
 
 
 elabDecl :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
