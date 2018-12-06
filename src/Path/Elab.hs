@@ -4,10 +4,12 @@ module Path.Elab where
 import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
+import Control.Effect.State
 import Control.Monad (unless)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Core
+import Path.Decl
 import Path.Eval
 import Path.Name
 import Path.Surface
@@ -53,6 +55,20 @@ infer tm = elab tm Nothing
 
 check :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Type -> m (Term (Ann Core Type))
 check tm = elab tm . Just
+
+
+elabDecl :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
+elabDecl (Declare name ty) = do
+  env <- get
+  ctx <- get
+  ty' <- runReader (env :: Env) (runReader (ctx :: Context) (infer ty))
+  modify (Map.insert (Global name) (ann (out ty')))
+elabDecl (Define name tm) = do
+  env <- get
+  ctx <- get
+  tm' <- runReader (env :: Env) (runReader (ctx :: Context) (maybe infer (flip check) (Map.lookup (Global name) ctx) tm))
+  let tm'' = eval (erase tm') env
+  modify (Map.insert name tm'')
 
 
 data Err
