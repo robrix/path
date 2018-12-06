@@ -1,10 +1,9 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleInstances, GeneralizedNewtypeDeriving, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
 import Data.Text.Prettyprint.Doc
 import Path.FreeVariables
 import Path.Pretty
-import Path.Recursive
 
 newtype Term f = Term { out :: f (Term f) }
 
@@ -18,8 +17,6 @@ instance PrettyPrec (f (Term f)) => Pretty (Term f) where
 
 instance FreeVariables1 f => FreeVariables (Term f) where
   fvs = liftFvs fvs . out
-
-instance Functor f => Recursive f (Term f) where project = out
 
 
 data Ann f a = Ann { syn :: f (Ann f a), ann :: a }
