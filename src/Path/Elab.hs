@@ -62,8 +62,9 @@ elabModule (Module _ decls) = traverse_ elabDecl decls
 
 elabDecl :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
 elabDecl (Declare name ty) = do
-  ty' <- runInState (infer ty)
-  modify (Map.insert (Global name) (ann (out ty')))
+  ty' <- runInState (check ty VType)
+  ty'' <- gets (eval (erase ty'))
+  modify (Map.insert (Global name) ty'')
 elabDecl (Define name tm) = do
   ty <- gets (Map.lookup (Global name))
   tm' <- runInState (maybe infer (flip check) ty tm)
