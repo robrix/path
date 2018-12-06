@@ -38,6 +38,9 @@ instance (PrettyPrec a, PrettyPrec (f b)) => PrettyPrec (ElabF f a b) where
 instance (FreeVariables a, FreeVariables1 f) => FreeVariables1 (ElabF f a) where
   liftFvs fvs' (ElabF tm ty) = liftFvs fvs' tm <> fvs ty
 
+instance (FreeVariables a, FreeVariables b, FreeVariables1 f) => FreeVariables (ElabF f a b) where
+  fvs = fvs1
+
 elabFExpr :: ElabF f a b -> f b
 elabFExpr (ElabF expr _) = expr
 
