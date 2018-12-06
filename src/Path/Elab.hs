@@ -20,45 +20,45 @@ import Prelude hiding (fail)
 type Type = Value
 
 
-newtype Elab a = Elab (ElabF Core a (Elab a))
+newtype Ann a = Ann (AnnF Core a (Ann a))
   deriving (Eq, FreeVariables, Ord, PrettyPrec, Show)
 
-unElab :: Elab a -> ElabF Core a (Elab a)
-unElab (Elab elabF) = elabF
+unElab :: Ann a -> AnnF Core a (Ann a)
+unElab (Ann elabF) = elabF
 
-data ElabF f a b = ElabF (f b) a
+data AnnF f a b = AnnF (f b) a
   deriving (Eq, Functor, Ord, Show)
 
-instance (PrettyPrec a, PrettyPrec (f b)) => PrettyPrec (ElabF f a b) where
-  prettyPrec d (ElabF core ty) = prettyParens (d > 0) $ prettyPrec 1 core <> pretty " : " <> prettyPrec 1 ty
+instance (PrettyPrec a, PrettyPrec (f b)) => PrettyPrec (AnnF f a b) where
+  prettyPrec d (AnnF core ty) = prettyParens (d > 0) $ prettyPrec 1 core <> pretty " : " <> prettyPrec 1 ty
 
-instance (FreeVariables a, FreeVariables1 f) => FreeVariables1 (ElabF f a) where
-  liftFvs fvs' (ElabF tm ty) = liftFvs fvs' tm <> fvs ty
+instance (FreeVariables a, FreeVariables1 f) => FreeVariables1 (AnnF f a) where
+  liftFvs fvs' (AnnF tm ty) = liftFvs fvs' tm <> fvs ty
 
-instance (FreeVariables a, FreeVariables b, FreeVariables1 f) => FreeVariables (ElabF f a b) where
+instance (FreeVariables a, FreeVariables b, FreeVariables1 f) => FreeVariables (AnnF f a b) where
   fvs = fvs1
 
-elabFExpr :: ElabF f a b -> f b
-elabFExpr (ElabF expr _) = expr
+elabFExpr :: AnnF f a b -> f b
+elabFExpr (AnnF expr _) = expr
 
-elabFType :: ElabF f a b -> a
-elabFType (ElabF _ ty) = ty
+elabFType :: AnnF f a b -> a
+elabFType (AnnF _ ty) = ty
 
-instance Recursive (ElabF Core a) (Elab a) where project = unElab
+instance Recursive (AnnF Core a) (Ann a) where project = unElab
 
-elab :: Core (Elab a) -> a -> Elab a
-elab = fmap Elab . ElabF
+elab :: Core (Ann a) -> a -> Ann a
+elab = fmap Ann . AnnF
 
-elabType :: Elab a -> a
+elabType :: Ann a -> a
 elabType = elabFType . unElab
 
-erase :: Elab a -> Term Core
+erase :: Ann a -> Term Core
 erase = cata (Term . elabFExpr)
 
 
 type Context = Map.Map Name Value
 
-infer :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> m (Elab Type)
+infer :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> m (Ann Type)
 infer (Term (e ::: t)) = do
   t' <- check t VType
   env <- ask
@@ -82,7 +82,7 @@ infer (Term (Core (f :@ a))) = do
     _ -> fail ("illegal application of " <> show f')
 infer tm = fail ("no rule to infer type of " <> show tm)
 
-check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m (Elab Type)
+check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m (Ann Type)
 check (Term (Core (Lam n e))) (VPi tn ann t t') = do
   e' <- local (Map.insert (Local n) t) (check (subst n (Term (Core (Free (Local n)))) e) (t' (vfree (Local n))))
   pure (elab (Lam n e') (VPi tn ann t t'))
