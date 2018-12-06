@@ -28,7 +28,8 @@ library
                      , Path.Term
   -- other-modules:
   -- other-extensions:
-  build-depends:       base >=4.11 && <4.12
+  build-depends:       algebraic-graphs
+                     , base >=4.11 && <4.12
                      , bytestring
                      , containers
                      , directory
