@@ -26,43 +26,43 @@ instance FreeVariables a => FreeVariables (Surface a) where
   fvs = fvs1
 
 (-->) :: (String, Plicity, Term Surface) -> Term Surface -> Term Surface
-(n, e, a) --> b = Term (Core (Pi n e a b))
+(n, e, a) --> b = In (Core (Pi n e a b))
 
 infixr 0 -->
 
 typeT :: Term Surface
-typeT = Term (Core Type)
+typeT = In (Core Type)
 
 global :: String -> Term Surface
-global = Term . Core . Free . Global
+global = In . Core . Free . Global
 
 var :: String -> Term Surface
-var = Term . Core . Bound
+var = In . Core . Bound
 
 lam :: String -> Term Surface -> Term Surface
-lam n = Term . Core . Lam n
+lam n = In . Core . Lam n
 
 (.:)  :: Term Surface -> Term Surface -> Term Surface
-a .: t = Term (a ::: t)
+a .: t = In (a ::: t)
 
 (#) :: Term Surface -> Term Surface -> Term Surface
-f # a = Term (Core (f :@ a))
+f # a = In (Core (f :@ a))
 
 
 subst :: String -> Term Surface -> Term Surface -> Term Surface
-subst i r (Term (e ::: t)) = Term (subst i r e ::: subst i r t)
-subst i r (Term (Core (Bound j)))
+subst i r (In (e ::: t)) = In (subst i r e ::: subst i r t)
+subst i r (In (Core (Bound j)))
   | i == j    = r
-  | otherwise = Term (Core (Bound j))
-subst _ _ (Term (Core (Free n))) = Term (Core (Free n))
-subst i r (Term (Core (Lam n b)))
-  | i == n    = Term (Core (Lam n b))
-  | otherwise = Term (Core (Lam n (subst i r b)))
-subst i r (Term (Core (f :@ a))) = Term (Core (subst i r f :@ subst i r a))
-subst _ _ (Term (Core Type)) = Term (Core Type)
-subst i r (Term (Core (Pi n e t t')))
-  | i == n    = Term (Core (Pi n e (subst i r t) t'))
-  | otherwise = Term (Core (Pi n e (subst i r t) (subst i r t')))
+  | otherwise = In (Core (Bound j))
+subst _ _ (In (Core (Free n))) = In (Core (Free n))
+subst i r (In (Core (Lam n b)))
+  | i == n    = In (Core (Lam n b))
+  | otherwise = In (Core (Lam n (subst i r b)))
+subst i r (In (Core (f :@ a))) = In (Core (subst i r f :@ subst i r a))
+subst _ _ (In (Core Type)) = In (Core Type)
+subst i r (In (Core (Pi n e t t')))
+  | i == n    = In (Core (Pi n e (subst i r t) t'))
+  | otherwise = In (Core (Pi n e (subst i r t) (subst i r t')))
 
 
 identity :: Term Surface

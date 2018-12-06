@@ -5,7 +5,7 @@ import Data.Text.Prettyprint.Doc
 import Path.FreeVariables
 import Path.Pretty
 
-newtype Term f = Term { out :: f (Term f) }
+newtype Term f = In { out :: f (Term f) }
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
 deriving instance Ord (f (Term f)) => Ord (Term f)
@@ -32,4 +32,4 @@ instance (FreeVariables a, FreeVariables b, FreeVariables1 f) => FreeVariables (
   fvs = fvs1
 
 erase :: Functor f => Term (Ann f a) -> Term f
-erase = Term . fmap erase . syn . out
+erase = In . fmap erase . syn . out

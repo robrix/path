@@ -40,28 +40,28 @@ data Neutral
   deriving (Eq, Ord, Show)
 
 quote :: Value -> Term Core
-quote VType = Term Type
-quote (VLam v f) = Term (Lam v (quote (f (vfree (Quote v)))))
-quote (VPi v e t f) = Term (Pi v e (quote t) (quote (f (vfree (Quote v)))))
+quote VType = In Type
+quote (VLam v f) = In (Lam v (quote (f (vfree (Quote v)))))
+quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (Quote v)))))
 quote (VNeutral n) = quoteN n
 
 quoteN :: Neutral -> Term Core
-quoteN (NFree (Quote s)) = Term (Bound s)
-quoteN (NFree n) = Term (Free n)
-quoteN (NApp n a) = Term (quoteN n :@ quote a)
+quoteN (NFree (Quote s)) = In (Bound s)
+quoteN (NFree n) = In (Free n)
+quoteN (NApp n a) = In (quoteN n :@ quote a)
 
 
 type Env = Map.Map String Value
 
 eval :: Term Core -> Env -> Value
-eval (Term (Bound i)) d = d Map.! i
-eval (Term (Free (Local n))) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
-eval (Term (Free (Global n))) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
-eval (Term (Free (Quote n))) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
-eval (Term (Lam n b)) d = VLam n (eval b . flip (Map.insert n) d)
-eval (Term (f :@ a)) d = eval f d `vapp` eval a d
-eval (Term Type) _ = VType
-eval (Term (Pi n e ty body)) d = VPi n e (eval ty d) (eval body . flip (Map.insert n) d)
+eval (In (Bound i)) d = d Map.! i
+eval (In (Free (Local n))) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
+eval (In (Free (Global n))) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
+eval (In (Free (Quote n))) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
+eval (In (Lam n b)) d = VLam n (eval b . flip (Map.insert n) d)
+eval (In (f :@ a)) d = eval f d `vapp` eval a d
+eval (In Type) _ = VType
+eval (In (Pi n e ty body)) d = VPi n e (eval ty d) (eval body . flip (Map.insert n) d)
 
 vapp :: Value -> Value -> Value
 vapp (VLam _ f) v = f v
