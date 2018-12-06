@@ -1,5 +1,6 @@
 module Path.Decl where
 
+import Algebra.Graph.AdjacencyMap
 import Data.List.NonEmpty
 import Path.Surface
 import Path.Term
@@ -18,3 +19,6 @@ data Module
 data Directive
   = Import ModuleName
   deriving (Eq, Ord, Show)
+
+
+type ModuleGraph = AdjacencyMap ModuleName
