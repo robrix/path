@@ -54,3 +54,11 @@ infer tm = elab tm Nothing
 
 check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m (Term (Ann Core Type))
 check tm = elab tm . Just
+
+
+data Err
+  = FreeVariable Name
+  | TypeMismatch Type Type
+  | NoRuleToInfer (Term Surface)
+  | IllegalApplication (Term (Ann Core Type))
+  deriving (Eq, Ord, Show)
