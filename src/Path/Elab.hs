@@ -78,6 +78,15 @@ runInState m = do
   ctx <- get
   runReader env (runReader ctx m)
 
+transactionState :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => m a -> m a
+transactionState m = do
+  env <- get
+  ctx <- get
+  m `catchError` \ err -> do
+    put (env :: Env)
+    put (ctx :: Context)
+    throwError (err :: Err)
+
 
 data Err
   = FreeVariable Name
