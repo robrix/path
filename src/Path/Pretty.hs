@@ -1,5 +1,8 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Pretty where
 
+import Control.Effect
+import Control.Effect.Reader
 import Control.Monad.IO.Class
 import Data.Text.Lazy
 import Data.Text.Prettyprint.Doc
@@ -14,6 +17,9 @@ putDoc :: MonadIO m => Doc AnsiStyle -> m ()
 putDoc doc = do
   options <- layoutOptions
   liftIO (renderIO stdout (layoutPretty options (doc <> line)))
+
+showDoc :: (Carrier sig m, Functor m, Member (Reader LayoutOptions) sig) => Doc AnsiStyle -> m String
+showDoc doc = asks (\ options -> unpack (renderLazy (layoutPretty options doc)))
 
 showDocIO :: MonadIO m => Doc AnsiStyle -> m String
 showDocIO doc = do
