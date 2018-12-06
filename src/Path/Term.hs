@@ -6,7 +6,7 @@ import Path.FreeVariables
 import Path.Pretty
 import Path.Recursive
 
-newtype Term f = Term (f (Term f))
+newtype Term f = Term { out :: f (Term f) }
 
 deriving instance Eq (f (Term f)) => Eq (Term f)
 deriving instance Ord (f (Term f)) => Ord (Term f)
@@ -19,7 +19,7 @@ instance PrettyPrec (f (Term f)) => Pretty (Term f) where
 instance (FreeVariables1 f, Functor f) => FreeVariables (Term f) where
   fvs = cata (liftFvs id)
 
-instance Functor f => Recursive f (Term f) where project (Term f) = f
+instance Functor f => Recursive f (Term f) where project = out
 
 
 data Ann f a = Ann { syn :: f (Ann f a), ann :: a }
