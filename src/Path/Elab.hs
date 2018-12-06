@@ -57,15 +57,11 @@ check tm = elab tm . Just
 
 elabDecl :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
 elabDecl (Declare name ty) = do
-  env <- get
-  ctx <- get
-  ty' <- runReader (env :: Env) (runReader (ctx :: Context) (infer ty))
+  ty' <- runInState (infer ty)
   modify (Map.insert (Global name) (ann (out ty')))
 elabDecl (Define name tm) = do
-  env <- get
-  ctx <- get
   ty <- gets (Map.lookup (Global name))
-  tm' <- runReader (env :: Env) (runReader (ctx :: Context) (maybe infer (flip check) ty tm))
+  tm' <- runInState (maybe infer (flip check) ty tm)
   tm'' <- gets (eval (erase tm'))
   modify (Map.insert name tm'')
   maybe (modify (Map.insert (Global name) (ann (out tm')))) (const (pure ())) ty
