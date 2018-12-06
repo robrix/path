@@ -9,6 +9,8 @@ data Decl
   | Define String (Term Surface)
   deriving (Eq, Ord, Show)
 
+type ModuleName = NonEmpty String
+
 data Module
-  = Module (NonEmpty String) [Decl]
+  = Module ModuleName [Decl]
   deriving (Eq, Ord, Show)
