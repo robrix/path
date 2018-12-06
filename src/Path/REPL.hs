@@ -64,7 +64,8 @@ repl = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings (runReader (mempty :: Env) (runReader (mempty :: Context) script))))
+  layoutOptions <- liftIO layoutOptions
+  liftIO (runM (runREPL prefs settings (runReader layoutOptions (runReader (mempty :: Env) (runReader (mempty :: Context) script)))))
 
 script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader Context) sig, Member (Reader Env) sig, MonadIO m) => m ()
 script = do
