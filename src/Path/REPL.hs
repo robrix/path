@@ -64,7 +64,7 @@ repl = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  layoutOptions <- liftIO layoutOptions
+  layoutOptions <- layoutOptions
   liftIO (runM (runREPL prefs settings (runReader layoutOptions (runReader (mempty :: Env) (runReader (mempty :: Context) script)))))
 
 script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader Context) sig, Member (Reader Env) sig, MonadIO m) => m ()
@@ -79,17 +79,17 @@ script = do
             res <- runFail (infer tm)
             case res of
               Left err -> output err *> script
-              Right elab -> liftIO (showDocIO (prettyPrec 0 (ann elab))) >>= output >> script
+              Right elab -> showDocIO (prettyPrec 0 (ann elab)) >>= output >> script
           Right (Def name tm) -> do
             res <- runFail (infer tm)
             case res of
               Left err -> output err *> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in liftIO (showDocIO (prettyPrec 0 v)) >>= output >> local (Map.insert (Global name) (ann elab)) (local (Map.insert name v) script)
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDocIO (prettyPrec 0 v) >>= output >> local (Map.insert (Global name) (ann elab)) (local (Map.insert name v) script)
           Right (Eval tm) -> do
             res <- runFail (infer tm)
             case res of
               Left err -> output err *> script
-              Right elab -> ask >>= \ env -> liftIO (showDocIO (prettyPrec 0 (eval (erase elab) env))) >>= output >> script
+              Right elab -> ask >>= \ env -> showDocIO (prettyPrec 0 (eval (erase elab) env)) >>= output >> script
 
 helpText :: String
 helpText
