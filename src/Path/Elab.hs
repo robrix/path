@@ -66,9 +66,11 @@ elabDecl (Declare name ty) = do
 elabDecl (Define name tm) = do
   env <- get
   ctx <- get
-  tm' <- runReader (env :: Env) (runReader (ctx :: Context) (maybe infer (flip check) (Map.lookup (Global name) ctx) tm))
+  ty <- gets (Map.lookup (Global name))
+  tm' <- runReader (env :: Env) (runReader (ctx :: Context) (maybe infer (flip check) ty tm))
   let tm'' = eval (erase tm') env
   modify (Map.insert name tm'')
+  maybe (modify (Map.insert (Global name) (ann (out tm')))) (const (pure ())) ty
 
 
 data Err
