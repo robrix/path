@@ -79,9 +79,7 @@ script = do
           Right Quit -> pure ()
           Right Help -> output helpText *> script
           Right (TypeOf tm) -> do
-            ctx <- get
-            env <- get
-            res <- runError (runReader (ctx :: Context) (runReader (env :: Env) (infer tm)))
+            res <- runError (runInState (infer tm))
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
               Right elab -> showDoc (pretty (ann (out elab))) >>= output >> script
@@ -91,9 +89,7 @@ script = do
               Left err -> showDoc (prettyErr err) >>= output >> script
               Right _ -> script
           Right (Eval tm) -> do
-            ctx <- get
-            env <- get
-            res <- runError (runReader (ctx :: Context) (runReader (env :: Env) (infer tm)))
+            res <- runError (runInState (infer tm))
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
               Right elab -> get >>= \ env -> showDoc (pretty (eval (erase elab) env)) >>= output >> script
