@@ -72,6 +72,12 @@ elabDecl (Define name tm) = do
   modify (Map.insert name tm'')
   maybe (modify (Map.insert (Global name) (ann (out tm')))) (const (pure ())) ty
 
+runInState :: (Carrier sig m, Member (State Context) sig, Member (State Env) sig, Monad m) => Eff (ReaderC Context (Eff (ReaderC Env m))) a -> m a
+runInState m = do
+  env <- get
+  ctx <- get
+  runReader env (runReader ctx m)
+
 
 data Err
   = FreeVariable Name
