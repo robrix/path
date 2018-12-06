@@ -5,15 +5,13 @@ import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader
+import Control.Effect.State
 import Control.Effect.Sum
 import Control.Monad.IO.Class
 import Data.Coerce
-import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
-import Path.Decl
 import Path.Elab
 import Path.Eval
-import Path.Name
 import Path.Parser (Command(..), command, parseString, whole)
 import Path.Pretty
 import Path.Term
@@ -67,9 +65,9 @@ repl = do
         , autoAddHistory = True
         }
   layoutOptions <- layoutOptions
-  liftIO (runM (runREPL prefs settings (runReader layoutOptions (runReader (mempty :: Env) (runReader (mempty :: Context) script)))))
+  liftIO (runM (runREPL prefs settings (runReader layoutOptions (evalState (mempty :: Env) (evalState (mempty :: Context) script)))))
 
-script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader LayoutOptions) sig, Member (Reader Context) sig, Member (Reader Env) sig, MonadIO m) => m ()
+script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader LayoutOptions) sig, Member (State Context) sig, Member (State Env) sig, MonadIO m) => m ()
 script = do
   a <- prompt "λ: "
   maybe script runCommand a
@@ -78,26 +76,24 @@ script = do
           Right Quit -> pure ()
           Right Help -> output helpText *> script
           Right (TypeOf tm) -> do
-            res <- runError (infer tm)
+            ctx <- get
+            env <- get
+            res <- runError (runReader (ctx :: Context) (runReader (env :: Env) (infer tm)))
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
               Right elab -> showDoc (pretty (ann (out elab))) >>= output >> script
-          Right (Decl (Declare name ty)) -> do
-            res <- runError (infer ty)
+          Right (Decl decl) -> do
+            res <- runError (elabDecl decl)
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDoc (pretty v) >>= output >> local (Map.insert (Global name) (ann (out elab))) script
-          Right (Decl (Define name tm)) -> do
-            ty <- asks (Map.lookup (Global name))
-            res <- runError (maybe infer (flip check) ty tm)
-            case res of
-              Left err -> showDoc (prettyErr err) >>= output >> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDoc (pretty v) >>= output >> local (Map.insert name v) script
+              Right _ -> script
           Right (Eval tm) -> do
-            res <- runError (infer tm)
+            ctx <- get
+            env <- get
+            res <- runError (runReader (ctx :: Context) (runReader (env :: Env) (infer tm)))
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
-              Right elab -> ask >>= \ env -> showDoc (pretty (eval (erase elab) env)) >>= output >> script
+              Right elab -> get >>= \ env -> showDoc (pretty (eval (erase elab) env)) >>= output >> script
 
 helpText :: String
 helpText
