@@ -8,9 +8,9 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
-import qualified Path.Surface as Expr
-import qualified Path.Term as Expr
 import Path.Plicity
+import qualified Path.Surface as Expr
+import Path.Term
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
@@ -57,9 +57,9 @@ whole p = whiteSpace *> p <* eof
 data Command
   = Quit
   | Help
-  | TypeOf (Expr.Term Expr.Surface)
-  | Def String (Expr.Term Expr.Surface)
-  | Eval (Expr.Term Expr.Surface)
+  | TypeOf (Term Expr.Surface)
+  | Def String (Term Expr.Surface)
+  | Eval (Term Expr.Surface)
   deriving (Eq, Ord, Show)
 
 
@@ -79,16 +79,16 @@ def = uncurry Def <$> definition
 eval = Eval <$> globalTerm <?> "term"
 
 
-definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Expr.Term Expr.Surface)
+definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Term Expr.Surface)
 definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
 
 
-globalTerm, type' :: (Monad m, TokenParsing m) => m (Expr.Term Expr.Surface)
+globalTerm, type' :: (Monad m, TokenParsing m) => m (Term Expr.Surface)
 globalTerm = term []
 
-term, application, annotation, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Expr.Term Expr.Surface)
+term, application, annotation, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Term Expr.Surface)
 
-piType, functionType :: (Monad m, TokenParsing m) => Int -> [String] -> m (Expr.Term Expr.Surface)
+piType, functionType :: (Monad m, TokenParsing m) => Int -> [String] -> m (Term Expr.Surface)
 
 term = annotation
 
