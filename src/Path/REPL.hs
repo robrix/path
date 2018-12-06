@@ -103,7 +103,7 @@ script = do
           Right (Load moduleName) -> do
             res <- parseFile (whole module') (toPath moduleName)
             case res of
-              Left err -> output err
+              Left err -> output err >> script
               Right m -> do
                 res <- runError (elabModule m)
                 case res of
