@@ -10,12 +10,13 @@ import Control.Effect.Sum
 import Control.Monad ((>=>))
 import Control.Monad.IO.Class
 import Data.Coerce
-import Data.Foldable (traverse_)
+import Data.Foldable (toList, traverse_)
+import Data.List (intercalate)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Elab
 import Path.Eval
-import Path.Parser (Command(..), Info(..), command, parseString, whole)
+import Path.Parser (Command(..), Info(..), command, module', parseFile, parseString, whole)
 import Path.Pretty
 import Path.Term
 import System.Console.Haskeline
@@ -99,8 +100,18 @@ script = do
             env <- get
             traverse_ (showDoc . prettyEnv >=> output) (Map.toList (env :: Env))
             script
+          Right (Load moduleName) -> do
+            res <- parseFile module' (toPath moduleName)
+            case res of
+              Left err -> output err
+              Right m -> do
+                res <- runError (elabModule m)
+                case res of
+                  Left err -> showDoc (prettyErr err) >>= output >> script
+                  Right _ -> script
         prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
+        toPath = (<> ".path") . intercalate "/" . toList
 
 
 helpText :: String

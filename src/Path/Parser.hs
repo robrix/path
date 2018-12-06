@@ -62,13 +62,14 @@ data Command
   | Decl Decl
   | Eval (Term Expr.Surface)
   | Show Info
+  | Load ModuleName
   deriving (Eq, Ord, Show)
 
 data Info
   = Bindings
   deriving (Eq, Ord, Show)
 
-quit, help, typeof, eval, show' :: (Monad m, TokenParsing m) => m Command
+quit, help, typeof, eval, show', load :: (Monad m, TokenParsing m) => m Command
 command, decl :: (IndentationParsing m, Monad m, TokenParsing m) => m Command
 
 command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <?> "command; use :? for help"
@@ -85,9 +86,14 @@ eval = Eval <$> globalTerm <?> "term"
 
 show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 
+load = Load <$ token (string ":load") <*> moduleName
+
 
 module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module
-module' = Module <$ keyword "module" <*> (identifier `sepByNonEmpty` dot) <* keyword "where" <*> absoluteIndentation (many declaration)
+module' = Module <$ keyword "module" <*> moduleName <* keyword "where" <*> absoluteIndentation (many declaration)
+
+moduleName :: (Monad m, TokenParsing m) => m ModuleName
+moduleName = identifier `sepByNonEmpty` dot
 
 declaration :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl
 declaration = identifier <**> (Declare <$ op ":" <|> Define  <$ op "=") <*> localIndentation Gt globalTerm
