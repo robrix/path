@@ -68,3 +68,6 @@ instance Pretty Err where
   pretty (TypeMismatch expected actual) = vsep [ pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual ]
   pretty (NoRuleToInfer tm) = pretty "no rule to infer type of term:" <+> pretty tm
   pretty (IllegalApplication tm) = pretty "illegal application of term:" <+> pretty tm
+
+prettyErr :: Err -> Doc ann
+prettyErr = pretty
