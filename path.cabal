@@ -14,6 +14,7 @@ cabal-version:       >=1.10
 
 library
   exposed-modules:     Path.Core
+                     , Path.Decl
                      , Path.Elab
                      , Path.Eval
                      , Path.FreeVariables
