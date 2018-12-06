@@ -16,8 +16,8 @@ deriving instance PrettyPrec (f (Term f)) => PrettyPrec (Term f)
 instance PrettyPrec (f (Term f)) => Pretty (Term f) where
   pretty = prettyPrec 0
 
-instance (FreeVariables1 f, Functor f) => FreeVariables (Term f) where
-  fvs = cata (liftFvs id)
+instance FreeVariables1 f => FreeVariables (Term f) where
+  fvs = liftFvs fvs . out
 
 instance Functor f => Recursive f (Term f) where project = out
 
