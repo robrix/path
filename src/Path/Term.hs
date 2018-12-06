@@ -19,21 +19,17 @@ instance FreeVariables1 f => FreeVariables (Term f) where
   fvs = liftFvs fvs . out
 
 
-data Ann f a = Ann { syn :: f (Ann f a), ann :: a }
-  deriving (Functor)
+data Ann f a b = Ann { syn :: f b, ann :: a }
+  deriving (Eq, Functor, Ord, Show)
 
-deriving instance (Eq a, Eq (f (Ann f a))) => Eq (Ann f a)
-deriving instance (Ord a, Ord (f (Ann f a))) => Ord (Ann f a)
-deriving instance (Show a, Show (f (Ann f a))) => Show (Ann f a)
-
-instance (PrettyPrec a, PrettyPrec (f (Ann f a))) => PrettyPrec (Ann f a) where
+instance (PrettyPrec a, PrettyPrec (f b)) => PrettyPrec (Ann f a b) where
   prettyPrec d (Ann core ty) = prettyParens (d > 0) $ prettyPrec 1 core <> pretty " : " <> prettyPrec 1 ty
 
-instance FreeVariables1 f => FreeVariables1 (Ann f) where
-  liftFvs fvs (Ann tm ty) = liftFvs (liftFvs fvs) tm <> fvs ty
+instance (FreeVariables a, FreeVariables1 f) => FreeVariables1 (Ann f a) where
+  liftFvs fvs' (Ann tm ty) = liftFvs fvs' tm <> fvs ty
 
-instance (FreeVariables a, FreeVariables1 f) => FreeVariables (Ann f a) where
+instance (FreeVariables a, FreeVariables b, FreeVariables1 f) => FreeVariables (Ann f a b) where
   fvs = fvs1
 
-erase :: Functor f => Ann f a -> Term f
-erase = Term . fmap erase . syn
+erase :: Functor f => Term (Ann f a) -> Term f
+erase = Term . fmap erase . syn . out
