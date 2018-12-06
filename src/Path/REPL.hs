@@ -10,6 +10,7 @@ import Control.Monad.IO.Class
 import Data.Coerce
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
+import Path.Decl
 import Path.Elab
 import Path.Eval
 import Path.Name
@@ -81,11 +82,17 @@ script = do
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
               Right elab -> showDoc (pretty (ann (out elab))) >>= output >> script
-          Right (Def name tm) -> do
-            res <- runError (infer tm)
+          Right (Decl (Declare name ty)) -> do
+            res <- runError (infer ty)
             case res of
               Left err -> showDoc (prettyErr err) >>= output >> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDoc (pretty v) >>= output >> local (Map.insert (Global name) (ann (out elab))) (local (Map.insert name v) script)
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDoc (pretty v) >>= output >> local (Map.insert (Global name) (ann (out elab))) script
+          Right (Decl (Define name tm)) -> do
+            ty <- asks (Map.lookup (Global name))
+            res <- runError (maybe infer (flip check) ty tm)
+            case res of
+              Left err -> showDoc (prettyErr err) >>= output >> script
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDoc (pretty v) >>= output >> local (Map.insert name v) script
           Right (Eval tm) -> do
             res <- runError (infer tm)
             case res of

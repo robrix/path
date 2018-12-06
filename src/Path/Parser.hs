@@ -59,15 +59,15 @@ data Command
   = Quit
   | Help
   | TypeOf (Term Expr.Surface)
-  | Def String (Term Expr.Surface)
+  | Decl Decl
   | Eval (Term Expr.Surface)
   deriving (Eq, Ord, Show)
 
 
 quit, help, typeof, eval :: (Monad m, TokenParsing m) => m Command
-command, def :: (IndentationParsing m, Monad m, TokenParsing m) => m Command
+command, decl :: (IndentationParsing m, Monad m, TokenParsing m) => m Command
 
-command = quit <|> help <|> typeof <|> try def <|> eval <?> "command; use :? for help"
+command = quit <|> help <|> typeof <|> try decl <|> eval <?> "command; use :? for help"
 
 quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
@@ -75,16 +75,13 @@ help = Help <$ token (string ":h") <|> Help <$ token (string ":?") <|> Help <$ t
 
 typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm <?> "type of"
 
-def = uncurry Def <$> definition
+decl = Decl <$> declaration
 
 eval = Eval <$> globalTerm <?> "term"
 
 
 declaration :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl
 declaration = identifier <**> (Declare <$ op ":" <|> Define  <$ op "=") <*> localIndentation Gt globalTerm
-
-definition :: (Monad m, IndentationParsing m, TokenParsing m) => m (String, Term Expr.Surface)
-definition = (,) <$> identifier <* op "=" <*> localIndentation Gt globalTerm
 
 
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Term Expr.Surface)
