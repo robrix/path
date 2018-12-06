@@ -77,12 +77,12 @@ script = do
             res <- runFail (infer tm)
             case res of
               Left err -> output err *> script
-              Right elab -> liftIO (showDocIO (prettyPrec 0 (elabType elab))) >>= output >> script
+              Right elab -> liftIO (showDocIO (prettyPrec 0 (ann elab))) >>= output >> script
           Right (Def name tm) -> do
             res <- runFail (infer tm)
             case res of
               Left err -> output err *> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in liftIO (showDocIO (prettyPrec 0 v)) >>= output >> local (Map.insert (Global name) (elabType elab)) (local (Map.insert name v) script)
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in liftIO (showDocIO (prettyPrec 0 v)) >>= output >> local (Map.insert (Global name) (ann elab)) (local (Map.insert name v) script)
           Right (Eval tm) -> do
             res <- runFail (infer tm)
             case res of
