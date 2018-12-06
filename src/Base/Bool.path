@@ -10,4 +10,4 @@ False : Bool
 False = \ _ a b . b
 
 not : Bool -> Bool
-not = \ f _ a b . f b a
+not = \ f ty a b . f ty b a
