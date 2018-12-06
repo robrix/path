@@ -1,0 +1,7 @@
+module Base.Bool where
+
+Bool = {a:Type} -> a -> a -> a : Type
+True = (\ _ a b . a) : Bool
+False = (\ _ a b . b) : Bool
+
+not = (\ f _ a b . f b a) : Bool -> Bool
