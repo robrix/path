@@ -3,12 +3,13 @@ module Path.REPL where
 
 import Control.Effect
 import Control.Effect.Carrier
-import Control.Effect.Fail
+import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.Sum
 import Control.Monad.IO.Class
 import Data.Coerce
 import qualified Data.Map as Map
+import Data.Text.Prettyprint.Doc
 import Path.Elab
 import Path.Eval
 import Path.Name
@@ -76,20 +77,20 @@ script = do
           Right Quit -> pure ()
           Right Help -> output helpText *> script
           Right (TypeOf tm) -> do
-            res <- runFail (infer tm)
+            res <- runError (infer tm)
             case res of
-              Left err -> output err *> script
-              Right elab -> showDocIO (prettyPrec 0 (ann (out elab))) >>= output >> script
+              Left err -> showDocIO (prettyErr err) >>= output >> script
+              Right elab -> showDocIO (pretty (ann (out elab))) >>= output >> script
           Right (Def name tm) -> do
-            res <- runFail (infer tm)
+            res <- runError (infer tm)
             case res of
-              Left err -> output err *> script
-              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDocIO (prettyPrec 0 v) >>= output >> local (Map.insert (Global name) (ann (out elab))) (local (Map.insert name v) script)
+              Left err -> showDocIO (prettyErr err) >>= output >> script
+              Right elab -> ask >>= \ env -> let v = eval (erase elab) env in showDocIO (pretty v) >>= output >> local (Map.insert (Global name) (ann (out elab))) (local (Map.insert name v) script)
           Right (Eval tm) -> do
-            res <- runFail (infer tm)
+            res <- runError (infer tm)
             case res of
-              Left err -> output err *> script
-              Right elab -> ask >>= \ env -> showDocIO (prettyPrec 0 (eval (erase elab) env)) >>= output >> script
+              Left err -> showDocIO (prettyErr err) >>= output >> script
+              Right elab -> ask >>= \ env -> showDocIO (pretty (eval (erase elab) env)) >>= output >> script
 
 helpText :: String
 helpText

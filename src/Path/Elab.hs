@@ -2,7 +2,7 @@
 module Path.Elab where
 
 import Control.Effect
-import Control.Effect.Fail
+import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Monad (unless)
 import qualified Data.Map as Map
@@ -12,13 +12,12 @@ import Path.Eval
 import Path.Name
 import Path.Surface
 import Path.Term
-import Prelude hiding (fail)
 
 type Type = Value
 
 type Context = Map.Map Name Value
 
-elab :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Maybe Type -> m (Term (Ann Core Type))
+elab :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Maybe Type -> m (Term (Ann Core Type))
 elab (In (e ::: t)) Nothing = do
   t' <- check t VType
   env <- ask
@@ -31,7 +30,7 @@ elab (In (Core (Pi n e t b))) Nothing = do
   let t'' = eval (erase t') env
   b' <- local (Map.insert (Local n) t'') (check (subst n (In (Core (Free (Local n)))) b) VType)
   pure (In (Ann (Pi n e t' b') VType))
-elab (In (Core (Free n))) Nothing = asks (Map.lookup n) >>= maybe (fail ("free  variable: " <> show n)) (pure . In . Ann (Free n))
+elab (In (Core (Free n))) Nothing = asks (Map.lookup n) >>= maybe (throwError (FreeVariable n)) (pure . In . Ann (Free n))
 elab (In (Core (f :@ a))) Nothing = do
   f' <- infer f
   case ann (out f') of
@@ -39,20 +38,20 @@ elab (In (Core (f :@ a))) Nothing = do
       a' <- check a t
       env <- ask
       pure (In (Ann (f' :@ a') (t' (eval (erase a') env))))
-    _ -> fail ("illegal application of " <> show f')
-elab tm Nothing = fail ("no rule to infer type of " <> show tm)
+    _ -> throwError (IllegalApplication f')
+elab tm Nothing = throwError (NoRuleToInfer tm)
 elab (In (Core (Lam n e))) (Just (VPi tn ann t t')) = do
   e' <- local (Map.insert (Local n) t) (check (subst n (In (Core (Free (Local n)))) e) (t' (vfree (Local n))))
   pure (In (Ann (Lam n e') (VPi tn ann t t')))
 elab tm (Just ty) = do
   v <- infer tm
-  unless (ann (out v) == ty) (fail ("type mismatch: " <> show v <> " vs. " <> show ty))
+  unless (ann (out v) == ty) (throwError (TypeMismatch ty (ann (out v))))
   pure v
 
-infer :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> m (Term (Ann Core Type))
+infer :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> m (Term (Ann Core Type))
 infer tm = elab tm Nothing
 
-check :: (Carrier sig m, Member (Reader Context) sig, Member (Reader Env) sig, MonadFail m) => Term Surface -> Type -> m (Term (Ann Core Type))
+check :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Type -> m (Term (Ann Core Type))
 check tm = elab tm . Just
 
 
