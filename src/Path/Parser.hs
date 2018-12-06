@@ -8,7 +8,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
-import Path.Decl
+import qualified Path.Decl as Decl
 import Path.Plicity
 import qualified Path.Surface as Expr
 import Path.Term
@@ -59,10 +59,10 @@ data Command
   = Quit
   | Help
   | TypeOf (Term Expr.Surface)
-  | Decl Decl
+  | Decl Decl.Decl
   | Eval (Term Expr.Surface)
   | Show Info
-  | Load ModuleName
+  | Load Decl.ModuleName
   deriving (Eq, Ord, Show)
 
 data Info
@@ -88,14 +88,14 @@ show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 load = Load <$ token (string ":load") <*> moduleName
 
 
-module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module
-module' = Module <$ keyword "module" <*> moduleName <* keyword "where" <*> pure [] <*> many (absoluteIndentation declaration)
+module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl.Module
+module' = Decl.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> pure [] <*> many (absoluteIndentation declaration)
 
-moduleName :: (Monad m, TokenParsing m) => m ModuleName
+moduleName :: (Monad m, TokenParsing m) => m Decl.ModuleName
 moduleName = identifier `sepByNonEmpty` dot
 
-declaration :: (Monad m, TokenParsing m) => m Decl
-declaration = identifier <**> (Declare <$ op ":" <|> Define  <$ op "=") <*> globalTerm
+declaration :: (Monad m, TokenParsing m) => m Decl.Decl
+declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define  <$ op "=") <*> globalTerm
 
 
 globalTerm, type' :: (Monad m, TokenParsing m) => m (Term Expr.Surface)
