@@ -1,5 +1,6 @@
 module Path.Decl where
 
+import Data.List.NonEmpty
 import Path.Surface
 import Path.Term
 
@@ -9,5 +10,5 @@ data Decl
   deriving (Eq, Ord, Show)
 
 data Module
-  = Module String [Decl]
+  = Module (NonEmpty String) [Decl]
   deriving (Eq, Ord, Show)
