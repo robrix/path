@@ -14,6 +14,7 @@ import Path.Eval
 import Path.Name
 import Path.Parser (Command(..), command, parseString, whole)
 import Path.Pretty
+import Path.Term
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 

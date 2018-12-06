@@ -20,3 +20,22 @@ instance (FreeVariables1 f, Functor f) => FreeVariables (Term f) where
   fvs = cata (liftFvs id)
 
 instance Functor f => Recursive f (Term f) where project (Term f) = f
+
+
+data Ann f a = Ann { syn :: f (Ann f a), ann :: a }
+
+deriving instance (Eq a, Eq (f (Ann f a))) => Eq (Ann f a)
+deriving instance (Ord a, Ord (f (Ann f a))) => Ord (Ann f a)
+deriving instance (Show a, Show (f (Ann f a))) => Show (Ann f a)
+
+instance (PrettyPrec a, PrettyPrec (f (Ann f a))) => PrettyPrec (Ann f a) where
+  prettyPrec d (Ann core ty) = prettyParens (d > 0) $ prettyPrec 1 core <> pretty " : " <> prettyPrec 1 ty
+
+instance FreeVariables1 f => FreeVariables1 (Ann f) where
+  liftFvs fvs (Ann tm ty) = liftFvs (liftFvs fvs) tm <> fvs ty
+
+instance (FreeVariables a, FreeVariables1 f) => FreeVariables (Ann f a) where
+  fvs = fvs1
+
+erase :: Functor f => Ann f a -> Term f
+erase = Term . fmap erase . syn
