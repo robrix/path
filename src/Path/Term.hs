@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances, GeneralizedNewtypeDeriving, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
 import Data.Text.Prettyprint.Doc
