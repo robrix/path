@@ -111,7 +111,7 @@ script = do
                   Right _ -> script
         prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
-        toPath = (<> ".path") . intercalate "/" . toList
+        toPath = ("src/" <>) . (<> ".path") . intercalate "/" . toList
 
 
 helpText :: String
