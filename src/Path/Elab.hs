@@ -22,14 +22,12 @@ type Context = Map.Map Name Value
 elab :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Maybe Type -> m (Term (Ann Core Type))
 elab (In (e ::: t)) Nothing = do
   t' <- check t VType
-  env <- ask
-  let t'' = eval (erase t') env
+  t'' <- asks (eval (erase t'))
   check e t''
 elab (In (Core Type)) Nothing = pure (In (Ann Type VType))
 elab (In (Core (Pi n e t b))) Nothing = do
   t' <- check t VType
-  env <- ask
-  let t'' = eval (erase t') env
+  t'' <- asks (eval (erase t'))
   b' <- local (Map.insert (Local n) t'') (check (subst n (In (Core (Free (Local n)))) b) VType)
   pure (In (Ann (Pi n e t' b') VType))
 elab (In (Core (Free n))) Nothing = asks (Map.lookup n) >>= maybe (throwError (FreeVariable n)) (pure . In . Ann (Free n))
@@ -68,7 +66,7 @@ elabDecl (Define name tm) = do
   ctx <- get
   ty <- gets (Map.lookup (Global name))
   tm' <- runReader (env :: Env) (runReader (ctx :: Context) (maybe infer (flip check) ty tm))
-  let tm'' = eval (erase tm') env
+  tm'' <- gets (eval (erase tm'))
   modify (Map.insert name tm'')
   maybe (modify (Map.insert (Global name) (ann (out tm')))) (const (pure ())) ty
 
