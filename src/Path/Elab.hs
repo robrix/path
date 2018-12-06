@@ -20,31 +20,31 @@ import Prelude hiding (fail)
 type Type = Value
 
 
-newtype Elab = Elab (ElabF Core Elab)
+newtype Elab = Elab (ElabF Core Type Elab)
   deriving (Eq, Ord, PrettyPrec, Show)
 
 instance FreeVariables Elab where
   fvs = cata (liftFvs id)
 
-unElab :: Elab -> ElabF Core Elab
+unElab :: Elab -> ElabF Core Type Elab
 unElab (Elab elabF) = elabF
 
-data ElabF f a = ElabF (f a) Type
+data ElabF f a b = ElabF (f b) a
   deriving (Eq, Functor, Ord, Show)
 
-instance PrettyPrec (f a) => PrettyPrec (ElabF f a) where
+instance (PrettyPrec a, PrettyPrec (f b)) => PrettyPrec (ElabF f a b) where
   prettyPrec d (ElabF core ty) = prettyParens (d > 0) $ prettyPrec 1 core <> pretty " : " <> prettyPrec 1 ty
 
-instance FreeVariables1 f => FreeVariables1 (ElabF f) where
+instance (FreeVariables a, FreeVariables1 f) => FreeVariables1 (ElabF f a) where
   liftFvs fvs' (ElabF tm ty) = liftFvs fvs' tm <> fvs ty
 
-elabFExpr :: ElabF f a -> f a
+elabFExpr :: ElabF f a b -> f b
 elabFExpr (ElabF expr _) = expr
 
-elabFType :: ElabF f a -> Type
+elabFType :: ElabF f a b -> a
 elabFType (ElabF _ ty) = ty
 
-instance Recursive (ElabF Core) Elab where project = unElab
+instance Recursive (ElabF Core Type) Elab where project = unElab
 
 elab :: Core Elab -> Type -> Elab
 elab = fmap Elab . ElabF
