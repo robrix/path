@@ -90,10 +90,13 @@ load = Load <$ token (string ":load") <*> moduleName
 
 
 module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module.Module
-module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> pure [] <*> many (absoluteIndentation declaration)
+module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many import' <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
 moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
+
+import' :: (Monad m, TokenParsing m) => m Module.Import
+import' = Module.Import <$ keyword "import" <*> moduleName
 
 declaration :: (Monad m, TokenParsing m) => m Decl.Decl
 declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define  <$ op "=") <*> globalTerm
@@ -138,7 +141,7 @@ identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
 
 reservedWords :: HashSet.HashSet String
-reservedWords =  HashSet.fromList [ "Type", "module", "where" ]
+reservedWords =  HashSet.fromList [ "Type", "module", "where", "import" ]
 
 keyword, op :: TokenParsing m => String -> m String
 
