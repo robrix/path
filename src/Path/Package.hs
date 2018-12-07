@@ -9,16 +9,18 @@ data Package = Package
   , packageTargets :: [Target]
   }
 
+newtype TargetName = TargetName String
+
 data Target
   = Library
-    { targetName        :: String
+    { targetName        :: TargetName
     , targetModuleNames :: [ModuleName]
     }
   | Executable
-    { targetName        :: String
+    { targetName        :: TargetName
     , targetModuleNames :: [ModuleName]
     }
   | Test
-    { targetName        :: String
+    { targetName        :: TargetName
     , targetModuleNames :: [ModuleName]
     }
