@@ -62,6 +62,9 @@ type ModuleTable = Map.Map ModuleName (Context, Env)
 elabModule :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m ()
 elabModule (Module _ _ decls) = transactionState (traverse_ elabDecl decls)
 
+importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Monad m) => ModuleName -> m (Context, Env)
+importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
+
 
 elabDecl :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
 elabDecl (Declare name ty) = do
