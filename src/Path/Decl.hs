@@ -25,3 +25,6 @@ newtype Import = Import { importModuleName :: ModuleName }
 
 newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map.Map ModuleName Module }
   deriving (Eq, Ord, Show)
+
+lookupModule :: ModuleName -> ModuleGraph -> Maybe Module
+lookupModule name = Map.lookup name . unModuleGraph
