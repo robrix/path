@@ -66,6 +66,21 @@ data ModuleError
   | CyclicImport (NonEmpty ModuleName)
   deriving (Eq, Ord, Show)
 
+instance Pretty ModuleError where
+  pretty (UnknownModule name) = hsep (map pretty (words "Could not find module") <> [squotes (pretty name)])
+  pretty (CyclicImport (name :| [])) = nest 2 (vsep
+    [ hsep (map pretty (words "Module imports form a cycle:"))
+    , hsep [ pretty "module", squotes (pretty name), pretty "imports", pretty "itself" ]
+    ])
+  pretty (CyclicImport (name :| name' : names)) = nest 2 (vsep
+    ( hsep (map pretty (words "Module imports form a cycle:"))
+    : hsep [ pretty "       module", squotes (pretty name) ]
+    : hsep [ pretty "      imports", squotes (pretty name') ]
+    : foldr ((:) . whichImports) [ whichImports name ] names
+    ))
+    where whichImports name = fillSep [ pretty "which imports", squotes (pretty name) ]
+
+
 
 loadOrder :: ModuleGraph -> Either ModuleError [Module]
 loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop))))))
