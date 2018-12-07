@@ -7,7 +7,7 @@ import Control.Effect.Error
 import Control.Effect.NonDet
 import Control.Effect.Reader
 import Control.Effect.State
-import Control.Monad ((<=<), when)
+import Control.Monad (when)
 import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -55,15 +55,16 @@ data ModuleError
 
 
 loadOrder :: ModuleGraph -> Either ModuleError [Module]
-loadOrder g = concat <$> run (runError (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (traverse loop (Map.elems (unModuleGraph g)))))))
-  where loop m = do
-          inPath <- asks (Set.member (moduleName m))
-          when inPath (cycleFrom (moduleName m))
-          visited <- gets (Set.member (moduleName m))
+loadOrder g = concat <$> run (runError (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (for (Map.keys (unModuleGraph g)) loop)))))
+  where loop n = do
+          inPath <- asks (Set.member n)
+          when inPath (cycleFrom n)
+          visited <- gets (Set.member n)
           if visited then
             pure []
           else
-            local (Set.insert (moduleName m)) $ do
-              ms <- for (moduleImports m) (loop <=< lookupModule . importModuleName)
-              modify (Set.insert (moduleName m))
+            local (Set.insert n) $ do
+              m <- lookupModule n
+              ms <- for (moduleImports m) (loop . importModuleName)
+              modify (Set.insert n)
               pure (m : concat ms)
