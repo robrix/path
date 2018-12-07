@@ -113,7 +113,7 @@ script = do
               case res of
                 Left err -> showDoc (pretty (err :: ModuleError)) >>= output
                 Right (Left err) -> showDoc (prettyErr err) >>= output
-                Right _ -> pure ()
+                Right (Right res) -> modify (Map.insert name res)
         prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
         toPath s = "src/" <> go s <> ".path"
