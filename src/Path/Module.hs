@@ -14,6 +14,7 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
+import Data.Text.Prettyprint.Doc
 import Path.Decl
 
 data ModuleName
@@ -22,6 +23,10 @@ data ModuleName
   deriving (Eq, Ord, Show)
 
 infixl 5 :.
+
+instance Pretty ModuleName where
+  pretty (ModuleName s) = pretty s
+  pretty (ss :. s) = pretty ss <> dot <> pretty s
 
 makeModuleName :: NonEmpty String -> ModuleName
 makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
