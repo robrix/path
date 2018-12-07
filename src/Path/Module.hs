@@ -81,7 +81,6 @@ instance Pretty ModuleError where
     where whichImports name = fillSep [ pretty "which imports", squotes (pretty name) ]
 
 
-
 loadOrder :: ModuleGraph -> Either ModuleError [Module]
 loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop))))))
   where loop n = do
