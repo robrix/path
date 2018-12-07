@@ -59,7 +59,7 @@ check tm = elab tm . Just
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
-elabModule :: (Carrier sig m, Member (Error Err) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m ()
+elabModule :: (Carrier sig m, Member (Error Err) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m (Context, Env)
 elabModule (Module _ imports decls) = transactionState $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -67,6 +67,7 @@ elabModule (Module _ imports decls) = transactionState $ do
     modify (<> env)
 
   traverse_ elabDecl decls
+  (,) <$> get <*> get
 
 importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Monad m) => ModuleName -> m (Context, Env)
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
