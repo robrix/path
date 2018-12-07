@@ -57,6 +57,8 @@ check :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Me
 check tm = elab tm . Just
 
 
+type ModuleTable = Map.Map ModuleName (Context, Env)
+
 elabModule :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m ()
 elabModule (Module _ _ decls) = transactionState (traverse_ elabDecl decls)
 
