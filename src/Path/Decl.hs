@@ -1,6 +1,7 @@
 module Path.Decl where
 
 import Data.List.NonEmpty
+import qualified Data.Map as Map
 import Path.Surface
 import Path.Term
 
@@ -20,3 +21,6 @@ data Module = Module
 
 newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
+
+
+newtype ModuleGraph = ModuleGraph (Map.Map ModuleName Module)
