@@ -69,9 +69,9 @@ repl = do
         , autoAddHistory = True
         }
   layoutOptions <- layoutOptions
-  liftIO (runM (runREPL prefs settings (runReader layoutOptions (evalState (mempty :: Env) (evalState (mempty :: Context) script)))))
+  liftIO (runM (runREPL prefs settings (runReader layoutOptions (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (mempty :: Context) script))))))
 
-script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader LayoutOptions) sig, Member (State Context) sig, Member (State Env) sig, MonadIO m) => m ()
+script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader LayoutOptions) sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => m ()
 script = do
   a <- prompt "λ: "
   maybe script runCommand a
@@ -106,7 +106,8 @@ script = do
           case res of
             Left err -> output err
             Right m -> do
-              res <- runReader (mempty :: ModuleTable) (runError (runError (elabModule m)))
+              table <- get
+              res <- runReader (table :: ModuleTable) (runError (runError (elabModule m)))
               case res of
                 Left err -> showDoc (pretty (err :: ModuleError)) >>= output
                 Right (Left err) -> showDoc (prettyErr err) >>= output
