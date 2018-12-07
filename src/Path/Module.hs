@@ -9,14 +9,22 @@ import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
 import Data.Foldable (for_)
-import Data.List.NonEmpty (NonEmpty)
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Decl
 
-type ModuleName = NonEmpty String
+data ModuleName
+  = ModuleName String
+  | ModuleName :. String
+  deriving (Eq, Ord, Show)
+
+infixl 5 :.
+
+makeModuleName :: NonEmpty String -> ModuleName
+makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 
 data Module = Module
   { moduleName    :: ModuleName

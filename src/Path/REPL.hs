@@ -10,12 +10,12 @@ import Control.Effect.Sum
 import Control.Monad ((>=>))
 import Control.Monad.IO.Class
 import Data.Coerce
-import Data.Foldable (toList, traverse_)
-import Data.List (intercalate)
+import Data.Foldable (traverse_)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Elab
 import Path.Eval
+import Path.Module
 import Path.Parser (Command(..), Info(..), command, module', parseFile, parseString, whole)
 import Path.Pretty
 import Path.Term
@@ -111,7 +111,9 @@ script = do
                   Right _ -> script
         prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
-        toPath = ("src/" <>) . (<> ".path") . intercalate "/" . toList
+        toPath s = "src/" <> go s <> ".path"
+          where go (ModuleName s) = s
+                go (ss :. s)      = go ss <> "/" <> s
 
 
 helpText :: String

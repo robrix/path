@@ -93,7 +93,7 @@ module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module.Module
 module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> pure [] <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
-moduleName = identifier `sepByNonEmpty` dot
+moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
 
 declaration :: (Monad m, TokenParsing m) => m Decl.Decl
 declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define  <$ op "=") <*> globalTerm
