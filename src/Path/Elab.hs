@@ -6,7 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Control.Monad (unless)
-import Data.Foldable (traverse_)
+import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Core
@@ -59,8 +59,14 @@ check tm = elab tm . Just
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
-elabModule :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m ()
-elabModule (Module _ _ decls) = transactionState (traverse_ elabDecl decls)
+elabModule :: (Carrier sig m, Member (Error Err) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m ()
+elabModule (Module _ imports decls) = transactionState $ do
+  for_ imports $ \ (Import name) -> do
+    (ctx, env) <- importModule name
+    modify (<> ctx)
+    modify (<> env)
+
+  traverse_ elabDecl decls
 
 importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Monad m) => ModuleName -> m (Context, Env)
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure

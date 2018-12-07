@@ -106,9 +106,10 @@ script = do
           case res of
             Left err -> output err
             Right m -> do
-              res <- runError (elabModule m)
+              res <- runReader (mempty :: ModuleTable) (runError (runError (elabModule m)))
               case res of
-                Left err -> showDoc (prettyErr err) >>= output
+                Left err -> showDoc (pretty (err :: ModuleError)) >>= output
+                Right (Left err) -> showDoc (prettyErr err) >>= output
                 Right _ -> pure ()
         prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
