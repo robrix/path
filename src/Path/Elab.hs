@@ -21,7 +21,7 @@ type Type = Value
 
 type Context = Map.Map Name Value
 
-elab :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Maybe Type -> m (Term (Ann Core Type))
+elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Maybe Type -> m (Term (Ann Core Type))
 elab (In (e ::: t)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
@@ -50,16 +50,16 @@ elab tm (Just ty) = do
   unless (ann (out v) == ty) (throwError (TypeMismatch ty (ann (out v))))
   pure v
 
-infer :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> m (Term (Ann Core Type))
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> m (Term (Ann Core Type))
 infer tm = elab tm Nothing
 
-check :: (Carrier sig m, Member (Error Err) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Type -> m (Term (Ann Core Type))
+check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Type -> m (Term (Ann Core Type))
 check tm = elab tm . Just
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error Err) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module -> m (Context, Env)
+elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module -> m (Context, Env)
 elabModule (Module _ imports decls) = runState (mempty :: Context) . execState (mempty :: Env) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -72,7 +72,7 @@ importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader M
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
+elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
 elabDecl (Declare name ty) = do
   ty' <- runInState (check ty VType)
   ty'' <- gets (eval (erase ty'))
@@ -91,18 +91,18 @@ runInState m = do
   runReader env (runReader ctx m)
 
 
-data Err
+data ElabError
   = FreeVariable Name
   | TypeMismatch Type Type
   | NoRuleToInfer (Term Surface)
   | IllegalApplication (Term (Ann Core Type))
   deriving (Eq, Ord, Show)
 
-instance Pretty Err where
+instance Pretty ElabError where
   pretty (FreeVariable name) = pretty "free variable:" <+> pretty name
   pretty (TypeMismatch expected actual) = vsep [ pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual ]
   pretty (NoRuleToInfer tm) = pretty "no rule to infer type of term:" <+> pretty tm
   pretty (IllegalApplication tm) = pretty "illegal application of term:" <+> pretty tm
 
-prettyErr :: Err -> Doc ann
+prettyErr :: ElabError -> Doc ann
 prettyErr = pretty
