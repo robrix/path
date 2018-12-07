@@ -2,8 +2,10 @@ module Path.Package where
 
 import Path.Module
 
+newtype PackageName = PackageName String
+
 data Package = Package
-  { packageName    :: String
+  { packageName    :: PackageName
   , packageTargets :: [Target]
   }
 
