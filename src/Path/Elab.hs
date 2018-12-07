@@ -59,15 +59,14 @@ check tm = elab tm . Just
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
-elabModule :: (Carrier sig m, Member (Error Err) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Module -> m (Context, Env)
-elabModule (Module _ imports decls) = transactionState $ do
+elabModule :: (Carrier sig m, Effect sig, Member (Error Err) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module -> m (Context, Env)
+elabModule (Module _ imports decls) = runState (mempty :: Context) . execState (mempty :: Env) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
     modify (<> ctx)
     modify (<> env)
 
   traverse_ elabDecl decls
-  (,) <$> get <*> get
 
 importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Monad m) => ModuleName -> m (Context, Env)
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
@@ -90,15 +89,6 @@ runInState m = do
   env <- get
   ctx <- get
   runReader env (runReader ctx m)
-
-transactionState :: (Carrier sig m, Member (Error Err) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => m a -> m a
-transactionState m = do
-  env <- get
-  ctx <- get
-  m `catchError` \ err -> do
-    put (env :: Env)
-    put (ctx :: Context)
-    throwError (err :: Err)
 
 
 data Err
