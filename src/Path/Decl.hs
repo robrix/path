@@ -24,3 +24,4 @@ newtype Import = Import { importModuleName :: ModuleName }
 
 
 newtype ModuleGraph = ModuleGraph (Map.Map ModuleName Module)
+  deriving (Eq, Ord, Show)
