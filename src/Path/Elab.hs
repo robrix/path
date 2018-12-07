@@ -12,6 +12,7 @@ import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.Decl
 import Path.Eval
+import Path.Module
 import Path.Name
 import Path.Surface
 import Path.Term

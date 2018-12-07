@@ -9,6 +9,7 @@ import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
 import qualified Path.Decl as Decl
+import qualified Path.Module as Module
 import Path.Plicity
 import qualified Path.Surface as Expr
 import Path.Term
@@ -62,7 +63,7 @@ data Command
   | Decl Decl.Decl
   | Eval (Term Expr.Surface)
   | Show Info
-  | Load Decl.ModuleName
+  | Load Module.ModuleName
   deriving (Eq, Ord, Show)
 
 data Info
@@ -88,10 +89,10 @@ show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 load = Load <$ token (string ":load") <*> moduleName
 
 
-module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Decl.Module
-module' = Decl.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> pure [] <*> many (absoluteIndentation declaration)
+module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module.Module
+module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> pure [] <*> many (absoluteIndentation declaration)
 
-moduleName :: (Monad m, TokenParsing m) => m Decl.ModuleName
+moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
 moduleName = identifier `sepByNonEmpty` dot
 
 declaration :: (Monad m, TokenParsing m) => m Decl.Decl
