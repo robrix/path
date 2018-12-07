@@ -35,15 +35,15 @@ newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map.Map ModuleName Module }
 moduleGraph :: [Module] -> ModuleGraph
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleName -> ModuleGraph -> m Module
-lookupModule name = maybe (throwError (UnknownModule name)) ret . Map.lookup name . unModuleGraph
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleGraph) sig, Monad m) => ModuleName -> m Module
+lookupModule name = ask >>= maybe (throwError (UnknownModule name)) ret . Map.lookup name . unModuleGraph
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleName -> ModuleGraph -> m ()
-cycleFrom m g = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe []
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Member (Reader ModuleGraph) sig, Monad m) => ModuleName -> m ()
+cycleFrom m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe []
   where go n = do
           inPath <- asks (Set.member n)
           if inPath then do
-            m <- lookupModule n g
+            m <- lookupModule n
             (n :) <$> local (Set.insert (moduleName m)) (getAlt (foldMap (Alt . go . importModuleName) (moduleImports m)))
           else
             pure [n]
@@ -55,15 +55,15 @@ data ModuleError
 
 
 loadOrder :: ModuleGraph -> Either ModuleError [Module]
-loadOrder g = concat <$> run (runError (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (traverse loop (Map.elems (unModuleGraph g))))))
+loadOrder g = concat <$> run (runError (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (traverse loop (Map.elems (unModuleGraph g)))))))
   where loop m = do
           inPath <- asks (Set.member (moduleName m))
-          when inPath (cycleFrom (moduleName m) g)
+          when inPath (cycleFrom (moduleName m))
           visited <- gets (Set.member (moduleName m))
           if visited then
             pure []
           else
             local (Set.insert (moduleName m)) $ do
-              ms <- for (moduleImports m) (loop <=< flip lookupModule g . importModuleName)
+              ms <- for (moduleImports m) (loop <=< lookupModule . importModuleName)
               modify (Set.insert (moduleName m))
               pure (m : concat ms)
