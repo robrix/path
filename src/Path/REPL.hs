@@ -10,7 +10,7 @@ import Control.Effect.Sum
 import Control.Monad ((>=>))
 import Control.Monad.IO.Class
 import Data.Coerce
-import Data.Foldable (traverse_)
+import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
 import Data.Text.Prettyprint.Doc
 import Path.Elab
@@ -106,6 +106,8 @@ script = do
           case res of
             Left err -> output err
             Right m -> do
+              for_ (moduleImports m) $ \ (Import name') ->
+                load name'
               table <- get
               res <- runReader (table :: ModuleTable) (runError (runError (elabModule m)))
               case res of
