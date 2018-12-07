@@ -17,16 +17,6 @@ data Target
     , targetModuleNames :: [ModuleName]
     , targetConstraints :: [Constraint]
     }
-  | Executable
-    { targetName        :: TargetName
-    , targetModuleNames :: [ModuleName]
-    , targetConstraints :: [Constraint]
-    }
-  | Test
-    { targetName        :: TargetName
-    , targetModuleNames :: [ModuleName]
-    , targetConstraints :: [Constraint]
-    }
 
 data Constraint
   = Depends PackageName TargetName
