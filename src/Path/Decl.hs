@@ -1,8 +1,15 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Decl where
 
-import Data.List.NonEmpty
+import Control.Effect
+import Control.Effect.Carrier
+import Control.Effect.Error
+import Control.Effect.NonDet
+import Control.Effect.Reader
+import Data.List.NonEmpty (NonEmpty)
 import qualified Data.Map as Map
-import Data.Monoid (First(..))
+import Data.Maybe (fromMaybe)
+import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Surface
 import Path.Term
@@ -31,16 +38,18 @@ newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map.Map ModuleName Module }
 moduleGraph :: [Module] -> ModuleGraph
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-lookupModule :: ModuleName -> ModuleGraph -> Maybe Module
-lookupModule name = Map.lookup name . unModuleGraph
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleName -> ModuleGraph -> m Module
+lookupModule name = maybe (throwError (UnknownModule name)) ret . Map.lookup name . unModuleGraph
 
-cycleFrom :: ModuleName -> ModuleGraph -> Maybe [ModuleName]
-cycleFrom m g = go Set.empty m
-  where go v n
-          | n `Set.member` v = Just [n]
-          | otherwise        = do
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleName -> ModuleGraph -> m ()
+cycleFrom m g = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe []
+  where go n = do
+          inPath <- asks (Set.member n)
+          if inPath then do
             m <- lookupModule n g
-            (n :) <$> getFirst (foldMap (First . go (Set.insert (moduleName m) v) . importModuleName) (moduleImports m))
+            (n :) <$> local (Set.insert (moduleName m)) (getAlt (foldMap (Alt . go . importModuleName) (moduleImports m)))
+          else
+            pure [n]
 
 data ModuleError
   = UnknownModule ModuleName
