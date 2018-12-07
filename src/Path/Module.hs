@@ -9,7 +9,7 @@ import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
 import Data.Foldable (for_)
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty (NonEmpty(..), (<|))
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
@@ -52,18 +52,18 @@ lookupModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader M
 lookupModule name = ask >>= maybe (throwError (UnknownModule name)) ret . Map.lookup name . unModuleGraph
 
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Member (Reader ModuleGraph) sig, Monad m) => ModuleName -> m ()
-cycleFrom m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe []
+cycleFrom m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
           inPath <- asks (Set.member n)
           if inPath then do
             m <- lookupModule n
-            (n :) <$> local (Set.insert (moduleName m)) (getAlt (foldMap (Alt . go . importModuleName) (moduleImports m)))
+            (n <|) <$> local (Set.insert (moduleName m)) (getAlt (foldMap (Alt . go . importModuleName) (moduleImports m)))
           else
-            pure [n]
+            pure (n :| [])
 
 data ModuleError
   = UnknownModule ModuleName
-  | CyclicImport [ModuleName]
+  | CyclicImport (NonEmpty ModuleName)
   deriving (Eq, Ord, Show)
 
 
