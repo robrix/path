@@ -41,3 +41,8 @@ cycleFrom m g = go Set.empty m
           | otherwise        = do
             m <- lookupModule n g
             (n :) <$> getFirst (foldMap (First . go (Set.insert (moduleName m) v) . importModuleName) (moduleImports m))
+
+data ModuleError
+  = UnknownModule ModuleName
+  | CyclicImport [ModuleName]
+  deriving (Eq, Ord, Show)
