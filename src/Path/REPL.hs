@@ -100,15 +100,16 @@ script = do
             env <- get
             traverse_ (showDoc . prettyEnv >=> output) (Map.toList (env :: Env))
             script
-          Right (Load moduleName) -> do
-            res <- parseFile (whole module') (toPath moduleName)
-            case res of
-              Left err -> output err >> script
-              Right m -> do
-                res <- runError (elabModule m)
-                case res of
-                  Left err -> showDoc (prettyErr err) >>= output >> script
-                  Right _ -> script
+          Right (Load moduleName) -> load moduleName *> script
+        load name = do
+          res <- parseFile (whole module') (toPath name)
+          case res of
+            Left err -> output err
+            Right m -> do
+              res <- runError (elabModule m)
+              case res of
+                Left err -> showDoc (prettyErr err) >>= output
+                Right _ -> pure ()
         prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
         toPath s = "src/" <> go s <> ".path"
