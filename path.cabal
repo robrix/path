@@ -20,6 +20,7 @@ library
                      , Path.FreeVariables
                      , Path.Module
                      , Path.Name
+                     , Path.Package
                      , Path.Parser
                      , Path.Plicity
                      , Path.Pretty
