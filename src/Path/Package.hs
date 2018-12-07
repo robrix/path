@@ -6,6 +6,7 @@ type PackageName = String
 
 data Package = Package
   { packageName        :: PackageName
+  , packageSourceDir   :: FilePath
   , packageModules     :: [ModuleName]
   , packageConstraints :: [Constraint]
   }
