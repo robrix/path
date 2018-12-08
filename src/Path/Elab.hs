@@ -16,7 +16,7 @@ import Path.Name
 import Path.Surface
 import Path.Term
 import Text.PrettyPrint.ANSI.Leijen
-import Text.Trifecta.Rendering (Span)
+import Text.Trifecta.Rendering (Span, render)
 
 type Type = Value
 
@@ -102,7 +102,7 @@ data ElabError
 instance Pretty ElabError where
   pretty (FreeVariable name) = pretty "free variable:" <+> pretty name
   pretty (TypeMismatch expected actual) = vsep [ pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual ]
-  pretty (NoRuleToInfer tm) = pretty "no rule to infer type of term:" <+> pretty tm
+  pretty (NoRuleToInfer tm) = pretty "no rule to infer type:" <$$> pretty (render (ann (out tm)))
   pretty (IllegalApplication tm) = pretty "illegal application of term:" <+> pretty tm
 
 runElabError :: (Carrier sig m, Effect sig, Monad m) => Eff (ErrorC ElabError m) a -> m (Either ElabError a)
