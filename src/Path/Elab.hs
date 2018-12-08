@@ -33,7 +33,7 @@ elab (In (Ann (Core (Pi n e t b)) _)) Nothing = do
   t'' <- asks (eval (erase t'))
   b' <- local (Map.insert (Local n) t'') (check (subst n (Core (Free (Local n))) b) VType)
   pure (In (Ann (Pi n e t' b') VType))
-elab (In (Ann (Core (Free n)) _)) Nothing = asks (Map.lookup n) >>= maybe (throwError (FreeVariable n)) (pure . In . Ann (Free n))
+elab (In (Ann (Core (Free n)) span)) Nothing = asks (Map.lookup n) >>= maybe (throwError (FreeVariable n span)) (pure . In . Ann (Free n))
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
   case ann (out f') of
@@ -41,14 +41,14 @@ elab (In (Ann (Core (f :@ a)) _)) Nothing = do
       a' <- check a t
       env <- ask
       pure (In (Ann (f' :@ a') (t' (eval (erase a') env))))
-    _ -> throwError (IllegalApplication f')
-elab tm Nothing = throwError (NoRuleToInfer tm)
+    _ -> throwError (IllegalApplication f' (ann (out f)))
+elab tm Nothing = throwError (NoRuleToInfer tm (ann (out tm)))
 elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn p t t')) = do
   e' <- local (Map.insert (Local n) t) (check (subst n (Core (Free (Local n))) e) (t' (vfree (Local n))))
   pure (In (Ann (Lam n e') (VPi tn p t t')))
 elab tm (Just ty) = do
   v <- infer tm
-  unless (ann (out v) == ty) (throwError (TypeMismatch ty (ann (out v))))
+  unless (ann (out v) == ty) (throwError (TypeMismatch ty (ann (out v)) (ann (out tm))))
   pure v
 
 infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term (Ann Surface Span) -> m (Term (Ann Core Type))
@@ -93,17 +93,17 @@ runInState m = do
 
 
 data ElabError
-  = FreeVariable Name
-  | TypeMismatch Type Type
-  | NoRuleToInfer (Term (Ann Surface Span))
-  | IllegalApplication (Term (Ann Core Type))
+  = FreeVariable Name Span
+  | TypeMismatch Type Type Span
+  | NoRuleToInfer (Term (Ann Surface Span)) Span
+  | IllegalApplication (Term (Ann Core Type)) Span
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
-  pretty (FreeVariable name) = pretty "free variable:" <+> pretty name
-  pretty (TypeMismatch expected actual) = vsep [ pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual ]
-  pretty (NoRuleToInfer tm) = pretty "no rule to infer type:" <$$> pretty (render (ann (out tm)))
-  pretty (IllegalApplication tm) = pretty "illegal application of term:" <+> pretty tm
+  pretty (FreeVariable name span) = nest 2 $ pretty "free variable " <+> squotes (pretty name) <$$> pretty (render span)
+  pretty (TypeMismatch expected actual span) = nest 2 $ vsep [ pretty "type mismatch", pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual, pretty (render span) ]
+  pretty (NoRuleToInfer _ span) = pretty "no rule to infer type of term" <$$> pretty (render span)
+  pretty (IllegalApplication tm span) = pretty "illegal application of non-function term" <+> pretty tm <$$> pretty (render span)
 
 runElabError :: (Carrier sig m, Effect sig, Monad m) => Eff (ErrorC ElabError m) a -> m (Either ElabError a)
 runElabError = runError
