@@ -1,13 +1,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Path.Context where
 
+import Data.Bifunctor (first)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Eval
 import Path.Name
 import Path.Semiring
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 type Type = Value
 
@@ -39,4 +40,4 @@ instance Pretty Context where
           prettyUsage More = pretty "ⁿ"
 
 instance LeftModule Usage Context where
-  _ ><< c = c
+  u ><< Context c = Context (Set.map (first (u ><)) <$> c)
