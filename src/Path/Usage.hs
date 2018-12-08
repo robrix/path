@@ -21,3 +21,6 @@ instance Semiring Usage where
   _    >< Zero = Zero
   One  >< One  = One
   _    >< _    = More
+
+instance Unital Usage where
+  one = One
