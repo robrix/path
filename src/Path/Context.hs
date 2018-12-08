@@ -21,6 +21,9 @@ lookup n = Map.lookup n . unContext
 insert :: Name -> Type -> Context -> Context
 insert n v = Context . Map.insertWith (<>) n (Set.singleton v) . unContext
 
+union :: Context -> Context -> Context
+union (Context c1) (Context c2) = Context (Map.unionWith (<>) c1 c2)
+
 disambiguate :: Set.Set Type -> Maybe Type
 disambiguate tys | [ty] <- Set.toList tys = Just ty
                  | otherwise              = Nothing

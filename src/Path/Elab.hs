@@ -61,7 +61,7 @@ elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (
 elabModule (Module _ imports decls) = runState Context.empty . execState (mempty :: Env) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
-    modify (<> ctx)
+    modify (Context.union ctx)
     modify (<> env)
 
   traverse_ elabDecl decls
