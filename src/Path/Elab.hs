@@ -19,8 +19,6 @@ import Path.Term
 import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
-type Type = Value
-
 elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term (Ann Surface Span) -> Maybe Type -> m (Term (Ann Core Type))
 elab (In (Ann (e ::: t) _)) Nothing = do
   t' <- check t VType

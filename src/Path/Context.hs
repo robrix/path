@@ -6,16 +6,18 @@ import Path.Eval
 import Path.Name
 import Text.PrettyPrint.ANSI.Leijen
 
-newtype Context = Context { unContext :: Map.Map Name Value }
+type Type = Value
+
+newtype Context = Context { unContext :: Map.Map Name Type }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 empty :: Context
 empty = Context Map.empty
 
-lookup :: Name -> Context -> Maybe Value
+lookup :: Name -> Context -> Maybe Type
 lookup n = Map.lookup n . unContext
 
-insert :: Name -> Value -> Context -> Context
+insert :: Name -> Type -> Context -> Context
 insert n v = Context . Map.insert n v . unContext
 
 instance Pretty Context where
