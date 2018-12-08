@@ -7,6 +7,7 @@ import Control.Monad.IO.Class
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
+import Text.Trifecta.Rendering (Span, render)
 
 prettyPrint :: (MonadIO m, Pretty a) => a -> m ()
 prettyPrint = putDoc . pretty
@@ -32,6 +33,9 @@ layoutPretty (LayoutOptions (AvailablePerLine w r)) = renderPretty r w
 
 class PrettyPrec a where
   prettyPrec :: Int -> a -> Doc
+
+instance PrettyPrec Span where
+  prettyPrec _ = pretty . render
 
 prettyParens :: Bool -> Doc -> Doc
 prettyParens True = parens

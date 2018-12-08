@@ -3,12 +3,16 @@ module Path.FreeVariables where
 
 import Path.Name
 import qualified Data.Set as Set
+import Text.Trifecta.Rendering (Span)
 
 class FreeVariables t where
   fvs :: t -> Set.Set Name
 
 instance FreeVariables (Set.Set Name) where
   fvs = id
+
+instance FreeVariables Span where
+  fvs _ = mempty
 
 
 class FreeVariables1 t where

@@ -1,5 +1,15 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Path.Parser where
+module Path.Parser
+( Parser
+, parseFile
+, parseString
+, whole
+, Command(..)
+, Info(..)
+, command
+, module'
+, Span
+) where
 
 import Control.Applicative ((<**>), Alternative(..))
 import Control.Monad.IO.Class
@@ -12,7 +22,7 @@ import qualified Path.Decl as Decl
 import qualified Path.Module as Module
 import Path.Plicity
 import qualified Path.Surface as Expr
-import Path.Term
+import Path.Term hiding (ann)
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
@@ -21,7 +31,7 @@ import Text.Parser.Token.Highlight
 import Text.Parser.Token.Style
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.Trifecta as Trifecta
-import Text.Trifecta hiding (Parser)
+import Text.Trifecta hiding (Parser, parseString)
 import Text.Trifecta.Delta
 import Text.Trifecta.Indentation
 
@@ -59,9 +69,9 @@ whole p = whiteSpace *> p <* eof
 data Command
   = Quit
   | Help
-  | TypeOf (Term Expr.Surface)
-  | Decl (Decl.Decl (Term Expr.Surface))
-  | Eval (Term Expr.Surface)
+  | TypeOf (Term (Ann Expr.Surface Span))
+  | Decl (Decl.Decl (Term (Ann Expr.Surface Span)))
+  | Eval (Term (Ann Expr.Surface Span))
   | Show Info
   | Load Module.ModuleName
   deriving (Eq, Ord, Show)
@@ -70,7 +80,8 @@ data Info
   = Bindings
   deriving (Eq, Ord, Show)
 
-command, quit, help, typeof, decl, eval, show', load :: (Monad m, TokenParsing m) => m Command
+command, typeof, decl, eval :: DeltaParsing m => m Command
+quit, help, show', load :: (Monad m, TokenParsing m) => m Command
 
 command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> load <?> "command; use :? for help"
 
@@ -89,7 +100,7 @@ show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 load = Load <$ token (string ":load") <*> moduleName
 
 
-module' :: (Monad m, IndentationParsing m, TokenParsing m) => m (Module.Module (Term Expr.Surface))
+module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module (Term (Ann Expr.Surface Span)))
 module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many import' <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
@@ -98,24 +109,33 @@ moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
 import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
-declaration :: (Monad m, TokenParsing m) => m (Decl.Decl (Term Expr.Surface))
+declaration :: DeltaParsing m => m (Decl.Decl (Term (Ann Expr.Surface Span)))
 declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define  <$ op "=") <*> globalTerm
 
 
-globalTerm, type' :: (Monad m, TokenParsing m) => m (Term Expr.Surface)
+globalTerm, type' :: DeltaParsing m => m (Term (Ann Expr.Surface Span))
 globalTerm = term []
 
-term, application, annotation, var, lambda, atom :: (Monad m, TokenParsing m) => [String] -> m (Term Expr.Surface)
+term, application, annotation, var, lambda, atom :: DeltaParsing m => [String] -> m (Term (Ann Expr.Surface Span))
 
-piType, functionType :: (Monad m, TokenParsing m) => Int -> [String] -> m (Term Expr.Surface)
+piType, functionType :: DeltaParsing m => Int -> [String] -> m (Term (Ann Expr.Surface Span))
 
 term = annotation
 
+ann :: DeltaParsing m => m (f (Term (Ann f Span))) -> m (Term (Ann f Span))
+ann = fmap respan . spanned
+  where respan (f :~ a) = In (Ann f a)
+
+reann :: DeltaParsing m => m (Term (Ann f Span)) -> m (Term (Ann f Span))
+reann = fmap respan . spanned
+  where respan (In (Ann f _) :~ a) = In (Ann f a)
+
+
 application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
 
-type' = Expr.typeT <$ keyword "Type"
+type' = ann (Expr.typeT <$ keyword "Type")
 
-piType i vs = (do
+piType i vs = reann (do
   (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
   ((v, Explicit, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
 
@@ -125,7 +145,7 @@ functionType i vs = application vs <**> (flip arrow <$ op "->" <*> functionType 
                 <|> piType i vs
           where arrow = (Expr.-->) . (,,) ('_' : show i) Explicit
 
-var vs = toVar <$> identifier <?> "variable"
+var vs = ann (toVar <$> identifier <?> "variable")
   where toVar n = maybe (Expr.global n) Expr.var (find (== n) vs)
 
 lambda vs = (do
@@ -133,7 +153,7 @@ lambda vs = (do
   bind vs' vs) <?> "lambda"
   where pattern = identifier <|> token (string "_") <?> "pattern"
         bind [] vs = term vs
-        bind (v:vv) vs = Expr.lam v <$> bind vv (v:vs)
+        bind (v:vv) vs = reann (Expr.lam v <$> bind vv (v:vs))
 
 atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
 

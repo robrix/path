@@ -16,24 +16,25 @@ import Path.Name
 import Path.Surface
 import Path.Term
 import Text.PrettyPrint.ANSI.Leijen
+import Text.Trifecta.Rendering (Span)
 
 type Type = Value
 
 type Context = Map.Map Name Value
 
-elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Maybe Type -> m (Term (Ann Core Type))
-elab (In (e ::: t)) Nothing = do
+elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term (Ann Surface Span) -> Maybe Type -> m (Term (Ann Core Type))
+elab (In (Ann (e ::: t) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
   check e t''
-elab (In (Core Type)) Nothing = pure (In (Ann Type VType))
-elab (In (Core (Pi n e t b))) Nothing = do
+elab (In (Ann (Core Type) _)) Nothing = pure (In (Ann Type VType))
+elab (In (Ann (Core (Pi n e t b)) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
-  b' <- local (Map.insert (Local n) t'') (check (subst n (In (Core (Free (Local n)))) b) VType)
+  b' <- local (Map.insert (Local n) t'') (check (subst n (Core (Free (Local n))) b) VType)
   pure (In (Ann (Pi n e t' b') VType))
-elab (In (Core (Free n))) Nothing = asks (Map.lookup n) >>= maybe (throwError (FreeVariable n)) (pure . In . Ann (Free n))
-elab (In (Core (f :@ a))) Nothing = do
+elab (In (Ann (Core (Free n)) _)) Nothing = asks (Map.lookup n) >>= maybe (throwError (FreeVariable n)) (pure . In . Ann (Free n))
+elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
   case ann (out f') of
     VPi _ _ t t' -> do
@@ -42,24 +43,24 @@ elab (In (Core (f :@ a))) Nothing = do
       pure (In (Ann (f' :@ a') (t' (eval (erase a') env))))
     _ -> throwError (IllegalApplication f')
 elab tm Nothing = throwError (NoRuleToInfer tm)
-elab (In (Core (Lam n e))) (Just (VPi tn ann t t')) = do
-  e' <- local (Map.insert (Local n) t) (check (subst n (In (Core (Free (Local n)))) e) (t' (vfree (Local n))))
-  pure (In (Ann (Lam n e') (VPi tn ann t t')))
+elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn p t t')) = do
+  e' <- local (Map.insert (Local n) t) (check (subst n (Core (Free (Local n))) e) (t' (vfree (Local n))))
+  pure (In (Ann (Lam n e') (VPi tn p t t')))
 elab tm (Just ty) = do
   v <- infer tm
   unless (ann (out v) == ty) (throwError (TypeMismatch ty (ann (out v))))
   pure v
 
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> m (Term (Ann Core Type))
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term (Ann Surface Span) -> m (Term (Ann Core Type))
 infer tm = elab tm Nothing
 
-check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term Surface -> Type -> m (Term (Ann Core Type))
+check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term (Ann Surface Span) -> Type -> m (Term (Ann Core Type))
 check tm = elab tm . Just
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term Surface) -> m (Context, Env)
+elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term (Ann Surface Span)) -> m (Context, Env)
 elabModule (Module _ imports decls) = runState (mempty :: Context) . execState (mempty :: Env) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -72,7 +73,7 @@ importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader M
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl (Term Surface) -> m ()
+elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl (Term (Ann Surface Span)) -> m ()
 elabDecl (Declare name ty) = do
   ty' <- runInState (check ty VType)
   ty'' <- gets (eval (erase ty'))
@@ -94,7 +95,7 @@ runInState m = do
 data ElabError
   = FreeVariable Name
   | TypeMismatch Type Type
-  | NoRuleToInfer (Term Surface)
+  | NoRuleToInfer (Term (Ann Surface Span))
   | IllegalApplication (Term (Ann Core Type))
   deriving (Eq, Ord, Show)
 

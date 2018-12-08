@@ -25,41 +25,41 @@ instance FreeVariables1 Surface where
 instance FreeVariables a => FreeVariables (Surface a) where
   fvs = fvs1
 
-(-->) :: (String, Plicity, Term Surface) -> Term Surface -> Term Surface
-(n, e, a) --> b = In (Core (Pi n e a b))
+(-->) :: Semigroup ann => (String, Plicity, Term (Ann Surface ann)) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+(n, e, a) --> b = In (Ann (Core (Pi n e a b)) (ann (out a) <> ann (out b)))
 
 infixr 0 -->
 
-typeT :: Term Surface
-typeT = In (Core Type)
+typeT :: Surface a
+typeT = Core Type
 
-global :: String -> Term Surface
-global = In . Core . Free . Global
+global :: String -> Surface a
+global = Core . Free . Global
 
-var :: String -> Term Surface
-var = In . Core . Bound
+var :: String -> Surface a
+var = Core . Bound
 
-lam :: String -> Term Surface -> Term Surface
-lam n = In . Core . Lam n
+lam :: String -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+lam n b = In (Ann (Core (Lam n b)) (ann (out b)))
 
-(.:)  :: Term Surface -> Term Surface -> Term Surface
-a .: t = In (a ::: t)
+(.:)  :: Semigroup ann => Term (Ann Surface ann) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+a .: t = In (Ann (a ::: t) (ann (out a) <> ann (out t)))
 
-(#) :: Term Surface -> Term Surface -> Term Surface
-f # a = In (Core (f :@ a))
+(#) :: Semigroup ann => Term (Ann Surface ann) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+f # a = In (Ann (Core (f :@ a)) (ann (out f) <> ann (out a)))
 
 
-subst :: String -> Term Surface -> Term Surface -> Term Surface
-subst i r (In (e ::: t)) = In (subst i r e ::: subst i r t)
-subst i r (In (Core (Bound j)))
-  | i == j    = r
-  | otherwise = In (Core (Bound j))
-subst _ _ (In (Core (Free n))) = In (Core (Free n))
-subst i r (In (Core (Lam n b)))
-  | i == n    = In (Core (Lam n b))
-  | otherwise = In (Core (Lam n (subst i r b)))
-subst i r (In (Core (f :@ a))) = In (Core (subst i r f :@ subst i r a))
-subst _ _ (In (Core Type)) = In (Core Type)
-subst i r (In (Core (Pi n e t t')))
-  | i == n    = In (Core (Pi n e (subst i r t) t'))
-  | otherwise = In (Core (Pi n e (subst i r t) (subst i r t')))
+subst :: String -> Surface (Term (Ann Surface ann)) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+subst i r (In (Ann (e ::: t) ann)) = In (Ann (subst i r e ::: subst i r t) ann)
+subst i r (In (Ann (Core (Bound j)) ann))
+  | i == j    = In (Ann r ann)
+  | otherwise = In (Ann (Core (Bound j)) ann)
+subst _ _ (In (Ann (Core (Free n)) ann)) = In (Ann (Core (Free n)) ann)
+subst i r (In (Ann (Core (Lam n b)) ann))
+  | i == n    = In (Ann (Core (Lam n b)) ann)
+  | otherwise = In (Ann (Core (Lam n (subst i r b))) ann)
+subst i r (In (Ann (Core (f :@ a)) ann)) = In (Ann (Core (subst i r f :@ subst i r a)) ann)
+subst _ _ (In (Ann (Core Type) ann)) = In (Ann (Core Type) ann)
+subst i r (In (Ann (Core (Pi n e t t')) ann))
+  | i == n    = In (Ann (Core (Pi n e (subst i r t) t')) ann)
+  | otherwise = In (Ann (Core (Pi n e (subst i r t) (subst i r t'))) ann)
