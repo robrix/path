@@ -67,10 +67,9 @@ repl = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  layoutOptions <- layoutOptions
-  liftIO (runM (runREPL prefs settings (runReader layoutOptions (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (mempty :: Context) script))))))
+  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (mempty :: Context) script)))))
 
-script :: (Carrier sig m, Effect sig, Member REPL sig, Member (Reader LayoutOptions) sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => m ()
+script :: (Carrier sig m, Effect sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => m ()
 script = do
   a <- prompt "λ: "
   maybe script runCommand a
