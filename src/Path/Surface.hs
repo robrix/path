@@ -38,10 +38,10 @@ typeT :: Surface a
 typeT = Core Type
 
 global :: String -> Surface a
-global = Core . Free . Global
+global = Core . Var . Global
 
 var :: String -> Surface a
-var = Core . Bound
+var = Core . Var . Local
 
 lam :: Semigroup ann => (String, ann) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
 lam (n, a) b = In (Ann (Core (Lam n b)) (a <> ann (out b)))
@@ -55,10 +55,9 @@ f # a = In (Ann (Core (f :@ a)) (ann (out f) <> ann (out a)))
 
 subst :: String -> Surface (Term (Ann Surface ann)) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
 subst i r (In (Ann (e ::: t) ann)) = In (Ann (subst i r e ::: subst i r t) ann)
-subst i r (In (Ann (Core (Bound j)) ann))
-  | i == j    = In (Ann r ann)
-  | otherwise = In (Ann (Core (Bound j)) ann)
-subst _ _ (In (Ann (Core (Free n)) ann)) = In (Ann (Core (Free n)) ann)
+subst i r (In (Ann (Core (Var j)) ann))
+  | Local i == j = In (Ann r ann)
+  | otherwise    = In (Ann (Core (Var j)) ann)
 subst i r (In (Ann (Core (Lam n b)) ann))
   | i == n    = In (Ann (Core (Lam n b)) ann)
   | otherwise = In (Ann (Core (Lam n (subst i r b))) ann)

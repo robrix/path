@@ -9,8 +9,7 @@ import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 data Core a
-  = Bound String
-  | Free Name
+  = Var Name
   | Lam String a
   | a :@ a
   | Type
@@ -19,10 +18,9 @@ data Core a
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
   prettyPrec d c = case c of
-    Bound s -> pretty s
-    Free (Global s) -> pretty s
-    Free (Local s) -> pretty s
-    Free (Quote s) -> pretty '\'' <> pretty s
+    Var (Global s) -> pretty s
+    Var (Local s) -> pretty s
+    Var (Quote s) -> pretty '\'' <> pretty s
     Lam v b -> prettyParens (d > 0) $ pretty "\\ " <> pretty v <> pretty " . " <> prettyPrec 0 b
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <> pretty ' ' <> prettyPrec 11 a
     Type -> pretty "Type"
@@ -31,8 +29,7 @@ instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
       | otherwise -> prettyPrec 2 t <> pretty " -> " <> prettyPrec 1 b
 
 instance FreeVariables1 Core where
-  liftFvs _   (Bound s) = Set.singleton (Local s)
-  liftFvs _   (Free n) = Set.singleton n
+  liftFvs _   (Var n) = Set.singleton n
   liftFvs fvs (Lam v b) = Set.delete (Local v) (fvs b)
   liftFvs fvs (f :@ a) = fvs f <> fvs a
   liftFvs _   Type = Set.empty

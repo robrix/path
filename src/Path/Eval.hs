@@ -50,18 +50,17 @@ quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (Quote v)))))
 quote (VNeutral n) = quoteN n
 
 quoteN :: Neutral -> Term Core
-quoteN (NFree (Quote s)) = In (Bound s)
-quoteN (NFree n) = In (Free n)
+quoteN (NFree (Quote s)) = In (Var (Local s))
+quoteN (NFree n) = In (Var n)
 quoteN (NApp n a) = In (quoteN n :@ quote a)
 
 
 type Env = Map.Map String Value
 
 eval :: Term Core -> Env -> Value
-eval (In (Bound i)) d = d Map.! i
-eval (In (Free (Local n))) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
-eval (In (Free (Global n))) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
-eval (In (Free (Quote n))) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
+eval (In (Var (Local n))) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
+eval (In (Var (Global n))) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
+eval (In (Var (Quote n))) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
 eval (In (Lam n b)) d = VLam n (eval b . flip (Map.insert n) d)
 eval (In (f :@ a)) d = eval f d `vapp` eval a d
 eval (In Type) _ = VType
