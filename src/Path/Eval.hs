@@ -70,3 +70,4 @@ eval (In (Pi n e ty body)) d = VPi n e (eval ty d) (eval body . flip (Map.insert
 vapp :: Value -> Value -> Value
 vapp (VLam _ f) v = f v
 vapp (VNeutral n) v = VNeutral (NApp n v)
+vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
