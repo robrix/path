@@ -20,13 +20,14 @@ import Text.Parser.Token
 import Text.Parser.Token.Highlight
 import Text.Parser.Token.Style
 import qualified Text.Trifecta as Trifecta
+import Text.Trifecta hiding (Parser)
 import Text.Trifecta.Delta
 import Text.Trifecta.Indentation
 
 type Parser = IndentationParserT Char Inner
 
 newtype Inner a = Inner { runInner :: Trifecta.Parser a }
-  deriving (Alternative, Applicative, CharParsing, Trifecta.DeltaParsing, Functor, LookAheadParsing, Trifecta.MarkParsing Delta, Monad, MonadPlus, Parsing)
+  deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
 instance TokenParsing Inner where
   someSpace = Inner $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
@@ -35,15 +36,15 @@ instance TokenParsing Inner where
 
 
 parseFile :: MonadIO m => Parser a -> FilePath -> m (Either String a)
-parseFile p = fmap toResult . Trifecta.parseFromFileEx (runInner (whiteSpace *> evalIndentationParserT p indentst))
+parseFile p = fmap toResult . parseFromFileEx (runInner (whiteSpace *> evalIndentationParserT p indentst))
 
 parseString :: Parser a -> String -> Either String a
 parseString p = toResult . Trifecta.parseString (runInner (evalIndentationParserT p indentst)) directed
 
-toResult :: Trifecta.Result a -> Either String a
+toResult :: Result a -> Either String a
 toResult r = case r of
-  Trifecta.Success a -> Right a
-  Trifecta.Failure info -> Left (show (Trifecta._errDoc info))
+  Success a -> Right a
+  Failure info -> Left (show (_errDoc info))
 
 
 directed :: Delta
