@@ -5,3 +5,8 @@ data Usage
   | One
   | More
   deriving (Eq, Ord, Show)
+
+instance Semigroup Usage where
+  Zero <> _    = Zero
+  _    <> Zero = Zero
+  _    <> _    = More
