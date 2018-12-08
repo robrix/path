@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Path.Semiring where
 
 class Semigroup r => Semiring r where
@@ -9,3 +10,7 @@ zero = mempty
 
 class (Monoid r, Semiring r) => Unital r where
   one :: r
+
+class Semiring r => LeftModule r m where
+  (><<) :: r -> m -> m
+  infixr 7 ><<
