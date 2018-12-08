@@ -8,6 +8,7 @@ import Control.Effect.State
 import Control.Monad (unless)
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
+import Path.Context
 import Path.Core
 import Path.Decl
 import Path.Eval
@@ -19,8 +20,6 @@ import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
 type Type = Value
-
-type Context = Map.Map Name Value
 
 elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Term (Ann Surface Span) -> Maybe Type -> m (Term (Ann Core Type))
 elab (In (Ann (e ::: t) _)) Nothing = do

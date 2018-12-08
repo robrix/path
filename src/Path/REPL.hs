@@ -11,6 +11,7 @@ import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
+import Path.Context
 import Path.Elab
 import Path.Eval
 import Path.Module
