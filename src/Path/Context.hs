@@ -9,6 +9,9 @@ import Text.PrettyPrint.ANSI.Leijen
 newtype Context = Context { unContext :: Map.Map Name Value }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
+empty :: Context
+empty = Context Map.empty
+
 lookup :: Name -> Context -> Maybe Value
 lookup n = Map.lookup n . unContext
 

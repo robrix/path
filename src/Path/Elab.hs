@@ -60,7 +60,7 @@ check tm = elab tm . Just
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
 elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term (Ann Surface Span)) -> m (Context, Env)
-elabModule (Module _ imports decls) = runState (mempty :: Context) . execState (mempty :: Env) $ do
+elabModule (Module _ imports decls) = runState Context.empty . execState (mempty :: Env) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
     modify (<> ctx)
