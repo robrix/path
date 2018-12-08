@@ -11,7 +11,7 @@ import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
-import Path.Context
+import Path.Context as Context
 import Path.Elab
 import Path.Eval
 import Path.Module
@@ -68,7 +68,7 @@ repl = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (mempty :: Context) script)))))
+  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context) script)))))
 
 script :: (Carrier sig m, Effect sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => m ()
 script = do

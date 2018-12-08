@@ -10,7 +10,7 @@ import Text.PrettyPrint.ANSI.Leijen
 type Type = Value
 
 newtype Context = Context { unContext :: Map.Map Name (Set.Set Type) }
-  deriving (Eq, Monoid, Ord, Semigroup, Show)
+  deriving (Eq, Ord, Show)
 
 empty :: Context
 empty = Context Map.empty
