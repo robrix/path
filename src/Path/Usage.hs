@@ -1,5 +1,7 @@
 module Path.Usage where
 
+import Path.Semiring
+
 data Usage
   = Zero
   | One
@@ -13,3 +15,9 @@ instance Semigroup Usage where
 
 instance Monoid Usage where
   mempty = Zero
+
+instance Semiring Usage where
+  Zero >< _    = Zero
+  _    >< Zero = Zero
+  One  >< One  = One
+  _    >< _    = More
