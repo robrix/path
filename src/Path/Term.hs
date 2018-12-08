@@ -1,9 +1,9 @@
 {-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
-import Data.Text.Prettyprint.Doc
 import Path.FreeVariables
 import Path.Pretty
+import Text.PrettyPrint.ANSI.Leijen
 
 newtype Term f = In { out :: f (Term f) }
 

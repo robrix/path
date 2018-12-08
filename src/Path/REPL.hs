@@ -12,7 +12,6 @@ import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
-import Data.Text.Prettyprint.Doc
 import Path.Elab
 import Path.Eval
 import Path.Module
@@ -21,6 +20,7 @@ import Path.Pretty
 import Path.Term
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
+import Text.PrettyPrint.ANSI.Leijen hiding (cyan, plain)
 
 data REPL (m :: * -> *) k
   = Prompt String (Maybe String -> k)

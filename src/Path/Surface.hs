@@ -1,13 +1,13 @@
 {-# LANGUAGE DeriveFunctor, FlexibleInstances #-}
 module Path.Surface where
 
-import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.FreeVariables
 import Path.Name
 import Path.Plicity
 import Path.Pretty
 import Path.Term
+import Text.PrettyPrint.ANSI.Leijen
 
 data Surface a
   = Core (Core a)

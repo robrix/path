@@ -3,13 +3,13 @@ module Path.Eval where
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.FreeVariables
 import Path.Name
 import Path.Plicity
 import Path.Pretty
 import Path.Term
+import Text.PrettyPrint.ANSI.Leijen
 
 data Value
   = VLam String (Value -> Value)

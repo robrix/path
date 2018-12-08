@@ -14,10 +14,10 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
-import Data.Text.Prettyprint.Doc
 import Path.Decl
 import Path.Surface
 import Path.Term
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data ModuleName
   = ModuleName String

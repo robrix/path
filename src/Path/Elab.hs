@@ -8,7 +8,6 @@ import Control.Effect.State
 import Control.Monad (unless)
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
-import Data.Text.Prettyprint.Doc
 import Path.Core
 import Path.Decl
 import Path.Eval
@@ -16,6 +15,7 @@ import Path.Module
 import Path.Name
 import Path.Surface
 import Path.Term
+import Text.PrettyPrint.ANSI.Leijen
 
 type Type = Value
 
@@ -104,5 +104,5 @@ instance Pretty ElabError where
   pretty (NoRuleToInfer tm) = pretty "no rule to infer type of term:" <+> pretty tm
   pretty (IllegalApplication tm) = pretty "illegal application of term:" <+> pretty tm
 
-prettyErr :: ElabError -> Doc ann
+prettyErr :: ElabError -> Doc
 prettyErr = pretty

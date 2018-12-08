@@ -1,6 +1,6 @@
 module Path.Name where
 
-import Data.Text.Prettyprint.Doc
+import Text.PrettyPrint.ANSI.Leijen
 
 data Name
   = Global String

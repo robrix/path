@@ -2,11 +2,11 @@
 module Path.Core where
 
 import qualified Data.Set as Set
-import Data.Text.Prettyprint.Doc
 import Path.FreeVariables
 import Path.Name
 import Path.Pretty
 import Path.Plicity
+import Text.PrettyPrint.ANSI.Leijen
 
 data Core a
   = Bound String
