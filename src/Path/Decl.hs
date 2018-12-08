@@ -1,9 +1,6 @@
 module Path.Decl where
 
-import Path.Surface
-import Path.Term
-
-data Decl
-  = Declare String (Term Surface)
-  | Define String (Term Surface)
+data Decl a
+  = Declare String a
+  | Define String a
   deriving (Eq, Ord, Show)

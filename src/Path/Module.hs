@@ -16,6 +16,8 @@ import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Data.Text.Prettyprint.Doc
 import Path.Decl
+import Path.Surface
+import Path.Term
 
 data ModuleName
   = ModuleName String
@@ -34,7 +36,7 @@ makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 data Module = Module
   { moduleName    :: ModuleName
   , moduleImports :: [Import]
-  , moduleDecls   :: [Decl]
+  , moduleDecls   :: [Decl (Term Surface)]
   }
   deriving (Eq, Ord, Show)
 

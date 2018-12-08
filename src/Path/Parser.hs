@@ -61,7 +61,7 @@ data Command
   = Quit
   | Help
   | TypeOf (Term Expr.Surface)
-  | Decl Decl.Decl
+  | Decl (Decl.Decl (Term Expr.Surface))
   | Eval (Term Expr.Surface)
   | Show Info
   | Load Module.ModuleName
@@ -99,7 +99,7 @@ moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
 import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
-declaration :: (Monad m, TokenParsing m) => m Decl.Decl
+declaration :: (Monad m, TokenParsing m) => m (Decl.Decl (Term Expr.Surface))
 declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define  <$ op "=") <*> globalTerm
 
 

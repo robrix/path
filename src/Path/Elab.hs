@@ -72,7 +72,7 @@ importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader M
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl -> m ()
+elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl (Term Surface) -> m ()
 elabDecl (Declare name ty) = do
   ty' <- runInState (check ty VType)
   ty'' <- gets (eval (erase ty'))
