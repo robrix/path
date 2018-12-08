@@ -5,6 +5,10 @@ import Path.Semiring
 data Plicity = Implicit | Explicit
   deriving (Eq, Ord, Show)
 
+plicity :: (Eq a, Monoid a) => a -> Plicity
+plicity a | a == zero = zero
+          | otherwise = one
+
 instance Semigroup Plicity where
   Explicit <> _        = Explicit
   _        <> Explicit = Explicit
