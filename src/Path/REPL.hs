@@ -7,7 +7,6 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
-import Control.Monad ((>=>))
 import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_, traverse_)
@@ -20,7 +19,7 @@ import Path.Pretty
 import Path.Term
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.PrettyPrint.ANSI.Leijen hiding (cyan, plain)
+import Text.PrettyPrint.ANSI.Leijen hiding (cyan, plain, putDoc)
 
 data REPL (m :: * -> *) k
   = Prompt String (Maybe String -> k)
@@ -80,25 +79,25 @@ script = do
           Right Quit -> pure ()
           Right Help -> output helpText *> script
           Right (TypeOf tm) -> do
-            res <- runError (runInState (infer tm))
+            res <- runElabError (runInState (infer tm))
             case res of
-              Left err -> showDoc (prettyErr err) >>= output >> script
-              Right elab -> showDoc (pretty (ann (out elab))) >>= output >> script
+              Left err -> prettyPrint err >> script
+              Right elab -> prettyPrint (ann (out elab)) >> script
           Right (Decl decl) -> do
-            res <- runError (elabDecl decl)
+            res <- runElabError (elabDecl decl)
             case res of
-              Left err -> showDoc (prettyErr err) >>= output >> script
+              Left err -> prettyPrint err *> script
               Right _ -> script
           Right (Eval tm) -> do
-            res <- runError (runInState (infer tm))
+            res <- runElabError (runInState (infer tm))
             case res of
-              Left err -> showDoc (prettyErr err) >>= output >> script
-              Right elab -> get >>= \ env -> showDoc (pretty (eval (erase elab) env)) >>= output >> script
+              Left err -> prettyPrint err >> script
+              Right elab -> get >>= \ env -> prettyPrint (eval (erase elab) env) >> script
           Right (Show Bindings) -> do
             ctx <- get
-            traverse_ (showDoc . prettyCtx >=> output) (Map.toList (ctx :: Context))
+            traverse_ (putDoc . prettyCtx) (Map.toList (ctx :: Context))
             env <- get
-            traverse_ (showDoc . prettyEnv >=> output) (Map.toList (env :: Env))
+            traverse_ (putDoc . prettyEnv) (Map.toList (env :: Env))
             script
           Right (Load moduleName) -> load moduleName *> script
         load name = do
@@ -109,10 +108,10 @@ script = do
               for_ (moduleImports m) $ \ (Import name') ->
                 load name'
               table <- get
-              res <- runReader (table :: ModuleTable) (runError (runError (elabModule m)))
+              res <- runReader (table :: ModuleTable) (runError (runElabError (elabModule m)))
               case res of
-                Left err -> showDoc (pretty (err :: ModuleError)) >>= output
-                Right (Left err) -> showDoc (prettyErr err) >>= output
+                Left err -> prettyPrint (err :: ModuleError)
+                Right (Left err) -> prettyPrint err
                 Right (Right res) -> modify (Map.insert name res)
         prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)

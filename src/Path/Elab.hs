@@ -105,5 +105,5 @@ instance Pretty ElabError where
   pretty (NoRuleToInfer tm) = pretty "no rule to infer type of term:" <+> pretty tm
   pretty (IllegalApplication tm) = pretty "illegal application of term:" <+> pretty tm
 
-prettyErr :: ElabError -> Doc
-prettyErr = pretty
+runElabError :: (Carrier sig m, Effect sig, Monad m) => Eff (ErrorC ElabError m) a -> m (Either ElabError a)
+runElabError = runError
