@@ -148,12 +148,12 @@ functionType i vs = application vs <**> (flip arrow <$ op "->" <*> functionType 
 var vs = ann (toVar <$> identifier <?> "variable")
   where toVar n = maybe (Expr.global n) Expr.var (find (== n) vs)
 
-lambda vs = (do
+lambda vs = reann (do
   vs' <- op "\\" *> some pattern <* dot
   bind vs' vs) <?> "lambda"
-  where pattern = identifier <|> token (string "_") <?> "pattern"
+  where pattern = spanned (identifier <|> token (string "_")) <?> "pattern"
         bind [] vs = term vs
-        bind (v:vv) vs = reann (Expr.lam v <$> bind vv (v:vs))
+        bind ((v :~ a):vv) vs = Expr.lam (v, a) <$> bind vv (v:vs)
 
 atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
 

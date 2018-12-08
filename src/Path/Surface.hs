@@ -39,8 +39,8 @@ global = Core . Free . Global
 var :: String -> Surface a
 var = Core . Bound
 
-lam :: String -> Term (Ann Surface ann) -> Term (Ann Surface ann)
-lam n b = In (Ann (Core (Lam n b)) (ann (out b)))
+lam :: Semigroup ann => (String, ann) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+lam (n, a) b = In (Ann (Core (Lam n b)) (a <> ann (out b)))
 
 (.:)  :: Semigroup ann => Term (Ann Surface ann) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
 a .: t = In (Ann (a ::: t) (ann (out a) <> ann (out t)))
