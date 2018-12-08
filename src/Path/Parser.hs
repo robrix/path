@@ -19,6 +19,7 @@ import Text.Parser.LookAhead
 import Text.Parser.Token
 import Text.Parser.Token.Highlight
 import Text.Parser.Token.Style
+import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser)
 import Text.Trifecta.Delta
@@ -35,16 +36,14 @@ instance TokenParsing Inner where
   highlight h = Inner . highlight h . runInner
 
 
-parseFile :: MonadIO m => Parser a -> FilePath -> m (Either String a)
+parseFile :: MonadIO m => Parser a -> FilePath -> m (Either Doc a)
 parseFile p = fmap toResult . parseFromFileEx (runInner (whiteSpace *> evalIndentationParserT p indentst))
 
-parseString :: Parser a -> String -> Either String a
+parseString :: Parser a -> String -> Either Doc a
 parseString p = toResult . Trifecta.parseString (runInner (evalIndentationParserT p indentst)) directed
 
-toResult :: Result a -> Either String a
-toResult r = case r of
-  Success a -> Right a
-  Failure info -> Left (show (_errDoc info))
+toResult :: Result a -> Either Doc a
+toResult = foldResult (Left . _errDoc) Right
 
 
 directed :: Delta

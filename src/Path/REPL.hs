@@ -76,7 +76,7 @@ script = do
   a <- prompt "λ: "
   maybe script runCommand a
   where runCommand s = case parseString (whole command) s of
-          Left err -> output err *> script
+          Left err -> prettyPrint err *> script
           Right Quit -> pure ()
           Right Help -> output helpText *> script
           Right (TypeOf tm) -> do
@@ -104,7 +104,7 @@ script = do
         load name = do
           res <- parseFile (whole module') (toPath name)
           case res of
-            Left err -> output err
+            Left err -> prettyPrint err
             Right m -> do
               for_ (moduleImports m) $ \ (Import name') ->
                 load name'
