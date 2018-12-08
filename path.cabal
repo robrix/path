@@ -28,6 +28,7 @@ library
                      , Path.Semiring
                      , Path.Surface
                      , Path.Term
+                     , Path.Usage
   -- other-modules:
   -- other-extensions:
   build-depends:       ansi-wl-pprint
