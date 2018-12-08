@@ -23,7 +23,7 @@ insert n v = Context . Map.insertWith (<>) n (Set.singleton v) . unContext
 union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (Map.unionWith (<>) c1 c2)
 
-disambiguate :: Set.Set Type -> Maybe Type
+disambiguate :: Set.Set a -> Maybe a
 disambiguate tys | [ty] <- Set.toList tys = Just ty
                  | otherwise              = Nothing
 
