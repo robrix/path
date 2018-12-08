@@ -8,7 +8,7 @@ import Control.Effect.State
 import Control.Monad (unless)
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
-import Path.Context
+import Path.Context as Context
 import Path.Core
 import Path.Decl
 import Path.Eval
@@ -30,9 +30,9 @@ elab (In (Ann (Core Type) _)) Nothing = pure (In (Ann Type VType))
 elab (In (Ann (Core (Pi n e t b)) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
-  b' <- local (Map.insert (Local n) t'') (check (subst n (Core (Free (Local n))) b) VType)
+  b' <- local (Context.insert (Local n) t'') (check (subst n (Core (Free (Local n))) b) VType)
   pure (In (Ann (Pi n e t' b') VType))
-elab (In (Ann (Core (Free n)) span)) Nothing = asks (Map.lookup n) >>= maybe (throwError (FreeVariable n span)) (pure . In . Ann (Free n))
+elab (In (Ann (Core (Free n)) span)) Nothing = asks (Context.lookup n) >>= maybe (throwError (FreeVariable n span)) (pure . In . Ann (Free n))
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
   case ann (out f') of
@@ -43,7 +43,7 @@ elab (In (Ann (Core (f :@ a)) _)) Nothing = do
     _ -> throwError (IllegalApplication f' (ann (out f)))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann (out tm)))
 elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn p t t')) = do
-  e' <- local (Map.insert (Local n) t) (check (subst n (Core (Free (Local n))) e) (t' (vfree (Local n))))
+  e' <- local (Context.insert (Local n) t) (check (subst n (Core (Free (Local n))) e) (t' (vfree (Local n))))
   pure (In (Ann (Lam n e') (VPi tn p t t')))
 elab tm (Just ty) = do
   v <- infer tm
@@ -76,13 +76,13 @@ elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context)
 elabDecl (Declare name ty) = do
   ty' <- runInState (check ty VType)
   ty'' <- gets (eval (erase ty'))
-  modify (Map.insert (Global name) ty'')
+  modify (Context.insert (Global name) ty'')
 elabDecl (Define name tm) = do
-  ty <- gets (Map.lookup (Global name))
+  ty <- gets (Context.lookup (Global name))
   tm' <- runInState (maybe infer (flip check) ty tm)
   tm'' <- gets (eval (erase tm'))
   modify (Map.insert name tm'')
-  maybe (modify (Map.insert (Global name) (ann (out tm')))) (const (pure ())) ty
+  maybe (modify (Context.insert (Global name) (ann (out tm')))) (const (pure ())) ty
 
 runInState :: (Carrier sig m, Member (State Context) sig, Member (State Env) sig, Monad m) => Eff (ReaderC Context (Eff (ReaderC Env m))) a -> m a
 runInState m = do
