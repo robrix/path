@@ -10,3 +10,6 @@ instance Semigroup Usage where
   Zero <> _    = Zero
   _    <> Zero = Zero
   _    <> _    = More
+
+instance Monoid Usage where
+  mempty = Zero
