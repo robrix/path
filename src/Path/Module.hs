@@ -33,10 +33,10 @@ instance Pretty ModuleName where
 makeModuleName :: NonEmpty String -> ModuleName
 makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 
-data Module = Module
+data Module a = Module
   { moduleName    :: ModuleName
   , moduleImports :: [Import]
-  , moduleDecls   :: [Decl (Term Surface)]
+  , moduleDecls   :: [Decl a]
   }
   deriving (Eq, Ord, Show)
 
@@ -44,13 +44,13 @@ newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
 
-newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map.Map ModuleName Module }
+newtype ModuleGraph = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module (Term Surface)) }
   deriving (Eq, Ord, Show)
 
-moduleGraph :: [Module] -> ModuleGraph
+moduleGraph :: [Module (Term Surface)] -> ModuleGraph
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleGraph) sig, Monad m) => ModuleName -> m Module
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleGraph) sig, Monad m) => ModuleName -> m (Module (Term Surface))
 lookupModule name = ask >>= maybe (throwError (UnknownModule name)) ret . Map.lookup name . unModuleGraph
 
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Member (Reader ModuleGraph) sig, Monad m) => ModuleName -> m ()
@@ -83,7 +83,7 @@ instance Pretty ModuleError where
     where whichImports name = fillSep [ pretty "which imports", squotes (pretty name) ]
 
 
-loadOrder :: ModuleGraph -> Either ModuleError [Module]
+loadOrder :: ModuleGraph -> Either ModuleError [Module (Term Surface)]
 loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop))))))
   where loop n = do
           inPath <- asks (Set.member n)

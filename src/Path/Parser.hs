@@ -90,7 +90,7 @@ show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 load = Load <$ token (string ":load") <*> moduleName
 
 
-module' :: (Monad m, IndentationParsing m, TokenParsing m) => m Module.Module
+module' :: (Monad m, IndentationParsing m, TokenParsing m) => m (Module.Module (Term Expr.Surface))
 module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many import' <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
