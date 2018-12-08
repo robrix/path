@@ -5,6 +5,7 @@ import Path.Core
 import Path.FreeVariables
 import Path.Name
 import Path.Pretty
+import Path.Semiring
 import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
@@ -29,6 +30,9 @@ instance FreeVariables a => FreeVariables (Surface a) where
 (n, e, a) --> b = In (Ann (Core (Pi n e a b)) (ann (out a) <> ann (out b)))
 
 infixr 0 -->
+
+forAll :: Semigroup ann => (String, Term (Ann Surface ann)) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+forAll (n, a) b = (n, zero, a) --> b
 
 typeT :: Surface a
 typeT = Core Type
