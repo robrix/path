@@ -110,7 +110,7 @@ import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
 declaration :: DeltaParsing m => m (Decl.Decl (Term (Ann Expr.Surface Span)))
-declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define  <$ op "=") <*> globalTerm
+declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define <$ op "=") <*> globalTerm
 
 
 globalTerm, type' :: DeltaParsing m => m (Term (Ann Expr.Surface Span))
