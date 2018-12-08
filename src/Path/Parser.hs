@@ -123,7 +123,7 @@ piType i vs = (do
 annotation vs = functionType 0 vs `chainr1` ((Expr..:) <$ op ":")
 
 functionType i vs = application vs <**> (flip arrow <$ op "->" <*> functionType (succ i) vs <|> pure id)
-              <|> piType i vs
+                <|> piType i vs
           where arrow = (Expr.-->) . (,,) ('_' : show i) Explicit
 
 var vs = toVar <$> identifier <?> "variable"
