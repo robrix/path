@@ -1,23 +1,26 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Path.Context where
 
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Eval
 import Path.Name
+import Path.Semiring
+import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 type Type = Value
 
-newtype Context = Context { unContext :: Map.Map Name (Set.Set Type) }
+newtype Context = Context { unContext :: Map.Map Name (Set.Set (Usage, Type)) }
   deriving (Eq, Ord, Show)
 
 empty :: Context
 empty = Context Map.empty
 
-lookup :: Name -> Context -> Maybe (Set.Set Type)
+lookup :: Name -> Context -> Maybe (Set.Set (Usage, Type))
 lookup n = Map.lookup n . unContext
 
-insert :: Name -> Type -> Context -> Context
+insert :: Name -> (Usage, Type) -> Context -> Context
 insert n v = Context . Map.insertWith (<>) n (Set.singleton v) . unContext
 
 union :: Context -> Context -> Context
@@ -30,4 +33,10 @@ disambiguate tys | [ty] <- Set.toList tys = Just ty
 instance Pretty Context where
   pretty = vsep . map prettyBindings . Map.toList . unContext
     where prettyBindings (name, tys) = vsep (map (prettyBinding name) (Set.toList tys))
-          prettyBinding name ty = pretty name <+> pretty ":" <+> group (pretty ty)
+          prettyBinding name (u, ty) = pretty name <+> pretty ":" <> prettyUsage u <+> group (pretty ty)
+          prettyUsage Zero = pretty "⁰"
+          prettyUsage One  = pretty "¹"
+          prettyUsage More = pretty "ⁿ"
+
+instance LeftModule Usage Context where
+  _ ><< c = c

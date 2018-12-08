@@ -18,6 +18,7 @@ import Path.Module
 import Path.Parser (Command(..), Info(..), command, module', parseFile, parseString, whole)
 import Path.Pretty
 import Path.Term
+import Path.Usage
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding (cyan, plain, putDoc)
@@ -79,7 +80,7 @@ script = do
           Right Quit -> pure ()
           Right Help -> output helpText *> script
           Right (TypeOf tm) -> do
-            res <- runElabError (runInState (infer tm))
+            res <- runElabError (runInState Zero (infer tm))
             case res of
               Left err -> prettyPrint err >> script
               Right elab -> prettyPrint (ann (out elab)) >> script
@@ -89,7 +90,7 @@ script = do
               Left err -> prettyPrint err *> script
               Right _ -> script
           Right (Eval tm) -> do
-            res <- runElabError (runInState (infer tm))
+            res <- runElabError (runInState One (infer tm))
             case res of
               Left err -> prettyPrint err >> script
               Right elab -> get >>= \ env -> prettyPrint (eval (erase elab) env) >> script

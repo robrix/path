@@ -15,10 +15,10 @@ import Control.Applicative ((<**>), Alternative(..))
 import Control.Monad.IO.Class
 import Control.Monad (MonadPlus(..))
 import qualified Data.ByteString.Char8 as BS
-import Data.Char (isSpace)
+import Data.Char (isSpace, isUpper)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
-import qualified Path.Decl as Decl
+import Path.Decl
 import qualified Path.Module as Module
 import qualified Path.Surface as Expr
 import Path.Term hiding (ann)
@@ -70,7 +70,7 @@ data Command
   = Quit
   | Help
   | TypeOf (Term (Ann Expr.Surface Span))
-  | Decl (Decl.Decl (Term (Ann Expr.Surface Span)))
+  | Decl (Decl (Term (Ann Expr.Surface Span)))
   | Eval (Term (Ann Expr.Surface Span))
   | Show Info
   | Load Module.ModuleName
@@ -109,8 +109,15 @@ moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
 import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
-declaration :: DeltaParsing m => m (Decl.Decl (Term (Ann Expr.Surface Span)))
-declaration = identifier <**> (Decl.Declare <$ op ":" <|> Decl.Define <$ op "=") <*> globalTerm
+declaration :: DeltaParsing m => m (Decl (Term (Ann Expr.Surface Span)))
+declaration = identifier <**> (Declare <$ op ":" <|> define <$ op "=" <*> optional usage) <*> globalTerm
+  where define (Just u) n = Define n u
+        define Nothing  n
+          | initCaps n    = Define n Zero
+          | otherwise     = Define n More
+        initCaps (c:_) = isUpper c
+        initCaps []    = False
+        usage = Zero <$ keyword "0" <|> One <$ keyword "1"
 
 
 globalTerm, type' :: DeltaParsing m => m (Term (Ann Expr.Surface Span))
