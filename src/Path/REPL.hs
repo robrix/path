@@ -95,7 +95,7 @@ script = do
               Right elab -> get >>= \ env -> prettyPrint (eval (erase elab) env) >> script
           Right (Show Bindings) -> do
             ctx <- get
-            traverse_ (putDoc . prettyCtx) (Map.toList (ctx :: Context))
+            prettyPrint (ctx :: Context)
             env <- get
             traverse_ (putDoc . prettyEnv) (Map.toList (env :: Env))
             script
@@ -113,7 +113,6 @@ script = do
                 Left err -> prettyPrint (err :: ModuleError)
                 Right (Left err) -> prettyPrint err
                 Right (Right res) -> modify (Map.insert name res)
-        prettyCtx (name, ty) = pretty name <+> pretty ":" <+> group (pretty ty)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
         toPath s = "src/" <> go s <> ".path"
           where go (ModuleName s) = s
