@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Path.Context where
 
 import qualified Data.Map as Map
