@@ -5,7 +5,7 @@ import qualified Data.Set as Set
 import Path.FreeVariables
 import Path.Name
 import Path.Pretty
-import Path.Plicity
+import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 data Core a
@@ -14,7 +14,7 @@ data Core a
   | Lam String a
   | a :@ a
   | Type
-  | Pi String Plicity a a
+  | Pi String Usage a a
   deriving (Eq, Functor, Ord, Show)
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where

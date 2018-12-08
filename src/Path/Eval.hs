@@ -6,15 +6,15 @@ import Data.Maybe (fromMaybe)
 import Path.Core
 import Path.FreeVariables
 import Path.Name
-import Path.Plicity
 import Path.Pretty
 import Path.Term
+import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 data Value
   = VLam String (Value -> Value)
   | VType
-  | VPi String Plicity Value (Value -> Value)
+  | VPi String Usage Value (Value -> Value)
   | VNeutral Neutral
 
 instance Eq Value where

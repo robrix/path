@@ -4,9 +4,9 @@ module Path.Surface where
 import Path.Core
 import Path.FreeVariables
 import Path.Name
-import Path.Plicity
 import Path.Pretty
 import Path.Term
+import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 data Surface a
@@ -25,7 +25,7 @@ instance FreeVariables1 Surface where
 instance FreeVariables a => FreeVariables (Surface a) where
   fvs = fvs1
 
-(-->) :: Semigroup ann => (String, Plicity, Term (Ann Surface ann)) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
+(-->) :: Semigroup ann => (String, Usage, Term (Ann Surface ann)) -> Term (Ann Surface ann) -> Term (Ann Surface ann)
 (n, e, a) --> b = In (Ann (Core (Pi n e a b)) (ann (out a) <> ann (out b)))
 
 infixr 0 -->
