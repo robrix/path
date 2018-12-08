@@ -24,7 +24,7 @@ showDoc doc = asks (\ options -> unpack (renderLazy (layoutPretty options doc)))
 layoutOptions :: MonadIO m => m LayoutOptions
 layoutOptions = do
   s <- maybe 80 Size.width <$> liftIO size
-  pure LayoutOptions { layoutPageWidth = AvailablePerLine s 1 }
+  pure LayoutOptions { layoutPageWidth = AvailablePerLine s 0.8 }
 
 
 class PrettyPrec a where
