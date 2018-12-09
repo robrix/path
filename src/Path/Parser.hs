@@ -18,6 +18,7 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace, isUpper)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
+import Data.Maybe (fromMaybe)
 import Path.Decl
 import qualified Path.Module as Module
 import qualified Path.Surface as Expr
@@ -143,8 +144,8 @@ application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
 type' = ann (Expr.typeT <$ keyword "Type")
 
 piType i vs = reann (do
-  (v, ty) <- braces ((,) <$> identifier <* colon <*> term vs) <* op "->"
-  ((v, More, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
+  (v, mult, ty) <- braces ((,,) <$> identifier <* colon <*> optional multiplicity <*> term vs) <* op "->"
+  ((v, fromMaybe More mult, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
 
 annotation vs = functionType 0 vs `chainr1` ((Expr..:) <$ op ":")
 
@@ -163,6 +164,9 @@ lambda vs = reann (do
         bind ((v :~ a):vv) vs = Expr.lam (v, a) <$> bind vv (v:vs)
 
 atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
+
+multiplicity :: (Monad m, TokenParsing m) => m Usage
+multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
