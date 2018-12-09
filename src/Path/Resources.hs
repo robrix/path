@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiParamTypeClasses #-}
 module Path.Resources where
 
 import Data.Function (on)
@@ -38,3 +39,6 @@ instance Monoid Resources where
 
 instance Semiring Resources where
   (><) = fmap Resources . (Map.intersectionWith (><) `on` unResources)
+
+instance LeftModule Usage Resources where
+  u ><< Resources r = Resources (fmap (u ><) r)
