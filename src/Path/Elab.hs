@@ -39,7 +39,7 @@ elab (In (Ann (Core (Var n)) span)) Nothing = do
   sigma <- ask
   case res of
     Just (avail, t)
-      | sigma <= avail -> pure (In (Ann (Var n) (Map.singleton n sigma, t)))
+      | sigma <= avail -> pure (In (Ann (Var n) (Resources.singleton n sigma, t)))
     _                  -> throwError (FreeVariable n span)
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f

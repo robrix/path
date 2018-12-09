@@ -6,5 +6,8 @@ import Path.Usage
 
 type Resources = Map.Map Name Usage
 
+singleton :: Name -> Usage -> Resources
+singleton n = Map.singleton n
+
 delete :: Name -> Resources -> Resources
 delete n = Map.delete n
