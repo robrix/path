@@ -15,6 +15,7 @@ import Path.Eval
 import Path.Module
 import Path.Name
 import Path.Pretty
+import Path.Resources
 import Path.Semiring
 import Path.Surface
 import Path.Term
