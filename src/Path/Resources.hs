@@ -1,5 +1,6 @@
 module Path.Resources where
 
+import Data.Function (on)
 import qualified Data.Map as Map
 import Path.FreeVariables
 import Path.Name
@@ -27,3 +28,6 @@ instance PrettyPrec Resources
 
 instance FreeVariables Resources where
   fvs = fvs . unResources
+
+instance Semigroup Resources where
+  (<>) = fmap Resources . (Map.unionWith (<>) `on` unResources)
