@@ -17,6 +17,9 @@ instance FreeVariables Span where
 instance (FreeVariables a, FreeVariables b) => FreeVariables (a, b) where
   fvs (a, b) = fvs a <> fvs b
 
+instance FreeVariables a => FreeVariables [a] where
+  fvs = foldMap fvs
+
 
 class FreeVariables1 t where
   liftFvs :: (a -> Set.Set Name) -> t a -> Set.Set Name
