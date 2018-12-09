@@ -23,7 +23,7 @@ import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
-elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Maybe Type -> m (Term (Ann Core (Resources, Type)))
+elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Maybe Type -> m (Term (Ann Core (Resources Usage, Type)))
 elab (In (Ann (e ::: t) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
@@ -60,10 +60,10 @@ elab tm (Just ty) = do
   unless (snd (ann (out v)) == ty) (throwError (TypeMismatch ty (snd (ann (out v))) (ann (out tm))))
   pure v
 
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> m (Term (Ann Core (Resources, Type)))
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> m (Term (Ann Core (Resources Usage, Type)))
 infer tm = elab tm Nothing
 
-check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Type -> m (Term (Ann Core (Resources, Type)))
+check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Type -> m (Term (Ann Core (Resources Usage, Type)))
 check tm = elab tm . Just
 
 
@@ -105,7 +105,7 @@ data ElabError
   = FreeVariable Name Span
   | TypeMismatch Type Type Span
   | NoRuleToInfer (Term (Ann Surface Span)) Span
-  | IllegalApplication (Term (Ann Core (Resources, Type))) Span
+  | IllegalApplication (Term (Ann Core (Resources Usage, Type))) Span
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where

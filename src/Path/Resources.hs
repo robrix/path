@@ -1,4 +1,4 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 module Path.Resources where
 
 import Data.Function (on)
@@ -7,38 +7,37 @@ import Path.FreeVariables
 import Path.Name
 import Path.Pretty
 import Path.Semiring
-import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
-newtype Resources = Resources { unResources :: Map.Map Name Usage }
+newtype Resources r = Resources { unResources :: Map.Map Name r }
   deriving (Eq, Ord, Show)
 
-empty :: Resources
+empty :: Resources r
 empty = Resources Map.empty
 
-singleton :: Name -> Usage -> Resources
+singleton :: Name -> r -> Resources r
 singleton n = Resources . Map.singleton n
 
-delete :: Name -> Resources -> Resources
+delete :: Name -> Resources r -> Resources r
 delete n = Resources . Map.delete n . unResources
 
-instance Pretty Resources where
+instance PrettyPrec r => Pretty (Resources r) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unResources
-    where prettyBinding name u = pretty name <+> pretty "@" <+> pretty u
+    where prettyBinding name u = pretty name <+> pretty "@" <+> prettyPrec 0 u
 
-instance PrettyPrec Resources
+instance PrettyPrec r => PrettyPrec (Resources r)
 
-instance FreeVariables Resources where
+instance FreeVariables r => FreeVariables (Resources r) where
   fvs = fvs . unResources
 
-instance Semigroup Resources where
+instance Semigroup r => Semigroup (Resources r) where
   (<>) = fmap Resources . (Map.unionWith (<>) `on` unResources)
 
-instance Monoid Resources where
+instance Semigroup r => Monoid (Resources r) where
   mempty = Resources Map.empty
 
-instance Semiring Resources where
+instance Semiring r => Semiring (Resources r) where
   (><) = fmap Resources . (Map.intersectionWith (><) `on` unResources)
 
-instance LeftModule Usage Resources where
+instance Semiring r => LeftModule r (Resources r) where
   u ><< Resources r = Resources (fmap (u ><) r)
