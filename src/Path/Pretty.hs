@@ -2,9 +2,9 @@
 module Path.Pretty where
 
 import Control.Monad.IO.Class
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
 import Text.Trifecta.Rendering (Span, render)
 
 prettyPrint :: (MonadIO m, Pretty a) => a -> m ()
