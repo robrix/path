@@ -2,6 +2,7 @@
 module Path.FreeVariables where
 
 import Path.Name
+import Path.Usage
 import qualified Data.Set as Set
 import Text.Trifecta.Rendering (Span)
 
@@ -22,6 +23,9 @@ instance FreeVariables a => FreeVariables [a] where
 
 instance FreeVariables Name where
   fvs = Set.singleton
+
+instance FreeVariables Usage where
+  fvs _ = mempty
 
 
 class FreeVariables1 t where
