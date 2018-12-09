@@ -19,6 +19,9 @@ putDoc doc = do
 class PrettyPrec a where
   prettyPrec :: Int -> a -> Doc
 
+instance (PrettyPrec a, PrettyPrec b) => PrettyPrec (a, b) where
+  prettyPrec _ (a, b) = tupled [ prettyPrec 0 a, prettyPrec 0 b ]
+
 instance PrettyPrec Span where
   prettyPrec _ = pretty . render
 
