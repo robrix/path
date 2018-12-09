@@ -5,6 +5,7 @@ import qualified Data.Map as Map
 import Path.FreeVariables
 import Path.Name
 import Path.Pretty
+import Path.Semiring
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -34,3 +35,6 @@ instance Semigroup Resources where
 
 instance Monoid Resources where
   mempty = Resources Map.empty
+
+instance Semiring Resources where
+  (><) = fmap Resources . (Map.intersectionWith (><) `on` unResources)
