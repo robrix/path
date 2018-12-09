@@ -1,0 +1,1 @@
+module Path.Resources where
