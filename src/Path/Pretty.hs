@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE DefaultSignatures, FlexibleContexts #-}
 module Path.Pretty where
 
 import Control.Monad.IO.Class
@@ -19,6 +19,8 @@ putDoc doc = do
 
 class PrettyPrec a where
   prettyPrec :: Int -> a -> Doc
+  default prettyPrec :: Pretty a => Int -> a -> Doc
+  prettyPrec _ = pretty
 
 instance PrettyPrec Doc where
   prettyPrec _ = id
