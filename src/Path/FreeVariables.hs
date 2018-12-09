@@ -3,6 +3,7 @@ module Path.FreeVariables where
 
 import Path.Name
 import Path.Usage
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Text.Trifecta.Rendering (Span)
 
@@ -26,6 +27,9 @@ instance FreeVariables Name where
 
 instance FreeVariables Usage where
   fvs _ = mempty
+
+instance (FreeVariables k, FreeVariables v) => FreeVariables (Map.Map k v) where
+  fvs = fvs . Map.toList
 
 
 class FreeVariables1 t where
