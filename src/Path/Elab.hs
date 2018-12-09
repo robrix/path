@@ -44,10 +44,11 @@ elab (In (Ann (Core (Var n)) span)) Nothing = do
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
   case ann (out f') of
-    (_, VPi _ _ t t') -> do
+    (g1, VPi _ pi t t') -> do
       a' <- check a t
+      let (g2, _) = ann (out a')
       env <- ask
-      pure (In (Ann (f' :@ a') (Resources.empty, t' (eval (erase a') env))))
+      pure (In (Ann (f' :@ a') (g1 <> pi ><< g2, t' (eval (erase a') env))))
     _ -> throwError (IllegalApplication f' (ann (out f)))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann (out tm)))
 elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn pi t t')) = do
