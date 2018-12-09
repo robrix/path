@@ -64,6 +64,12 @@ check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) s
 check tm = elab tm . Just
 
 
+use :: (Carrier sig m, Member (Reader Usage) sig, Member (State (Map.Map Name Usage)) sig, Monad m) => Name -> m ()
+use n = do
+  sigma <- ask
+  modify (Map.insertWith (<>) n (sigma :: Usage))
+
+
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
 elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term (Ann Surface Span)) -> m (Context, Env)
