@@ -32,15 +32,14 @@ elab (In (Ann (Core Type) _)) Nothing = pure (In (Ann Type (Resources.empty, VTy
 elab (In (Ann (Core (Pi n e t b)) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
-  b' <- local (Context.insert (Local n) (Zero, t'')) (check (subst n (Core (Var (Local n))) b) VType)
+  b' <- local (Context.insert (Local n) t'') (check (subst n (Core (Var (Local n))) b) VType)
   pure (In (Ann (Pi n e t' b') (Resources.empty, VType)))
 elab (In (Ann (Core (Var n)) span)) Nothing = do
   res <- asks (Context.disambiguate <=< Context.lookup n)
   sigma <- ask
   case res of
-    Just (avail, t)
-      | sigma <= avail -> pure (In (Ann (Var n) (Resources.singleton n sigma, t)))
-    _                  -> throwError (FreeVariable n span)
+    Just t -> pure (In (Ann (Var n) (Resources.singleton n sigma, t)))
+    _      -> throwError (FreeVariable n span)
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
   case ann (out f') of
@@ -52,8 +51,7 @@ elab (In (Ann (Core (f :@ a)) _)) Nothing = do
     _ -> throwError (IllegalApplication f' (ann (out f)))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann (out tm)))
 elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn pi t t')) = do
-  sigma <- ask
-  e' <- local (Context.insert (Local n) (sigma >< pi, t)) (check (subst n (Core (Var (Local n))) e) (t' (vfree (Local n))))
+  e' <- local (Context.insert (Local n) t) (check (subst n (Core (Var (Local n))) e) (t' (vfree (Local n))))
   pure (In (Ann (Lam n e') (Resources.delete (Local n) (fst (ann (out e'))), VPi tn pi t t')))
 elab tm (Just ty) = do
   v <- infer tm
@@ -86,13 +84,13 @@ elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context)
 elabDecl (Declare name ty) = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval (erase ty'))
-  modify (Context.insert (Global name) (Zero, ty''))
+  modify (Context.insert (Global name) ty'')
 elabDecl (Define name usage tm) = do
   ty <- gets (Context.disambiguate <=< Context.lookup (Global name))
-  tm' <- runInState usage (maybe infer (flip check . snd) ty tm)
+  tm' <- runInState usage (maybe infer (flip check) ty tm)
   tm'' <- gets (eval (erase tm'))
   modify (Map.insert name tm'')
-  maybe (modify (Context.insert (Global name) (Zero, snd (ann (out tm'))))) (const (pure ())) ty
+  maybe (modify (Context.insert (Global name) (snd (ann (out tm'))))) (const (pure ())) ty
 
 runInState :: (Carrier sig m, Member (State Context) sig, Member (State Env) sig, Monad m) => Usage -> Eff (ReaderC Context (Eff (ReaderC Env (Eff (ReaderC Usage m))))) a -> m a
 runInState usage m = do
