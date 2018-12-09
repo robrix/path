@@ -2,6 +2,7 @@
 module Path.Pretty where
 
 import Control.Monad.IO.Class
+import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
@@ -27,6 +28,9 @@ instance PrettyPrec Span where
 
 instance PrettyPrec a => PrettyPrec [a] where
   prettyPrec _ = prettyList . map (prettyPrec 0)
+
+instance (PrettyPrec k, PrettyPrec v) => PrettyPrec (Map.Map k v) where
+  prettyPrec d = prettyPrec d . Map.toList
 
 prettyParens :: Bool -> Doc -> Doc
 prettyParens True = parens
