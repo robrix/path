@@ -8,8 +8,8 @@ import System.IO (stdout)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
 import Text.Trifecta.Rendering (Span, render)
 
-prettyPrint :: (MonadIO m, Pretty a) => a -> m ()
-prettyPrint = putDoc . pretty
+prettyPrint :: (MonadIO m, PrettyPrec a) => a -> m ()
+prettyPrint = putDoc . prettyPrec 0
 
 putDoc :: MonadIO m => Doc -> m ()
 putDoc doc = do
