@@ -1,5 +1,6 @@
 module Path.Usage where
 
+import Path.Pretty
 import Path.Semiring
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -30,3 +31,6 @@ instance Pretty Usage where
   pretty Zero = pretty "0"
   pretty One  = pretty "1"
   pretty More = pretty "ω"
+
+instance PrettyPrec Usage where
+  prettyPrec _ = pretty
