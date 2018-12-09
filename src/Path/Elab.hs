@@ -14,6 +14,7 @@ import Path.Decl
 import Path.Eval
 import Path.Module
 import Path.Name
+import Path.Pretty
 import Path.Semiring
 import Path.Surface
 import Path.Term
@@ -116,6 +117,8 @@ instance Pretty ElabError where
   pretty (TypeMismatch expected actual span) = nest 2 $ vsep [ pretty "type mismatch", pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual, pretty (render span) ]
   pretty (NoRuleToInfer _ span) = pretty "no rule to infer type of term" <$$> pretty (render span)
   pretty (IllegalApplication tm span) = pretty "illegal application of non-function term" <+> pretty tm <$$> pretty (render span)
+
+instance PrettyPrec ElabError
 
 runElabError :: (Carrier sig m, Effect sig, Monad m) => Eff (ErrorC ElabError m) a -> m (Either ElabError a)
 runElabError = runError
