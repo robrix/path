@@ -64,7 +64,7 @@ check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) s
 check tm = elab tm . Just
 
 
-use :: (Carrier sig m, Member (Reader Usage) sig, Member (State (Map.Map Name Usage)) sig, Monad m) => Name -> m ()
+use :: (Carrier sig m, Member (Reader Usage) sig, Member (State Resources) sig, Monad m) => Name -> m ()
 use n = do
   sigma <- ask
   modify (Map.insertWith (<>) n (sigma :: Usage))
