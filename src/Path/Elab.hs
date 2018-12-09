@@ -15,7 +15,7 @@ import Path.Eval
 import Path.Module
 import Path.Name
 import Path.Pretty
-import Path.Resources
+import Path.Resources as Resources
 import Path.Semiring
 import Path.Surface
 import Path.Term
@@ -53,7 +53,7 @@ elab tm Nothing = throwError (NoRuleToInfer tm (ann (out tm)))
 elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn pi t t')) = do
   sigma <- ask
   e' <- local (Context.insert (Local n) (sigma >< pi, t)) (check (subst n (Core (Var (Local n))) e) (t' (vfree (Local n))))
-  pure (In (Ann (Lam n e') (Map.delete (Local n) (fst (ann (out e'))), VPi tn pi t t')))
+  pure (In (Ann (Lam n e') (Resources.delete (Local n) (fst (ann (out e'))), VPi tn pi t t')))
 elab tm (Just ty) = do
   v <- infer tm
   unless (snd (ann (out v)) == ty) (throwError (TypeMismatch ty (snd (ann (out v))) (ann (out tm))))
