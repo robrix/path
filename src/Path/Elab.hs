@@ -28,12 +28,12 @@ elab (In (Ann (e ::: t) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
   check e t''
-elab (In (Ann (Core Type) _)) Nothing = pure (In (Ann Type (mempty, VType)))
+elab (In (Ann (Core Type) _)) Nothing = pure (In (Ann Type (Resources.empty, VType)))
 elab (In (Ann (Core (Pi n e t b)) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
   b' <- local (Context.insert (Local n) (Zero, t'')) (check (subst n (Core (Var (Local n))) b) VType)
-  pure (In (Ann (Pi n e t' b') (mempty, VType)))
+  pure (In (Ann (Pi n e t' b') (Resources.empty, VType)))
 elab (In (Ann (Core (Var n)) span)) Nothing = do
   res <- asks (Context.disambiguate <=< Context.lookup n)
   sigma <- ask
@@ -47,7 +47,7 @@ elab (In (Ann (Core (f :@ a)) _)) Nothing = do
     (_, VPi _ _ t t') -> do
       a' <- check a t
       env <- ask
-      pure (In (Ann (f' :@ a') (mempty, t' (eval (erase a') env))))
+      pure (In (Ann (f' :@ a') (Resources.empty, t' (eval (erase a') env))))
     _ -> throwError (IllegalApplication f' (ann (out f)))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann (out tm)))
 elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn pi t t')) = do
