@@ -20,6 +20,9 @@ instance (FreeVariables a, FreeVariables b) => FreeVariables (a, b) where
 instance FreeVariables a => FreeVariables [a] where
   fvs = foldMap fvs
 
+instance FreeVariables Name where
+  fvs = Set.singleton
+
 
 class FreeVariables1 t where
   liftFvs :: (a -> Set.Set Name) -> t a -> Set.Set Name
