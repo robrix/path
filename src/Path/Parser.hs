@@ -149,7 +149,8 @@ piType i vs = reann (do
 
 annotation vs = functionType 0 vs `chainr1` ((Expr..:) <$ op ":")
 
-functionType i vs = application vs <**> (flip arrow <$ op "->" <*> functionType (succ i) vs <|> pure id)
+functionType i vs = (,,) ('_' : show i) <$> (multiplicity <|> pure More) <*> application vs <**> (flip (Expr.-->) <$ op "->" <*> functionType (succ i) vs)
+                <|> application vs <**> (flip arrow <$ op "->" <*> functionType (succ i) vs <|> pure id)
                 <|> piType i vs
           where arrow = (Expr.-->) . (,,) ('_' : show i) More
 
