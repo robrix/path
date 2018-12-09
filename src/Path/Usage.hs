@@ -1,6 +1,7 @@
 module Path.Usage where
 
 import Path.Semiring
+import Text.PrettyPrint.ANSI.Leijen
 
 data Usage
   = Zero
@@ -24,3 +25,8 @@ instance Semiring Usage where
 
 instance Unital Usage where
   one = One
+
+instance Pretty Usage where
+  pretty Zero = pretty "0"
+  pretty One  = pretty "1"
+  pretty More = pretty "ω"
