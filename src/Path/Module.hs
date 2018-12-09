@@ -15,6 +15,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Decl
+import Path.Pretty
 import Path.Surface
 import Path.Term
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -81,6 +82,8 @@ instance Pretty ModuleError where
     : foldr ((:) . whichImports) [ whichImports name ] names
     ))
     where whichImports name = fillSep [ pretty "which imports", squotes (pretty name) ]
+
+instance PrettyPrec ModuleError
 
 
 loadOrder :: ModuleGraph (Term Surface) -> Either ModuleError [Module (Term Surface)]
