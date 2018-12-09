@@ -6,6 +6,7 @@ import qualified Data.Set as Set
 import Data.Tuple (swap)
 import Path.Eval
 import Path.Name
+import Path.Pretty
 import Path.Semiring
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -39,6 +40,8 @@ instance Pretty Context where
           prettyUsage Zero = pretty "⁰"
           prettyUsage One  = pretty "¹"
           prettyUsage More = pretty "ⁿ"
+
+instance PrettyPrec Context
 
 instance Semigroup Context where
   Context c1 <> Context c2 = Context (Map.unionWith (Map.unionWith (<>)) c1 c2)
