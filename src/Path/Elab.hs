@@ -37,7 +37,7 @@ elab (In (Ann (Core (Var n)) span)) Nothing = do
   sigma <- ask
   case res of
     Just (avail, t)
-      | avail <= sigma -> pure (In (Ann (Var n) t))
+      | sigma <= avail -> pure (In (Ann (Var n) t))
     _                  -> throwError (FreeVariable n span)
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
