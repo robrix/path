@@ -25,6 +25,9 @@ instance (PrettyPrec a, PrettyPrec b) => PrettyPrec (a, b) where
 instance PrettyPrec Span where
   prettyPrec _ = pretty . render
 
+instance PrettyPrec a => PrettyPrec [a] where
+  prettyPrec _ = prettyList . map (prettyPrec 0)
+
 prettyParens :: Bool -> Doc -> Doc
 prettyParens True = parens
 prettyParens False = id
