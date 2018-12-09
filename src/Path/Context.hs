@@ -45,3 +45,6 @@ instance Semigroup Context where
 
 instance LeftModule Usage Context where
   u ><< Context c = Context (fmap (u ><) <$> c)
+
+
+type Resources = Map.Map Name Usage
