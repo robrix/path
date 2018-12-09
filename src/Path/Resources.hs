@@ -31,3 +31,6 @@ instance FreeVariables Resources where
 
 instance Semigroup Resources where
   (<>) = fmap Resources . (Map.unionWith (<>) `on` unResources)
+
+instance Monoid Resources where
+  mempty = Resources Map.empty
