@@ -14,6 +14,9 @@ instance FreeVariables (Set.Set Name) where
 instance FreeVariables Span where
   fvs _ = mempty
 
+instance (FreeVariables a, FreeVariables b) => FreeVariables (a, b) where
+  fvs (a, b) = fvs a <> fvs b
+
 
 class FreeVariables1 t where
   liftFvs :: (a -> Set.Set Name) -> t a -> Set.Set Name
