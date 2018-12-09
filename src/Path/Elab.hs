@@ -22,46 +22,46 @@ import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
-elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Maybe Type -> m (Term (Ann Core Type))
+elab :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Maybe Type -> m (Term (Ann Core (Resources, Type)))
 elab (In (Ann (e ::: t) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
   check e t''
-elab (In (Ann (Core Type) _)) Nothing = pure (In (Ann Type VType))
+elab (In (Ann (Core Type) _)) Nothing = pure (In (Ann Type (mempty, VType)))
 elab (In (Ann (Core (Pi n e t b)) _)) Nothing = do
   t' <- check t VType
   t'' <- asks (eval (erase t'))
   b' <- local (Context.insert (Local n) (Zero, t'')) (check (subst n (Core (Var (Local n))) b) VType)
-  pure (In (Ann (Pi n e t' b') VType))
+  pure (In (Ann (Pi n e t' b') (mempty, VType)))
 elab (In (Ann (Core (Var n)) span)) Nothing = do
   res <- asks (Context.disambiguate <=< Context.lookup n)
   sigma <- ask
   case res of
     Just (avail, t)
-      | sigma <= avail -> pure (In (Ann (Var n) t))
+      | sigma <= avail -> pure (In (Ann (Var n) (Map.singleton n sigma, t)))
     _                  -> throwError (FreeVariable n span)
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
   case ann (out f') of
-    VPi _ _ t t' -> do
+    (_, VPi _ _ t t') -> do
       a' <- check a t
       env <- ask
-      pure (In (Ann (f' :@ a') (t' (eval (erase a') env))))
+      pure (In (Ann (f' :@ a') (mempty, t' (eval (erase a') env))))
     _ -> throwError (IllegalApplication f' (ann (out f)))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann (out tm)))
 elab (In (Ann (Core (Lam n e)) _)) (Just (VPi tn pi t t')) = do
   sigma <- ask
   e' <- local (Context.insert (Local n) (sigma >< pi, t)) (check (subst n (Core (Var (Local n))) e) (t' (vfree (Local n))))
-  pure (In (Ann (Lam n e') (VPi tn pi t t')))
+  pure (In (Ann (Lam n e') (Map.delete (Local n) (fst (ann (out e'))), VPi tn pi t t')))
 elab tm (Just ty) = do
   v <- infer tm
-  unless (ann (out v) == ty) (throwError (TypeMismatch ty (ann (out v)) (ann (out tm))))
+  unless (snd (ann (out v)) == ty) (throwError (TypeMismatch ty (snd (ann (out v))) (ann (out tm))))
   pure v
 
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> m (Term (Ann Core Type))
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> m (Term (Ann Core (Resources, Type)))
 infer tm = elab tm Nothing
 
-check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Type -> m (Term (Ann Core Type))
+check :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Env) sig, Member (Reader Usage) sig, Monad m) => Term (Ann Surface Span) -> Type -> m (Term (Ann Core (Resources, Type)))
 check tm = elab tm . Just
 
 
@@ -96,7 +96,7 @@ elabDecl (Define name usage tm) = do
   tm' <- runInState usage (maybe infer (flip check . snd) ty tm)
   tm'' <- gets (eval (erase tm'))
   modify (Map.insert name tm'')
-  maybe (modify (Context.insert (Global name) (Zero, ann (out tm')))) (const (pure ())) ty
+  maybe (modify (Context.insert (Global name) (Zero, snd (ann (out tm'))))) (const (pure ())) ty
 
 runInState :: (Carrier sig m, Member (State Context) sig, Member (State Env) sig, Monad m) => Usage -> Eff (ReaderC Context (Eff (ReaderC Env (Eff (ReaderC Usage m))))) a -> m a
 runInState usage m = do
@@ -109,7 +109,7 @@ data ElabError
   = FreeVariable Name Span
   | TypeMismatch Type Type Span
   | NoRuleToInfer (Term (Ann Surface Span)) Span
-  | IllegalApplication (Term (Ann Core Type)) Span
+  | IllegalApplication (Term (Ann Core (Resources, Type))) Span
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
