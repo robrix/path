@@ -36,8 +36,8 @@ elab (In (Ann (Core (Var n)) span)) Nothing = do
   res <- asks (Context.disambiguate <=< Context.lookup n)
   sigma <- ask
   case res of
-    Just (usage, t)
-      | usage == sigma -> pure (In (Ann (Var n) t))
+    Just (avail, t)
+      | avail == sigma -> pure (In (Ann (Var n) t))
     _                  -> throwError (FreeVariable n span)
 elab (In (Ann (Core (f :@ a)) _)) Nothing = do
   f' <- infer f
