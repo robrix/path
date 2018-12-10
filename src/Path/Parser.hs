@@ -70,9 +70,9 @@ whole p = whiteSpace *> p <* eof
 data Command
   = Quit
   | Help
-  | TypeOf (Term (Ann Expr.Surface Span))
-  | Decl (Decl (Term (Ann Expr.Surface Span)))
-  | Eval (Term (Ann Expr.Surface Span))
+  | TypeOf (Term Expr.Surface Span)
+  | Decl (Decl (Term Expr.Surface Span))
+  | Eval (Term Expr.Surface Span)
   | Show Info
   | Load Module.ModuleName
   deriving (Eq, Ord, Show)
@@ -101,7 +101,7 @@ show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 load = Load <$ token (string ":load") <*> moduleName
 
 
-module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module (Term (Ann Expr.Surface Span)))
+module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module (Term Expr.Surface Span))
 module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many import' <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
@@ -110,26 +110,26 @@ moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
 import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
-declaration :: DeltaParsing m => m (Decl (Term (Ann Expr.Surface Span)))
+declaration :: DeltaParsing m => m (Decl (Term Expr.Surface Span))
 declaration = identifier <**> (Declare <$ op ":" <|> Define <$ op "=") <*> globalTerm
 
 
-globalTerm, type' :: DeltaParsing m => m (Term (Ann Expr.Surface Span))
+globalTerm, type' :: DeltaParsing m => m (Term Expr.Surface Span)
 globalTerm = term []
 
-term, application, annotation, var, lambda, atom :: DeltaParsing m => [String] -> m (Term (Ann Expr.Surface Span))
+term, application, annotation, var, lambda, atom :: DeltaParsing m => [String] -> m (Term Expr.Surface Span)
 
-piType, functionType :: DeltaParsing m => Int -> [String] -> m (Term (Ann Expr.Surface Span))
+piType, functionType :: DeltaParsing m => Int -> [String] -> m (Term Expr.Surface Span)
 
 term = annotation
 
-ann :: DeltaParsing m => m (f (Term (Ann f Span))) -> m (Term (Ann f Span))
+ann :: DeltaParsing m => m (f (Term f Span)) -> m (Term f Span)
 ann = fmap respan . spanned
-  where respan (f :~ a) = In (Ann f a)
+  where respan (f :~ a) = In f a
 
-reann :: DeltaParsing m => m (Term (Ann f Span)) -> m (Term (Ann f Span))
+reann :: DeltaParsing m => m (Term f Span) -> m (Term f Span)
 reann = fmap respan . spanned
-  where respan (In (Ann f _) :~ a) = In (Ann f a)
+  where respan (In f _ :~ a) = In f a
 
 
 application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"

@@ -43,28 +43,28 @@ data Neutral
   | NApp Neutral Value
   deriving (Eq, Ord, Show)
 
-quote :: Value -> Term Core
-quote VType = In Type
-quote (VLam v f) = In (Lam v (quote (f (vfree (Quote v)))))
-quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (Quote v)))))
+quote :: Value -> Term Core ()
+quote VType = In Type ()
+quote (VLam v f) = In (Lam v (quote (f (vfree (Quote v))))) ()
+quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (Quote v))))) ()
 quote (VNeutral n) = quoteN n
 
-quoteN :: Neutral -> Term Core
-quoteN (NFree (Quote s)) = In (Var (Local s))
-quoteN (NFree n) = In (Var n)
-quoteN (NApp n a) = In (quoteN n :@ quote a)
+quoteN :: Neutral -> Term Core ()
+quoteN (NFree (Quote s)) = In (Var (Local s)) ()
+quoteN (NFree n) = In (Var n) ()
+quoteN (NApp n a) = In (quoteN n :@ quote a) ()
 
 
 type Env = Map.Map String Value
 
-eval :: Term Core -> Env -> Value
-eval (In (Var (Local n))) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
-eval (In (Var (Global n))) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
-eval (In (Var (Quote n))) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
-eval (In (Lam n b)) d = VLam n (eval b . flip (Map.insert n) d)
-eval (In (f :@ a)) d = eval f d `vapp` eval a d
-eval (In Type) _ = VType
-eval (In (Pi n e ty body)) d = VPi n e (eval ty d) (eval body . flip (Map.insert n) d)
+eval :: Term Core a -> Env -> Value
+eval (In (Var (Local n)) _) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
+eval (In (Var (Global n)) _) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
+eval (In (Var (Quote n)) _) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
+eval (In (Lam n b) _) d = VLam n (eval b . flip (Map.insert n) d)
+eval (In (f :@ a) _) d = eval f d `vapp` eval a d
+eval (In Type _) _ = VType
+eval (In (Pi n e ty body) _) d = VPi n e (eval ty d) (eval body . flip (Map.insert n) d)
 
 vapp :: Value -> Value -> Value
 vapp (VLam _ f) v = f v

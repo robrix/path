@@ -51,10 +51,10 @@ newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Modul
 moduleGraph :: [Module a] -> ModuleGraph a
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleGraph (Term Surface))) sig, Monad m) => ModuleName -> m (Module (Term Surface))
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleGraph (Term Surface ()))) sig, Monad m) => ModuleName -> m (Module (Term Surface ()))
 lookupModule name = ask >>= maybe (throwError (UnknownModule name)) ret . Map.lookup name . unModuleGraph
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Member (Reader (ModuleGraph (Term Surface))) sig, Monad m) => ModuleName -> m ()
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Member (Reader (ModuleGraph (Term Surface ()))) sig, Monad m) => ModuleName -> m ()
 cycleFrom m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
           inPath <- asks (Set.member n)
@@ -86,7 +86,7 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: ModuleGraph (Term Surface) -> Either ModuleError [Module (Term Surface)]
+loadOrder :: ModuleGraph (Term Surface ()) -> Either ModuleError [Module (Term Surface ())]
 loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop))))))
   where loop n = do
           inPath <- asks (Set.member n)

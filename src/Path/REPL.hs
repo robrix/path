@@ -83,7 +83,7 @@ script = do
             res <- runElabError (runInState Zero (infer tm))
             case res of
               Left err -> prettyPrint err >> script
-              Right elab -> prettyPrint (ann (out elab)) >> script
+              Right elab -> prettyPrint (ann elab) >> script
           Right (Decl decl) -> do
             res <- runElabError (elabDecl decl)
             case res of
