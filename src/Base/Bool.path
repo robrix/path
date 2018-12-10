@@ -3,11 +3,11 @@ module Base.Bool where
 Bool : Type
 Bool = {a:Type} -> a -> a -> a
 
-True : Bool
-True = \ _ a b . a
+true : Bool
+true = \ _ a b . a
 
-False : Bool
-False = \ _ a b . b
+false : Bool
+false = \ _ a b . b
 
 not : Bool -> Bool
 not = \ f ty a b . f ty b a
