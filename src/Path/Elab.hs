@@ -5,7 +5,7 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
-import Control.Monad ((<=<), unless)
+import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
 import Path.Context as Context
@@ -59,9 +59,13 @@ elab (In (Core (f :@ a)) _) Nothing = do
       pure (In (f' :@ a') (g1 <> pi ><< g2, t' (eval a' env)))
     _ -> throwError (IllegalApplication f' (ann f))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
-elab (In (Core (Lam n e)) _) (Just (VPi tn pi t t')) = do
+elab (In (Core (Lam n e)) span) (Just (VPi tn pi t t')) = do
   e' <- local (Context.insert (Local n) t) (check (subst n (Core (Var (Local n))) e) (t' (vfree (Local n))))
+  sigma <- ask
   let res = fst (ann e')
+      used = Resources.lookup (Local n) res
+  unless (sigma >< pi == More) . when (pi /= used) $
+    throwError (ResourceMismatch n pi used span)
   pure (In (Lam n e') (Resources.delete (Local n) res, VPi tn pi t t'))
 elab tm (Just ty) = do
   v <- infer tm
