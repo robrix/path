@@ -65,7 +65,7 @@ elab (In (Core (Lam n e)) span) (Just (VPi tn pi t t')) = do
   let res = fst (ann e')
       used = Resources.lookup (Local n) res
   unless (sigma >< pi == More) . when (pi /= used) $
-    throwError (ResourceMismatch n pi used span)
+    throwError (ResourceMismatch n pi used span (uses (Local n) e))
   pure (In (Lam n e') (Resources.delete (Local n) res, VPi tn pi t t'))
 elab tm (Just ty) = do
   v <- infer tm
@@ -135,7 +135,7 @@ data ElabError
   | TypeMismatch Type Type Span
   | NoRuleToInfer (Term Surface Span) Span
   | IllegalApplication (Term Core (Resources Usage, Type)) Span
-  | ResourceMismatch String Usage Usage Span
+  | ResourceMismatch String Usage Usage Span [Span]
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
@@ -143,10 +143,11 @@ instance Pretty ElabError where
   pretty (TypeMismatch expected actual span) = nest 2 $ vsep [ pretty "type mismatch", pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual, pretty (render span) ]
   pretty (NoRuleToInfer _ span) = pretty "no rule to infer type of term" <$$> pretty (render span)
   pretty (IllegalApplication tm span) = pretty "illegal application of non-function term" <+> pretty tm <$$> pretty (render span)
-  pretty (ResourceMismatch n pi used span) = nest 2 $ vsep
-    [ pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty used) <+> pretty "than required" <+> parens (pretty pi)
-    , pretty (render span)
-    ]
+  pretty (ResourceMismatch n pi used span spans) = nest 2 $ vsep
+    ( pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty used) <+> pretty "than required" <+> parens (pretty pi)
+    : pretty (render span)
+    : map (pretty . render) spans
+    )
 
 instance PrettyPrec ElabError
 
