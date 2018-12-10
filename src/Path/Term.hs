@@ -22,6 +22,3 @@ instance (FreeVariables1 f, FreeVariables a) => FreeVariables (Term f a) where
 
 instance Functor f => Functor (Term f) where
   fmap f (In tm a) = In (fmap (fmap f) tm) (f a)
-
-erase :: Functor f => Term f a -> Term f ()
-erase = (() <$)

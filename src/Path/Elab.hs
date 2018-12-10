@@ -35,12 +35,12 @@ elab :: ( Carrier sig m
      -> m (Term Core (Resources Usage, Type))
 elab (In (e ::: t) _) Nothing = do
   t' <- check t VType
-  t'' <- asks (eval (erase t'))
+  t'' <- asks (eval t')
   check e t''
 elab (In (Core Type) _) Nothing = pure (In Type (Resources.empty, VType))
 elab (In (Core (Pi n e t b)) _) Nothing = do
   t' <- check t VType
-  t'' <- asks (eval (erase t'))
+  t'' <- asks (eval t')
   b' <- local (Context.insert (Local n) t'') (check (subst n (Core (Var (Local n))) b) VType)
   pure (In (Pi n e t' b') (Resources.empty, VType))
 elab (In (Core (Var n)) span) Nothing = do
@@ -56,7 +56,7 @@ elab (In (Core (f :@ a)) _) Nothing = do
       a' <- check a t
       let (g2, _) = ann a'
       env <- ask
-      pure (In (f' :@ a') (g1 <> pi ><< g2, t' (eval (erase a') env)))
+      pure (In (f' :@ a') (g1 <> pi ><< g2, t' (eval a' env)))
     _ -> throwError (IllegalApplication f' (ann f))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
 elab (In (Core (Lam n e)) _) (Just (VPi tn pi t t')) = do
@@ -109,12 +109,12 @@ importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pu
 elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl (Term Surface Span) -> m ()
 elabDecl (Declare name ty) = do
   ty' <- runInState Zero (check ty VType)
-  ty'' <- gets (eval (erase ty'))
+  ty'' <- gets (eval ty')
   modify (Context.insert (Global name) ty'')
 elabDecl (Define name tm) = do
   ty <- gets (Context.disambiguate <=< Context.lookup (Global name))
   tm' <- runInState One (maybe infer (flip check) ty tm)
-  tm'' <- gets (eval (erase tm'))
+  tm'' <- gets (eval tm')
   modify (Map.insert name tm'')
   maybe (modify (Context.insert (Global name) (snd (ann tm')))) (const (pure ())) ty
 

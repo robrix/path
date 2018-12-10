@@ -93,7 +93,7 @@ script = do
             res <- runElabError (runInState One (infer tm))
             case res of
               Left err -> prettyPrint err >> script
-              Right elab -> get >>= \ env -> prettyPrint (eval (erase elab) env) >> script
+              Right elab -> get >>= \ env -> prettyPrint (eval elab env) >> script
           Right (Show Bindings) -> do
             ctx <- get
             prettyPrint (ctx :: Context)
