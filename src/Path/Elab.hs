@@ -61,7 +61,8 @@ elab (In (Core (f :@ a)) _) Nothing = do
 elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
 elab (In (Core (Lam n e)) _) (Just (VPi tn pi t t')) = do
   e' <- local (Context.insert (Local n) t) (check (subst n (Core (Var (Local n))) e) (t' (vfree (Local n))))
-  pure (In (Lam n e') (Resources.delete (Local n) (fst (ann e')), VPi tn pi t t'))
+  let res = fst (ann e')
+  pure (In (Lam n e') (Resources.delete (Local n) res, VPi tn pi t t'))
 elab tm (Just ty) = do
   v <- infer tm
   unless (snd (ann v) == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
