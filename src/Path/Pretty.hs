@@ -28,6 +28,9 @@ instance PrettyPrec Doc where
 instance (PrettyPrec a, PrettyPrec b) => PrettyPrec (a, b) where
   prettyPrec _ (a, b) = tupled [ prettyPrec 0 a, prettyPrec 0 b ]
 
+instance PrettyPrec () where
+  prettyPrec _ = mempty
+
 instance PrettyPrec Span where
   prettyPrec _ = pretty . render
 
