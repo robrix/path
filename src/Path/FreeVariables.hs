@@ -13,6 +13,9 @@ class FreeVariables t where
 instance FreeVariables (Set.Set Name) where
   fvs = id
 
+instance FreeVariables () where
+  fvs _ = mempty
+
 instance FreeVariables Span where
   fvs _ = mempty
 
