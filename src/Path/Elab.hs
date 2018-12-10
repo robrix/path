@@ -144,7 +144,7 @@ instance Pretty ElabError where
   pretty (NoRuleToInfer _ span) = pretty "no rule to infer type of term" <$$> pretty (render span)
   pretty (IllegalApplication tm span) = pretty "illegal application of non-function term" <+> pretty tm <$$> pretty (render span)
   pretty (ResourceMismatch n pi used span spans) = nest 2 $ vsep
-    ( pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty used) <+> pretty "than required" <+> parens (pretty pi)
+    ( pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
     : pretty (render span)
     : map (pretty . render) spans
     )
