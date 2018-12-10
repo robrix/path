@@ -66,3 +66,19 @@ subst _ _ (In (Core Type) ann) = In (Core Type) ann
 subst i r (In (Core (Pi n e t t')) ann)
   | i == n    = In (Core (Pi n e (subst i r t) t')) ann
   | otherwise = In (Core (Pi n e (subst i r t) (subst i r t'))) ann
+
+
+uses :: Name -> Term Surface a -> [a]
+uses n = cata $ \ f a -> case f of
+  Core (Var n')
+    | n == n'   -> [a]
+    | otherwise -> []
+  Core (Lam n' b)
+    | n == Local n' -> []
+    | otherwise     -> b
+  Core (f :@ a) -> f <> a
+  Core Type -> []
+  Core (Pi n' _ t b)
+    | n == Local n' -> t
+    | otherwise     -> t <> b
+  a ::: t -> a <> t
