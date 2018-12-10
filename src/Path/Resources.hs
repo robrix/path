@@ -3,6 +3,7 @@ module Path.Resources where
 
 import Data.Function (on)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import Path.FreeVariables
 import Path.Name
 import Path.Pretty
@@ -17,6 +18,9 @@ empty = Resources Map.empty
 
 singleton :: Name -> r -> Resources r
 singleton n = Resources . Map.singleton n
+
+lookup :: Monoid r => Name -> Resources r -> r
+lookup n = fromMaybe zero . Map.lookup n . unResources
 
 delete :: Name -> Resources r -> Resources r
 delete n = Resources . Map.delete n . unResources
