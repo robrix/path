@@ -15,7 +15,7 @@ import Control.Applicative ((<**>), Alternative(..))
 import Control.Monad.IO.Class
 import Control.Monad (MonadPlus(..))
 import qualified Data.ByteString.Char8 as BS
-import Data.Char (isSpace, isUpper)
+import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
 import Data.Maybe (fromMaybe)
@@ -111,14 +111,7 @@ import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
 declaration :: DeltaParsing m => m (Decl (Term (Ann Expr.Surface Span)))
-declaration = identifier <**> (Declare <$ op ":" <|> define <$ op "=" <*> optional usage) <*> globalTerm
-  where define (Just u) n = Define n u
-        define Nothing  n
-          | initCaps n    = Define n Zero
-          | otherwise     = Define n More
-        initCaps (c:_) = isUpper c
-        initCaps []    = False
-        usage = Zero <$ keyword "0" <|> One <$ keyword "1"
+declaration = identifier <**> (Declare <$ op ":" <|> Define <$ op "=") <*> globalTerm
 
 
 globalTerm, type' :: DeltaParsing m => m (Term (Ann Expr.Surface Span))

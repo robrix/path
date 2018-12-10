@@ -85,9 +85,9 @@ elabDecl (Declare name ty) = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval (erase ty'))
   modify (Context.insert (Global name) ty'')
-elabDecl (Define name usage tm) = do
+elabDecl (Define name tm) = do
   ty <- gets (Context.disambiguate <=< Context.lookup (Global name))
-  tm' <- runInState usage (maybe infer (flip check) ty tm)
+  tm' <- runInState One (maybe infer (flip check) ty tm)
   tm'' <- gets (eval (erase tm'))
   modify (Map.insert name tm'')
   maybe (modify (Context.insert (Global name) (snd (ann (out tm'))))) (const (pure ())) ty
