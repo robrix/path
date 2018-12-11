@@ -119,7 +119,7 @@ globalTerm = term []
 
 term, application, annotation, var, lambda, atom :: DeltaParsing m => [String] -> m (Term Expr.Surface Span)
 
-piType, functionType :: DeltaParsing m => Int -> [String] -> m (Term Expr.Surface Span)
+piType, functionType, forAll :: DeltaParsing m => Int -> [String] -> m (Term Expr.Surface Span)
 
 term = annotation
 
@@ -136,6 +136,11 @@ application vs = atom vs `chainl1` pure (Expr.#) <?> "function application"
 
 type' = ann (Expr.typeT <$ keyword "Type")
 
+forAll i vs = reann (do
+  (v, ty) <- op "∀" *> binding <* dot
+  Expr.forAll (v, ty) <$> functionType i (v : vs)) <?> "universally quantified type"
+  where binding = (,) <$> identifier <* colon <*> term vs
+
 piType i vs = reann (do
   (v, mult, ty) <- braces ((,,) <$> identifier <* colon <*> optional multiplicity <*> term vs) <* op "->"
   ((v, fromMaybe More mult, ty) Expr.-->) <$> functionType i (v : vs)) <?> "dependent function type"
@@ -145,6 +150,7 @@ annotation vs = functionType 0 vs `chainr1` ((Expr..:) <$ op ":")
 functionType i vs = (,,) ('_' : show i) <$> multiplicity <*> application vs <**> (flip (Expr.-->) <$ op "->" <*> functionType (succ i) vs)
                 <|> application vs <**> (flip arrow <$ op "->" <*> functionType (succ i) vs <|> pure id)
                 <|> piType i vs
+                <|> forAll i vs
           where arrow = (Expr.-->) . (,,) ('_' : show i) More
 
 var vs = ann (toVar <$> identifier <?> "variable")
