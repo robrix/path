@@ -18,15 +18,13 @@ data Core a
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
   prettyPrec d c = case c of
-    Var (Global s) -> pretty s
-    Var (Local s) -> pretty s
-    Var (Quote s) -> pretty '\'' <> pretty s
-    Lam v b -> prettyParens (d > 0) $ pretty "\\ " <> pretty v <> pretty " . " <> prettyPrec 0 b
-    f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <> pretty ' ' <> prettyPrec 11 a
+    Var n -> pretty n
+    Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
+    f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> pretty "Type"
     Pi v _ t b
-      | Set.member (Local v) (fvs b) -> prettyParens (d > 1) $ prettyBraces True (pretty v <> pretty " : " <> prettyPrec 0 t) <> pretty " -> " <> prettyPrec 1 b
-      | otherwise -> prettyPrec 2 t <> pretty " -> " <> prettyPrec 1 b
+      | Set.member (Local v) (fvs b) -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> pretty ":" <+> prettyPrec 0 t) <+> pretty "->" <+> prettyPrec 1 b
+      | otherwise -> prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b
 
 instance FreeVariables1 Core where
   liftFvs _   (Var n) = Set.singleton n
