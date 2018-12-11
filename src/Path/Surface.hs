@@ -17,7 +17,7 @@ data Surface a
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Surface a) where
   prettyPrec d (Core core) = prettyPrec d core
-  prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <> pretty " : " <> prettyPrec 0 ty
+  prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
 
 instance FreeVariables1 Surface where
   liftFvs fvs (Core core) = liftFvs fvs core
