@@ -23,7 +23,9 @@ instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> pretty "Type"
     Pi v pi t b
-      | Set.member (Local v) (fvs b) -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> pretty ":" <+> withPi (prettyPrec 0 t)) <+> pretty "->" <+> prettyPrec 1 b
+      | Set.member (Local v) (fvs b) -> case pi of
+        Zero -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> pretty ":" <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
+        _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> pretty ":" <+> withPi (prettyPrec 0 t)) <+> pretty "->" <+> prettyPrec 1 b
       | otherwise -> withPi (prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b)
       where withPi
               | pi == More = id
