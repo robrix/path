@@ -22,9 +22,12 @@ instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
     Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> pretty "Type"
-    Pi v _ t b
-      | Set.member (Local v) (fvs b) -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> pretty ":" <+> prettyPrec 0 t) <+> pretty "->" <+> prettyPrec 1 b
-      | otherwise -> prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b
+    Pi v pi t b
+      | Set.member (Local v) (fvs b) -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> pretty ":" <+> withPi (prettyPrec 0 t)) <+> pretty "->" <+> prettyPrec 1 b
+      | otherwise -> withPi (prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b)
+      where withPi
+              | pi == More = id
+              | otherwise  = (pretty pi <+>)
 
 instance FreeVariables1 Core where
   liftFvs _   (Var n) = Set.singleton n
