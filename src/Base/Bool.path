@@ -1,7 +1,7 @@
 module Base.Bool where
 
 Bool : Type
-Bool = {a:Type} -> a -> a -> a
+Bool = ∀ a:Type . a -> a -> a
 
 true : Bool
 true = \ _ a b . a
