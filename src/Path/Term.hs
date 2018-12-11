@@ -12,7 +12,10 @@ deriving instance (Ord  (f (Term f a)), Ord  a) => Ord  (Term f a)
 deriving instance (Show (f (Term f a)), Show a) => Show (Term f a)
 
 instance (PrettyPrec (f (Term f a)), PrettyPrec a) => PrettyPrec (Term f a) where
-  prettyPrec d (In tm ty) = prettyParens (d > 0) $ prettyPrec 1 tm <> pretty " : " <> prettyPrec 1 ty
+  prettyPrec d (In tm ty)
+    | show ty' == "" = prettyPrec d tm
+    | otherwise      = prettyParens (d > 0) $ prettyPrec 1 tm <> pretty " : " <> ty'
+    where ty' = prettyPrec 1 ty
 
 instance (PrettyPrec (f (Term f a)), PrettyPrec a) => Pretty (Term f a) where
   pretty = prettyPrec 0
