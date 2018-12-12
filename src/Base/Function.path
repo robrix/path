@@ -1,0 +1,7 @@
+module Base.Function where
+
+id : ∀ a:Type . a -> a
+id = \ _ a . a
+
+const : ∀ a:Type . ∀ b:Type . a -> b -> a
+const = \ _ _ a _ . a
