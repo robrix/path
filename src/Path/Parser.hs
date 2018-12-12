@@ -4,10 +4,10 @@ module Path.Parser
 , parseFile
 , parseString
 , whole
-, module'
-, moduleName
-, declaration
 , globalTerm
+, keyword
+, identifier
+, op
 , Span
 ) where
 
@@ -19,8 +19,6 @@ import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Data.List (find)
 import Data.Maybe (fromMaybe)
-import Path.Decl
-import qualified Path.Module as Module
 import qualified Path.Surface as Expr
 import Path.Term hiding (ann)
 import Path.Usage
@@ -65,19 +63,6 @@ indentst = mkIndentationState 0 infIndentation True Gt
 
 whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
-
-
-module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module (Term Expr.Surface Span))
-module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many import' <*> many (absoluteIndentation declaration)
-
-moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
-moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
-
-import' :: (Monad m, TokenParsing m) => m Module.Import
-import' = Module.Import <$ keyword "import" <*> moduleName
-
-declaration :: DeltaParsing m => m (Decl (Term Expr.Surface Span))
-declaration = identifier <**> (Declare <$ op ":" <|> Define <$ op "=") <*> globalTerm
 
 
 globalTerm, type' :: DeltaParsing m => m (Term Expr.Surface Span)

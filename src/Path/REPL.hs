@@ -15,7 +15,8 @@ import Path.Context as Context
 import Path.Elab
 import Path.Eval
 import Path.Module
-import Path.Parser (module', parseFile, parseString, whole)
+import Path.Parser (parseFile, parseString, whole)
+import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.REPL.Command
