@@ -129,6 +129,22 @@ script package = loop
           where go (ModuleName s) = s
                 go (ss :. s)      = go ss <> "/" <> s
 
+basePackage :: Package
+basePackage = Package
+  { packageName        = "Base"
+  , packageSourceDir   = "src"
+  , packageModules     =
+      [ ModuleName "Base" :. "Bool"
+      , ModuleName "Base" :. "Either"
+      , ModuleName "Base" :. "Fix"
+      , ModuleName "Base" :. "Function"
+      , ModuleName "Base" :. "Maybe"
+      , ModuleName "Base" :. "Pair"
+      , ModuleName "Base" :. "Unit"
+      , ModuleName "Base" :. "Void"
+      ]
+  , packageConstraints = []
+  }
 
 helpText :: Text
 helpText = pack
