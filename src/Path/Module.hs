@@ -16,8 +16,6 @@ import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Decl
 import Path.Pretty
-import Path.Surface
-import Path.Term
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data ModuleName
@@ -51,15 +49,15 @@ newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Modul
 moduleGraph :: [Module a] -> ModuleGraph a
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleGraph (Term Surface ()))) sig, Monad m) => ModuleName -> m (Module (Term Surface ()))
-lookupModule name = ask >>= maybe (throwError (UnknownModule name)) ret . Map.lookup name . unModuleGraph
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph a -> ModuleName -> m (Module a)
+lookupModule g name = maybe (throwError (UnknownModule name)) ret (Map.lookup name (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Member (Reader (ModuleGraph (Term Surface ()))) sig, Monad m) => ModuleName -> m ()
-cycleFrom m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph a -> ModuleName -> m ()
+cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
           inPath <- asks (Set.member n)
           if inPath then do
-            m <- lookupModule n
+            m <- lookupModule g n
             (n <|) <$> local (Set.insert (moduleName m)) (getAlt (foldMap (Alt . go . importModuleName) (moduleImports m)))
           else
             pure (n :| [])
@@ -86,14 +84,14 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: ModuleGraph (Term Surface ()) -> Either ModuleError [Module (Term Surface ())]
-loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader g (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop))))))
+loadOrder :: ModuleGraph a -> Either ModuleError [Module a]
+loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop)))))
   where loop n = do
           inPath <- asks (Set.member n)
-          when inPath (cycleFrom n)
+          when inPath (cycleFrom g n)
           visited <- gets (Set.member n)
           unless visited . local (Set.insert n) $ do
-            m <- lookupModule n
+            m <- lookupModule g n
             for_ (moduleImports m) (loop . importModuleName)
             modify (Set.insert n)
             modify (m :)
