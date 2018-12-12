@@ -1,8 +1,8 @@
 module Path.Parser.REPL where
 
 import Control.Applicative (Alternative(..))
-import Path.Parser
 import Path.Parser.Module
+import Path.Parser.Term
 import Path.REPL.Command
 import Text.Trifecta
 

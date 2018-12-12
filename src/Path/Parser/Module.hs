@@ -4,6 +4,7 @@ import Control.Applicative ((<**>), Alternative(..))
 import Path.Decl
 import qualified Path.Module as Module
 import Path.Parser
+import Path.Parser.Term
 import Path.Surface
 import Path.Term
 import Text.Trifecta

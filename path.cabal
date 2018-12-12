@@ -25,6 +25,7 @@ library
                      , Path.Parser
                      , Path.Parser.Module
                      , Path.Parser.REPL
+                     , Path.Parser.Term
                      , Path.Plicity
                      , Path.Pretty
                      , Path.REPL
