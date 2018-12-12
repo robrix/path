@@ -28,6 +28,7 @@ library
                      , Path.Parser.Term
                      , Path.Plicity
                      , Path.Pretty
+                     , Path.Renamer
                      , Path.REPL
                      , Path.REPL.Command
                      , Path.Resources
