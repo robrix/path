@@ -1,0 +1,10 @@
+module Base.Either where
+
+Either : Type -> Type -> Type
+Either = \ l r . ∀ a : Type . (l -> a) -> (r -> a) -> a
+
+left : ∀ l : Type . ∀ r : Type . l -> Either l r
+left = \ _ _ l _ left _ . left l
+
+right : ∀ l : Type . ∀ r : Type . r -> Either l r
+right = \ _ _ r _ _ right . right r
