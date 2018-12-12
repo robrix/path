@@ -5,3 +5,9 @@ id = \ _ a . a
 
 const : ∀ a:Type . ∀ b:Type . a -> b -> a
 const = \ _ _ a _ . a
+
+flip : ∀ a:Type
+     . ∀ b:Type
+     . ∀ c:Type
+     . (a -> b -> c) -> (b -> a -> c)
+flip = \ _ _ _ f b a . f a b
