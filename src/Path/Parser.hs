@@ -4,8 +4,10 @@ module Path.Parser
 , parseFile
 , parseString
 , whole
-, command
 , module'
+, moduleName
+, declaration
+, globalTerm
 , Span
 ) where
 
@@ -19,7 +21,6 @@ import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Path.Decl
 import qualified Path.Module as Module
-import Path.REPL.Command
 import qualified Path.Surface as Expr
 import Path.Term hiding (ann)
 import Path.Usage
@@ -64,26 +65,6 @@ indentst = mkIndentationState 0 infIndentation True Gt
 
 whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
-
-
-command, typeof, decl, eval :: DeltaParsing m => m Command
-quit, help, show', load :: (Monad m, TokenParsing m) => m Command
-
-command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> load <?> "command; use :? for help"
-
-quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
-
-help = Help <$ token (string ":h") <|> Help <$ token (string ":?") <|> Help <$ token (string ":help") <?> "help"
-
-typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm <?> "type of"
-
-decl = Decl <$> declaration
-
-eval = Eval <$> globalTerm <?> "term"
-
-show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
-
-load = Load <$ token (string ":load") <*> moduleName
 
 
 module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module (Term Expr.Surface Span))

@@ -23,6 +23,7 @@ library
                      , Path.Name
                      , Path.Package
                      , Path.Parser
+                     , Path.Parser.Command
                      , Path.Plicity
                      , Path.Pretty
                      , Path.REPL
