@@ -1,0 +1,4 @@
+module Base.Void where
+
+Void : Type
+Void = ∀ a : Type . a
