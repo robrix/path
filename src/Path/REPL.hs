@@ -129,13 +129,25 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph (Term Surface Span
                 Right (Right res) -> modify (Map.insert name res)
         reload = do
           let n = length (packageModules package)
-          modules <- for (zip [(1 :: Int)..] (packageModules package)) $ \ (i, name) -> do
-            prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (toPath name)))
+          parsed <- for (packageModules package) $ \ name -> do
             res <- parseFile (whole module') (toPath name)
             case res of
               Left err -> Nothing <$ prettyPrint err
               Right a -> pure (Just a)
-          put (maybe (ModuleGraph mempty) moduleGraph (sequenceA modules))
+          let graph = maybe (ModuleGraph mempty) moduleGraph (sequenceA parsed)
+          sorted <- case loadOrder graph of
+            Left err -> [] <$ prettyPrint err
+            Right a -> pure a
+          for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
+            let name = moduleName m
+            prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (toPath name)))
+            table <- get
+            res <- runReader (table :: ModuleTable) (runError (runElabError (elabModule m)))
+            case res of
+              Left err -> prettyPrint (err :: ModuleError)
+              Right (Left err) -> prettyPrint err
+              Right (Right res) -> modify (Map.insert name res)
+          put graph
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
         toPath s = packageSourceDir package </> go s <> ".path"
           where go (ModuleName s) = s
