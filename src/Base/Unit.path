@@ -1,0 +1,7 @@
+module Base.Unit where
+
+Unit : Type
+Unit = ∀ a : Type . a -> a
+
+unit : Unit
+unit = \ _ a . a
