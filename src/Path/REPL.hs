@@ -11,6 +11,7 @@ import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
+import Data.Text (Text, pack, unpack)
 import Path.Context as Context
 import Path.Decl
 import Path.Elab
@@ -25,11 +26,11 @@ import Path.Term
 import Path.Usage
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.PrettyPrint.ANSI.Leijen hiding (cyan, plain, putDoc)
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), cyan, plain, putDoc)
 
 data REPL (m :: * -> *) k
-  = Prompt String (Maybe String -> k)
-  | Output String k
+  = Prompt Text (Maybe Text -> k)
+  | Output Text k
   deriving (Functor)
 
 instance HFunctor REPL where
@@ -38,10 +39,10 @@ instance HFunctor REPL where
 instance Effect REPL where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Member REPL sig, Carrier sig m) => String -> m (Maybe String)
+prompt :: (Member REPL sig, Carrier sig m) => Text -> m (Maybe Text)
 prompt p = send (Prompt p ret)
 
-output :: (Member REPL sig, Carrier sig m) => String -> m ()
+output :: (Member REPL sig, Carrier sig m) => Text -> m ()
 output s = send (Output s (ret ()))
 
 runREPL :: (MonadIO m, Carrier sig m) => Prefs -> Settings IO -> Eff (REPLC m) a -> m a
@@ -52,8 +53,8 @@ newtype REPLC m a = REPLC { runREPLC :: (Prefs, Settings IO) -> m a }
 instance (Carrier sig m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
   ret = REPLC . const . ret
   eff op = REPLC (\ args -> handleSum (eff . handleReader args runREPLC) (\case
-    Prompt p k -> liftIO (uncurry runInputTWithPrefs args (getInputLine (cyan <> p <> plain))) >>= flip runREPLC args . k
-    Output s k -> liftIO (uncurry runInputTWithPrefs args (outputStrLn s)) *> runREPLC k args) op)
+    Prompt p k -> liftIO (uncurry runInputTWithPrefs args (fmap pack <$> getInputLine (cyan <> unpack p <> plain))) >>= flip runREPLC args . k
+    Output s k -> liftIO (uncurry runInputTWithPrefs args (outputStrLn (unpack s))) *> runREPLC k args) op)
 
 cyan :: String
 cyan = "\ESC[1;36m\STX"
@@ -77,9 +78,9 @@ repl = do
 
 script :: (Carrier sig m, Effect sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => m ()
 script = do
-  a <- prompt "λ: "
+  a <- prompt (pack "λ: ")
   maybe script runCommand a
-  where runCommand s = case parseString (whole command) s of
+  where runCommand s = case parseString (whole command) (unpack s) of
           Left err -> prettyPrint err *> script
           Right Quit -> pure ()
           Right Help -> output helpText *> script
@@ -126,7 +127,7 @@ script = do
                 go (ss :. s)      = go ss <> "/" <> s
 
 
-helpText :: String
-helpText
-  =  ":help, :?   display this list of commands\n"
+helpText :: Text
+helpText = pack
+  $  ":help, :?   display this list of commands\n"
   <> ":quit, :q   exit the repl"
