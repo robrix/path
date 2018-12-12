@@ -17,13 +17,13 @@ import Path.Context as Context
 import Path.Decl
 import Path.Elab
 import Path.Eval
-import Path.Module
+import Path.Module as Module
 import Path.Package
 import Path.Parser (Span, parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
-import Path.REPL.Command
+import Path.REPL.Command as Command
 import Path.Surface
 import Path.Term
 import Path.Usage
@@ -114,13 +114,22 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph (Term Surface Span
             loop
           Right (Load moduleName) -> load moduleName *> loop
           Right Reload -> reload *> loop
+          Right (Command.Import i) -> do
+            table <- get
+            res <- runReader (table :: ModuleTable) (runError (runElabError (importModule (importModuleName i))))
+            case res of
+              Left err -> prettyPrint (err :: ModuleError)
+              Right (Left err) -> prettyPrint err
+              Right (Right (ctx, env)) -> do
+                modify (Context.union ctx)
+                modify (<> env)
+            loop
         load name = do
           res <- parseFile (whole module') (toPath name)
           case res of
             Left err -> prettyPrint err
             Right m -> do
-              for_ (moduleImports m) $ \ (Import name') ->
-                load name'
+              for_ (moduleImports m) (load . importModuleName)
               table <- get
               res <- runReader (table :: ModuleTable) (runError (runElabError (elabModule m)))
               case res of

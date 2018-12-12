@@ -15,6 +15,7 @@ data Command
   | Show Info
   | Load ModuleName
   | Reload
+  | Import Import
   deriving (Eq, Ord, Show)
 
 data Info
