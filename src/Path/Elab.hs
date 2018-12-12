@@ -100,17 +100,17 @@ type ModuleTable = Map.Map ModuleName (Context, Env)
 
 elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term Surface Span) -> m (Context, Env)
 elabModule (Module _ imports decls) = runState Context.empty . execState (mempty :: Env) $ do
-  for_ imports $ \ (Import name) -> do
-    (ctx, env) <- importModule name
-    modify (Context.union ctx)
-    modify (<> env)
+  for_ imports (elabImport . importModuleName)
 
   for_ decls $ \case
     Declare name ty -> elabDecl name ty
     Define  name tm -> elabDef  name tm
 
-importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Monad m) => ModuleName -> m (Context, Env)
-importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
+elabImport :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => ModuleName -> m ()
+elabImport n = do
+  (ctx, env) <- asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
+  modify (Context.union (ctx :: Context))
+  modify (<> (env :: Env))
 
 
 elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term Surface Span -> m ()
