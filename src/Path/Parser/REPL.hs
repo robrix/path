@@ -1,4 +1,4 @@
-module Path.Parser.Command where
+module Path.Parser.REPL where
 
 import Control.Applicative (Alternative(..))
 import Path.Parser
