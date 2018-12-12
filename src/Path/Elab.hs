@@ -140,7 +140,12 @@ data ElabError
 
 instance Pretty ElabError where
   pretty (FreeVariable name span) = nest 2 $ pretty "free variable " <+> squotes (pretty name) <$$> pretty (render span)
-  pretty (TypeMismatch expected actual span) = nest 2 $ vsep [ pretty "type mismatch", pretty "expected:" <+> pretty expected, pretty "  actual:" <+> pretty actual, pretty (render span) ]
+  pretty (TypeMismatch expected actual span) = nest 2 $ vsep
+    [ pretty "type mismatch"
+    , pretty "expected:" <+> pretty expected
+    , pretty "  actual:" <+> pretty actual
+    , pretty (render span)
+    ]
   pretty (NoRuleToInfer _ span) = pretty "no rule to infer type of term" <$$> pretty (render span)
   pretty (IllegalApplication tm span) = pretty "illegal application of non-function term" <+> pretty tm <$$> pretty (render span)
   pretty (ResourceMismatch n pi used span spans) = nest 2 $ vsep
