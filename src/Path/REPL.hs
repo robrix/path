@@ -17,6 +17,7 @@ import Path.Decl
 import Path.Elab
 import Path.Eval
 import Path.Module
+import Path.Package
 import Path.Parser (parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
@@ -26,7 +27,8 @@ import Path.Term
 import Path.Usage
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), cyan, plain, putDoc)
+import System.FilePath.Posix
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), cyan, plain, putDoc)
 
 data REPL (m :: * -> *) k
   = Prompt Text (Maybe Text -> k)
@@ -63,8 +65,8 @@ plain :: String
 plain = "\ESC[0m\STX"
 
 
-repl :: MonadIO m => m ()
-repl = do
+repl :: MonadIO m => Package -> m ()
+repl package = do
   homeDir <- liftIO getHomeDirectory
   prefs <- liftIO (readPrefs (homeDir <> "/.haskeline"))
   let settingsDir = homeDir <> "/.local/path"
@@ -74,40 +76,41 @@ repl = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context) script)))))
+  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context) (script package))))))
 
-script :: (Carrier sig m, Effect sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => m ()
-script = do
-  a <- prompt (pack "λ: ")
-  maybe script runCommand a
-  where runCommand s = case parseString (whole command) (unpack s) of
-          Left err -> prettyPrint err *> script
+script :: (Carrier sig m, Effect sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => Package -> m ()
+script package = loop
+  where loop = do
+          a <- prompt (pack "λ: ")
+          maybe loop runCommand a
+        runCommand s = case parseString (whole command) (unpack s) of
+          Left err -> prettyPrint err *> loop
           Right Quit -> pure ()
-          Right Help -> output helpText *> script
+          Right Help -> output helpText *> loop
           Right (TypeOf tm) -> do
             res <- runElabError (runInState Zero (infer tm))
             case res of
-              Left err -> prettyPrint err >> script
-              Right elab -> prettyPrint (ann elab) >> script
+              Left err -> prettyPrint err >> loop
+              Right elab -> prettyPrint (ann elab) >> loop
           Right (Decl decl) -> do
             res <- runElabError (case decl of
               Declare name ty -> elabDecl name ty
               Define  name tm -> elabDef  name tm)
             case res of
-              Left err -> prettyPrint err *> script
-              Right _ -> script
+              Left err -> prettyPrint err *> loop
+              Right _ -> loop
           Right (Eval tm) -> do
             res <- runElabError (runInState One (infer tm))
             case res of
-              Left err -> prettyPrint err >> script
-              Right elab -> get >>= \ env -> prettyPrint (eval elab env) >> script
+              Left err -> prettyPrint err >> loop
+              Right elab -> get >>= \ env -> prettyPrint (eval elab env) >> loop
           Right (Show Bindings) -> do
             ctx <- get
             prettyPrint (ctx :: Context)
             env <- get
             traverse_ (putDoc . prettyEnv) (Map.toList (env :: Env))
-            script
-          Right (Load moduleName) -> load moduleName *> script
+            loop
+          Right (Load moduleName) -> load moduleName *> loop
         load name = do
           res <- parseFile (whole module') (toPath name)
           case res of
@@ -122,7 +125,7 @@ script = do
                 Right (Left err) -> prettyPrint err
                 Right (Right res) -> modify (Map.insert name res)
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
-        toPath s = "src/" <> go s <> ".path"
+        toPath s = packageSourceDir package </> go s <> ".path"
           where go (ModuleName s) = s
                 go (ss :. s)      = go ss <> "/" <> s
 
