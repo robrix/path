@@ -26,6 +26,7 @@ library
                      , Path.Plicity
                      , Path.Pretty
                      , Path.REPL
+                     , Path.REPL.Command
                      , Path.Resources
                      , Path.Semiring
                      , Path.Surface

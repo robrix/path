@@ -4,8 +4,6 @@ module Path.Parser
 , parseFile
 , parseString
 , whole
-, Command(..)
-, Info(..)
 , command
 , module'
 , Span
@@ -21,6 +19,7 @@ import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Path.Decl
 import qualified Path.Module as Module
+import Path.REPL.Command
 import qualified Path.Surface as Expr
 import Path.Term hiding (ann)
 import Path.Usage
@@ -66,20 +65,6 @@ indentst = mkIndentationState 0 infIndentation True Gt
 whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
 
-
-data Command
-  = Quit
-  | Help
-  | TypeOf (Term Expr.Surface Span)
-  | Decl (Decl (Term Expr.Surface Span))
-  | Eval (Term Expr.Surface Span)
-  | Show Info
-  | Load Module.ModuleName
-  deriving (Eq, Ord, Show)
-
-data Info
-  = Bindings
-  deriving (Eq, Ord, Show)
 
 command, typeof, decl, eval :: DeltaParsing m => m Command
 quit, help, show', load :: (Monad m, TokenParsing m) => m Command
