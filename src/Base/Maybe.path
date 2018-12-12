@@ -1,5 +1,7 @@
 module Base.Maybe where
 
+import Base.Bool
+
 Maybe : Type -> Type
 Maybe = \ a . ∀ b : Type . b -> (a -> b) -> b
 
