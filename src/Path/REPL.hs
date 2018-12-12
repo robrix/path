@@ -12,6 +12,7 @@ import Data.Coerce
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
 import Path.Context as Context
+import Path.Decl
 import Path.Elab
 import Path.Eval
 import Path.Module
@@ -88,7 +89,9 @@ script = do
               Left err -> prettyPrint err >> script
               Right elab -> prettyPrint (ann elab) >> script
           Right (Decl decl) -> do
-            res <- runElabError (elabDecl decl)
+            res <- runElabError (case decl of
+              Declare name ty -> elabDecl name ty
+              Define  name tm -> elabDef  name tm)
             case res of
               Left err -> prettyPrint err *> script
               Right _ -> script

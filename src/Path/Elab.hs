@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase #-}
 module Path.Elab where
 
 import Control.Effect
@@ -6,7 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
-import Data.Foldable (for_, traverse_)
+import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Path.Context as Context
 import Path.Core
@@ -105,18 +105,22 @@ elabModule (Module _ imports decls) = runState Context.empty . execState (mempty
     modify (Context.union ctx)
     modify (<> env)
 
-  traverse_ elabDecl decls
+  for_ decls $ \case
+    Declare name ty -> elabDecl name ty
+    Define  name tm -> elabDef  name tm
 
 importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Monad m) => ModuleName -> m (Context, Env)
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => Decl (Term Surface Span) -> m ()
-elabDecl (Declare name ty) = do
+elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term Surface Span -> m ()
+elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
   modify (Context.insert (Global name) ty'')
-elabDecl (Define name tm) = do
+
+elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term Surface Span -> m ()
+elabDef name tm = do
   ty <- gets (Context.disambiguate <=< Context.lookup (Global name))
   tm' <- runInState One (maybe infer (flip check) ty tm)
   tm'' <- gets (eval tm')
