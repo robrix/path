@@ -6,11 +6,11 @@ Alg = \ f x . ∀ r : Type . (r -> x) -> f r -> x
 Fix : (Type -> Type) -> Type
 Fix = \ f . ∀ x : Type . Alg f x -> x
 
-in : ∀ f : Type -> Type
-   . f (Fix f) -> Fix f
-in = \ F fix X alg . alg (Fix F) (fold F X alg) fix
-
 fold : ∀ f : Type -> Type
       . ∀ x : Type
       . Alg f x -> Fix f -> x
 fold = \ _ X alg x . x X alg
+
+in : ∀ f : Type -> Type
+   . f (Fix f) -> Fix f
+in = \ F fix X alg . alg (Fix F) (fold F X alg) fix
