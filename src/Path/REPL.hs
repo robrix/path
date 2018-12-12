@@ -12,17 +12,19 @@ import Data.Coerce
 import Data.Foldable (for_, traverse_)
 import qualified Data.Map as Map
 import Data.Text (Text, pack, unpack)
+import Data.Traversable (for)
 import Path.Context as Context
 import Path.Decl
 import Path.Elab
 import Path.Eval
 import Path.Module
 import Path.Package
-import Path.Parser (parseFile, parseString, whole)
+import Path.Parser (Span, parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.REPL.Command
+import Path.Surface
 import Path.Term
 import Path.Usage
 import System.Console.Haskeline
@@ -78,8 +80,8 @@ repl package = do
         }
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context) (script package))))))
 
-script :: (Carrier sig m, Effect sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, MonadIO m) => Package -> m ()
-script package = loop
+script :: (Carrier sig m, Effect sig, Member (Lift IO) sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, Monad m) => Package -> m ()
+script package = evalState (ModuleGraph mempty :: ModuleGraph (Term Surface Span)) (reload *> loop)
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop runCommand a
@@ -124,6 +126,15 @@ script package = loop
                 Left err -> prettyPrint (err :: ModuleError)
                 Right (Left err) -> prettyPrint err
                 Right (Right res) -> modify (Map.insert name res)
+        reload = do
+          let n = length (packageModules package)
+          modules <- for (zip [(1 :: Int)..] (packageModules package)) $ \ (i, name) -> do
+            prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (toPath name)))
+            res <- parseFile (whole module') (toPath name)
+            case res of
+              Left err -> Nothing <$ prettyPrint err
+              Right a -> pure (Just a)
+          put (maybe (ModuleGraph mempty) moduleGraph (sequenceA modules))
         prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
         toPath s = packageSourceDir package </> go s <> ".path"
           where go (ModuleName s) = s
