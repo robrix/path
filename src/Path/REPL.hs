@@ -113,6 +113,7 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph (Term Surface Span
             traverse_ (putDoc . prettyEnv) (Map.toList (env :: Env))
             loop
           Right (Load moduleName) -> load moduleName *> loop
+          Right Reload -> reload *> loop
         load name = do
           res <- parseFile (whole module') (toPath name)
           case res of

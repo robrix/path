@@ -14,6 +14,7 @@ data Command
   | Eval (Term Surface Span)
   | Show Info
   | Load ModuleName
+  | Reload
   deriving (Eq, Ord, Show)
 
 data Info

@@ -7,9 +7,9 @@ import Path.REPL.Command
 import Text.Trifecta
 
 command, typeof, decl, eval :: DeltaParsing m => m Command
-quit, help, show', load :: (Monad m, TokenParsing m) => m Command
+quit, help, show', load, reload :: (Monad m, TokenParsing m) => m Command
 
-command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> load <?> "command; use :? for help"
+command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> load <|> reload <?> "command; use :? for help"
 
 quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
@@ -24,3 +24,5 @@ eval = Eval <$> globalTerm <?> "term"
 show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 
 load = Load <$ token (string ":load") <*> moduleName
+
+reload = Reload <$ token (string ":r") <|> Reload <$ token (string ":reload") <?> "reload"
