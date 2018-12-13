@@ -132,7 +132,7 @@ elabDef name tm = do
   ty <- gets (Context.lookup (Name name))
   tm' <- runInState One (maybe infer (flip check) ty tm)
   tm'' <- gets (eval tm')
-  modify (Map.insert name tm'')
+  modify (Env.insert name tm'')
   maybe (modify (Context.insert (Name name) (snd (ann tm')))) (const (pure ())) ty
 
 runInState :: (Carrier sig m, Member (State (Context Name)) sig, Member (State Env) sig, Monad m) => Usage -> Eff (ReaderC (Context Name) (Eff (ReaderC Env (Eff (ReaderC Usage m))))) a -> m a
