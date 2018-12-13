@@ -5,7 +5,7 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
-import Control.Monad ((<=<), unless, when)
+import Control.Monad (unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Path.Context as Context
@@ -44,7 +44,7 @@ elab (In (Core (Pi n e t b)) _) Nothing = do
   b' <- local (Context.insert (Local n) t'') (check (subst n (Core (Var (Local n))) b) VType)
   pure (In (Pi n e t' b') (Resources.empty, VType))
 elab (In (Core (Var n)) span) Nothing = do
-  res <- asks (Context.disambiguate <=< Context.lookup n)
+  res <- asks (Context.lookup n)
   sigma <- ask
   case res of
     Just t -> pure (In (Var n) (Resources.singleton n sigma, t))
@@ -121,7 +121,7 @@ elabDecl name ty = do
 
 elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term Surface Span -> m ()
 elabDef name tm = do
-  ty <- gets (Context.disambiguate <=< Context.lookup (Global name))
+  ty <- gets (Context.lookup (Global name))
   tm' <- runInState One (maybe infer (flip check) ty tm)
   tm'' <- gets (eval tm')
   modify (Map.insert name tm'')

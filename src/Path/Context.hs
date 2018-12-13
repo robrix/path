@@ -1,6 +1,7 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 module Path.Context where
 
+import Control.Monad ((<=<))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Eval
@@ -16,8 +17,8 @@ newtype Context = Context { unContext :: Map.Map Name (Set.Set Type) }
 empty :: Context
 empty = Context Map.empty
 
-lookup :: Name -> Context -> Maybe (Set.Set Type)
-lookup n = Map.lookup n . unContext
+lookup :: Name -> Context -> Maybe Type
+lookup n = disambiguate <=< Map.lookup n . unContext
 
 insert :: Name -> Type -> Context -> Context
 insert n t = Context . Map.insertWith (<>) n (Set.singleton t) . unContext
