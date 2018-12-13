@@ -9,7 +9,7 @@ import Control.Effect.State
 import Control.Effect.Sum
 import Control.Monad.IO.Class
 import Data.Coerce
-import Data.Foldable (for_, traverse_)
+import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Data.Text (Text, pack, unpack)
 import Data.Traversable (for)
@@ -112,7 +112,7 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Nam
             ctx <- get
             prettyPrint (ctx :: Context Name)
             env <- get
-            traverse_ (putDoc . prettyEnv) (Map.toList (env :: Env))
+            prettyPrint (env :: Env)
             loop
           Right (Load moduleName) -> load moduleName *> loop
           Right Reload -> reload *> loop
@@ -159,7 +159,6 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Nam
               Right (Left err) -> prettyPrint err
               Right (Right res) -> modify (Map.insert name res)
           put graph
-        prettyEnv (name, tm) = pretty name <+> pretty "=" <+> group (pretty tm)
         toPath s = packageSourceDir package </> go s <> ".path"
           where go (ModuleName s) = s
                 go (ss :. s)      = go ss <> "/" <> s
