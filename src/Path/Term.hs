@@ -1,6 +1,7 @@
-{-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving, RankNTypes, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
+import qualified Data.Set as Set
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -37,3 +38,10 @@ class AlphaEquivalent1 t where
 
 instance AlphaEquivalent1 f => AlphaEquivalent (Term f a) where
   aeq (In syn1 _) (In syn2 _) = liftAeq aeq syn1 syn2
+
+
+class FreeVariables v a where
+  fvs :: a -> Set.Set v
+
+class FreeVariables1 v t where
+  liftFvs :: (a -> Set.Set v) -> t a -> Set.Set v
