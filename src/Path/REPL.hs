@@ -7,12 +7,12 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
+import Control.Monad ((<=<))
 import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Data.Text (Text, pack, unpack)
-import Data.Traversable (for)
 import Path.Context as Context
 import Path.Decl
 import Path.Elab
@@ -21,7 +21,7 @@ import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Span, parseFile, parseString, whole)
+import Path.Parser (ErrInfo, Span, parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
@@ -84,45 +84,46 @@ repl package = do
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable QName) (evalState (Env.empty :: Env QName) (evalState (Context.empty :: Context QName) (evalState (Resolution mempty) (script package)))))))
 
 script :: (Carrier sig m, Effect sig, Functor m, Member (Lift IO) sig, Member REPL sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig, Member (State (ModuleTable QName)) sig, Member (State Resolution) sig) => Package -> m ()
-script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runElab (reload *> loop)))) >>= either prettyResolveError (either prettyElabError (either prettyModuleError pure)))
+script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runError (runElab (reload *> loop))))) >>= either prettyResolveError (either prettyElabError (either prettyModuleError (either prettyParserError pure))))
   where loop = do
           a <- prompt (pack "λ: ")
-          maybe loop runCommand a
+          maybe loop (runCommand <=< parseString (whole command) . unpack) a
             `catchError` \ err -> prettyResolveError err >> loop
             `catchError` \ err -> prettyElabError err >> loop
             `catchError` \ err -> prettyModuleError err >> loop
+            `catchError` \ err -> prettyParserError err >> loop
         prettyResolveError err = prettyPrint (err :: ResolveError)
         prettyElabError err = prettyPrint (err :: ElabError QName)
         prettyModuleError err = prettyPrint (err :: ModuleError)
-        runCommand s = case parseString (whole command) (unpack s) of
-          Left err -> prettyPrint err *> loop
-          Right Quit -> pure ()
-          Right Help -> output helpText *> loop
-          Right (TypeOf tm) -> do
+        prettyParserError err = prettyPrint (err :: ErrInfo)
+        runCommand = \case
+          Quit -> pure ()
+          Help -> output helpText *> loop
+          TypeOf tm -> do
             res <- get
             tm' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
             elab <- runInState Zero (infer tm')
             prettyPrint (ann elab) >> loop
-          Right (Decl decl) -> do
+          Decl decl -> do
             res <- get
             decl' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveDecl decl)
             case decl' of
               Declare name ty -> elabDecl name ty
               Define  name tm -> elabDef  name tm
             loop
-          Right (Eval tm) -> do
+          Eval tm -> do
             res <- get
             tm' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
             elab <- runInState One (infer tm')
             get >>= \ env -> prettyPrint (eval elab env) >> loop
-          Right (Show Bindings) -> do
+          Show Bindings -> do
             ctx <- get
             prettyPrint (ctx :: Context QName)
             env <- get
             prettyPrint (env :: Env QName)
             loop
-          Right Reload -> reload *> loop
-          Right (Command.Import i) -> do
+          Reload -> reload *> loop
+          Command.Import i -> do
             table <- get
             (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule (importModuleName i))
             modify (Context.union ctx)
@@ -130,12 +131,8 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             loop
         reload = do
           let n = length (packageModules package)
-          parsed <- for (packageModules package) $ \ name -> do
-            res <- parseFile (whole module') (toPath name)
-            case res of
-              Left err -> Nothing <$ prettyPrint err
-              Right a -> pure (Just a)
-          let graph = maybe (ModuleGraph mempty) moduleGraph (sequenceA parsed)
+          parsed <- traverse (parseFile (whole module') . toPath) (packageModules package)
+          let graph = moduleGraph parsed
           sorted <- loadOrder graph >>= resolveModules
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do

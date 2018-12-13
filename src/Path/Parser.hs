@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving #-}
 module Path.Parser
 ( Parser(..)
 , parseFile
@@ -12,8 +12,10 @@ module Path.Parser
 ) where
 
 import Control.Applicative (Alternative(..))
+import Control.Effect
+import Control.Effect.Error
 import Control.Monad.IO.Class
-import Control.Monad (MonadPlus(..))
+import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.State
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
@@ -24,7 +26,6 @@ import Text.Parser.LookAhead
 import Text.Parser.Token
 import Text.Parser.Token.Highlight
 import Text.Parser.Token.Style
-import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
@@ -39,14 +40,15 @@ instance TokenParsing Parser where
   highlight h = Parser . highlight h . runParser
 
 
-parseFile :: MonadIO m => IndentationParserT Char Parser a -> FilePath -> m (Either Doc a)
-parseFile p = fmap toResult . parseFromFileEx (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
+parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> FilePath -> m a
+parseFile p = toError <=< parseFromFileEx (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
 
-parseString :: IndentationParserT Char Parser a -> String -> Either Doc a
-parseString p = toResult . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0) directed
+parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> String -> m a
+parseString p = toError . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0) directed
 
-toResult :: Result a -> Either Doc a
-toResult = foldResult (Left . _errDoc) Right
+toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
+toError (Success a) = pure a
+toError (Failure e) = throwError e
 
 
 directed :: Delta
