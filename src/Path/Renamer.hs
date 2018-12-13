@@ -10,6 +10,7 @@ import qualified Data.Map as Map
 import Path.Core
 import Path.Decl
 import Path.Elab
+import Path.Module
 import Path.Name
 import Path.Surface
 import Path.Term
@@ -45,6 +46,11 @@ resolveDecl (Define n tm) = do
   moduleName <- ask
   tm' <- runReader (res :: Resolution) (resolveTerm tm)
   Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
+
+resolveModule :: (Carrier sig m, Member (Error ElabError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
+resolveModule m = do
+  decls <- runReader (moduleName m) (traverse resolveDecl (moduleDecls m))
+  pure (m { moduleDecls = decls })
 
 newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty ModuleName) }
   deriving (Eq, Ord, Show)
