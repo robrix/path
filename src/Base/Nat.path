@@ -14,3 +14,9 @@ zf = \ _ _ z _ . z
 
 Nat : Type
 Nat = Fix NatF
+
+s : Nat -> Nat
+s = \ n . in NatF (sf Nat n)
+
+z : Nat
+z = in NatF (zf Nat)
