@@ -16,6 +16,7 @@ import Data.Traversable (for)
 import Path.Context as Context
 import Path.Decl
 import Path.Elab
+import Path.Env
 import Path.Eval
 import Path.Module as Module
 import Path.Name
