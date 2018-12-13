@@ -8,7 +8,7 @@ import Path.Pretty
 import Path.Semiring
 import Path.Term
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Surface v a
   = Core (Core v a)
@@ -26,12 +26,12 @@ instance FreeVariables1 (Surface Name) where
 instance FreeVariables a => FreeVariables (Surface Name a) where
   fvs = fvs1
 
-(-->) :: Semigroup ann => (String, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
-(n, e, a) --> b = In (Core (Pi (Local n) e a b)) (ann a <> ann b)
+(-->) :: Semigroup ann => (Maybe String, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+(n, e, a) --> b = In (Core (Pi (Local <$> n) e a b)) (ann a <> ann b)
 
 infixr 0 -->
 
-forAll :: Semigroup ann => (String, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+forAll :: Semigroup ann => (Maybe String, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
 forAll (n, a) b = (n, zero, a) --> b
 
 typeT :: Surface Name a
@@ -40,8 +40,8 @@ typeT = Core Type
 var :: String -> Surface Name a
 var = Core . Var . Local
 
-lam :: Semigroup ann => (String, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
-lam (n, a) b = In (Core (Lam (Local n) b)) (a <> ann b)
+lam :: Semigroup ann => (Maybe String, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+lam (n, a) b = In (Core (Lam (Local <$> n) b)) (a <> ann b)
 
 (.:)  :: Semigroup ann => Term (Surface Name) ann -> Term (Surface Name) ann -> Term (Surface Name) ann
 a .: t = In (a ::: t) (ann a <> ann t)
@@ -56,13 +56,13 @@ subst i r (In (Core (Var j)) ann)
   | i == j    = In r ann
   | otherwise = In (Core (Var j)) ann
 subst i r (In (Core (Lam n b)) ann)
-  | i == n    = In (Core (Lam n b)) ann
-  | otherwise = In (Core (Lam n (subst i r b))) ann
+  | Just i == n = In (Core (Lam n b)) ann
+  | otherwise   = In (Core (Lam n (subst i r b))) ann
 subst i r (In (Core (f :@ a)) ann) = In (Core (subst i r f :@ subst i r a)) ann
 subst _ _ (In (Core Type) ann) = In (Core Type) ann
 subst i r (In (Core (Pi n e t t')) ann)
-  | i == n    = In (Core (Pi n e (subst i r t) t')) ann
-  | otherwise = In (Core (Pi n e (subst i r t) (subst i r t'))) ann
+  | Just i == n = In (Core (Pi n e (subst i r t) t')) ann
+  | otherwise   = In (Core (Pi n e (subst i r t) (subst i r t'))) ann
 
 
 uses :: Name -> Term (Surface Name) a -> [a]
@@ -71,11 +71,11 @@ uses n = cata $ \ f a -> case f of
     | n == n'   -> [a]
     | otherwise -> []
   Core (Lam n' b)
-    | n == n'   -> []
-    | otherwise -> b
+    | Just n == n' -> []
+    | otherwise    -> b
   Core (f :@ a) -> f <> a
   Core Type -> []
   Core (Pi n' _ t b)
-    | n == n'   -> t
-    | otherwise -> t <> b
+    | Just n == n' -> t
+    | otherwise    -> t <> b
   a ::: t -> a <> t

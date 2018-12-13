@@ -28,27 +28,27 @@ type' = ann (Surface.typeT <$ keyword "Type")
 
 forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
-  Surface.forAll (v, ty) <$> functionType) <?> "universally quantified type"
+  Surface.forAll (Just v, ty) <$> functionType) <?> "universally quantified type"
   where binding = (,) <$> identifier <* colon <*> term
 
 piType = reann (do
   (v, mult, ty) <- braces ((,,) <$> identifier <* colon <*> optional multiplicity <*> term) <* op "->"
-  ((v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
+  ((Just v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
 
 annotation = functionType `chainr1` ((Surface..:) <$ op ":")
 
-functionType = (,,) "_" <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+functionType = (,,) Nothing <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
                 <|> application <**> (flip arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
                 <|> forAll
-          where arrow = (Surface.-->) . (,,) "_" More
+          where arrow = (Surface.-->) . (,,) Nothing More
 
 var = ann (Surface.var <$> identifier <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (identifier <|> token (string "_")) <?> "pattern"
+  where pattern = spanned (Just <$> identifier <|> Nothing <$ token (string "_")) <?> "pattern"
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 

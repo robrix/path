@@ -9,12 +9,12 @@ import Path.Name
 import Path.Pretty
 import Path.Term
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Value
-  = VLam String (Value -> Value)
+  = VLam (Maybe String) (Value -> Value)
   | VType
-  | VPi String Usage Value (Value -> Value)
+  | VPi (Maybe String) Usage Value (Value -> Value)
   | VNeutral Neutral
 
 instance Eq Value where
@@ -45,8 +45,8 @@ data Neutral
 
 quote :: Value -> Term (Core Name) ()
 quote VType = In Type ()
-quote (VLam v f) = In (Lam (Local v) (quote (f (vfree (Quote v))))) ()
-quote (VPi v e t f) = In (Pi (Local v) e (quote t) (quote (f (vfree (Quote v))))) ()
+quote (VLam v f) = In (Lam (Local <$> v) (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
+quote (VPi v e t f) = In (Pi (Local <$> v) e (quote t) (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
 quote (VNeutral n) = quoteN n
 
 quoteN :: Neutral -> Term (Core Name) ()
@@ -59,10 +59,10 @@ type Env = Map.Map String Value
 
 eval :: Term (Core Name) a -> Env -> Value
 eval (In (Var n) _) d = fromMaybe (vfree n) (Map.lookup (getName n) d)
-eval (In (Lam n b) _) d = VLam (getName n) (eval b . flip (Map.insert (getName n)) d)
+eval (In (Lam n b) _) d = VLam (getName <$> n) (eval b . maybe const (flip . Map.insert . getName) n d)
 eval (In (f :@ a) _) d = eval f d `vapp` eval a d
 eval (In Type _) _ = VType
-eval (In (Pi n e ty body) _) d = VPi (getName n) e (eval ty d) (eval body . flip (Map.insert (getName n)) d)
+eval (In (Pi n e ty b) _) d = VPi (getName <$> n) e (eval ty d) (eval b . maybe const (flip . Map.insert . getName) n d)
 
 vapp :: Value -> Value -> Value
 vapp (VLam _ f) v = f v
