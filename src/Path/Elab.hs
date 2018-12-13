@@ -152,7 +152,7 @@ data ElabError
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
-  pretty (FreeVariable name span) = nest 2 $ pretty "free variable " <+> squotes (pretty name) <$$> pretty (render span)
+  pretty (FreeVariable name span) = nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
   pretty (AmbiguousName name span sources) = nest 2 $ vsep
     [ pretty "ambiguous name" <+> squotes (pretty name)
     , nest 2 $ vsep
