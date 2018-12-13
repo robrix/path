@@ -146,8 +146,9 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surfac
               Left err -> Nothing <$ prettyPrint err
               Right a -> pure (Just a)
           let graph = maybe (ModuleGraph mempty) moduleGraph (sequenceA parsed)
-          sorted <- case loadOrder graph of
-            Left err -> [] <$ prettyPrint err
+          res <- runError (loadOrder graph)
+          sorted <- case res of
+            Left err -> [] <$ prettyPrint (err :: ModuleError)
             Right a -> pure a
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m

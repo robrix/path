@@ -71,8 +71,8 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: ModuleGraph v a -> Either ModuleError [Module v a]
-loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop)))))
+loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> m [Module v a]
+loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop)))
   where loop n = do
           inPath <- asks (Set.member n)
           when inPath (cycleFrom g n)
