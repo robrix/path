@@ -24,7 +24,7 @@ eval = Eval <$> term <?> "term"
 
 show' = Show <$ token (string ":show") <*> info
 
-info = Bindings <$ token (string "bindings")
+info = Bindings <$ token (string "bindings") <|> Modules <$ token (string "modules")
 
 reload = Reload <$ token (string ":r") <|> Reload <$ token (string ":reload") <?> "reload"
 
