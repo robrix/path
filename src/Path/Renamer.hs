@@ -6,7 +6,6 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Path.Core
 import Path.Elab
 import Path.Name
@@ -33,19 +32,18 @@ resolveTerm (In syn ann) = case syn of
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   where in' = flip In ann
 
-newtype Resolution = Resolution { unResolution :: Map.Map Name (Set.Set ModuleName) }
+newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty ModuleName) }
   deriving (Eq, Ord, Show)
 
 insertLocal :: Name -> ModuleName -> Resolution -> Resolution
-insertLocal n m = Resolution . Map.insert n (Set.singleton m) . unResolution
+insertLocal n m = Resolution . Map.insert n (m:|[]) . unResolution
 
 insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
-insertGlobal n m = Resolution . Map.insertWith (<>) n (Set.singleton m) . unResolution
+insertGlobal n m = Resolution . Map.insertWith (<>) n (m:|[]) . unResolution
 
 resolveName :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
-resolveName v s = asks (Map.lookup v) >>= maybe (asks (Map.lookup v . unResolution) >>= unambiguous v s . maybe [] Set.toList) pure
+resolveName v s = asks (Map.lookup v) >>= maybe (asks (Map.lookup v . unResolution) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s) pure
 
-unambiguous :: (Applicative m, Carrier sig m, Member (Error ElabError) sig) => Name -> Span -> [ModuleName] -> m QName
-unambiguous v s []     = throwError (FreeVariable v s)
-unambiguous v _ [m]    = pure (m :.: v)
-unambiguous v s (m:ms) = throwError (AmbiguousName v s (m :.: v :| map (:.: v) ms))
+unambiguous :: (Applicative m, Carrier sig m, Member (Error ElabError) sig) => Name -> Span -> NonEmpty ModuleName -> m QName
+unambiguous v _ (m:|[]) = pure (m :.: v)
+unambiguous v s (m:|ms) = throwError (AmbiguousName v s (m :.: v :| map (:.: v) ms))
