@@ -1,6 +1,7 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, GeneralizedNewtypeDeriving, RankNTypes, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
+import Control.Effect
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Pretty
@@ -32,13 +33,13 @@ hoist :: Functor f => (forall x . f x -> g x) -> Term f a -> Term g a
 hoist f = cata (In . f)
 
 
-class AlphaEquivalent a where
-  aeq :: a -> a -> Bool
+class Ord v => AlphaEquivalent v a | a -> v where
+  aeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig) => a -> a -> m Bool
 
-class AlphaEquivalent1 t where
-  liftAeq :: (a -> b -> Bool) -> t a -> t b -> Bool
+class Ord v => AlphaEquivalent1 v t | t -> v where
+  liftAeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig) => (a -> b -> m Bool) -> t a -> t b -> m Bool
 
-instance AlphaEquivalent1 f => AlphaEquivalent (Term f a) where
+instance AlphaEquivalent1 v f => AlphaEquivalent v (Term f a) where
   aeq (In syn1 _) (In syn2 _) = liftAeq aeq syn1 syn2
 
 
