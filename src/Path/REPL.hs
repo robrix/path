@@ -84,14 +84,16 @@ repl package = do
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable QName) (evalState (Env.empty :: Env QName) (evalState (Context.empty :: Context QName) (evalState (Resolution mempty) (script package)))))))
 
 script :: (Carrier sig m, Effect sig, Functor m, Member (Lift IO) sig, Member REPL sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig, Member (State (ModuleTable QName)) sig, Member (State Resolution) sig) => Package -> m ()
-script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runElab (reload *> loop))) >>= either prettyResolveError (either prettyElabError pure))
+script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runElab (reload *> loop)))) >>= either prettyResolveError (either prettyElabError (either prettyModuleError pure)))
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop runCommand a
             `catchError` \ err -> prettyResolveError err >> loop
             `catchError` \ err -> prettyElabError err >> loop
+            `catchError` \ err -> prettyModuleError err >> loop
         prettyResolveError err = prettyPrint (err :: ResolveError)
         prettyElabError err = prettyPrint (err :: ElabError QName)
+        prettyModuleError err = prettyPrint (err :: ModuleError)
         runCommand s = case parseString (whole command) (unpack s) of
           Left err -> prettyPrint err *> loop
           Right Quit -> pure ()
