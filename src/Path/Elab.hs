@@ -6,8 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
-import Data.Foldable (for_, toList)
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Path.Context as Context
 import Path.Core as Core
@@ -144,7 +143,6 @@ runInState usage m = do
 
 data ElabError
   = FreeVariable Name Span
-  | AmbiguousName Name Span (NonEmpty QName)
   | TypeMismatch (Type Name) (Type Name) Span
   | NoRuleToInfer (Term (Surface Name) Span) Span
   | IllegalApplication (Term (Core Name) (Resources Name Usage, Type Name)) Span
@@ -153,13 +151,6 @@ data ElabError
 
 instance Pretty ElabError where
   pretty (FreeVariable name span) = nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
-  pretty (AmbiguousName name span sources) = nest 2 $ vsep
-    [ pretty "ambiguous name" <+> squotes (pretty name)
-    , nest 2 $ vsep
-      ( pretty "it could refer to"
-      : map pretty (toList sources))
-    , pretty (render span)
-    ]
   pretty (TypeMismatch expected actual span) = nest 2 $ vsep
     [ pretty "type mismatch"
     , pretty "expected:" <+> pretty expected
