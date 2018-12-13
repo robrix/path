@@ -79,9 +79,9 @@ repl package = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context) (script package))))))
+  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context Name) (script package))))))
 
-script :: (Carrier sig m, Effect sig, Member (Lift IO) sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, Monad m) => Package -> m ()
+script :: (Carrier sig m, Effect sig, Member (Lift IO) sig, Member REPL sig, Member (State (Context Name)) sig, Member (State Env) sig, Member (State ModuleTable) sig, Monad m) => Package -> m ()
 script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Name) Span)) (reload *> loop)
   where loop = do
           a <- prompt (pack "λ: ")
@@ -109,7 +109,7 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Nam
               Right elab -> get >>= \ env -> prettyPrint (eval elab env) >> loop
           Right (Show Bindings) -> do
             ctx <- get
-            prettyPrint (ctx :: Context)
+            prettyPrint (ctx :: Context Name)
             env <- get
             traverse_ (putDoc . prettyEnv) (Map.toList (env :: Env))
             loop
