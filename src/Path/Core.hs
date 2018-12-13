@@ -10,10 +10,10 @@ import Text.PrettyPrint.ANSI.Leijen
 
 data Core a
   = Var Name
-  | Lam String a
+  | Lam Name a
   | a :@ a
   | Type
-  | Pi String Usage a a
+  | Pi Name Usage a a
   deriving (Eq, Functor, Ord, Show)
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
@@ -23,7 +23,7 @@ instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> pretty "Type"
     Pi v pi t b
-      | Set.member (Local v) (fvs b) -> case pi of
+      | Set.member v (fvs b) -> case pi of
         Zero -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
         _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> pretty "->" <+> prettyPrec 1 b
       | otherwise -> withPi (prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b)
@@ -33,10 +33,10 @@ instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
 
 instance FreeVariables1 Core where
   liftFvs _   (Var n) = Set.singleton n
-  liftFvs fvs (Lam v b) = Set.delete (Local v) (fvs b)
+  liftFvs fvs (Lam v b) = Set.delete v (fvs b)
   liftFvs fvs (f :@ a) = fvs f <> fvs a
   liftFvs _   Type = Set.empty
-  liftFvs fvs (Pi v _ t b) = fvs t <> Set.delete (Local v) (fvs b)
+  liftFvs fvs (Pi v _ t b) = fvs t <> Set.delete v (fvs b)
 
 instance FreeVariables a => FreeVariables (Core a) where
   fvs = fvs1

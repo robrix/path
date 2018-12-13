@@ -27,7 +27,7 @@ instance FreeVariables a => FreeVariables (Surface a) where
   fvs = fvs1
 
 (-->) :: Semigroup ann => (String, Usage, Term Surface ann) -> Term Surface ann -> Term Surface ann
-(n, e, a) --> b = In (Core (Pi n e a b)) (ann a <> ann b)
+(n, e, a) --> b = In (Core (Pi (Local n) e a b)) (ann a <> ann b)
 
 infixr 0 -->
 
@@ -41,7 +41,7 @@ var :: String -> Surface a
 var = Core . Var . Local
 
 lam :: Semigroup ann => (String, ann) -> Term Surface ann -> Term Surface ann
-lam (n, a) b = In (Core (Lam n b)) (a <> ann b)
+lam (n, a) b = In (Core (Lam (Local n) b)) (a <> ann b)
 
 (.:)  :: Semigroup ann => Term Surface ann -> Term Surface ann -> Term Surface ann
 a .: t = In (a ::: t) (ann a <> ann t)
@@ -50,11 +50,11 @@ a .: t = In (a ::: t) (ann a <> ann t)
 f # a = In (Core (f :@ a)) (ann f <> ann a)
 
 
-subst :: String -> Surface (Term Surface ann) -> Term Surface ann -> Term Surface ann
+subst :: Name -> Surface (Term Surface ann) -> Term Surface ann -> Term Surface ann
 subst i r (In (e ::: t) ann) = In (subst i r e ::: subst i r t) ann
 subst i r (In (Core (Var j)) ann)
-  | Local i == j = In r ann
-  | otherwise    = In (Core (Var j)) ann
+  | i == j    = In r ann
+  | otherwise = In (Core (Var j)) ann
 subst i r (In (Core (Lam n b)) ann)
   | i == n    = In (Core (Lam n b)) ann
   | otherwise = In (Core (Lam n (subst i r b))) ann
@@ -71,11 +71,11 @@ uses n = cata $ \ f a -> case f of
     | n == n'   -> [a]
     | otherwise -> []
   Core (Lam n' b)
-    | n == Local n' -> []
-    | otherwise     -> b
+    | n == n'   -> []
+    | otherwise -> b
   Core (f :@ a) -> f <> a
   Core Type -> []
   Core (Pi n' _ t b)
-    | n == Local n' -> t
-    | otherwise     -> t <> b
+    | n == n'   -> t
+    | otherwise -> t <> b
   a ::: t -> a <> t
