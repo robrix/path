@@ -111,7 +111,7 @@ elabModule (Module _ imports decls) = runState Context.empty . execState (Env.em
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
     modify (Context.union ctx)
-    modify (<> env)
+    modify (Env.union env)
 
   for_ decls $ \case
     Declare name ty -> elabDecl name ty
