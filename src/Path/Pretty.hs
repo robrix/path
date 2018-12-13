@@ -7,6 +7,7 @@ import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
 import Text.Trifecta.Rendering (Span, render)
+import Text.Trifecta.Result (ErrInfo(..))
 
 prettyPrint :: (MonadIO m, PrettyPrec a) => a -> m ()
 prettyPrint = putDoc . prettyPrec 0
@@ -39,6 +40,9 @@ instance PrettyPrec a => PrettyPrec [a] where
 
 instance (PrettyPrec k, PrettyPrec v) => PrettyPrec (Map.Map k v) where
   prettyPrec d = prettyPrec d . Map.toList
+
+instance PrettyPrec ErrInfo where
+  prettyPrec _ = pretty . _errDoc
 
 prettyParens :: Bool -> Doc -> Doc
 prettyParens True = parens
