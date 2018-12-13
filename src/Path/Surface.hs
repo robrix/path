@@ -47,7 +47,7 @@ a .: t = In (a ::: t) (ann a <> ann t)
 f # a = In (Core (f :@ a)) (ann f <> ann a)
 
 
-subst :: Name -> Surface Name (Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+subst :: Eq v => v -> Surface v (Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 subst i r (In (e ::: t) ann) = In (subst i r e ::: subst i r t) ann
 subst i r (In (Core (Var j)) ann)
   | i == j    = In r ann
