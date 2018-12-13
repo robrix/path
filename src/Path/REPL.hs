@@ -115,7 +115,7 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             res <- get
             tm' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
             elab <- runInState One (infer tm')
-            get >>= \ env -> prettyPrint (eval elab env) >> loop
+            get >>= prettyPrint . eval elab >> loop
           Show Bindings -> do
             ctx <- get
             prettyPrint (ctx :: Context QName)
