@@ -24,10 +24,10 @@ instance Ord v => Ord (Value v) where
 instance Show v => Show (Value v) where
   showsPrec d = showsPrec d . quote
 
-instance Pretty v => PrettyPrec (Value v) where
+instance (Ord v, Pretty v) => PrettyPrec (Value v) where
   prettyPrec d = prettyPrec d . quote
 
-instance Pretty v => Pretty (Value v) where
+instance (Ord v, Pretty v) => Pretty (Value v) where
   pretty = prettyPrec 0
 
 instance Ord v => FreeVariables v (Value v) where

@@ -21,8 +21,8 @@ insert n v = Env . Map.insert n v . unEnv
 union :: Ord v => Env v -> Env v -> Env v
 union (Env e1) (Env e2) = Env (Map.union e1 e2)
 
-instance Pretty v => Pretty (Env v) where
+instance (Ord v, Pretty v) => Pretty (Env v) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unEnv
     where prettyBinding name ty = pretty name <+> pretty "=" <+> group (pretty ty)
 
-instance Pretty v => PrettyPrec (Env v)
+instance (Ord v, Pretty v) => PrettyPrec (Env v)

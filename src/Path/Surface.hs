@@ -20,7 +20,7 @@ instance Bifunctor Surface where
   bimap f g (ForAll v t b) = ForAll (f v) (g t) (g b)
   bimap _ g (a ::: t) = g a ::: g t
 
-instance (Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
+instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
   prettyPrec d (Core core) = prettyPrec d core
   prettyPrec d (ForAll v t b) = prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
   prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
