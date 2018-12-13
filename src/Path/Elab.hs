@@ -26,15 +26,17 @@ import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
 elab :: ( Carrier sig m
-        , Member (Error (ElabError Name)) sig
-        , Member (Reader (Context Name)) sig
-        , Member (Reader (Env Name)) sig
+        , Member (Error (ElabError v)) sig
+        , Member (Reader (Context v)) sig
+        , Member (Reader (Env v)) sig
         , Member (Reader Usage) sig
         , Monad m
+        , Ord v
+        , Show v
         )
-     => Term (Surface Name) Span
-     -> Maybe (Type Name)
-     -> m (Term (Core Name) (Resources Name Usage, Type Name))
+     => Term (Surface v) Span
+     -> Maybe (Type v)
+     -> m (Term (Core v) (Resources v Usage, Type v))
 elab (In (e ::: t) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
@@ -80,26 +82,30 @@ elab tm (Just ty) = do
   pure v
 
 infer :: ( Carrier sig m
-         , Member (Error (ElabError Name)) sig
-         , Member (Reader (Context Name)) sig
-         , Member (Reader (Env Name)) sig
+         , Member (Error (ElabError v)) sig
+         , Member (Reader (Context v)) sig
+         , Member (Reader (Env v)) sig
          , Member (Reader Usage) sig
          , Monad m
+         , Ord v
+         , Show v
          )
-      => Term (Surface Name) Span
-      -> m (Term (Core Name) (Resources Name Usage, Type Name))
+      => Term (Surface v) Span
+      -> m (Term (Core v) (Resources v Usage, Type v))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
-         , Member (Error (ElabError Name)) sig
-         , Member (Reader (Context Name)) sig
-         , Member (Reader (Env Name)) sig
+         , Member (Error (ElabError v)) sig
+         , Member (Reader (Context v)) sig
+         , Member (Reader (Env v)) sig
          , Member (Reader Usage) sig
          , Monad m
+         , Ord v
+         , Show v
          )
-      => Term (Surface Name) Span
-      -> Type Name
-      -> m (Term (Core Name) (Resources Name Usage, Type Name))
+      => Term (Surface v) Span
+      -> Type v
+      -> m (Term (Core v) (Resources v Usage, Type v))
 check tm = elab tm . Just
 
 
