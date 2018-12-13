@@ -23,27 +23,27 @@ instance (Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
   prettyPrec d (Core core) = prettyPrec d core
   prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
 
-(-->) :: Semigroup ann => (Maybe Name, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+(-->) :: Semigroup ann => (Maybe v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 (n, e, a) --> b = In (Core (Pi n e a b)) (ann a <> ann b)
 
 infixr 0 -->
 
-forAll :: Semigroup ann => (Maybe Name, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+forAll :: Semigroup ann => (Maybe v, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 forAll (n, a) b = (n, zero, a) --> b
 
-typeT :: Surface Name a
+typeT :: Surface v a
 typeT = Core Type
 
 var :: v -> Surface v a
 var = Core . Var
 
-lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+lam :: Semigroup ann => (Maybe v, ann) -> Term (Surface v) ann -> Term (Surface v) ann
 lam (n, a) b = In (Core (Lam n b)) (a <> ann b)
 
-(.:)  :: Semigroup ann => Term (Surface Name) ann -> Term (Surface Name) ann -> Term (Surface Name) ann
+(.:)  :: Semigroup ann => Term (Surface v) ann -> Term (Surface v) ann -> Term (Surface v) ann
 a .: t = In (a ::: t) (ann a <> ann t)
 
-(#) :: Semigroup ann => Term (Surface Name) ann -> Term (Surface Name) ann -> Term (Surface Name) ann
+(#) :: Semigroup ann => Term (Surface v) ann -> Term (Surface v) ann -> Term (Surface v) ann
 f # a = In (Core (f :@ a)) (ann f <> ann a)
 
 
