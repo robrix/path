@@ -109,9 +109,9 @@ check :: ( Carrier sig m
 check tm = elab tm . Just
 
 
-type ModuleTable = Map.Map ModuleName (Context Name, Env Name)
+type ModuleTable v = Map.Map ModuleName (Context v, Env v)
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError Name)) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module Name (Term (Surface Name) Span) -> m (Context Name, Env Name)
+elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError Name)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable Name)) sig) => Module Name (Term (Surface Name) Span) -> m (Context Name, Env Name)
 elabModule (Module _ imports decls) = runState Context.empty . execState (Env.empty :: Env Name) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -122,7 +122,7 @@ elabModule (Module _ imports decls) = runState Context.empty . execState (Env.em
     Declare name ty -> elabDecl name ty
     Define  name tm -> elabDef  name tm
 
-importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig, Monad m) => ModuleName -> m (Context Name, Env Name)
+importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleTable Name)) sig, Monad m) => ModuleName -> m (Context Name, Env Name)
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
