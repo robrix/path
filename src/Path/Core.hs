@@ -25,18 +25,17 @@ instance Bifunctor Core where
     Type -> Type
     Pi v pi t b -> Pi (f <$> v) pi (g t) (g b)
 
-instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core Name a) where
+instance PrettyPrec a => PrettyPrec (Core Name a) where
   prettyPrec d c = case c of
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> pretty "Type"
     Pi v pi t b
-      | Just v <- v
-      , Set.member v (fvs b) -> case pi of
+      | Just v <- v -> case pi of
         Zero -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
         _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> pretty "->" <+> prettyPrec 1 b
-      | otherwise  -> withPi (prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b)
+      | otherwise   -> withPi (prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b)
       where withPi
               | pi == More = id
               | otherwise  = (pretty pi <+>)
