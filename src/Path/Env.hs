@@ -2,28 +2,27 @@
 module Path.Env where
 
 import qualified Data.Map as Map
-import Path.Name
 import Path.Pretty
 import Path.Value
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-newtype Env = Env { unEnv :: Map.Map Name Value }
+newtype Env v = Env { unEnv :: Map.Map v Value }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
-empty :: Env
+empty :: Env v
 empty = Env Map.empty
 
-lookup :: Name -> Env -> Maybe Value
+lookup :: Ord v => v -> Env v -> Maybe Value
 lookup n = Map.lookup n . unEnv
 
-insert :: Name -> Value -> Env -> Env
+insert :: Ord v => v -> Value -> Env v -> Env v
 insert n v = Env . Map.insert n v . unEnv
 
-union :: Env -> Env -> Env
+union :: Ord v => Env v -> Env v -> Env v
 union (Env e1) (Env e2) = Env (Map.union e1 e2)
 
-instance Pretty Env where
+instance Pretty v => Pretty (Env v) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unEnv
     where prettyBinding name ty = pretty name <+> pretty "=" <+> group (pretty ty)
 
-instance PrettyPrec Env
+instance Pretty v => PrettyPrec (Env v)

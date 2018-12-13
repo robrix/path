@@ -7,7 +7,7 @@ import Path.Name
 import Path.Term
 import Path.Value
 
-eval :: Term (Core Name) a -> Env -> Value
+eval :: Term (Core Name) a -> Env Name -> Value
 eval (In (Var n) _) d = fromMaybe (vfree n) (Env.lookup n d)
 eval (In (Lam n b) _) d = VLam (getName <$> n) (eval b . maybe const (flip . Env.insert) n d)
 eval (In (f :@ a) _) d = eval f d `vapp` eval a d
