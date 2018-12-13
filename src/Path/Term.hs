@@ -2,6 +2,7 @@
 module Path.Term where
 
 import Control.Effect
+import Control.Effect.Fresh
 import Control.Effect.Reader
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -45,6 +46,15 @@ instance AlphaEquivalent1 v f => AlphaEquivalent v (Term f a) where
 
 aeqLookup :: (Carrier sig m, Functor m, Member (Reader (Map.Map v Int)) sig, Ord v) => v -> m (Maybe Int)
 aeqLookup = asks . Map.lookup
+
+aeqBind ::  (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig, Monad m, Ord v) => Maybe v -> Maybe v -> m a -> m a
+aeqBind v1 v2 m
+  | v1 == v2  = m
+  | otherwise = do
+    i <- fresh
+    local (insert v1 i . insert v2 i) m
+  where insert (Just v) = Map.insert v
+        insert _        = flip const
 
 
 class Ord v => FreeVariables v a where
