@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Path.Eval where
 
 import Data.Function (on)
@@ -15,7 +16,7 @@ data Value
   = VLam (Maybe String) (Value -> Value)
   | VType
   | VPi (Maybe String) Usage Value (Value -> Value)
-  | VNeutral Neutral
+  | VNeutral (Neutral Name)
 
 instance Eq Value where
   (==) = (==) `on` quote
@@ -38,10 +39,10 @@ instance FreeVariables Value where
 vfree :: Name -> Value
 vfree = VNeutral . NFree
 
-data Neutral
-  = NFree Name
-  | NApp Neutral Value
-  deriving (Eq, Ord, Show)
+data Neutral v
+  = NFree v
+  | NApp (Neutral v) Value
+  deriving (Eq, Functor, Ord, Show)
 
 quote :: Value -> Term (Core Name) ()
 quote VType = In Type ()
@@ -49,7 +50,7 @@ quote (VLam v f) = In (Lam (Local <$> v) (quote (f (vfree (Quote (fromMaybe "_" 
 quote (VPi v e t f) = In (Pi (Local <$> v) e (quote t) (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
 quote (VNeutral n) = quoteN n
 
-quoteN :: Neutral -> Term (Core Name) ()
+quoteN :: Neutral Name -> Term (Core Name) ()
 quoteN (NFree (Quote s)) = In (Var (Local s)) ()
 quoteN (NFree n) = In (Var n) ()
 quoteN (NApp n a) = In (quoteN n :@ quote a) ()
