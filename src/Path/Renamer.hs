@@ -11,6 +11,7 @@ import qualified Data.Map as Map
 import Path.Decl
 import Path.Module
 import Path.Name
+import Path.Pretty
 import Path.Surface
 import Path.Term
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -88,3 +89,5 @@ instance Pretty ResolveError where
       : map pretty (toList sources))
     , pretty (render span)
     ]
+
+instance PrettyPrec ResolveError
