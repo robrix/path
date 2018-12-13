@@ -20,6 +20,7 @@ import Path.Semiring
 import Path.Surface
 import Path.Term
 import Path.Usage
+import Path.Value
 import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
