@@ -11,7 +11,7 @@ import Path.Term
 import Text.Trifecta
 import Text.Trifecta.Indentation
 
-module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module (Term (Surface Name) Span))
+module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module Name (Term (Surface Name) Span))
 module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName

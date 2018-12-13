@@ -19,10 +19,10 @@ import Path.Name
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-data Module a = Module
+data Module v a = Module
   { moduleName    :: ModuleName
   , moduleImports :: [Import]
-  , moduleDecls   :: [Decl Name a]
+  , moduleDecls   :: [Decl v a]
   }
   deriving (Eq, Ord, Show)
 
@@ -30,13 +30,13 @@ newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
 
-newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module a) }
+newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module Name a) }
   deriving (Eq, Ord, Show)
 
-moduleGraph :: [Module a] -> ModuleGraph a
+moduleGraph :: [Module Name a] -> ModuleGraph a
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph a -> ModuleName -> m (Module a)
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph a -> ModuleName -> m (Module Name a)
 lookupModule g name = maybe (throwError (UnknownModule name)) ret (Map.lookup name (unModuleGraph g))
 
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph a -> ModuleName -> m ()
@@ -71,7 +71,7 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: ModuleGraph a -> Either ModuleError [Module a]
+loadOrder :: ModuleGraph a -> Either ModuleError [Module Name a]
 loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop)))))
   where loop n = do
           inPath <- asks (Set.member n)
