@@ -7,6 +7,7 @@ module Path.Parser
 , keyword
 , identifier
 , op
+, ErrInfo
 , Span
 ) where
 
