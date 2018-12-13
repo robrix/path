@@ -98,36 +98,21 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           Right Help -> output helpText *> loop
           Right (TypeOf tm) -> do
             res <- get
-            tm' <- raiseHandler (runError . runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
-            case tm' of
-              Left err -> prettyPrint (err :: ResolveError) >> loop
-              Right tm' -> do
-                res <- raiseHandler runError (runInState Zero (infer tm'))
-                case res of
-                  Left err -> prettyPrint (err :: ElabError QName) >> loop
-                  Right elab -> prettyPrint (ann elab) >> loop
+            tm' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
+            elab <- runInState Zero (infer tm')
+            prettyPrint (ann elab) >> loop
           Right (Decl decl) -> do
             res <- get
-            decl' <- raiseHandler (runError . runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveDecl decl)
+            decl' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveDecl decl)
             case decl' of
-              Left err -> prettyPrint (err :: ResolveError) >> loop
-              Right decl' -> do
-                res <- raiseHandler runError (case decl' of
-                  Declare name ty -> elabDecl name ty
-                  Define  name tm -> elabDef  name tm)
-                case res of
-                  Left err -> prettyPrint (err :: ElabError QName) *> loop
-                  Right _ -> loop
+              Declare name ty -> elabDecl name ty
+              Define  name tm -> elabDef  name tm
+            loop
           Right (Eval tm) -> do
             res <- get
-            tm' <- raiseHandler (runError . runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
-            case tm' of
-              Left err -> prettyPrint (err :: ResolveError) >> loop
-              Right tm' -> do
-                res <- raiseHandler runError (runInState One (infer tm'))
-                case res of
-                  Left err -> prettyPrint (err :: ElabError QName) >> loop
-                  Right elab -> get >>= \ env -> prettyPrint (eval elab env) >> loop
+            tm' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
+            elab <- runInState One (infer tm')
+            get >>= \ env -> prettyPrint (eval elab env) >> loop
           Right (Show Bindings) -> do
             ctx <- get
             prettyPrint (ctx :: Context QName)
@@ -137,11 +122,10 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           Right Reload -> reload *> loop
           Right (Command.Import i) -> do
             table <- get
-            res <- raiseHandler (runReader (table :: ModuleTable QName) . runError . runError) (importModule (importModuleName i))
+            res <- raiseHandler (runReader (table :: ModuleTable QName) . runError) (importModule (importModuleName i))
             case res of
               Left err -> prettyPrint (err :: ModuleError)
-              Right (Left err) -> prettyPrint (err :: ElabError QName)
-              Right (Right (ctx, env)) -> do
+              Right (ctx, env) -> do
                 modify (Context.union ctx)
                 modify (Env.union env)
             loop
@@ -156,21 +140,16 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           res <- runError (loadOrder graph)
           sorted <- case res of
             Left err -> [] <$ prettyPrint (err :: ModuleError)
-            Right as -> do
-              res <- raiseHandler runError (resolveModules as)
-              case res of
-                Left err -> [] <$ prettyPrint (err :: ResolveError)
-                Right as -> pure as
+            Right as -> resolveModules as
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
             prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (toPath name)))
             table <- get
-            res <- raiseHandler (runReader (table :: ModuleTable QName) . runError . runError) (elabModule m)
+            res <- raiseHandler (runReader (table :: ModuleTable QName) . runError) (elabModule m)
             case res of
               Left err -> prettyPrint (err :: ModuleError)
-              Right (Left err) -> prettyPrint (err :: ElabError QName)
-              Right (Right res) -> modify (Map.insert name res)
+              Right res -> modify (Map.insert name res)
           put (moduleGraph sorted)
         toPath s = packageSourceDir package </> go s <> ".path"
           where go (ModuleName s) = s
