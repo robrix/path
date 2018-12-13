@@ -51,3 +51,6 @@ instance (FreeVariables1 v f, FreeVariables v a) => FreeVariables v (Term f a) w
 
 instance Ord v => FreeVariables v () where
   fvs _ = Set.empty
+
+instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a, b) where
+  fvs (a, b) = fvs a <> fvs b
