@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 module Path.Resources where
 
 import Data.Function (on)
@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Path.Pretty
 import Path.Semiring
+import Path.Term
 import Text.PrettyPrint.ANSI.Leijen
 
 newtype Resources v r = Resources { unResources :: Map.Map v r }
@@ -40,3 +41,6 @@ instance (Semiring r, Ord v) => Semiring (Resources v r) where
 
 instance Semiring r => LeftModule r (Resources v r) where
   u ><< Resources r = Resources (fmap (u ><) r)
+
+instance FreeVariables v r => FreeVariables v (Resources v r) where
+  fvs = fvs . unResources
