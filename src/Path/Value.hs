@@ -16,10 +16,10 @@ data Value v
   | VNeutral (Neutral v)
 
 instance Ord v => Eq (Value v) where
-  (==) = aeq `on` quote (flip const)
+  (==) = (==) `on` quote const
 
 instance Ord v => Ord (Value v) where
-  compare = compare `on` quote (flip const)
+  compare = compare `on` quote const
 
 instance Show v => Show (Value v) where
   showsPrec d = showsPrec d . quote (flip const)
