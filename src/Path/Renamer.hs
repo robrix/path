@@ -5,17 +5,18 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
+import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import Path.Decl
-import Path.Elab
 import Path.Module
 import Path.Name
 import Path.Surface
 import Path.Term
-import Text.Trifecta.Rendering (Span)
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import Text.Trifecta.Rendering (Span, render)
 
-resolveTerm :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
             => Term (Surface Name) Span
             -> m (Term (Surface QName) Span)
 resolveTerm (In syn ann) = case syn of
@@ -34,7 +35,7 @@ resolveTerm (In syn ann) = case syn of
     in' <$> (ForAll (moduleName :.: v) <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
   where in' = flip In ann
 
-resolveDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))
 resolveDecl (Declare n ty) = do
   res <- get
   moduleName <- ask
@@ -46,7 +47,7 @@ resolveDecl (Define n tm) = do
   tm' <- runReader (res :: Resolution) (resolveTerm tm)
   Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
 
-resolveModule :: (Carrier sig m, Member (Error ElabError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
+resolveModule :: (Carrier sig m, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
 resolveModule m = do
   decls <- runReader (moduleName m) (traverse resolveDecl (moduleDecls m))
   pure (m { moduleDecls = decls })
@@ -63,9 +64,24 @@ insertGlobal n m = Resolution . Map.insertWith (<>) n (m:|[]) . unResolution
 lookupName :: Name -> Resolution -> Maybe (NonEmpty ModuleName)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
 resolveName v s = asks (Map.lookup v . unResolution) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s
 
-unambiguous :: (Applicative m, Carrier sig m, Member (Error ElabError) sig) => Name -> Span -> NonEmpty ModuleName -> m QName
+unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => Name -> Span -> NonEmpty ModuleName -> m QName
 unambiguous v _ (m:|[]) = pure (m :.: v)
 unambiguous v s (m:|ms) = throwError (AmbiguousName v s (m :.: v :| map (:.: v) ms))
+
+
+data ResolveError
+  = FreeVariable Name Span
+  | AmbiguousName Name Span (NonEmpty QName)
+
+instance Pretty ResolveError where
+  pretty (FreeVariable name span) = nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
+  pretty (AmbiguousName name span sources) = nest 2 $ vsep
+    [ pretty "ambiguous name" <+> squotes (pretty name)
+    , nest 2 $ vsep
+      ( pretty "it could refer to"
+      : map pretty (toList sources))
+    , pretty (render span)
+    ]
