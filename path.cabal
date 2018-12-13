@@ -49,6 +49,7 @@ library
                      , haskeline
                      , indentation-trifecta
                      , parsers
+                     , semilattices
                      , terminal-size
                      , text
                      , trifecta
