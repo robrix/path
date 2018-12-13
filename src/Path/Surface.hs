@@ -20,7 +20,7 @@ instance Bifunctor Surface where
   bimap f g (Core core) = Core (bimap f g core)
   bimap _ g (a ::: t) = g a ::: g t
 
-instance PrettyPrec a => PrettyPrec (Surface Name a) where
+instance (Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
   prettyPrec d (Core core) = prettyPrec d core
   prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
 

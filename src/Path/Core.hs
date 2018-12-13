@@ -25,7 +25,7 @@ instance Bifunctor Core where
     Type -> Type
     Pi v pi t b -> Pi (f <$> v) pi (g t) (g b)
 
-instance PrettyPrec a => PrettyPrec (Core Name a) where
+instance (Pretty v, PrettyPrec a) => PrettyPrec (Core v a) where
   prettyPrec d c = case c of
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
