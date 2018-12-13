@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
@@ -54,6 +55,9 @@ instance Ord v => FreeVariables v () where
 
 instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a, b) where
   fvs (a, b) = fvs a <> fvs b
+
+instance (FreeVariables v key, FreeVariables v value) => FreeVariables v (Map.Map key value) where
+  fvs = fvs . Map.toList
 
 instance FreeVariables v a => FreeVariables v [a] where
   fvs = foldMap fvs
