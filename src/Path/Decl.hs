@@ -1,6 +1,6 @@
 module Path.Decl where
 
-data Decl a
-  = Declare String a
-  | Define String a
+data Decl v a
+  = Declare v a
+  | Define v a
   deriving (Eq, Ord, Show)

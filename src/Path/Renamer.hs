@@ -34,7 +34,7 @@ resolveTerm (In syn ann) = case syn of
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   where in' = flip In ann
 
-resolveDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl (Term (Surface Name) Span) -> m (Decl (Term (Surface QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl String (Term (Surface Name) Span) -> m (Decl String (Term (Surface QName) Span))
 resolveDecl (Declare n ty) = do
   res <- get
   moduleName <- ask

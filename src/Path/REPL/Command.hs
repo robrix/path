@@ -11,7 +11,7 @@ data Command
   = Quit
   | Help
   | TypeOf (Term (Surface Name) Span)
-  | Decl (Decl (Term (Surface Name) Span))
+  | Decl (Decl String (Term (Surface Name) Span))
   | Eval (Term (Surface Name) Span)
   | Show Info
   | Load ModuleName

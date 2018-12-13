@@ -20,5 +20,5 @@ moduleName = makeModuleName <$> (identifier `sepByNonEmpty` dot)
 import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
-declaration :: DeltaParsing m => m (Decl (Term (Surface Name) Span))
+declaration :: DeltaParsing m => m (Decl String (Term (Surface Name) Span))
 declaration = identifier <**> (Declare <$ op ":" <|> Define <$ op "=") <*> term
