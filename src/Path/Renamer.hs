@@ -4,9 +4,11 @@ module Path.Renamer where
 import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader
+import Control.Effect.State
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import Path.Core
+import Path.Decl
 import Path.Elab
 import Path.Name
 import Path.Surface
@@ -31,6 +33,18 @@ resolveTerm (In syn ann) = case syn of
     Pi Nothing pi t b  -> in' . Core <$> (Pi Nothing pi <$> resolveTerm t <*> resolveTerm b)
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   where in' = flip In ann
+
+resolveDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl (Term (Surface Name) Span) -> m (Decl (Term (Surface QName) Span))
+resolveDecl (Declare n ty) = do
+  res <- get
+  moduleName <- ask
+  ty' <- runReader (res :: Resolution) (resolveTerm ty)
+  Declare n ty' <$ modify (insertGlobal (Name n) moduleName)
+resolveDecl (Define n tm) = do
+  res <- get
+  moduleName <- ask
+  tm' <- runReader (res :: Resolution) (resolveTerm tm)
+  Define n tm' <$ modify (insertGlobal (Name n) moduleName)
 
 newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty ModuleName) }
   deriving (Eq, Ord, Show)
