@@ -38,6 +38,9 @@ resolve (In syn ann) = case syn of
 newtype Resolution = Resolution { unResolution :: Map.Map Name (Set.Set ModuleName) }
   deriving (Eq, Ord, Show)
 
+resolveName :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
+resolveName v s = asks (Map.lookup v) >>= maybe (asks (Map.lookup v . unResolution) >>= unambiguous v s . maybe [] Set.toList) pure
+
 unambiguous :: (Applicative m, Carrier sig m, Member (Error ElabError) sig) => Name -> Span -> [ModuleName] -> m QName
 unambiguous v s []     = throwError (FreeVariable v s)
 unambiguous v _ [m]    = pure (m :.: v)
