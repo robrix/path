@@ -5,7 +5,7 @@ import Control.Applicative (Alternative(..), (<**>))
 import Control.Monad.State
 import Data.Maybe (fromMaybe)
 import Path.Name
-import Path.Parser
+import Path.Parser as Parser
 import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
 import Path.Usage
@@ -76,3 +76,6 @@ instance Monad m => MonadFresh (StateT Int m) where
   freshName = do
     n <- gets mkName
     n <$ modify succ
+
+instance MonadFresh Parser.Parser where
+  freshName = Parser.Parser freshName

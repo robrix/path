@@ -13,6 +13,7 @@ module Path.Parser
 import Control.Applicative (Alternative(..))
 import Control.Monad.IO.Class
 import Control.Monad (MonadPlus(..))
+import Control.Monad.State
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
@@ -28,7 +29,7 @@ import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
 import Text.Trifecta.Indentation
 
-newtype Parser a = Parser { runParser :: Trifecta.Parser a }
+newtype Parser a = Parser { runParser :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
 instance TokenParsing Parser where
@@ -38,10 +39,10 @@ instance TokenParsing Parser where
 
 
 parseFile :: MonadIO m => IndentationParserT Char Parser a -> FilePath -> m (Either Doc a)
-parseFile p = fmap toResult . parseFromFileEx (runParser (evalIndentationParserT p indentst))
+parseFile p = fmap toResult . parseFromFileEx (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
 
 parseString :: IndentationParserT Char Parser a -> String -> Either Doc a
-parseString p = toResult . Trifecta.parseString (runParser (evalIndentationParserT p indentst)) directed
+parseString p = toResult . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0) directed
 
 toResult :: Result a -> Either Doc a
 toResult = foldResult (Left . _errDoc) Right
