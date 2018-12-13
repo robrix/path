@@ -31,7 +31,7 @@ instance PrettyPrec (Value Name) where
 instance Pretty (Value Name) where
   pretty = prettyPrec 0
 
-vfree :: Name -> Value Name
+vfree :: v -> Value v
 vfree = VNeutral . NFree
 
 data Neutral v
