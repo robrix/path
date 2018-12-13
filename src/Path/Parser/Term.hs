@@ -1,6 +1,8 @@
+{-# LANGUAGE FlexibleInstances #-}
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
+import Control.Monad.State
 import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Parser
@@ -69,3 +71,8 @@ mkName i = Name (c : replicate r c)
   where alphabet = ['a'..'z']
         (q, r) = i `divMod` 26
         c = alphabet !! q
+
+instance Monad m => MonadFresh (StateT Int m) where
+  freshName = do
+    n <- gets mkName
+    n <$ modify succ
