@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Path.Parser
-( Parser
+( Parser(..)
 , parseFile
 , parseString
 , whole
