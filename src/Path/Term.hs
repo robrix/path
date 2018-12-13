@@ -36,10 +36,10 @@ hoist f = cata (In . f)
 
 
 class Ord v => AlphaEquivalent v a | a -> v where
-  aeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig) => a -> a -> m Bool
+  aeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig, Monad m) => a -> a -> m Bool
 
 class Ord v => AlphaEquivalent1 v t | t -> v where
-  liftAeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig) => (a -> b -> m Bool) -> t a -> t b -> m Bool
+  liftAeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig, Monad m) => (a -> b -> m Bool) -> t a -> t b -> m Bool
 
 instance AlphaEquivalent1 v f => AlphaEquivalent v (Term f a) where
   aeq (In syn1 _) (In syn2 _) = liftAeq aeq syn1 syn2
