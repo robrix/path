@@ -12,7 +12,8 @@ import Path.Usage
 import Text.Trifecta
 import Text.Trifecta.Indentation
 
-term, application, type', annotation, piType, functionType, forAll, var, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
+type', var :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
+term, application, annotation, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name) Span)
 
 term = annotation
 
@@ -40,18 +41,18 @@ piType = reann (do
 
 annotation = functionType `chainr1` ((Surface..:) <$ op ":")
 
-functionType = (,,) (Just (Name "_")) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
-                <|> application <**> (flip arrow <$ op "->" <*> functionType <|> pure id)
+functionType = (,,) . Just <$> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+                <|> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id)
                 <|> piType
                 <|> forAll
-          where arrow = (Surface.-->) . (,,) (Just (Name "_")) More
+          where arrow v t' t = (Just v, More, t) Surface.--> t'
 
 var = ann (Surface.var <$> name <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (Just <$> name <|> (Just (Name "_")) <$ token (string "_")) <?> "pattern"
+  where pattern = spanned (Just <$> (name <|> token (string "_") *> freshName)) <?> "pattern"
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 

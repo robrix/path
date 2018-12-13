@@ -6,7 +6,7 @@ import Path.Parser.Term
 import Path.REPL.Command
 import Text.Trifecta
 
-command, typeof, decl, eval :: DeltaParsing m => m Command
+command, typeof, decl, eval :: (DeltaParsing m, MonadFresh m) => m Command
 quit, help, show', load, reload, import' :: (Monad m, TokenParsing m) => m Command
 
 command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> load <|> reload <|> import' <?> "command; use :? for help"
