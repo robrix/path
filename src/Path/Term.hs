@@ -4,6 +4,7 @@ module Path.Term where
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Pretty
+import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 data Term f a = In { out :: f (Term f a), ann :: a }
@@ -67,3 +68,6 @@ instance Ord v => FreeVariables v v where
 
 instance Ord v => FreeVariables v (Set.Set v) where
   fvs = id
+
+instance Ord v => FreeVariables v Usage where
+  fvs _ = Set.empty
