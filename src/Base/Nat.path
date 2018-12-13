@@ -5,5 +5,12 @@ import Base.Fix
 NatF : Type -> Type
 NatF = \ a . ∀ b : Type . b -> (a -> b) -> b
 
+sf : ∀ a:Type . a -> NatF a
+sf = \ _ a _ _ s . s a
+
+zf : ∀ a:Type . NatF a
+zf = \ _ _ z _ . z
+
+
 Nat : Type
 Nat = Fix NatF
