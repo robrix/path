@@ -68,7 +68,7 @@ class Monad m => MonadFresh m where
   freshName :: m Name
 
 mkName :: Int -> Name
-mkName i = Name (c : replicate r c)
+mkName i = Name ('\'' : c : replicate r c)
   where alphabet = ['a'..'z']
         (q, r) = i `divMod` 26
         c = alphabet !! q
