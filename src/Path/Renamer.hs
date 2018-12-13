@@ -33,6 +33,9 @@ resolveTerm (In syn ann) = case syn of
       in' . Core <$> (Pi (Just (moduleName :.: v)) pi <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
     Pi Nothing pi t b  -> in' . Core <$> (Pi Nothing pi <$> resolveTerm t <*> resolveTerm b)
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
+  ForAll v t b -> do
+    moduleName <- ask
+    in' <$> (ForAll (moduleName :.: v) <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
   where in' = flip In ann
 
 resolveDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))

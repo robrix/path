@@ -11,15 +11,18 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Surface v a
   = Core (Core v a)
+  | ForAll v a a
   | a ::: a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Bifunctor Surface where
   bimap f g (Core core) = Core (bimap f g core)
+  bimap f g (ForAll v t b) = ForAll (f v) (g t) (g b)
   bimap _ g (a ::: t) = g a ::: g t
 
 instance (Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
   prettyPrec d (Core core) = prettyPrec d core
+  prettyPrec d (ForAll v t b) = prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
   prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
 
 (-->) :: Semigroup ann => (Maybe v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
@@ -48,6 +51,9 @@ f # a = In (Core (f :@ a)) (ann f <> ann a)
 
 subst :: Eq v => v -> Surface v (Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 subst i r (In (e ::: t) ann) = In (subst i r e ::: subst i r t) ann
+subst i r (In (ForAll v t t') ann)
+  | i == v    = In (ForAll v (subst i r t) t') ann
+  | otherwise = In (ForAll v (subst i r t) (subst i r t')) ann
 subst i r (In (Core (Var j)) ann)
   | i == j    = In r ann
   | otherwise = In (Core (Var j)) ann
@@ -75,3 +81,6 @@ uses n = cata $ \ f a -> case f of
     | Just n == n' -> t
     | otherwise    -> t <> b
   a ::: t -> a <> t
+  ForAll n' t b
+    | n == n'   -> t
+    | otherwise -> t <> b
