@@ -4,7 +4,6 @@ module Path.Surface where
 import Data.Bifunctor
 import Path.Core
 import Path.Pretty
-import Path.Semiring
 import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -30,8 +29,8 @@ instance (Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
 
 infixr 0 -->
 
-forAll :: Semigroup ann => (Maybe v, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
-forAll (n, a) b = (n, zero, a) --> b
+forAll :: Semigroup ann => (v, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+forAll (n, a) b = In (ForAll n a b) (ann a <> ann b)
 
 typeT :: Surface v a
 typeT = Core Type

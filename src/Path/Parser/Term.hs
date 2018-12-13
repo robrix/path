@@ -31,7 +31,7 @@ type' = ann (Surface.typeT <$ keyword "Type")
 
 forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
-  Surface.forAll (Just v, ty) <$> functionType) <?> "universally quantified type"
+  Surface.forAll (v, ty) <$> functionType) <?> "universally quantified type"
   where binding = (,) <$> name <* colon <*> term
 
 piType = reann (do
