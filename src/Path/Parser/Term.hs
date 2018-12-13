@@ -61,5 +61,5 @@ name :: (Monad m, TokenParsing m) => m Name
 name = Name <$> identifier <?> "name"
 
 
-class Fresh m where
+class MonadFresh m where
   freshName :: m Name
