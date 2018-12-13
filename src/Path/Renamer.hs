@@ -4,6 +4,7 @@ module Path.Renamer where
 import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Core
@@ -36,3 +37,8 @@ resolve (In syn ann) = case syn of
 
 newtype Resolution = Resolution { unResolution :: Map.Map Name (Set.Set ModuleName) }
   deriving (Eq, Ord, Show)
+
+unambiguous :: (Applicative m, Carrier sig m, Member (Error ElabError) sig) => Name -> Span -> [ModuleName] -> m QName
+unambiguous v s []     = throwError (FreeVariable v s)
+unambiguous v _ [m]    = pure (m :.: v)
+unambiguous v s (m:ms) = throwError (AmbiguousName v s (m :.: v :| map (:.: v) ms))
