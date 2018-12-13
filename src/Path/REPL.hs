@@ -122,6 +122,10 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             env <- get
             prettyPrint (env :: Env QName)
             loop
+          Show Modules -> do
+            graph <- get
+            prettyPrint (map moduleName (modules (graph :: ModuleGraph QName (Term (Surface QName) Span))))
+            loop
           Reload -> reload *> loop
           Command.Import i -> do
             table <- get

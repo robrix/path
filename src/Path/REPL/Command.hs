@@ -20,4 +20,5 @@ data Command
 
 data Info
   = Bindings
+  | Modules
   deriving (Eq, Ord, Show)
