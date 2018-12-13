@@ -114,7 +114,6 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surfac
             env <- get
             prettyPrint (env :: Env Name)
             loop
-          Right (Load moduleName) -> load moduleName *> loop
           Right Reload -> reload *> loop
           Right (Command.Import i) -> do
             table <- get
@@ -126,18 +125,6 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surfac
                 modify (Context.union ctx)
                 modify (Env.union env)
             loop
-        load name = do
-          res <- parseFile (whole module') (toPath name)
-          case res of
-            Left err -> prettyPrint err
-            Right m -> do
-              for_ (moduleImports m) (load . importModuleName)
-              table <- get
-              res <- raiseHandler (runReader (table :: ModuleTable Name) . runError . runError) (elabModule m)
-              case res of
-                Left err -> prettyPrint (err :: ModuleError)
-                Right (Left err) -> prettyPrint (err :: ElabError Name)
-                Right (Right res) -> modify (Map.insert name res)
         reload = do
           let n = length (packageModules package)
           parsed <- for (packageModules package) $ \ name -> do

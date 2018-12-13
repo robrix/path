@@ -14,7 +14,6 @@ data Command
   | Decl (Decl Name (Term (Surface Name) Span))
   | Eval (Term (Surface Name) Span)
   | Show Info
-  | Load ModuleName
   | Reload
   | Import Import
   deriving (Eq, Ord, Show)
