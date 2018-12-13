@@ -17,6 +17,7 @@ library
                      , Path.Core
                      , Path.Decl
                      , Path.Elab
+                     , Path.Env
                      , Path.Eval
                      , Path.Module
                      , Path.Name
