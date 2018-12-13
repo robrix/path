@@ -40,18 +40,18 @@ piType = reann (do
 
 annotation = functionType `chainr1` ((Surface..:) <$ op ":")
 
-functionType = (,,) Nothing <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+functionType = (,,) (Just (Name "_")) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
                 <|> application <**> (flip arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
                 <|> forAll
-          where arrow = (Surface.-->) . (,,) Nothing More
+          where arrow = (Surface.-->) . (,,) (Just (Name "_")) More
 
 var = ann (Surface.var <$> name <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (Just <$> name <|> Nothing <$ token (string "_")) <?> "pattern"
+  where pattern = spanned (Just <$> name <|> (Just (Name "_")) <$ token (string "_")) <?> "pattern"
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
