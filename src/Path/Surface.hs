@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor, FlexibleInstances #-}
 module Path.Surface where
 
+import Data.Bifunctor
 import Path.Core
 import Path.FreeVariables
 import Path.Name
@@ -14,6 +15,10 @@ data Surface v a
   = Core (Core v a)
   | a ::: a
   deriving (Eq, Functor, Ord, Show)
+
+instance Bifunctor Surface where
+  bimap f g (Core core) = Core (bimap f g core)
+  bimap _ g (a ::: t) = g a ::: g t
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Surface Name a) where
   prettyPrec d (Core core) = prettyPrec d core
