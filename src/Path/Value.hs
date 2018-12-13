@@ -16,16 +16,16 @@ data Value v
   | VNeutral (Neutral v)
 
 instance (Eq v, Lower v) => Eq (Value v) where
-  (==) = (==) `on` quote
+  (==) = (==) `on` quote lowerBound
 
 instance (Lower v, Ord v) => Ord (Value v) where
-  compare = compare `on` quote
+  compare = compare `on` quote lowerBound
 
 instance (Lower v, Show v) => Show (Value v) where
-  showsPrec d = showsPrec d . quote
+  showsPrec d = showsPrec d . quote lowerBound
 
 instance (Lower v, Pretty v) => PrettyPrec (Value v) where
-  prettyPrec d = prettyPrec d . quote
+  prettyPrec d = prettyPrec d . quote lowerBound
 
 instance (Lower v, Pretty v) => Pretty (Value v) where
   pretty = prettyPrec 0
@@ -37,12 +37,12 @@ data Neutral v
   = NFree v
   | NApp (Neutral v) (Value v)
 
-quote :: Lower v => Value v -> Term (Core v) ()
-quote VType = In Type ()
-quote (VLam v f) = In (Lam v (quote (f (vfree (fromMaybe lowerBound v))))) ()
-quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (fromMaybe lowerBound v))))) ()
-quote (VNeutral n) = quoteN n
+quote :: v -> Value v -> Term (Core v) ()
+quote _ VType = In Type ()
+quote v (VLam n f) = In (Lam n (quote v (f (vfree (fromMaybe v n))))) ()
+quote v (VPi n e t f) = In (Pi n e (quote v t) (quote v (f (vfree (fromMaybe v n))))) ()
+quote v (VNeutral n) = quoteN v n
 
-quoteN :: Lower v => Neutral v -> Term (Core v) ()
-quoteN (NFree n) = In (Var n) ()
-quoteN (NApp n a) = In (quoteN n :@ quote a) ()
+quoteN :: v -> Neutral v -> Term (Core v) ()
+quoteN _ (NFree n) = In (Var n) ()
+quoteN v (NApp n a) = In (quoteN v n :@ quote v a) ()
