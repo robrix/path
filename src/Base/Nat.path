@@ -1,4 +1,9 @@
 module Base.Nat where
 
+import Base.Fix
+
 NatF : Type -> Type
 NatF = \ a . ∀ b : Type . b -> (a -> b) -> b
+
+Nat : Type
+Nat = Fix NatF
