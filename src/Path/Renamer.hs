@@ -6,7 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Data.Foldable (toList)
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty (NonEmpty(..), nub)
 import qualified Data.Map as Map
 import Path.Decl
 import Path.Module
@@ -63,7 +63,7 @@ insertLocal :: Name -> ModuleName -> Resolution -> Resolution
 insertLocal n m = Resolution . Map.insert n (m:|[]) . unResolution
 
 insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
-insertGlobal n m = Resolution . Map.insertWith (<>) n (m:|[]) . unResolution
+insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:|[]) . unResolution
 
 lookupName :: Name -> Resolution -> Maybe (NonEmpty ModuleName)
 lookupName n = Map.lookup n . unResolution
