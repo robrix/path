@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses #-}
 module Path.Value where
 
 import Data.Function (on)
@@ -28,6 +29,9 @@ instance Pretty v => PrettyPrec (Value v) where
 
 instance Pretty v => Pretty (Value v) where
   pretty = prettyPrec 0
+
+instance Ord v => FreeVariables v (Value v) where
+  fvs = fvs . quote
 
 vfree :: v -> Value v
 vfree = VNeutral . NFree
