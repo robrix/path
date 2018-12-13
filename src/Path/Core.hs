@@ -1,8 +1,10 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, FunctionalDependencies, LambdaCase, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
 module Path.Core where
 
 import Data.Bifunctor
+import qualified Data.Set as Set
 import Path.Pretty
+import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
@@ -36,3 +38,11 @@ instance (Pretty v, PrettyPrec a) => PrettyPrec (Core v a) where
       where withPi
               | pi == More = id
               | otherwise  = (pretty pi <+>)
+
+instance Ord v => FreeVariables1 v (Core v) where
+  liftFvs fvs = \case
+    Var v -> Set.singleton v
+    Lam v b -> maybe id Set.delete v (fvs b)
+    f :@ a -> fvs f <> fvs a
+    Type -> Set.empty
+    Pi v _ t b -> fvs t <> maybe id Set.delete v (fvs b)
