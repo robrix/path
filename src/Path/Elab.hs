@@ -26,7 +26,7 @@ import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
 elab :: ( Carrier sig m
-        , Member (Error ElabError) sig
+        , Member (Error (ElabError Name)) sig
         , Member (Reader (Context Name)) sig
         , Member (Reader (Env Name)) sig
         , Member (Reader Usage) sig
@@ -80,7 +80,7 @@ elab tm (Just ty) = do
   pure v
 
 infer :: ( Carrier sig m
-         , Member (Error ElabError) sig
+         , Member (Error (ElabError Name)) sig
          , Member (Reader (Context Name)) sig
          , Member (Reader (Env Name)) sig
          , Member (Reader Usage) sig
@@ -91,7 +91,7 @@ infer :: ( Carrier sig m
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
-         , Member (Error ElabError) sig
+         , Member (Error (ElabError Name)) sig
          , Member (Reader (Context Name)) sig
          , Member (Reader (Env Name)) sig
          , Member (Reader Usage) sig
@@ -105,7 +105,7 @@ check tm = elab tm . Just
 
 type ModuleTable = Map.Map ModuleName (Context Name, Env Name)
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module Name (Term (Surface Name) Span) -> m (Context Name, Env Name)
+elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError Name)) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module Name (Term (Surface Name) Span) -> m (Context Name, Env Name)
 elabModule (Module _ imports decls) = runState Context.empty . execState (Env.empty :: Env Name) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -120,13 +120,13 @@ importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader M
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
+elabDecl :: (Carrier sig m, Member (Error (ElabError Name)) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
   modify (Context.insert name ty'')
 
-elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
+elabDef :: (Carrier sig m, Member (Error (ElabError Name)) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
 elabDef name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runInState One (maybe infer (flip check) ty tm)
@@ -141,15 +141,15 @@ runInState usage m = do
   runReader usage (runReader env (runReader ctx m))
 
 
-data ElabError
-  = FreeVariable Name Span
-  | TypeMismatch (Type Name) (Type Name) Span
-  | NoRuleToInfer (Term (Surface Name) Span) Span
-  | IllegalApplication (Term (Core Name) (Resources Name Usage, Type Name)) Span
-  | ResourceMismatch Name Usage Usage Span [Span]
+data ElabError v
+  = FreeVariable v Span
+  | TypeMismatch (Type v) (Type v) Span
+  | NoRuleToInfer (Term (Surface v) Span) Span
+  | IllegalApplication (Term (Core v) (Resources v Usage, Type v)) Span
+  | ResourceMismatch v Usage Usage Span [Span]
   deriving (Eq, Ord, Show)
 
-instance Pretty ElabError where
+instance (Ord v, Pretty v) => Pretty (ElabError v) where
   pretty (FreeVariable name span) = nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
   pretty (TypeMismatch expected actual span) = nest 2 $ vsep
     [ pretty "type mismatch"
@@ -167,7 +167,7 @@ instance Pretty ElabError where
         map (pretty . render) spans
     )
 
-instance PrettyPrec ElabError
+instance (Ord v, Pretty v) => PrettyPrec (ElabError v)
 
-runElabError :: (Carrier sig m, Effect sig, Monad m) => Eff (ErrorC ElabError m) a -> m (Either ElabError a)
+runElabError :: (Carrier sig m, Effect sig, Monad m) => Eff (ErrorC (ElabError Name) m) a -> m (Either (ElabError Name) a)
 runElabError = runError
