@@ -27,3 +27,10 @@ cata alg = go where go = alg . fmap go . out <*> ann
 
 hoist :: Functor f => (forall x . f x -> g x) -> Term f a -> Term g a
 hoist f = cata (In . f)
+
+
+class AlphaEquivalent a where
+  aeq :: a -> a -> Bool
+
+class AlphaEquivalent1 t where
+  liftAeq :: (a -> b -> Bool) -> t a -> t b -> Bool

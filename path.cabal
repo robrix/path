@@ -13,8 +13,7 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Path.AlphaEquivalent
-                     , Path.Context
+  exposed-modules:     Path.Context
                      , Path.Core
                      , Path.Decl
                      , Path.Elab
