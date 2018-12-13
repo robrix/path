@@ -34,3 +34,6 @@ class AlphaEquivalent a where
 
 class AlphaEquivalent1 t where
   liftAeq :: (a -> b -> Bool) -> t a -> t b -> Bool
+
+instance AlphaEquivalent1 f => AlphaEquivalent (Term f a) where
+  aeq (In syn1 _) (In syn2 _) = liftAeq aeq syn1 syn2
