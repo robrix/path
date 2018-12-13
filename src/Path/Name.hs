@@ -1,7 +1,6 @@
 module Path.Name where
 
 import Data.List.NonEmpty
-import Data.Semilattice.Lower
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -13,9 +12,6 @@ instance Pretty Name where
 
 instance PrettyPrec Name where
   prettyPrec _ = pretty
-
-instance Lower Name where
-  lowerBound = Name "_"
 
 
 data ModuleName
