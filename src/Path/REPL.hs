@@ -174,6 +174,7 @@ basePackage = Package
       , ModuleName "Base" :. "Fix"
       , ModuleName "Base" :. "Function"
       , ModuleName "Base" :. "Maybe"
+      , ModuleName "Base" :. "Nat"
       , ModuleName "Base" :. "Pair"
       , ModuleName "Base" :. "Unit"
       , ModuleName "Base" :. "Void"
