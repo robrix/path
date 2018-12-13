@@ -1,12 +1,13 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, LambdaCase, StandaloneDeriving, UndecidableInstances #-}
 module Path.Core where
 
+import Data.Bifunctor
 import qualified Data.Set as Set
 import Path.FreeVariables
 import Path.Name
 import Path.Pretty
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Core v a
   = Var v
@@ -15,6 +16,14 @@ data Core v a
   | Type
   | Pi (Maybe v) Usage a a
   deriving (Eq, Functor, Ord, Show)
+
+instance Bifunctor Core where
+  bimap f g = \case
+    Var v -> Var (f v)
+    Lam v a -> Lam (f <$> v) (g a)
+    a :@ b -> g a :@ g b
+    Type -> Type
+    Pi v pi t b -> Pi (f <$> v) pi (g t) (g b)
 
 instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core Name a) where
   prettyPrec d c = case c of
