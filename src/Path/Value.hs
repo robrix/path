@@ -1,11 +1,9 @@
-{-# LANGUAGE FlexibleInstances #-}
 module Path.Value where
 
 import Data.Function (on)
 import Data.Maybe (fromMaybe)
 import Data.Semilattice.Lower
 import Path.Core
-import Path.Name
 import Path.Pretty
 import Path.Term
 import Path.Usage
@@ -17,19 +15,19 @@ data Value v
   | VPi (Maybe v) Usage (Value v) (Value v -> Value v)
   | VNeutral (Neutral v)
 
-instance Eq (Value Name) where
+instance (Eq v, Lower v) => Eq (Value v) where
   (==) = (==) `on` quote
 
-instance Ord (Value Name) where
+instance (Lower v, Ord v) => Ord (Value v) where
   compare = compare `on` quote
 
-instance Show (Value Name) where
+instance (Lower v, Show v) => Show (Value v) where
   showsPrec d = showsPrec d . quote
 
-instance PrettyPrec (Value Name) where
+instance (Lower v, Pretty v) => PrettyPrec (Value v) where
   prettyPrec d = prettyPrec d . quote
 
-instance Pretty (Value Name) where
+instance (Lower v, Pretty v) => Pretty (Value v) where
   pretty = prettyPrec 0
 
 vfree :: v -> Value v
