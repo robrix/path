@@ -2,13 +2,14 @@ module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
 import Data.Maybe (fromMaybe)
+import Path.Name
 import Path.Parser
 import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
 import Path.Usage
 import Text.Trifecta
 
-term, application, type', annotation, piType, functionType, forAll, var, lambda, atom :: DeltaParsing m => m (Term Surface.Surface Span)
+term, application, type', annotation, piType, functionType, forAll, var, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
 
 term = annotation
 

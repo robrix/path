@@ -30,7 +30,7 @@ elab :: ( Carrier sig m
         , Member (Reader Usage) sig
         , Monad m
         )
-     => Term Surface Span
+     => Term (Surface Name) Span
      -> Maybe Type
      -> m (Term (Core Name) (Resources Usage, Type))
 elab (In (e ::: t) _) Nothing = do
@@ -79,7 +79,7 @@ infer :: ( Carrier sig m
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term Surface Span
+      => Term (Surface Name) Span
       -> m (Term (Core Name) (Resources Usage, Type))
 infer tm = elab tm Nothing
 
@@ -90,7 +90,7 @@ check :: ( Carrier sig m
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term Surface Span
+      => Term (Surface Name) Span
       -> Type
       -> m (Term (Core Name) (Resources Usage, Type))
 check tm = elab tm . Just
@@ -98,7 +98,7 @@ check tm = elab tm . Just
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term Surface Span) -> m (Context, Env)
+elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term (Surface Name) Span) -> m (Context, Env)
 elabModule (Module _ imports decls) = runState Context.empty . execState (mempty :: Env) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -113,13 +113,13 @@ importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader M
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term Surface Span -> m ()
+elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term (Surface Name) Span -> m ()
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
   modify (Context.insert (Local name) ty'')
 
-elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term Surface Span -> m ()
+elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term (Surface Name) Span -> m ()
 elabDef name tm = do
   ty <- gets (Context.lookup (Local name))
   tm' <- runInState One (maybe infer (flip check) ty tm)
@@ -137,7 +137,7 @@ runInState usage m = do
 data ElabError
   = FreeVariable Name Span
   | TypeMismatch Type Type Span
-  | NoRuleToInfer (Term Surface Span) Span
+  | NoRuleToInfer (Term (Surface Name) Span) Span
   | IllegalApplication (Term (Core Name) (Resources Usage, Type)) Span
   | ResourceMismatch String Usage Usage Span [Span]
   deriving (Eq, Ord, Show)

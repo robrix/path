@@ -18,6 +18,7 @@ import Path.Decl
 import Path.Elab
 import Path.Eval
 import Path.Module as Module
+import Path.Name
 import Path.Package
 import Path.Parser (Span, parseFile, parseString, whole)
 import Path.Parser.Module (module')
@@ -81,7 +82,7 @@ repl package = do
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context) (script package))))))
 
 script :: (Carrier sig m, Effect sig, Member (Lift IO) sig, Member REPL sig, Member (State Context) sig, Member (State Env) sig, Member (State ModuleTable) sig, Monad m) => Package -> m ()
-script package = evalState (ModuleGraph mempty :: ModuleGraph (Term Surface Span)) (reload *> loop)
+script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Name) Span)) (reload *> loop)
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop runCommand a

@@ -2,6 +2,7 @@ module Path.REPL.Command where
 
 import Path.Decl
 import Path.Module
+import Path.Name
 import Path.Surface
 import Path.Term
 import Text.Trifecta.Rendering (Span)
@@ -9,9 +10,9 @@ import Text.Trifecta.Rendering (Span)
 data Command
   = Quit
   | Help
-  | TypeOf (Term Surface Span)
-  | Decl (Decl (Term Surface Span))
-  | Eval (Term Surface Span)
+  | TypeOf (Term (Surface Name) Span)
+  | Decl (Decl (Term (Surface Name) Span))
+  | Eval (Term (Surface Name) Span)
   | Show Info
   | Load ModuleName
   | Reload

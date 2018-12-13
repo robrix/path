@@ -10,47 +10,47 @@ import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
-data Surface a
-  = Core (Core Name a)
+data Surface v a
+  = Core (Core v a)
   | a ::: a
   deriving (Eq, Functor, Ord, Show)
 
-instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Surface a) where
+instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Surface Name a) where
   prettyPrec d (Core core) = prettyPrec d core
   prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
 
-instance FreeVariables1 Surface where
+instance FreeVariables1 (Surface Name) where
   liftFvs fvs (Core core) = liftFvs fvs core
   liftFvs fvs (tm ::: ty) = fvs tm <> fvs ty
 
-instance FreeVariables a => FreeVariables (Surface a) where
+instance FreeVariables a => FreeVariables (Surface Name a) where
   fvs = fvs1
 
-(-->) :: Semigroup ann => (String, Usage, Term Surface ann) -> Term Surface ann -> Term Surface ann
+(-->) :: Semigroup ann => (String, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
 (n, e, a) --> b = In (Core (Pi (Local n) e a b)) (ann a <> ann b)
 
 infixr 0 -->
 
-forAll :: Semigroup ann => (String, Term Surface ann) -> Term Surface ann -> Term Surface ann
+forAll :: Semigroup ann => (String, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
 forAll (n, a) b = (n, zero, a) --> b
 
-typeT :: Surface a
+typeT :: Surface Name a
 typeT = Core Type
 
-var :: String -> Surface a
+var :: String -> Surface Name a
 var = Core . Var . Local
 
-lam :: Semigroup ann => (String, ann) -> Term Surface ann -> Term Surface ann
+lam :: Semigroup ann => (String, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
 lam (n, a) b = In (Core (Lam (Local n) b)) (a <> ann b)
 
-(.:)  :: Semigroup ann => Term Surface ann -> Term Surface ann -> Term Surface ann
+(.:)  :: Semigroup ann => Term (Surface Name) ann -> Term (Surface Name) ann -> Term (Surface Name) ann
 a .: t = In (a ::: t) (ann a <> ann t)
 
-(#) :: Semigroup ann => Term Surface ann -> Term Surface ann -> Term Surface ann
+(#) :: Semigroup ann => Term (Surface Name) ann -> Term (Surface Name) ann -> Term (Surface Name) ann
 f # a = In (Core (f :@ a)) (ann f <> ann a)
 
 
-subst :: Name -> Surface (Term Surface ann) -> Term Surface ann -> Term Surface ann
+subst :: Name -> Surface Name (Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
 subst i r (In (e ::: t) ann) = In (subst i r e ::: subst i r t) ann
 subst i r (In (Core (Var j)) ann)
   | i == j    = In r ann
@@ -65,7 +65,7 @@ subst i r (In (Core (Pi n e t t')) ann)
   | otherwise = In (Core (Pi n e (subst i r t) (subst i r t'))) ann
 
 
-uses :: Name -> Term Surface a -> [a]
+uses :: Name -> Term (Surface Name) a -> [a]
 uses n = cata $ \ f a -> case f of
   Core (Var n')
     | n == n'   -> [a]
