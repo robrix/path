@@ -41,6 +41,9 @@ insertLocal n m = Resolution . Map.insert n (m:|[]) . unResolution
 insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (<>) n (m:|[]) . unResolution
 
+lookupName :: Name -> Resolution -> Maybe (NonEmpty ModuleName)
+lookupName n = Map.lookup n . unResolution
+
 resolveName :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
 resolveName v s = asks (Map.lookup v) >>= maybe (asks (Map.lookup v . unResolution) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s) pure
 
