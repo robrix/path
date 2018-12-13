@@ -48,3 +48,6 @@ class Ord v => FreeVariables1 v t where
 
 instance (FreeVariables1 v f, FreeVariables v a) => FreeVariables v (Term f a) where
   fvs (In out ann) = liftFvs fvs out <> fvs ann
+
+instance Ord v => FreeVariables v () where
+  fvs _ = Set.empty
