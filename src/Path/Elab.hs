@@ -122,19 +122,19 @@ importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader M
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => String -> Term (Surface Name) Span -> m ()
+elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
-  modify (Context.insert (Name name) ty'')
+  modify (Context.insert name ty'')
 
-elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => String -> Term (Surface Name) Span -> m ()
+elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
 elabDef name tm = do
-  ty <- gets (Context.lookup (Name name))
+  ty <- gets (Context.lookup name)
   tm' <- runInState One (maybe infer (flip check) ty tm)
   tm'' <- gets (eval tm')
-  modify (Env.insert (Name name) tm'')
-  maybe (modify (Context.insert (Name name) (snd (ann tm')))) (const (pure ())) ty
+  modify (Env.insert name tm'')
+  maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 
 runInState :: (Carrier sig m, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Usage -> Eff (ReaderC (Context Name) (Eff (ReaderC (Env Name) (Eff (ReaderC Usage m))))) a -> m a
 runInState usage m = do

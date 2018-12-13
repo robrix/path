@@ -22,7 +22,7 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 data Module a = Module
   { moduleName    :: ModuleName
   , moduleImports :: [Import]
-  , moduleDecls   :: [Decl String a]
+  , moduleDecls   :: [Decl Name a]
   }
   deriving (Eq, Ord, Show)
 

@@ -34,17 +34,17 @@ resolveTerm (In syn ann) = case syn of
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   where in' = flip In ann
 
-resolveDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl String (Term (Surface Name) Span) -> m (Decl String (Term (Surface QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl Name (Term (Surface QName) Span))
 resolveDecl (Declare n ty) = do
   res <- get
   moduleName <- ask
   ty' <- runReader (res :: Resolution) (resolveTerm ty)
-  Declare n ty' <$ modify (insertGlobal (Name n) moduleName)
+  Declare n ty' <$ modify (insertGlobal n moduleName)
 resolveDecl (Define n tm) = do
   res <- get
   moduleName <- ask
   tm' <- runReader (res :: Resolution) (resolveTerm tm)
-  Define n tm' <$ modify (insertGlobal (Name n) moduleName)
+  Define n tm' <$ modify (insertGlobal n moduleName)
 
 newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty ModuleName) }
   deriving (Eq, Ord, Show)
