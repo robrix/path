@@ -3,7 +3,6 @@ module Path.Surface where
 
 import Data.Bifunctor
 import Path.Core
-import Path.Name
 import Path.Pretty
 import Path.Semiring
 import Path.Term
@@ -62,7 +61,7 @@ subst i r (In (Core (Pi n e t t')) ann)
   | otherwise   = In (Core (Pi n e (subst i r t) (subst i r t'))) ann
 
 
-uses :: Name -> Term (Surface Name) a -> [a]
+uses :: Eq v => v -> Term (Surface v) a -> [a]
 uses n = cata $ \ f a -> case f of
   Core (Var n')
     | n == n'   -> [a]
