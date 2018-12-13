@@ -35,14 +35,11 @@ hoist :: Functor f => (forall x . f x -> g x) -> Term f a -> Term g a
 hoist f = cata (In . f)
 
 
-class Ord v => AlphaEquivalent v a | a -> v where
-  aeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig, Monad m) => a -> a -> m Bool
+aeq :: (AlphaEquivalent1 v f, Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig, Monad m) => Term f a -> Term f a -> m Bool
+aeq (In syn1 _) (In syn2 _) = liftAeq aeq syn1 syn2
 
 class Ord v => AlphaEquivalent1 v t | t -> v where
   liftAeq :: (Carrier sig m, Member Fresh sig, Member (Reader (Map.Map v Int)) sig, Monad m) => (a -> b -> m Bool) -> t a -> t b -> m Bool
-
-instance AlphaEquivalent1 v f => AlphaEquivalent v (Term f a) where
-  aeq (In syn1 _) (In syn2 _) = liftAeq aeq syn1 syn2
 
 aeqLookup :: (Carrier sig m, Functor m, Member (Reader (Map.Map v Int)) sig, Ord v) => v -> m (Maybe Int)
 aeqLookup = asks . Map.lookup
