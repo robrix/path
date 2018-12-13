@@ -47,3 +47,15 @@ instance Ord v => FreeVariables1 v (Core v) where
     f :@ a -> fvs f <> fvs a
     Type -> Set.empty
     Pi v _ t b -> fvs t <> maybe id Set.delete v (fvs b)
+
+instance Ord v => AlphaEquivalent1 v (Core v) where
+  liftAeq aeq l r = case (l, r) of
+    (Var v1, Var v2) -> do
+      eq <- (==) <$> aeqLookup v1 <*> aeqLookup v2
+      pure (eq || v1 == v2)
+    (Lam v1 b1, Lam v2 b2) -> aeqBind v1 v2 (b1 `aeq` b2)
+    (f1 :@ a1, f2 :@ a2) -> (&&) <$> f1 `aeq` f2 <*> a1 `aeq` a2
+    (Type, Type) -> pure True
+    (Pi v1 u1 t1 b1, Pi v2 u2 t2 b2)
+      | u1 == u2 -> (&&) <$> t1 `aeq` t2 <*> aeqBind v1 v2 (b1 `aeq` b2)
+    _ -> pure False
