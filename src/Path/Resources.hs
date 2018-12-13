@@ -4,7 +4,6 @@ module Path.Resources where
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
-import Path.FreeVariables
 import Path.Name
 import Path.Pretty
 import Path.Semiring
@@ -30,9 +29,6 @@ instance PrettyPrec r => Pretty (Resources r) where
     where prettyBinding name u = pretty name <+> pretty "@" <+> prettyPrec 0 u
 
 instance PrettyPrec r => PrettyPrec (Resources r)
-
-instance FreeVariables r => FreeVariables (Resources r) where
-  fvs = fvs . unResources
 
 instance Semigroup r => Semigroup (Resources r) where
   (<>) = fmap Resources . (Map.unionWith (<>) `on` unResources)

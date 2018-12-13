@@ -4,7 +4,6 @@ import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Path.Core
-import Path.FreeVariables
 import Path.Name
 import Path.Pretty
 import Path.Term
@@ -31,9 +30,6 @@ instance PrettyPrec Value where
 
 instance Pretty Value where
   pretty = prettyPrec 0
-
-instance FreeVariables Value where
-  fvs = fvs . quote
 
 vfree :: Name -> Value
 vfree = VNeutral . NFree

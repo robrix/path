@@ -2,9 +2,6 @@
 module Path.Core where
 
 import Data.Bifunctor
-import qualified Data.Set as Set
-import Path.FreeVariables
-import Path.Name
 import Path.Pretty
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -39,13 +36,3 @@ instance (Pretty v, PrettyPrec a) => PrettyPrec (Core v a) where
       where withPi
               | pi == More = id
               | otherwise  = (pretty pi <+>)
-
-instance FreeVariables1 (Core Name) where
-  liftFvs _   (Var n) = Set.singleton n
-  liftFvs fvs (Lam v b) = maybe id Set.delete v (fvs b)
-  liftFvs fvs (f :@ a) = fvs f <> fvs a
-  liftFvs _   Type = Set.empty
-  liftFvs fvs (Pi v _ t b) = fvs t <> maybe id Set.delete v (fvs b)
-
-instance FreeVariables a => FreeVariables (Core Name a) where
-  fvs = fvs1

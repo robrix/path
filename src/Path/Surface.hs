@@ -3,7 +3,6 @@ module Path.Surface where
 
 import Data.Bifunctor
 import Path.Core
-import Path.FreeVariables
 import Path.Name
 import Path.Pretty
 import Path.Semiring
@@ -24,13 +23,6 @@ instance (Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
   prettyPrec d (Core core) = prettyPrec d core
   prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
 
-instance FreeVariables1 (Surface Name) where
-  liftFvs fvs (Core core) = liftFvs fvs core
-  liftFvs fvs (tm ::: ty) = fvs tm <> fvs ty
-
-instance FreeVariables a => FreeVariables (Surface Name a) where
-  fvs = fvs1
-
 (-->) :: Semigroup ann => (Maybe Name, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
 (n, e, a) --> b = In (Core (Pi n e a b)) (ann a <> ann b)
 
@@ -42,7 +34,7 @@ forAll (n, a) b = (n, zero, a) --> b
 typeT :: Surface Name a
 typeT = Core Type
 
-var :: Name -> Surface Name a
+var :: v -> Surface v a
 var = Core . Var
 
 lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann

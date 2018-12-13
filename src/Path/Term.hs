@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving, RankNTypes, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
-import Path.FreeVariables
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
 
@@ -19,9 +18,6 @@ instance (PrettyPrec (f (Term f a)), PrettyPrec a) => PrettyPrec (Term f a) wher
 
 instance (PrettyPrec (f (Term f a)), PrettyPrec a) => Pretty (Term f a) where
   pretty = prettyPrec 0
-
-instance (FreeVariables1 f, FreeVariables a) => FreeVariables (Term f a) where
-  fvs (In tm ty) = liftFvs fvs tm <> fvs ty
 
 instance Functor f => Functor (Term f) where
   fmap f (In tm a) = In (fmap (fmap f) tm) (f a)

@@ -18,7 +18,6 @@ library
                      , Path.Decl
                      , Path.Elab
                      , Path.Eval
-                     , Path.FreeVariables
                      , Path.Module
                      , Path.Name
                      , Path.Package
