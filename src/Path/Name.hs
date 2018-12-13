@@ -24,6 +24,8 @@ instance Pretty ModuleName where
   pretty (ModuleName s) = pretty s
   pretty (ss :. s) = pretty ss <> dot <> pretty s
 
+instance PrettyPrec ModuleName
+
 makeModuleName :: NonEmpty String -> ModuleName
 makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 
