@@ -31,3 +31,6 @@ instance Pretty ModuleName where
 
 makeModuleName :: NonEmpty String -> ModuleName
 makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
+
+
+type PackageName = String
