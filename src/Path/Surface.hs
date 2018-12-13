@@ -32,7 +32,7 @@ instance FreeVariables a => FreeVariables (Surface Name a) where
   fvs = fvs1
 
 (-->) :: Semigroup ann => (Maybe String, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
-(n, e, a) --> b = In (Core (Pi (Local <$> n) e a b)) (ann a <> ann b)
+(n, e, a) --> b = In (Core (Pi (Name <$> n) e a b)) (ann a <> ann b)
 
 infixr 0 -->
 
@@ -43,10 +43,10 @@ typeT :: Surface Name a
 typeT = Core Type
 
 var :: String -> Surface Name a
-var = Core . Var . Local
+var = Core . Var . Name
 
 lam :: Semigroup ann => (Maybe String, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
-lam (n, a) b = In (Core (Lam (Local <$> n) b)) (a <> ann b)
+lam (n, a) b = In (Core (Lam (Name <$> n) b)) (a <> ann b)
 
 (.:)  :: Semigroup ann => Term (Surface Name) ann -> Term (Surface Name) ann -> Term (Surface Name) ann
 a .: t = In (a ::: t) (ann a <> ann t)

@@ -3,7 +3,7 @@ module Path.Elab where
 
 import Control.Effect
 import Control.Effect.Error
-import Control.Effect.Reader hiding (Local)
+import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
 import Data.Foldable (for_)
@@ -123,15 +123,15 @@ elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context)
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
-  modify (Context.insert (Local name) ty'')
+  modify (Context.insert (Name name) ty'')
 
 elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term (Surface Name) Span -> m ()
 elabDef name tm = do
-  ty <- gets (Context.lookup (Local name))
+  ty <- gets (Context.lookup (Name name))
   tm' <- runInState One (maybe infer (flip check) ty tm)
   tm'' <- gets (eval tm')
   modify (Map.insert name tm'')
-  maybe (modify (Context.insert (Local name) (snd (ann tm')))) (const (pure ())) ty
+  maybe (modify (Context.insert (Name name) (snd (ann tm')))) (const (pure ())) ty
 
 runInState :: (Carrier sig m, Member (State Context) sig, Member (State Env) sig, Monad m) => Usage -> Eff (ReaderC Context (Eff (ReaderC Env (Eff (ReaderC Usage m))))) a -> m a
 runInState usage m = do

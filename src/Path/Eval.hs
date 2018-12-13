@@ -29,13 +29,13 @@ instance Show Value where
   showsPrec d = showsPrec d . quote
 
 instance PrettyPrec Value where
-  prettyPrec d = prettyPrec d . hoist (first Local) . quote
+  prettyPrec d = prettyPrec d . hoist (first Name) . quote
 
 instance Pretty Value where
   pretty = prettyPrec 0
 
 instance FreeVariables Value where
-  fvs = fvs . hoist (first Local) . quote
+  fvs = fvs . hoist (first Name) . quote
 
 vfree :: String -> Value
 vfree = VNeutral . NFree
