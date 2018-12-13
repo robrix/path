@@ -1,1 +1,4 @@
 module Base.Nat where
+
+NatF : Type -> Type
+NatF = \ a . ∀ b : Type . b -> (a -> b) -> b
