@@ -14,14 +14,12 @@ import Path.Surface
 import Path.Term
 import Text.Trifecta.Rendering (Span)
 
-resolve :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader ModuleName) sig, Monad m)
+resolve :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
         => Term (Surface Name) Span
         -> m (Term (Surface QName) Span)
 resolve (In syn ann) = case syn of
   Core core -> case core of
-    Var v -> do
-      local <- asks (Map.lookup v)
-      maybe (throwError (FreeVariable v ann)) (pure . in' . Core . Var) local
+    Var v -> in' . Core . Var <$> resolveName v ann
     Lam (Just v) b -> do
       moduleName <- ask
       local (Map.insert v (moduleName :.: v)) (in' . Core . Lam (Just (moduleName :.: v)) <$> resolve b)
