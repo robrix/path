@@ -61,3 +61,6 @@ instance (FreeVariables v key, FreeVariables v value) => FreeVariables v (Map.Ma
 
 instance FreeVariables v a => FreeVariables v [a] where
   fvs = foldMap fvs
+
+instance Ord v => FreeVariables v v where
+  fvs = Set.singleton
