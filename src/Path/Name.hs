@@ -34,3 +34,7 @@ makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 
 
 type PackageName = String
+
+
+data QName = ModuleName :.: Name
+  deriving (Eq, Ord, Show)
