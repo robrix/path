@@ -71,7 +71,7 @@ elab (In (Core (Lam n e)) span) (Just (VPi tn pi t t')) = do
       sigma <- ask
       let used = Resources.lookup n (fst (ann e'))
       unless (sigma >< pi == More) . when (pi /= used) $
-        throwError (ResourceMismatch (getName n) pi used span (uses n e))
+        throwError (ResourceMismatch n pi used span (uses n e))
       pure e'
     _      -> check e (t' (vfree (Name "_")))
   let res = fst (ann e')
@@ -149,7 +149,7 @@ data ElabError
   | TypeMismatch (Type Name) (Type Name) Span
   | NoRuleToInfer (Term (Surface Name) Span) Span
   | IllegalApplication (Term (Core Name) (Resources Name Usage, Type Name)) Span
-  | ResourceMismatch String Usage Usage Span [Span]
+  | ResourceMismatch Name Usage Usage Span [Span]
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
