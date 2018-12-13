@@ -31,22 +31,22 @@ instance FreeVariables1 (Surface Name) where
 instance FreeVariables a => FreeVariables (Surface Name a) where
   fvs = fvs1
 
-(-->) :: Semigroup ann => (Maybe String, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
-(n, e, a) --> b = In (Core (Pi (Name <$> n) e a b)) (ann a <> ann b)
+(-->) :: Semigroup ann => (Maybe Name, Usage, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+(n, e, a) --> b = In (Core (Pi n e a b)) (ann a <> ann b)
 
 infixr 0 -->
 
-forAll :: Semigroup ann => (Maybe String, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+forAll :: Semigroup ann => (Maybe Name, Term (Surface Name) ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
 forAll (n, a) b = (n, zero, a) --> b
 
 typeT :: Surface Name a
 typeT = Core Type
 
-var :: String -> Surface Name a
-var = Core . Var . Name
+var :: Name -> Surface Name a
+var = Core . Var
 
-lam :: Semigroup ann => (Maybe String, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
-lam (n, a) b = In (Core (Lam (Name <$> n) b)) (a <> ann b)
+lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface Name) ann -> Term (Surface Name) ann
+lam (n, a) b = In (Core (Lam n b)) (a <> ann b)
 
 (.:)  :: Semigroup ann => Term (Surface Name) ann -> Term (Surface Name) ann -> Term (Surface Name) ann
 a .: t = In (a ::: t) (ann a <> ann t)

@@ -29,10 +29,10 @@ type' = ann (Surface.typeT <$ keyword "Type")
 forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
   Surface.forAll (Just v, ty) <$> functionType) <?> "universally quantified type"
-  where binding = (,) <$> identifier <* colon <*> term
+  where binding = (,) <$> name <* colon <*> term
 
 piType = reann (do
-  (v, mult, ty) <- braces ((,,) <$> identifier <* colon <*> optional multiplicity <*> term) <* op "->"
+  (v, mult, ty) <- braces ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
   ((Just v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
 
 annotation = functionType `chainr1` ((Surface..:) <$ op ":")
@@ -43,12 +43,12 @@ functionType = (,,) Nothing <$> multiplicity <*> application <**> (flip (Surface
                 <|> forAll
           where arrow = (Surface.-->) . (,,) Nothing More
 
-var = ann (Surface.var <$> identifier <?> "variable")
+var = ann (Surface.var <$> name <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (Just <$> identifier <|> Nothing <$ token (string "_")) <?> "pattern"
+  where pattern = spanned (Just <$> name <|> Nothing <$ token (string "_")) <?> "pattern"
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
@@ -56,3 +56,6 @@ atom = var <|> type' <|> lambda <|> parens term
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
+
+name :: (Monad m, TokenParsing m) => m Name
+name = Name <$> identifier <?> "name"
