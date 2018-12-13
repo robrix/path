@@ -40,6 +40,11 @@ elab (In (e ::: t) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
   check e t''
+elab (In (ForAll n t b) _) Nothing = do
+  t' <- check t VType
+  t'' <- asks (eval t')
+  b' <- local (Context.insert n t'') (check (subst n (Core (Var n)) b) VType)
+  pure (In (Pi (Just n) Zero t' b') (Resources.empty, VType))
 elab (In (Core Type) _) Nothing = pure (In Type (Resources.empty, VType))
 elab (In (Core (Pi n e t b)) _) Nothing = do
   t' <- check t VType
