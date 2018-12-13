@@ -10,8 +10,7 @@ newtype Name = Name { getName :: String }
 instance Pretty Name where
   pretty (Name s) = pretty s
 
-instance PrettyPrec Name where
-  prettyPrec _ = pretty
+instance PrettyPrec Name
 
 
 data ModuleName
