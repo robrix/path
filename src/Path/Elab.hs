@@ -32,7 +32,7 @@ elab :: ( Carrier sig m
         )
      => Term Surface Span
      -> Maybe Type
-     -> m (Term Core (Resources Usage, Type))
+     -> m (Term (Core Name) (Resources Usage, Type))
 elab (In (e ::: t) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
@@ -80,7 +80,7 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term Surface Span
-      -> m (Term Core (Resources Usage, Type))
+      -> m (Term (Core Name) (Resources Usage, Type))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -92,7 +92,7 @@ check :: ( Carrier sig m
          )
       => Term Surface Span
       -> Type
-      -> m (Term Core (Resources Usage, Type))
+      -> m (Term (Core Name) (Resources Usage, Type))
 check tm = elab tm . Just
 
 
@@ -138,7 +138,7 @@ data ElabError
   = FreeVariable Name Span
   | TypeMismatch Type Type Span
   | NoRuleToInfer (Term Surface Span) Span
-  | IllegalApplication (Term Core (Resources Usage, Type)) Span
+  | IllegalApplication (Term (Core Name) (Resources Usage, Type)) Span
   | ResourceMismatch String Usage Usage Span [Span]
   deriving (Eq, Ord, Show)
 

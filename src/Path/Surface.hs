@@ -11,7 +11,7 @@ import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 data Surface a
-  = Core (Core a)
+  = Core (Core Name a)
   | a ::: a
   deriving (Eq, Functor, Ord, Show)
 

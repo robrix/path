@@ -8,15 +8,15 @@ import Path.Pretty
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
-data Core a
-  = Var Name
-  | Lam Name a
+data Core v a
+  = Var v
+  | Lam v a
   | a :@ a
   | Type
-  | Pi Name Usage a a
+  | Pi v Usage a a
   deriving (Eq, Functor, Ord, Show)
 
-instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
+instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core Name a) where
   prettyPrec d c = case c of
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
@@ -31,12 +31,12 @@ instance (FreeVariables a, PrettyPrec a) => PrettyPrec (Core a) where
               | pi == More = id
               | otherwise  = (pretty pi <+>)
 
-instance FreeVariables1 Core where
+instance FreeVariables1 (Core Name) where
   liftFvs _   (Var n) = Set.singleton n
   liftFvs fvs (Lam v b) = Set.delete v (fvs b)
   liftFvs fvs (f :@ a) = fvs f <> fvs a
   liftFvs _   Type = Set.empty
   liftFvs fvs (Pi v _ t b) = fvs t <> Set.delete v (fvs b)
 
-instance FreeVariables a => FreeVariables (Core a) where
+instance FreeVariables a => FreeVariables (Core Name a) where
   fvs = fvs1

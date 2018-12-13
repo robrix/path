@@ -43,13 +43,13 @@ data Neutral
   | NApp Neutral Value
   deriving (Eq, Ord, Show)
 
-quote :: Value -> Term Core ()
+quote :: Value -> Term (Core Name) ()
 quote VType = In Type ()
 quote (VLam v f) = In (Lam (Local v) (quote (f (vfree (Quote v))))) ()
 quote (VPi v e t f) = In (Pi (Local v) e (quote t) (quote (f (vfree (Quote v))))) ()
 quote (VNeutral n) = quoteN n
 
-quoteN :: Neutral -> Term Core ()
+quoteN :: Neutral -> Term (Core Name) ()
 quoteN (NFree (Quote s)) = In (Var (Local s)) ()
 quoteN (NFree n) = In (Var n) ()
 quoteN (NApp n a) = In (quoteN n :@ quote a) ()
@@ -57,7 +57,7 @@ quoteN (NApp n a) = In (quoteN n :@ quote a) ()
 
 type Env = Map.Map String Value
 
-eval :: Term Core a -> Env -> Value
+eval :: Term (Core Name) a -> Env -> Value
 eval (In (Var n) _) d = fromMaybe (vfree n) (Map.lookup (getName n) d)
 eval (In (Lam n b) _) d = VLam (getName n) (eval b . flip (Map.insert (getName n)) d)
 eval (In (f :@ a) _) d = eval f d `vapp` eval a d
