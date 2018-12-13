@@ -64,3 +64,6 @@ instance FreeVariables v a => FreeVariables v [a] where
 
 instance Ord v => FreeVariables v v where
   fvs = Set.singleton
+
+instance Ord v => FreeVariables v (Set.Set v) where
+  fvs = id
