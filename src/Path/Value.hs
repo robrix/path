@@ -10,9 +10,9 @@ import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Value
-  = VLam (Maybe String) (Value -> Value)
+  = VLam (Maybe Name) (Value -> Value)
   | VType
-  | VPi (Maybe String) Usage Value (Value -> Value)
+  | VPi (Maybe Name) Usage Value (Value -> Value)
   | VNeutral (Neutral Name)
 
 instance Eq Value where
@@ -40,8 +40,8 @@ data Neutral v
 
 quote :: Value -> Term (Core Name) ()
 quote VType = In Type ()
-quote (VLam v f) = In (Lam (Name <$> v) (quote (f (vfree (Name (fromMaybe "_" v)))))) ()
-quote (VPi v e t f) = In (Pi (Name <$> v) e (quote t) (quote (f (vfree (Name (fromMaybe "_" v)))))) ()
+quote (VLam v f) = In (Lam v (quote (f (vfree (fromMaybe (Name "_") v))))) ()
+quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (fromMaybe (Name "_") v))))) ()
 quote (VNeutral n) = quoteN n
 
 quoteN :: Neutral Name -> Term (Core Name) ()
