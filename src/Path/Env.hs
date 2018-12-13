@@ -5,6 +5,9 @@ import Path.Value
 
 type Env = Map.Map String Value
 
+empty :: Env
+empty = Map.empty
+
 lookup :: String -> Env -> Maybe Value
 lookup n = Map.lookup n
 

@@ -16,7 +16,7 @@ import Data.Traversable (for)
 import Path.Context as Context
 import Path.Decl
 import Path.Elab
-import Path.Env
+import Path.Env as Env
 import Path.Eval
 import Path.Module as Module
 import Path.Name
@@ -80,7 +80,7 @@ repl package = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (mempty :: Env) (evalState (Context.empty :: Context Name) (script package))))))
+  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (Env.empty :: Env) (evalState (Context.empty :: Context Name) (script package))))))
 
 script :: (Carrier sig m, Effect sig, Member (Lift IO) sig, Member REPL sig, Member (State (Context Name)) sig, Member (State Env) sig, Member (State ModuleTable) sig, Monad m) => Package -> m ()
 script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Name) Span)) (reload *> loop)

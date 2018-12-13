@@ -11,7 +11,7 @@ import qualified Data.Map as Map
 import Path.Context as Context
 import Path.Core
 import Path.Decl
-import Path.Env
+import Path.Env as Env
 import Path.Eval
 import Path.Module
 import Path.Name
@@ -107,7 +107,7 @@ check tm = elab tm . Just
 type ModuleTable = Map.Map ModuleName (Context Name, Env)
 
 elabModule :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member (Error ModuleError) sig, Member (Reader ModuleTable) sig) => Module (Term (Surface Name) Span) -> m (Context Name, Env)
-elabModule (Module _ imports decls) = runState Context.empty . execState (mempty :: Env) $ do
+elabModule (Module _ imports decls) = runState Context.empty . execState (Env.empty :: Env) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
     modify (Context.union ctx)
