@@ -36,6 +36,9 @@ newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Mod
 moduleGraph :: [Module v a] -> ModuleGraph v a
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
+modules :: ModuleGraph v a -> [Module v a]
+modules = Map.elems . unModuleGraph
+
 lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a -> ModuleName -> m (Module v a)
 lookupModule g name = maybe (throwError (UnknownModule name)) ret (Map.lookup name (unModuleGraph g))
 
