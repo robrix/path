@@ -69,7 +69,3 @@ vapp :: Value -> Value -> Value
 vapp (VLam _ f) v = f v
 vapp (VNeutral n) v = VNeutral (NApp n v)
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
-
-getName :: Name -> String
-getName (Local n) = n
-getName (Quote n) = n
