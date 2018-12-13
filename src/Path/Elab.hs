@@ -112,7 +112,7 @@ check tm = elab tm . Just
 type ModuleTable v = Map.Map ModuleName (Context v, Env v)
 
 elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError Name)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable Name)) sig) => Module Name (Term (Surface Name) Span) -> m (Context Name, Env Name)
-elabModule (Module _ imports decls) = runState Context.empty . execState (Env.empty :: Env Name) $ do
+elabModule (Module _ imports decls) = runState Context.empty . execState Env.empty $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
     modify (Context.union ctx)
