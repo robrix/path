@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Path.Eval where
 
+import Data.Bifunctor (first)
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -28,13 +29,13 @@ instance Show Value where
   showsPrec d = showsPrec d . quote
 
 instance PrettyPrec Value where
-  prettyPrec d = prettyPrec d . quote
+  prettyPrec d = prettyPrec d . hoist (first Local) . quote
 
 instance Pretty Value where
   pretty = prettyPrec 0
 
 instance FreeVariables Value where
-  fvs = fvs . quote
+  fvs = fvs . hoist (first Local) . quote
 
 vfree :: Name -> Value
 vfree = VNeutral . NFree
@@ -44,15 +45,15 @@ data Neutral v
   | NApp (Neutral v) Value
   deriving (Eq, Functor, Ord, Show)
 
-quote :: Value -> Term (Core Name) ()
+quote :: Value -> Term (Core String) ()
 quote VType = In Type ()
-quote (VLam v f) = In (Lam (Local <$> v) (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
-quote (VPi v e t f) = In (Pi (Local <$> v) e (quote t) (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
+quote (VLam v f) = In (Lam v (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
+quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
 quote (VNeutral n) = quoteN n
 
-quoteN :: Neutral Name -> Term (Core Name) ()
-quoteN (NFree (Quote s)) = In (Var (Local s)) ()
-quoteN (NFree n) = In (Var n) ()
+quoteN :: Neutral Name -> Term (Core String) ()
+quoteN (NFree (Quote s)) = In (Var s) ()
+quoteN (NFree (Local s)) = In (Var s) ()
 quoteN (NApp n a) = In (quoteN n :@ quote a) ()
 
 
