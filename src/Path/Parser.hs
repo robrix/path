@@ -24,26 +24,24 @@ import Text.Parser.Token.Highlight
 import Text.Parser.Token.Style
 import Text.PrettyPrint.ANSI.Leijen (Doc)
 import qualified Text.Trifecta as Trifecta
-import Text.Trifecta hiding (Parser, parseString)
+import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
 import Text.Trifecta.Indentation
 
-type Parser = IndentationParserT Char Inner
+newtype Parser a = Parser { runParser :: IndentationParserT Char Trifecta.Parser a }
+  deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, IndentationParsing, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
-newtype Inner a = Inner { runInner :: Trifecta.Parser a }
-  deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
-
-instance TokenParsing Inner where
-  someSpace = Inner $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
-  nesting = Inner . nesting . runInner
-  highlight h = Inner . highlight h . runInner
+instance TokenParsing Parser where
+  someSpace = Parser $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
+  nesting = Parser . nesting . runParser
+  highlight h = Parser . highlight h . runParser
 
 
 parseFile :: MonadIO m => Parser a -> FilePath -> m (Either Doc a)
-parseFile p = fmap toResult . parseFromFileEx (runInner (whiteSpace *> evalIndentationParserT p indentst))
+parseFile p = fmap toResult . parseFromFileEx (whiteSpace *> evalIndentationParserT (runParser p) indentst)
 
 parseString :: Parser a -> String -> Either Doc a
-parseString p = toResult . Trifecta.parseString (runInner (evalIndentationParserT p indentst)) directed
+parseString p = toResult . Trifecta.parseString (evalIndentationParserT (runParser p) indentst) directed
 
 toResult :: Result a -> Either Doc a
 toResult = foldResult (Left . _errDoc) Right
