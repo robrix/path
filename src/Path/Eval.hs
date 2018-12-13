@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveFunctor #-}
 module Path.Eval where
 
-import Data.Bifunctor (first)
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
@@ -17,7 +16,7 @@ data Value
   = VLam (Maybe String) (Value -> Value)
   | VType
   | VPi (Maybe String) Usage Value (Value -> Value)
-  | VNeutral (Neutral String)
+  | VNeutral (Neutral Name)
 
 instance Eq Value where
   (==) = (==) `on` quote
@@ -29,15 +28,15 @@ instance Show Value where
   showsPrec d = showsPrec d . quote
 
 instance PrettyPrec Value where
-  prettyPrec d = prettyPrec d . hoist (first Name) . quote
+  prettyPrec d = prettyPrec d . quote
 
 instance Pretty Value where
   pretty = prettyPrec 0
 
 instance FreeVariables Value where
-  fvs = fvs . hoist (first Name) . quote
+  fvs = fvs . quote
 
-vfree :: String -> Value
+vfree :: Name -> Value
 vfree = VNeutral . NFree
 
 data Neutral v
@@ -45,13 +44,13 @@ data Neutral v
   | NApp (Neutral v) Value
   deriving (Eq, Functor, Ord, Show)
 
-quote :: Value -> Term (Core String) ()
+quote :: Value -> Term (Core Name) ()
 quote VType = In Type ()
-quote (VLam v f) = In (Lam v (quote (f (vfree (fromMaybe "_" v))))) ()
-quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (fromMaybe "_" v))))) ()
+quote (VLam v f) = In (Lam (Name <$> v) (quote (f (vfree (Name (fromMaybe "_" v)))))) ()
+quote (VPi v e t f) = In (Pi (Name <$> v) e (quote t) (quote (f (vfree (Name (fromMaybe "_" v)))))) ()
 quote (VNeutral n) = quoteN n
 
-quoteN :: Neutral String -> Term (Core String) ()
+quoteN :: Neutral Name -> Term (Core Name) ()
 quoteN (NFree s) = In (Var s) ()
 quoteN (NApp n a) = In (quoteN n :@ quote a) ()
 
@@ -59,7 +58,7 @@ quoteN (NApp n a) = In (quoteN n :@ quote a) ()
 type Env = Map.Map String Value
 
 eval :: Term (Core Name) a -> Env -> Value
-eval (In (Var n) _) d = fromMaybe (vfree (getName n)) (Map.lookup (getName n) d)
+eval (In (Var n) _) d = fromMaybe (vfree n) (Map.lookup (getName n) d)
 eval (In (Lam n b) _) d = VLam (getName <$> n) (eval b . maybe const (flip . Map.insert . getName) n d)
 eval (In (f :@ a) _) d = eval f d `vapp` eval a d
 eval (In Type _) _ = VType
