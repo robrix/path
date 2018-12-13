@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, GeneralizedNewtypeDeriving, RankNTypes, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
 import Path.FreeVariables
@@ -28,3 +28,6 @@ instance Functor f => Functor (Term f) where
 
 cata :: Functor f => (f b -> a -> b) -> Term f a -> b
 cata alg = go where go = alg . fmap go . out <*> ann
+
+hoist :: Functor f => (forall x . f x -> g x) -> Term f a -> Term g a
+hoist f = cata (In . f)
