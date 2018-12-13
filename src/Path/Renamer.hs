@@ -52,6 +52,9 @@ resolveModule m = do
   decls <- runReader (moduleName m) (traverse resolveDecl (moduleDecls m))
   pure (m { moduleDecls = decls })
 
+resolveModules :: (Carrier sig m, Effect sig, Functor m, Member (Error ResolveError) sig) => [Module Name (Term (Surface Name) Span)] -> m [Module QName (Term (Surface QName) Span)]
+resolveModules = evalState (Resolution mempty) . traverse resolveModule
+
 newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty ModuleName) }
   deriving (Eq, Ord, Show)
 
