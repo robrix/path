@@ -59,7 +59,6 @@ type Env = Map.Map String Value
 
 eval :: Term Core a -> Env -> Value
 eval (In (Var (Local n)) _) d = fromMaybe (vfree (Local n)) (Map.lookup n d)
-eval (In (Var (Global n)) _) d = fromMaybe (vfree (Global n)) (Map.lookup n d)
 eval (In (Var (Quote n)) _) d = fromMaybe (vfree (Quote n)) (Map.lookup n d)
 eval (In (Lam n b) _) d = VLam n (eval b . flip (Map.insert n) d)
 eval (In (f :@ a) _) d = eval f d `vapp` eval a d

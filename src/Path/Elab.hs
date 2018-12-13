@@ -117,15 +117,15 @@ elabDecl :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context)
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
-  modify (Context.insert (Global name) ty'')
+  modify (Context.insert (Local name) ty'')
 
 elabDef :: (Carrier sig m, Member (Error ElabError) sig, Member (State Context) sig, Member (State Env) sig, Monad m) => String -> Term Surface Span -> m ()
 elabDef name tm = do
-  ty <- gets (Context.lookup (Global name))
+  ty <- gets (Context.lookup (Local name))
   tm' <- runInState One (maybe infer (flip check) ty tm)
   tm'' <- gets (eval tm')
   modify (Map.insert name tm'')
-  maybe (modify (Context.insert (Global name) (snd (ann tm')))) (const (pure ())) ty
+  maybe (modify (Context.insert (Local name) (snd (ann tm')))) (const (pure ())) ty
 
 runInState :: (Carrier sig m, Member (State Context) sig, Member (State Env) sig, Monad m) => Usage -> Eff (ReaderC Context (Eff (ReaderC Env (Eff (ReaderC Usage m))))) a -> m a
 runInState usage m = do

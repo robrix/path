@@ -15,11 +15,11 @@ quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
 help = Help <$ token (string ":h") <|> Help <$ token (string ":?") <|> Help <$ token (string ":help") <?> "help"
 
-typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> globalTerm <?> "type of"
+typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> term <?> "type of"
 
 decl = Decl <$> M.declaration
 
-eval = Eval <$> globalTerm <?> "term"
+eval = Eval <$> term <?> "term"
 
 show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
 

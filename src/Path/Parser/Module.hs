@@ -20,4 +20,4 @@ import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
 
 declaration :: DeltaParsing m => m (Decl (Term Surface Span))
-declaration = identifier <**> (Declare <$ op ":" <|> Define <$ op "=") <*> globalTerm
+declaration = identifier <**> (Declare <$ op ":" <|> Define <$ op "=") <*> term

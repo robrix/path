@@ -37,9 +37,6 @@ forAll (n, a) b = (n, zero, a) --> b
 typeT :: Surface a
 typeT = Core Type
 
-global :: String -> Surface a
-global = Core . Var . Global
-
 var :: String -> Surface a
 var = Core . Var . Local
 

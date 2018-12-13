@@ -1,7 +1,6 @@
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
-import Data.List (find)
 import Data.Maybe (fromMaybe)
 import Path.Parser
 import qualified Path.Surface as Surface
@@ -9,10 +8,7 @@ import Path.Term hiding (ann)
 import Path.Usage
 import Text.Trifecta
 
-globalTerm, type' :: DeltaParsing m => m (Term Surface.Surface Span)
-globalTerm = term []
-
-term, application, annotation, piType, functionType, forAll, var, lambda, atom :: DeltaParsing m => [String] -> m (Term Surface.Surface Span)
+term, application, type', annotation, piType, functionType, forAll, var, lambda, atom :: DeltaParsing m => m (Term Surface.Surface Span)
 
 term = annotation
 
@@ -25,38 +21,37 @@ reann = fmap respan . spanned
   where respan (In f _ :~ a) = In f a
 
 
-application vs = atom vs `chainl1` pure (Surface.#) <?> "function application"
+application = atom `chainl1` pure (Surface.#) <?> "function application"
 
 type' = ann (Surface.typeT <$ keyword "Type")
 
-forAll vs = reann (do
+forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
-  Surface.forAll (v, ty) <$> functionType (v : vs)) <?> "universally quantified type"
-  where binding = (,) <$> identifier <* colon <*> term vs
+  Surface.forAll (v, ty) <$> functionType) <?> "universally quantified type"
+  where binding = (,) <$> identifier <* colon <*> term
 
-piType vs = reann (do
-  (v, mult, ty) <- braces ((,,) <$> identifier <* colon <*> optional multiplicity <*> term vs) <* op "->"
-  ((v, fromMaybe More mult, ty) Surface.-->) <$> functionType (v : vs)) <?> "dependent function type"
+piType = reann (do
+  (v, mult, ty) <- braces ((,,) <$> identifier <* colon <*> optional multiplicity <*> term) <* op "->"
+  ((v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
 
-annotation vs = functionType vs `chainr1` ((Surface..:) <$ op ":")
+annotation = functionType `chainr1` ((Surface..:) <$ op ":")
 
-functionType vs = (,,) "_" <$> multiplicity <*> application vs <**> (flip (Surface.-->) <$ op "->" <*> functionType vs)
-                <|> application vs <**> (flip arrow <$ op "->" <*> functionType vs <|> pure id)
-                <|> piType vs
-                <|> forAll vs
+functionType = (,,) "_" <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+                <|> application <**> (flip arrow <$ op "->" <*> functionType <|> pure id)
+                <|> piType
+                <|> forAll
           where arrow = (Surface.-->) . (,,) "_" More
 
-var vs = ann (toVar <$> identifier <?> "variable")
-  where toVar n = maybe (Surface.global n) Surface.var (find (== n) vs)
+var = ann (Surface.var <$> identifier <?> "variable")
 
-lambda vs = reann (do
-  vs' <- op "\\" *> some pattern <* dot
-  bind vs' vs) <?> "lambda"
+lambda = reann (do
+  vs <- op "\\" *> some pattern <* dot
+  bind vs) <?> "lambda"
   where pattern = spanned (identifier <|> token (string "_")) <?> "pattern"
-        bind [] vs = term vs
-        bind ((v :~ a):vv) vs = Surface.lam (v, a) <$> bind vv (v:vs)
+        bind [] = term
+        bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
-atom vs = var vs <|> type' <|> lambda vs <|> parens (term vs)
+atom = var <|> type' <|> lambda <|> parens term
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
