@@ -83,7 +83,7 @@ repl package = do
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable) (evalState (Env.empty :: Env Name) (evalState (Context.empty :: Context Name) (script package))))))
 
 script :: (Carrier sig m, Effect sig, Member (Lift IO) sig, Member REPL sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Member (State ModuleTable) sig, Monad m) => Package -> m ()
-script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Name) Span)) (reload *> loop)
+script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surface Name) Span)) (reload *> loop)
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop runCommand a

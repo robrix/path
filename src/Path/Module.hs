@@ -30,16 +30,16 @@ newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
 
-newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module Name a) }
+newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
   deriving (Eq, Ord, Show)
 
-moduleGraph :: [Module Name a] -> ModuleGraph a
+moduleGraph :: [Module v a] -> ModuleGraph v a
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph a -> ModuleName -> m (Module Name a)
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a -> ModuleName -> m (Module v a)
 lookupModule g name = maybe (throwError (UnknownModule name)) ret (Map.lookup name (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph a -> ModuleName -> m ()
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> ModuleName -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
           inPath <- asks (Set.member n)
@@ -71,7 +71,7 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: ModuleGraph a -> Either ModuleError [Module Name a]
+loadOrder :: ModuleGraph v a -> Either ModuleError [Module v a]
 loadOrder g = reverse <$> run (runError (execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop)))))
   where loop n = do
           inPath <- asks (Set.member n)
