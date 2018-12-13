@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, FunctionalDependencies, LambdaCase, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, FunctionalDependencies, LambdaCase, StandaloneDeriving, UndecidableInstances #-}
 module Path.Core where
 
 import Data.Bifunctor
@@ -12,7 +12,7 @@ data Core v a
   | a :@ a
   | Type
   | Pi (Maybe v) Usage a a
-  deriving (Eq, Functor, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Bifunctor Core where
   bimap f g = \case

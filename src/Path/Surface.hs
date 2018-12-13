@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleInstances #-}
 module Path.Surface where
 
 import Data.Bifunctor
@@ -12,7 +12,7 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 data Surface v a
   = Core (Core v a)
   | a ::: a
-  deriving (Eq, Functor, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Bifunctor Surface where
   bimap f g (Core core) = Core (bimap f g core)
