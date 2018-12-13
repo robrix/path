@@ -1,5 +1,6 @@
 module Path.Name where
 
+import Data.List.NonEmpty
 import Data.Semilattice.Lower
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
@@ -15,3 +16,18 @@ instance PrettyPrec Name where
 
 instance Lower Name where
   lowerBound = Name "_"
+
+
+data ModuleName
+  = ModuleName String
+  | ModuleName :. String
+  deriving (Eq, Ord, Show)
+
+infixl 5 :.
+
+instance Pretty ModuleName where
+  pretty (ModuleName s) = pretty s
+  pretty (ss :. s) = pretty ss <> dot <> pretty s
+
+makeModuleName :: NonEmpty String -> ModuleName
+makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss

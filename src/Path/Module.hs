@@ -15,22 +15,9 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Decl
+import Path.Name
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
-
-data ModuleName
-  = ModuleName String
-  | ModuleName :. String
-  deriving (Eq, Ord, Show)
-
-infixl 5 :.
-
-instance Pretty ModuleName where
-  pretty (ModuleName s) = pretty s
-  pretty (ss :. s) = pretty ss <> dot <> pretty s
-
-makeModuleName :: NonEmpty String -> ModuleName
-makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 
 data Module a = Module
   { moduleName    :: ModuleName

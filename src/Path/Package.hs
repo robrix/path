@@ -1,6 +1,6 @@
 module Path.Package where
 
-import Path.Module
+import Path.Name
 
 type PackageName = String
 

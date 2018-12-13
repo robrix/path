@@ -14,8 +14,8 @@ import Text.Trifecta.Indentation
 module' :: (DeltaParsing m, IndentationParsing m) => m (Module.Module (Term (Surface Name) Span))
 module' = Module.Module <$ keyword "module" <*> moduleName <* keyword "where" <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
 
-moduleName :: (Monad m, TokenParsing m) => m Module.ModuleName
-moduleName = Module.makeModuleName <$> (identifier `sepByNonEmpty` dot)
+moduleName :: (Monad m, TokenParsing m) => m ModuleName
+moduleName = makeModuleName <$> (identifier `sepByNonEmpty` dot)
 
 import' :: (Monad m, TokenParsing m) => m Module.Import
 import' = Module.Import <$ keyword "import" <*> moduleName
