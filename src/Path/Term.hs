@@ -54,3 +54,6 @@ instance Ord v => FreeVariables v () where
 
 instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a, b) where
   fvs (a, b) = fvs a <> fvs b
+
+instance FreeVariables v a => FreeVariables v [a] where
+  fvs = foldMap fvs
