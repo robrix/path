@@ -124,12 +124,9 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           Right Reload -> reload *> loop
           Right (Command.Import i) -> do
             table <- get
-            res <- raiseHandler (runReader (table :: ModuleTable QName) . runError) (importModule (importModuleName i))
-            case res of
-              Left err -> prettyPrint (err :: ModuleError)
-              Right (ctx, env) -> do
-                modify (Context.union ctx)
-                modify (Env.union env)
+            (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule (importModuleName i))
+            modify (Context.union ctx)
+            modify (Env.union env)
             loop
         reload = do
           let n = length (packageModules package)
@@ -139,19 +136,14 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
               Left err -> Nothing <$ prettyPrint err
               Right a -> pure (Just a)
           let graph = maybe (ModuleGraph mempty) moduleGraph (sequenceA parsed)
-          res <- runError (loadOrder graph)
-          sorted <- case res of
-            Left err -> [] <$ prettyPrint (err :: ModuleError)
-            Right as -> resolveModules as
+          sorted <- loadOrder graph >>= resolveModules
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
             prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (toPath name)))
             table <- get
-            res <- raiseHandler (runReader (table :: ModuleTable QName) . runError) (elabModule m)
-            case res of
-              Left err -> prettyPrint (err :: ModuleError)
-              Right res -> modify (Map.insert name res)
+            res <- raiseHandler (runReader (table :: ModuleTable QName)) (elabModule m)
+            modify (Map.insert name res)
           put (moduleGraph sorted)
         toPath s = packageSourceDir package </> go s <> ".path"
           where go (ModuleName s) = s
