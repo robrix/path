@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Surface where
 
-import Data.Bifunctor
 import qualified Data.Set as Set
 import Path.Pretty
 import Path.Term
@@ -17,16 +16,6 @@ data Surface v a
   | ForAll v a a
   | a ::: a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Bifunctor Surface where
-  bimap f g = \case
-    Var v -> Var (f v)
-    Lam v a -> Lam (f v) (g a)
-    a :@ b -> g a :@ g b
-    Type -> Type
-    Pi v pi t b -> Pi (f v) pi (g t) (g b)
-    ForAll v t b -> ForAll (f v) (g t) (g b)
-    a ::: t -> g a ::: g t
 
 instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
   prettyPrec d c = case c of

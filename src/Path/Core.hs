@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
 module Path.Core where
 
-import Data.Bifunctor
 import qualified Data.Set as Set
 import Path.Pretty
 import Path.Term
@@ -15,14 +14,6 @@ data Core v a
   | Type
   | Pi v Usage a a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Bifunctor Core where
-  bimap f g = \case
-    Var v -> Var (f v)
-    Lam v a -> Lam (f v) (g a)
-    a :@ b -> g a :@ g b
-    Type -> Type
-    Pi v pi t b -> Pi (f v) pi (g t) (g b)
 
 instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v a) where
   prettyPrec d c = case c of
