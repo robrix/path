@@ -5,6 +5,7 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Path.Core
 import Path.Elab
 import Path.Name
@@ -32,3 +33,6 @@ resolve (In syn ann) = case syn of
     Pi Nothing pi t b  -> in' . Core <$> (Pi Nothing pi <$> resolve t <*> resolve b)
   a ::: t -> in' <$> ((:::) <$> resolve a <*> resolve t)
   where in' = flip In ann
+
+newtype Resolution = Resolution { unResolution :: Map.Map Name (Set.Set ModuleName) }
+  deriving (Eq, Ord, Show)
