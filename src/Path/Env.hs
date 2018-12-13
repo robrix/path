@@ -13,3 +13,6 @@ lookup n = Map.lookup n
 
 insert :: String -> Value -> Env -> Env
 insert n v = Map.insert n v
+
+union :: Env -> Env -> Env
+union = Map.union

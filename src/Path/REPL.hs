@@ -124,7 +124,7 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph (Term (Surface Nam
               Right (Left err) -> prettyPrint err
               Right (Right (ctx, env)) -> do
                 modify (Context.union ctx)
-                modify (<> env)
+                modify (Env.union env)
             loop
         load name = do
           res <- parseFile (whole module') (toPath name)
