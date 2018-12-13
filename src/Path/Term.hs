@@ -2,6 +2,7 @@
 module Path.Term where
 
 import Control.Effect
+import Control.Effect.Reader
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Pretty
@@ -41,6 +42,9 @@ class Ord v => AlphaEquivalent1 v t | t -> v where
 
 instance AlphaEquivalent1 v f => AlphaEquivalent v (Term f a) where
   aeq (In syn1 _) (In syn2 _) = liftAeq aeq syn1 syn2
+
+aeqLookup :: (Carrier sig m, Functor m, Member (Reader (Map.Map v Int)) sig, Ord v) => v -> m (Maybe Int)
+aeqLookup = asks . Map.lookup
 
 
 class Ord v => FreeVariables v a where
