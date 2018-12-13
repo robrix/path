@@ -82,8 +82,8 @@ repl package = do
         }
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable Name) (evalState (Env.empty :: Env Name) (evalState (Context.empty :: Context Name) (script package))))))
 
-script :: (Carrier sig m, Effect sig, Member (Lift IO) sig, Member REPL sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Member (State (ModuleTable Name)) sig, Monad m) => Package -> m ()
-script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surface Name) Span)) (reload *> loop)
+script :: (Carrier sig m, Effect sig, Functor m, Member (Lift IO) sig, Member REPL sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Member (State (ModuleTable Name)) sig) => Package -> m ()
+script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surface Name) Span)) (runElab (reload *> loop))
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop runCommand a
@@ -92,21 +92,21 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surfac
           Right Quit -> pure ()
           Right Help -> output helpText *> loop
           Right (TypeOf tm) -> do
-            res <- runElabError (runInState Zero (infer tm))
+            res <- raiseHandler runError (runInState Zero (infer tm))
             case res of
-              Left err -> prettyPrint err >> loop
+              Left err -> prettyPrint (err :: ElabError Name) >> loop
               Right elab -> prettyPrint (ann elab) >> loop
           Right (Decl decl) -> do
-            res <- runElabError (case decl of
+            res <- raiseHandler runError (case decl of
               Declare name ty -> elabDecl name ty
               Define  name tm -> elabDef  name tm)
             case res of
-              Left err -> prettyPrint err *> loop
+              Left err -> prettyPrint (err :: ElabError Name) *> loop
               Right _ -> loop
           Right (Eval tm) -> do
-            res <- runElabError (runInState One (infer tm))
+            res <- raiseHandler runError (runInState One (infer tm))
             case res of
-              Left err -> prettyPrint err >> loop
+              Left err -> prettyPrint (err :: ElabError Name) >> loop
               Right elab -> get >>= \ env -> prettyPrint (eval elab env) >> loop
           Right (Show Bindings) -> do
             ctx <- get
@@ -118,10 +118,10 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surfac
           Right Reload -> reload *> loop
           Right (Command.Import i) -> do
             table <- get
-            res <- runReader (table :: ModuleTable Name) (runError (runElabError (importModule (importModuleName i))))
+            res <- raiseHandler (runReader (table :: ModuleTable Name) . runError . runError) (importModule (importModuleName i))
             case res of
               Left err -> prettyPrint (err :: ModuleError)
-              Right (Left err) -> prettyPrint err
+              Right (Left err) -> prettyPrint (err :: ElabError Name)
               Right (Right (ctx, env)) -> do
                 modify (Context.union ctx)
                 modify (Env.union env)
@@ -133,10 +133,10 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surfac
             Right m -> do
               for_ (moduleImports m) (load . importModuleName)
               table <- get
-              res <- runReader (table :: ModuleTable Name) (runError (runElabError (elabModule m)))
+              res <- raiseHandler (runReader (table :: ModuleTable Name) . runError . runError) (elabModule m)
               case res of
                 Left err -> prettyPrint (err :: ModuleError)
-                Right (Left err) -> prettyPrint err
+                Right (Left err) -> prettyPrint (err :: ElabError Name)
                 Right (Right res) -> modify (Map.insert name res)
         reload = do
           let n = length (packageModules package)
@@ -154,10 +154,10 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph Name (Term (Surfac
             let name = moduleName m
             prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (toPath name)))
             table <- get
-            res <- runReader (table :: ModuleTable Name) (runError (runElabError (elabModule m)))
+            res <- raiseHandler (runReader (table :: ModuleTable Name) . runError . runError) (elabModule m)
             case res of
               Left err -> prettyPrint (err :: ModuleError)
-              Right (Left err) -> prettyPrint err
+              Right (Left err) -> prettyPrint (err :: ElabError Name)
               Right (Right res) -> modify (Map.insert name res)
           put graph
         toPath s = packageSourceDir package </> go s <> ".path"

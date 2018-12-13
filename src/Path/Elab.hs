@@ -1,11 +1,14 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect
+import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
+import Control.Monad.IO.Class
+import Data.Coerce (coerce)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Path.Context as Context
@@ -30,13 +33,12 @@ elab :: ( Carrier sig m
         , Member (Reader (Context v)) sig
         , Member (Reader (Env v)) sig
         , Member (Reader Usage) sig
-        , Monad m
         , Ord v
         , Show v
         )
      => Term (Surface v) Span
      -> Maybe (Type v)
-     -> m (Term (Core v) (Resources v Usage, Type v))
+     -> Elab v m (Term (Core v) (Resources v Usage, Type v))
 elab (In (e ::: t) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
@@ -86,12 +88,11 @@ infer :: ( Carrier sig m
          , Member (Reader (Context v)) sig
          , Member (Reader (Env v)) sig
          , Member (Reader Usage) sig
-         , Monad m
          , Ord v
          , Show v
          )
       => Term (Surface v) Span
-      -> m (Term (Core v) (Resources v Usage, Type v))
+      -> Elab v m (Term (Core v) (Resources v Usage, Type v))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -99,20 +100,34 @@ check :: ( Carrier sig m
          , Member (Reader (Context v)) sig
          , Member (Reader (Env v)) sig
          , Member (Reader Usage) sig
-         , Monad m
          , Ord v
          , Show v
          )
       => Term (Surface v) Span
       -> Type v
-      -> m (Term (Core v) (Resources v Usage, Type v))
+      -> Elab v m (Term (Core v) (Resources v Usage, Type v))
 check tm = elab tm . Just
 
 
 type ModuleTable v = Map.Map ModuleName (Context v, Env v)
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError Name)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable Name)) sig) => Module Name (Term (Surface Name) Span) -> m (Context Name, Env Name)
-elabModule (Module _ imports decls) = runState Context.empty . execState Env.empty $ do
+newtype Elab v m a = Elab { runElab :: Eff m a }
+  deriving (Applicative, Functor, Monad)
+
+deriving instance (Carrier sig m, Member (Lift IO) sig) => MonadIO (Elab v m)
+
+instance Carrier sig m => Carrier sig (Elab v m) where
+  ret = Elab . ret
+  eff = Elab . eff . handlePure runElab
+
+raiseHandler :: (Eff m a -> Eff n b)
+             -> Elab v m a
+             -> Elab v n b
+raiseHandler = coerce
+
+
+elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError v)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable v)) sig, Ord v, Show v) => Module v (Term (Surface v) Span) -> Elab v m (Context v, Env v)
+elabModule (Module _ imports decls) = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
     modify (Context.union ctx)
@@ -122,17 +137,17 @@ elabModule (Module _ imports decls) = runState Context.empty . execState Env.emp
     Declare name ty -> elabDecl name ty
     Define  name tm -> elabDef  name tm
 
-importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleTable Name)) sig, Monad m) => ModuleName -> m (Context Name, Env Name)
+importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleTable v)) sig) => ModuleName -> Elab v m (Context v, Env v)
 importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
 
 
-elabDecl :: (Carrier sig m, Member (Error (ElabError Name)) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
+elabDecl :: (Carrier sig m, Member (Error (ElabError v)) sig, Member (State (Context v)) sig, Member (State (Env v)) sig, Ord v, Show v) => v -> Term (Surface v) Span -> Elab v m ()
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
   modify (Context.insert name ty'')
 
-elabDef :: (Carrier sig m, Member (Error (ElabError Name)) sig, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Name -> Term (Surface Name) Span -> m ()
+elabDef :: (Carrier sig m, Member (Error (ElabError v)) sig, Member (State (Context v)) sig, Member (State (Env v)) sig, Ord v, Show v) => v -> Term (Surface v) Span -> Elab v m ()
 elabDef name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runInState One (maybe infer (flip check) ty tm)
@@ -140,11 +155,11 @@ elabDef name tm = do
   modify (Env.insert name tm'')
   maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 
-runInState :: (Carrier sig m, Member (State (Context Name)) sig, Member (State (Env Name)) sig, Monad m) => Usage -> Eff (ReaderC (Context Name) (Eff (ReaderC (Env Name) (Eff (ReaderC Usage m))))) a -> m a
+runInState :: (Carrier sig m, Member (State (Context v)) sig, Member (State (Env v)) sig) => Usage -> Elab v (ReaderC (Context v) (Eff (ReaderC (Env v) (Eff (ReaderC Usage (Eff m)))))) a -> Elab v m a
 runInState usage m = do
   env <- get
   ctx <- get
-  runReader usage (runReader env (runReader ctx m))
+  raiseHandler (runReader usage . runReader env . runReader ctx) m
 
 
 data ElabError v
@@ -174,6 +189,3 @@ instance (Ord v, Pretty v) => Pretty (ElabError v) where
     )
 
 instance (Ord v, Pretty v) => PrettyPrec (ElabError v)
-
-runElabError :: (Carrier sig m, Effect sig, Monad m) => Eff (ErrorC (ElabError Name) m) a -> m (Either (ElabError Name) a)
-runElabError = runError
