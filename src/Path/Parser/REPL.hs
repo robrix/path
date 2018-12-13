@@ -8,6 +8,7 @@ import Text.Trifecta
 
 command, typeof, decl, eval :: (DeltaParsing m, MonadFresh m) => m Command
 quit, help, show', reload, import' :: (Monad m, TokenParsing m) => m Command
+info :: (Monad m, TokenParsing m) => m Info
 
 command = quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> reload <|> import' <?> "command; use :? for help"
 
@@ -21,7 +22,9 @@ decl = Decl <$> M.declaration
 
 eval = Eval <$> term <?> "term"
 
-show' = Show Bindings <$ token (string ":show") <* token (string "bindings")
+show' = Show <$ token (string ":show") <*> info
+
+info = Bindings <$ token (string "bindings")
 
 reload = Reload <$ token (string ":r") <|> Reload <$ token (string ":reload") <?> "reload"
 
