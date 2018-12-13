@@ -22,16 +22,14 @@ resolveTerm :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Modu
 resolveTerm (In syn ann) = case syn of
   Core core -> case core of
     Var v -> in' . Core . Var <$> resolveName v ann
-    Lam (Just v) b -> do
+    Lam v b -> do
       moduleName <- ask
-      local (insertLocal v moduleName) (in' . Core . Lam (Just (moduleName :.: v)) <$> resolveTerm b)
-    Lam Nothing  b -> in' . Core . Lam Nothing <$> resolveTerm b
+      local (insertLocal v moduleName) (in' . Core . Lam (moduleName :.: v) <$> resolveTerm b)
     f :@ a -> in' . Core <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
     Type -> pure (in' (Core Type))
-    Pi (Just v) pi t b -> do
+    Pi v pi t b -> do
       moduleName <- ask
-      in' . Core <$> (Pi (Just (moduleName :.: v)) pi <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
-    Pi Nothing pi t b  -> in' . Core <$> (Pi Nothing pi <$> resolveTerm t <*> resolveTerm b)
+      in' . Core <$> (Pi (moduleName :.: v) pi <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   ForAll v t b -> do
     moduleName <- ask

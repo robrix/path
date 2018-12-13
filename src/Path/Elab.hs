@@ -44,14 +44,12 @@ elab (In (ForAll n t b) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
   b' <- local (Context.insert n t'') (check (subst n (Core (Var n)) b) VType)
-  pure (In (Pi (Just n) Zero t' b') (Resources.empty, VType))
+  pure (In (Pi n Zero t' b') (Resources.empty, VType))
 elab (In (Core Type) _) Nothing = pure (In Type (Resources.empty, VType))
 elab (In (Core (Pi n e t b)) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
-  b' <- case n of
-    Just n -> local (Context.insert n t'') (check (subst n (Core (Var n)) b) VType)
-    _      -> check b VType
+  b' <- local (Context.insert n t'') (check (subst n (Core (Var n)) b) VType)
   pure (In (Pi n e t' b') (Resources.empty, VType))
 elab (In (Core (Var n)) span) Nothing = do
   res <- asks (Context.lookup n)
@@ -70,17 +68,13 @@ elab (In (Core (f :@ a)) _) Nothing = do
     _ -> throwError (IllegalApplication f' (ann f))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
 elab (In (Core (Lam n e)) span) (Just (VPi tn pi t t')) = do
-  e' <- case n of
-    Just n -> do
-      e' <- local (Context.insert n t) (check (subst n (Core (Var n)) e) (t' (vfree n)))
-      sigma <- ask
-      let used = Resources.lookup n (fst (ann e'))
-      unless (sigma >< pi == More) . when (pi /= used) $
-        throwError (ResourceMismatch n pi used span (uses n e))
-      pure e'
-    _      -> check e (t' (vfree (Name "_")))
+  e' <- local (Context.insert n t) (check (subst n (Core (Var n)) e) (t' (vfree n)))
   let res = fst (ann e')
-  pure (In (Lam n e') (maybe id Resources.delete n res, VPi tn pi t t'))
+      used = Resources.lookup n res
+  sigma <- ask
+  unless (sigma >< pi == More) . when (pi /= used) $
+    throwError (ResourceMismatch n pi used span (uses n e))
+  pure (In (Lam n e') (Resources.delete n res, VPi tn pi t t'))
 elab tm (Just ty) = do
   v <- infer tm
   unless (snd (ann v) == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))

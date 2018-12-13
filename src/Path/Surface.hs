@@ -25,7 +25,7 @@ instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Surface v a)
   prettyPrec d (ForAll v t b) = prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
   prettyPrec d (tm ::: ty) = prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
 
-(-->) :: Semigroup ann => (Maybe v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+(-->) :: Semigroup ann => (v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 (n, e, a) --> b = In (Core (Pi n e a b)) (ann a <> ann b)
 
 infixr 0 -->
@@ -39,7 +39,7 @@ typeT = Core Type
 var :: v -> Surface v a
 var = Core . Var
 
-lam :: Semigroup ann => (Maybe v, ann) -> Term (Surface v) ann -> Term (Surface v) ann
+lam :: Semigroup ann => (v, ann) -> Term (Surface v) ann -> Term (Surface v) ann
 lam (n, a) b = In (Core (Lam n b)) (a <> ann b)
 
 (.:)  :: Semigroup ann => Term (Surface v) ann -> Term (Surface v) ann -> Term (Surface v) ann
@@ -58,13 +58,13 @@ subst i r (In (Core (Var j)) ann)
   | i == j    = In r ann
   | otherwise = In (Core (Var j)) ann
 subst i r (In (Core (Lam n b)) ann)
-  | Just i == n = In (Core (Lam n b)) ann
-  | otherwise   = In (Core (Lam n (subst i r b))) ann
+  | i == n    = In (Core (Lam n b)) ann
+  | otherwise = In (Core (Lam n (subst i r b))) ann
 subst i r (In (Core (f :@ a)) ann) = In (Core (subst i r f :@ subst i r a)) ann
 subst _ _ (In (Core Type) ann) = In (Core Type) ann
 subst i r (In (Core (Pi n e t t')) ann)
-  | Just i == n = In (Core (Pi n e (subst i r t) t')) ann
-  | otherwise   = In (Core (Pi n e (subst i r t) (subst i r t'))) ann
+  | i == n    = In (Core (Pi n e (subst i r t) t')) ann
+  | otherwise = In (Core (Pi n e (subst i r t) (subst i r t'))) ann
 
 
 uses :: Eq v => v -> Term (Surface v) a -> [a]
@@ -73,13 +73,13 @@ uses n = cata $ \ f a -> case f of
     | n == n'   -> [a]
     | otherwise -> []
   Core (Lam n' b)
-    | Just n == n' -> []
-    | otherwise    -> b
+    | n == n'   -> []
+    | otherwise -> b
   Core (f :@ a) -> f <> a
   Core Type -> []
   Core (Pi n' _ t b)
-    | Just n == n' -> t
-    | otherwise    -> t <> b
+    | n == n'   -> t
+    | otherwise -> t <> b
   a ::: t -> a <> t
   ForAll n' t b
     | n == n'   -> t
@@ -94,6 +94,6 @@ instance Ord v => FreeVariables1 v (Surface v) where
 instance Ord v => AlphaEquivalent v (Surface v) where
   liftAeq aeq l r = case (l, r) of
     (Core c1, Core c2) -> liftAeq aeq c1 c2
-    (ForAll v1 t1 b1, ForAll v2 t2 b2) -> (&&) <$> t1 `aeq` t2 <*> aeqBind (Just v1) (Just v2) (b1 `aeq` b2)
+    (ForAll v1 t1 b1, ForAll v2 t2 b2) -> (&&) <$> t1 `aeq` t2 <*> aeqBind v1 v2 (b1 `aeq` b2)
     (a1 ::: t1, a2 ::: t2) -> (&&) <$> a1 `aeq` a2 <*> t1 `aeq` t2
     _ -> pure False

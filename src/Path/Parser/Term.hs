@@ -37,22 +37,22 @@ forAll = reann (do
 
 piType = reann (do
   (v, mult, ty) <- braces ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  ((Just v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
+  ((v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
 
 annotation = functionType `chainr1` ((Surface..:) <$ op ":")
 
-functionType = (,,) . Just <$> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+functionType = (,,) <$> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id)
                 <|> piType
                 <|> forAll
-          where arrow v t' t = (Just v, More, t) Surface.--> t'
+          where arrow v t' t = (v, More, t) Surface.--> t'
 
 var = ann (Surface.var <$> name <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (Just <$> (name <|> token (string "_") *> freshName)) <?> "pattern"
+  where pattern = spanned (name <|> token (string "_") *> freshName) <?> "pattern"
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 

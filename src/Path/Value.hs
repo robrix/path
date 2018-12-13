@@ -2,7 +2,6 @@
 module Path.Value where
 
 import Data.Function (on)
-import Data.Maybe (fromMaybe)
 import Path.Core
 import Path.Pretty
 import Path.Term
@@ -10,9 +9,9 @@ import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Value v
-  = VLam (Maybe v) (Value v -> Value v)
+  = VLam v (Value v -> Value v)
   | VType
-  | VPi (Maybe v) Usage (Value v) (Value v -> Value v)
+  | VPi v Usage (Value v) (Value v -> Value v)
   | VNeutral (Neutral v)
 
 instance Ord v => Eq (Value v) where
@@ -44,8 +43,8 @@ quote :: (Int -> v -> u) -> Value v -> Term (Core u) ()
 quote f = go 0
   where go i = \case
           VType -> In Type ()
-          VLam n b -> In (Lam (f i <$> n) (go (succ i) (b (vfree (fromMaybe undefined n))))) ()
-          VPi n e t b -> In (Pi (f i <$> n) e (go i t) (go (succ i) (b (vfree (fromMaybe undefined n))))) ()
+          VLam n b -> In (Lam (f i n) (go (succ i) (b (vfree n)))) ()
+          VPi n e t b -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree n)))) ()
           VNeutral n -> goN i n
 
         goN i (NFree n) = In (Var (f i n)) ()
