@@ -90,10 +90,3 @@ instance Ord v => FreeVariables1 v (Surface v) where
     a ::: t -> fvs a <> fvs t
     ForAll v t b -> fvs t <> Set.delete v (fvs b)
     Core c -> liftFvs fvs c
-
-instance Ord v => AlphaEquivalent v (Surface v) where
-  liftAeq aeq l r = case (l, r) of
-    (Core c1, Core c2) -> liftAeq aeq c1 c2
-    (ForAll v1 t1 b1, ForAll v2 t2 b2) -> (&&) <$> t1 `aeq` t2 <*> aeqBind v1 v2 (b1 `aeq` b2)
-    (a1 ::: t1, a2 ::: t2) -> (&&) <$> a1 `aeq` a2 <*> t1 `aeq` t2
-    _ -> pure False
