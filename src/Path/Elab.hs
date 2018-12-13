@@ -64,13 +64,13 @@ elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
 elab (In (Core (Lam n e)) span) (Just (VPi tn pi t t')) = do
   e' <- case n of
     Just n -> do
-      e' <- local (Context.insert n t) (check (subst n (Core (Var n)) e) (t' (vfree n)))
+      e' <- local (Context.insert n t) (check (subst n (Core (Var n)) e) (t' (vfree (getName n))))
       sigma <- ask
       let used = Resources.lookup n (fst (ann e'))
       unless (sigma >< pi == More) . when (pi /= used) $
         throwError (ResourceMismatch (getName n) pi used span (uses n e))
       pure e'
-    _      -> check e (t' (vfree (Local "_")))
+    _      -> check e (t' (vfree "_"))
   let res = fst (ann e')
   pure (In (Lam n e') (maybe id Resources.delete n res, VPi tn pi t t'))
 elab tm (Just ty) = do

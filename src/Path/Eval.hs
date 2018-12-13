@@ -17,7 +17,7 @@ data Value
   = VLam (Maybe String) (Value -> Value)
   | VType
   | VPi (Maybe String) Usage Value (Value -> Value)
-  | VNeutral (Neutral Name)
+  | VNeutral (Neutral String)
 
 instance Eq Value where
   (==) = (==) `on` quote
@@ -37,7 +37,7 @@ instance Pretty Value where
 instance FreeVariables Value where
   fvs = fvs . hoist (first Local) . quote
 
-vfree :: Name -> Value
+vfree :: String -> Value
 vfree = VNeutral . NFree
 
 data Neutral v
@@ -47,20 +47,19 @@ data Neutral v
 
 quote :: Value -> Term (Core String) ()
 quote VType = In Type ()
-quote (VLam v f) = In (Lam v (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
-quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (Quote (fromMaybe "_" v)))))) ()
+quote (VLam v f) = In (Lam v (quote (f (vfree (fromMaybe "_" v))))) ()
+quote (VPi v e t f) = In (Pi v e (quote t) (quote (f (vfree (fromMaybe "_" v))))) ()
 quote (VNeutral n) = quoteN n
 
-quoteN :: Neutral Name -> Term (Core String) ()
-quoteN (NFree (Quote s)) = In (Var s) ()
-quoteN (NFree (Local s)) = In (Var s) ()
+quoteN :: Neutral String -> Term (Core String) ()
+quoteN (NFree s) = In (Var s) ()
 quoteN (NApp n a) = In (quoteN n :@ quote a) ()
 
 
 type Env = Map.Map String Value
 
 eval :: Term (Core Name) a -> Env -> Value
-eval (In (Var n) _) d = fromMaybe (vfree n) (Map.lookup (getName n) d)
+eval (In (Var n) _) d = fromMaybe (vfree (getName n)) (Map.lookup (getName n) d)
 eval (In (Lam n b) _) d = VLam (getName <$> n) (eval b . maybe const (flip . Map.insert . getName) n d)
 eval (In (f :@ a) _) d = eval f d `vapp` eval a d
 eval (In Type _) _ = VType
