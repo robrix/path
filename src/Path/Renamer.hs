@@ -39,6 +39,9 @@ newtype Resolution = Resolution { unResolution :: Map.Map Name (Set.Set ModuleNa
 insertLocal :: Name -> ModuleName -> Resolution -> Resolution
 insertLocal n m = Resolution . Map.insert n (Set.singleton m) . unResolution
 
+insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
+insertGlobal n m = Resolution . Map.insertWith (<>) n (Set.singleton m) . unResolution
+
 resolveName :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
 resolveName v s = asks (Map.lookup v) >>= maybe (asks (Map.lookup v . unResolution) >>= unambiguous v s . maybe [] Set.toList) pure
 
