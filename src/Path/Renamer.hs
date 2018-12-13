@@ -7,7 +7,6 @@ import Control.Effect.Reader
 import Control.Effect.State
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
-import Path.Core
 import Path.Decl
 import Path.Elab
 import Path.Module
@@ -20,16 +19,15 @@ resolveTerm :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Modu
             => Term (Surface Name) Span
             -> m (Term (Surface QName) Span)
 resolveTerm (In syn ann) = case syn of
-  Core core -> case core of
-    Var v -> in' . Core . Var <$> resolveName v ann
-    Lam v b -> do
-      moduleName <- ask
-      local (insertLocal v moduleName) (in' . Core . Lam (moduleName :.: v) <$> resolveTerm b)
-    f :@ a -> in' . Core <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
-    Type -> pure (in' (Core Type))
-    Pi v pi t b -> do
-      moduleName <- ask
-      in' . Core <$> (Pi (moduleName :.: v) pi <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
+  Var v -> in' . Var <$> resolveName v ann
+  Lam v b -> do
+    moduleName <- ask
+    local (insertLocal v moduleName) (in' . Lam (moduleName :.: v) <$> resolveTerm b)
+  f :@ a -> in' <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
+  Type -> pure (in' Type)
+  Pi v pi t b -> do
+    moduleName <- ask
+    in' <$> (Pi (moduleName :.: v) pi <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   ForAll v t b -> do
     moduleName <- ask

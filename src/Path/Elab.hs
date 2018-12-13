@@ -10,7 +10,7 @@ import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import Path.Context as Context
-import Path.Core
+import Path.Core as Core
 import Path.Decl
 import Path.Env as Env
 import Path.Eval
@@ -19,7 +19,7 @@ import Path.Name
 import Path.Pretty
 import Path.Resources as Resources
 import Path.Semiring
-import Path.Surface
+import Path.Surface as Surface
 import Path.Term
 import Path.Usage
 import Path.Value
@@ -43,38 +43,38 @@ elab (In (e ::: t) _) Nothing = do
 elab (In (ForAll n t b) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
-  b' <- local (Context.insert n t'') (check (subst n (Core (Var n)) b) VType)
-  pure (In (Pi n Zero t' b') (Resources.empty, VType))
-elab (In (Core Type) _) Nothing = pure (In Type (Resources.empty, VType))
-elab (In (Core (Pi n e t b)) _) Nothing = do
+  b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
+  pure (In (Core.Pi n Zero t' b') (Resources.empty, VType))
+elab (In Surface.Type _) Nothing = pure (In Core.Type (Resources.empty, VType))
+elab (In (Surface.Pi n e t b) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
-  b' <- local (Context.insert n t'') (check (subst n (Core (Var n)) b) VType)
-  pure (In (Pi n e t' b') (Resources.empty, VType))
-elab (In (Core (Var n)) span) Nothing = do
+  b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
+  pure (In (Core.Pi n e t' b') (Resources.empty, VType))
+elab (In (Surface.Var n) span) Nothing = do
   res <- asks (Context.lookup n)
   sigma <- ask
   case res of
-    Just t -> pure (In (Var n) (Resources.singleton n sigma, t))
+    Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
     _      -> throwError (FreeVariable n span)
-elab (In (Core (f :@ a)) _) Nothing = do
+elab (In (f Surface.:@ a) _) Nothing = do
   f' <- infer f
   case ann f' of
     (g1, VPi _ pi t t') -> do
       a' <- check a t
       let (g2, _) = ann a'
       env <- ask
-      pure (In (f' :@ a') (g1 <> pi ><< g2, t' (eval a' env)))
+      pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' (eval a' env)))
     _ -> throwError (IllegalApplication f' (ann f))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
-elab (In (Core (Lam n e)) span) (Just (VPi tn pi t t')) = do
-  e' <- local (Context.insert n t) (check (subst n (Core (Var n)) e) (t' (vfree n)))
+elab (In (Surface.Lam n e) span) (Just (VPi tn pi t t')) = do
+  e' <- local (Context.insert n t) (check (subst n (Surface.Var n) e) (t' (vfree n)))
   let res = fst (ann e')
       used = Resources.lookup n res
   sigma <- ask
   unless (sigma >< pi == More) . when (pi /= used) $
     throwError (ResourceMismatch n pi used span (uses n e))
-  pure (In (Lam n e') (Resources.delete n res, VPi tn pi t t'))
+  pure (In (Core.Lam n e') (Resources.delete n res, VPi tn pi t t'))
 elab tm (Just ty) = do
   v <- infer tm
   unless (snd (ann v) == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
