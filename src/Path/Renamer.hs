@@ -14,23 +14,23 @@ import Path.Surface
 import Path.Term
 import Text.Trifecta.Rendering (Span)
 
-resolve :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-        => Term (Surface Name) Span
-        -> m (Term (Surface QName) Span)
-resolve (In syn ann) = case syn of
+resolveTerm :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Map.Map Name QName)) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
+            => Term (Surface Name) Span
+            -> m (Term (Surface QName) Span)
+resolveTerm (In syn ann) = case syn of
   Core core -> case core of
     Var v -> in' . Core . Var <$> resolveName v ann
     Lam (Just v) b -> do
       moduleName <- ask
-      local (Map.insert v (moduleName :.: v)) (in' . Core . Lam (Just (moduleName :.: v)) <$> resolve b)
-    Lam Nothing  b -> in' . Core . Lam Nothing <$> resolve b
-    f :@ a -> in' . Core <$> ((:@) <$> resolve f <*> resolve a)
+      local (Map.insert v (moduleName :.: v)) (in' . Core . Lam (Just (moduleName :.: v)) <$> resolveTerm b)
+    Lam Nothing  b -> in' . Core . Lam Nothing <$> resolveTerm b
+    f :@ a -> in' . Core <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
     Type -> pure (in' (Core Type))
     Pi (Just v) pi t b -> do
       moduleName <- ask
-      in' . Core <$> (Pi (Just (moduleName :.: v)) pi <$> resolve t <*> local (Map.insert v (moduleName :.: v)) (resolve b))
-    Pi Nothing pi t b  -> in' . Core <$> (Pi Nothing pi <$> resolve t <*> resolve b)
-  a ::: t -> in' <$> ((:::) <$> resolve a <*> resolve t)
+      in' . Core <$> (Pi (Just (moduleName :.: v)) pi <$> resolveTerm t <*> local (Map.insert v (moduleName :.: v)) (resolveTerm b))
+    Pi Nothing pi t b  -> in' . Core <$> (Pi Nothing pi <$> resolveTerm t <*> resolveTerm b)
+  a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   where in' = flip In ann
 
 newtype Resolution = Resolution { unResolution :: Map.Map Name (Set.Set ModuleName) }
