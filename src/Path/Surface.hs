@@ -1,7 +1,8 @@
-{-# LANGUAGE DeriveTraversable, FlexibleInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Surface where
 
 import Data.Bifunctor
+import qualified Data.Set as Set
 import Path.Core
 import Path.Pretty
 import Path.Term
@@ -83,3 +84,9 @@ uses n = cata $ \ f a -> case f of
   ForAll n' t b
     | n == n'   -> t
     | otherwise -> t <> b
+
+instance Ord v => FreeVariables1 v (Surface v) where
+  liftFvs fvs = \case
+    a ::: t -> fvs a <> fvs t
+    ForAll v t b -> fvs t <> Set.delete v (fvs b)
+    Core c -> liftFvs fvs c
