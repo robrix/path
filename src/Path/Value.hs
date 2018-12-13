@@ -15,8 +15,8 @@ data Value v
   | VPi (Maybe v) Usage (Value v) (Value v -> Value v)
   | VNeutral (Neutral v)
 
-instance Eq v => Eq (Value v) where
-  (==) = (==) `on` quote
+instance Ord v => Eq (Value v) where
+  (==) = aeq `on` quote
 
 instance Ord v => Ord (Value v) where
   compare = compare `on` quote
