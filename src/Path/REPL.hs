@@ -84,18 +84,18 @@ repl package = do
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable QName) (evalState (Env.empty :: Env QName) (evalState (Context.empty :: Context QName) (evalState (Resolution mempty) (script package)))))))
 
 script :: (Carrier sig m, Effect sig, Functor m, Member (Lift IO) sig, Member REPL sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig, Member (State (ModuleTable QName)) sig, Member (State Resolution) sig) => Package -> m ()
-script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runError (runElab (reload *> loop))))) >>= either prettyResolveError (either prettyElabError (either prettyModuleError (either prettyParserError pure))))
+script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runError (runElab (reload *> loop))))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop (runCommand <=< parseString (whole command) . unpack) a
-            `catchError` \ err -> prettyResolveError err >> loop
-            `catchError` \ err -> prettyElabError    err >> loop
-            `catchError` \ err -> prettyModuleError  err >> loop
-            `catchError` \ err -> prettyParserError  err >> loop
-        prettyResolveError err = prettyPrint (err :: ResolveError)
-        prettyElabError    err = prettyPrint (err :: ElabError QName)
-        prettyModuleError  err = prettyPrint (err :: ModuleError)
-        prettyParserError  err = prettyPrint (err :: ErrInfo)
+            `catchError` \ err -> printResolveError err >> loop
+            `catchError` \ err -> printElabError    err >> loop
+            `catchError` \ err -> printModuleError  err >> loop
+            `catchError` \ err -> printParserError  err >> loop
+        printResolveError err = prettyPrint (err :: ResolveError)
+        printElabError    err = prettyPrint (err :: ElabError QName)
+        printModuleError  err = prettyPrint (err :: ModuleError)
+        printParserError  err = prettyPrint (err :: ErrInfo)
         runCommand = \case
           Quit -> pure ()
           Help -> output helpText *> loop
