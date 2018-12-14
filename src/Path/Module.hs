@@ -4,7 +4,7 @@ module Path.Module where
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
-import Control.Effect.NonDet
+import Control.Effect.NonDet (runNonDetOnce)
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
