@@ -7,8 +7,8 @@ Fix : (Type -> Type) -> Type
 Fix = \ f . ∀ x : Type . Alg f x -> x
 
 fold : ∀ f : Type -> Type
-      . ∀ x : Type
-      . Alg f x -> Fix f -> x
+     . ∀ x : Type
+     . Alg f x -> Fix f -> x
 fold = \ _ X alg x . x X alg
 
 in : ∀ f : Type -> Type
