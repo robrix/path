@@ -140,7 +140,7 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
-            prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (toPath name)))
+            prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (modulePath m)))
             table <- get
             res <- raiseHandler (runReader (table :: ModuleTable QName)) (elabModule m)
             modify (Map.insert name res)
