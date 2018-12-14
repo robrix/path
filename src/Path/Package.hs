@@ -8,6 +8,8 @@ data Package = Package
   , packageModules     :: [ModuleName]
   , packageConstraints :: [Constraint]
   }
+  deriving (Eq, Ord, Show)
 
 data Constraint
   = Depends PackageName
+  deriving (Eq, Ord, Show)
