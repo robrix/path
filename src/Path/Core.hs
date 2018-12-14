@@ -24,11 +24,12 @@ instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v a) wh
     Pi v pi t b
       | v `Set.member` fvs b -> case pi of
         Zero -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
-        _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> pretty "->" <+> prettyPrec 1 b
-      | otherwise   -> withPi (prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b)
+        _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
+      | otherwise   -> withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
       where withPi
               | pi == More = id
               | otherwise  = (pretty pi <+>)
+            arrow = blue (pretty "->")
 
 instance Ord v => FreeVariables1 v (Core v) where
   liftFvs fvs = \case
