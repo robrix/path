@@ -126,9 +126,8 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             loop
           Reload -> reload *> loop
           Command.Import i -> do
-            let moduleName = importModuleName i
             table <- get
-            (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule moduleName)
+            (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule (importModuleName i))
             modify (Context.union ctx)
             modify (Env.union env)
             loop
