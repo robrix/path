@@ -15,6 +15,7 @@ data Surface v a
   | Pi v Usage a a
   | ForAll v a a
   | a ::: a
+  | Hole v
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
@@ -33,6 +34,7 @@ instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Surface v a)
               | otherwise  = (pretty pi <+>)
     ForAll v t b -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
     tm ::: ty -> prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
+    Hole v -> pretty v
 
 (-->) :: Semigroup ann => (v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 (n, e, a) --> b = In (Pi n e a b) (ann a <> ann b)
@@ -74,6 +76,9 @@ subst _ _ (In Type ann) = In Type ann
 subst i r (In (Pi n e t t') ann)
   | i == n    = In (Pi n e (subst i r t) t') ann
   | otherwise = In (Pi n e (subst i r t) (subst i r t')) ann
+subst i r (In (Hole v) ann)
+  | i == v    = In r ann
+  | otherwise = In (Hole v) ann
 
 
 uses :: Eq v => v -> Term (Surface v) a -> [a]
@@ -93,6 +98,9 @@ uses n = cata $ \ f a -> case f of
     | n == n'   -> t
     | otherwise -> t <> b
   a ::: t -> a <> t
+  Hole n'
+    | n == n'   -> [a]
+    | otherwise -> []
 
 instance Ord v => FreeVariables1 v (Surface v) where
   liftFvs fvs = \case
@@ -103,3 +111,4 @@ instance Ord v => FreeVariables1 v (Surface v) where
     Pi v _ t b -> fvs t <> Set.delete v (fvs b)
     ForAll v t b -> fvs t <> Set.delete v (fvs b)
     a ::: t -> fvs a <> fvs t
+    Hole v -> Set.singleton v
