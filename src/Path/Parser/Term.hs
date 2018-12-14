@@ -60,7 +60,7 @@ lambda = reann (do
 
 hole = ann (Surface.Hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
-atom = var <|> type' <|> lambda <|> parens term
+atom = var <|> type' <|> lambda <|> parens term <|> hole
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
