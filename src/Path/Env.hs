@@ -12,6 +12,9 @@ newtype Env v = Env { unEnv :: Map.Map v (Value v) }
 empty :: Env v
 empty = Env Map.empty
 
+null :: Env v -> Bool
+null = Map.null . unEnv
+
 lookup :: Ord v => v -> Env v -> Maybe (Value v)
 lookup n = Map.lookup n . unEnv
 
