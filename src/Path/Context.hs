@@ -28,7 +28,7 @@ union (Context c1) (Context c2) = Context (Map.union c1 c2)
 
 instance (Ord v, Pretty v) => Pretty (Context v) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unContext
-    where prettyBinding name ty = pretty name <+> pretty ":" <+> group (pretty ty)
+    where prettyBinding name ty = green (pretty name) <+> pretty ":" <+> group (pretty ty)
 
 instance (Ord v, Pretty v) => PrettyPrec (Context v)
 
