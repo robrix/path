@@ -26,6 +26,9 @@ insert n t = Context . Map.insert n t . unContext
 union :: Ord v => Context v -> Context v -> Context v
 union (Context c1) (Context c2) = Context (Map.union c1 c2)
 
+filter :: (v -> Type v -> Bool) -> Context v -> Context v
+filter f = Context . Map.filterWithKey f . unContext
+
 instance (Ord v, Pretty v) => Pretty (Context v) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unContext
     where prettyBinding name ty = green (pretty name) <+> pretty ":" <+> group (pretty ty)
