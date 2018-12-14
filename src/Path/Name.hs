@@ -15,7 +15,6 @@ instance Pretty Name where
     where (q, r) = i `divMod` 26
           alphabet = ['a'..'z']
 
-
 instance PrettyPrec Name
 
 
