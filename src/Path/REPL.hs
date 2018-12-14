@@ -102,7 +102,8 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           TypeOf tm -> do
             tm' <- runRenamer (resolveTerm tm)
             elab <- runInState Zero (infer tm')
-            prettyPrint (ann elab) >> loop
+            prettyPrint (ann elab)
+            loop
           Decl decl -> do
             decl' <- runRenamer (resolveDecl decl)
             case decl' of
@@ -112,7 +113,8 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm)
             elab <- runInState One (infer tm')
-            get >>= prettyPrint . eval elab >> loop
+            get >>= prettyPrint . eval elab
+            loop
           Show Bindings -> do
             ctx <- get
             unless (Context.null ctx) $ prettyPrint (ctx :: Context QName)
