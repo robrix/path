@@ -100,20 +100,17 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           Quit -> pure ()
           Help -> output helpText *> loop
           TypeOf tm -> do
-            res <- get
-            tm' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
+            tm' <- runRenamer (resolveTerm tm)
             elab <- runInState Zero (infer tm')
             prettyPrint (ann elab) >> loop
           Decl decl -> do
-            res <- get
-            decl' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveDecl decl)
+            decl' <- runRenamer (resolveDecl decl)
             case decl' of
               Declare name ty -> elabDecl name ty
               Define  name tm -> elabDef  name tm
             loop
           Eval tm -> do
-            res <- get
-            tm' <- raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) (resolveTerm tm)
+            tm' <- runRenamer (resolveTerm tm)
             elab <- runInState One (infer tm')
             get >>= prettyPrint . eval elab >> loop
           Show Bindings -> do
@@ -149,6 +146,9 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
         toPath s = packageSourceDir package </> go s <> ".path"
           where go (ModuleName s) = s
                 go (ss :. s)      = go ss <> "/" <> s
+        runRenamer m = do
+          res <- get
+          raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
 
 basePackage :: Package
 basePackage = Package
