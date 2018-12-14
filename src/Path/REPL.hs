@@ -32,7 +32,6 @@ import Path.Term
 import Path.Usage
 import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import System.FilePath.Posix
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), cyan, plain, putDoc)
 
 data REPL (m :: * -> *) k
@@ -135,8 +134,8 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             loop
         reload = do
           put (Resolution mempty)
-          let n = length (packageModules package)
-          sorted <- traverse ((parseFile . whole . module' <*> id) . toPath) (packageModules package) >>= loadOrder . moduleGraph >>= traverse resolveModule
+          let n = length (packageSources package)
+          sorted <- traverse (parseFile . whole . module' <*> id) (packageSources package) >>= loadOrder . moduleGraph >>= traverse resolveModule
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
@@ -145,9 +144,6 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             res <- raiseHandler (runReader (table :: ModuleTable QName)) (elabModule m)
             modify (Map.insert name res)
           put (moduleGraph sorted)
-        toPath s = packageSourceDir package </> go s <> ".path"
-          where go (ModuleName s) = s
-                go (ss :. s)      = go ss <> "/" <> s
         runRenamer m = do
           res <- get
           raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
@@ -155,17 +151,16 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
 basePackage :: Package
 basePackage = Package
   { packageName        = "Base"
-  , packageSourceDir   = "src"
-  , packageModules     =
-      [ ModuleName "Base" :. "Bool"
-      , ModuleName "Base" :. "Either"
-      , ModuleName "Base" :. "Fix"
-      , ModuleName "Base" :. "Function"
-      , ModuleName "Base" :. "Maybe"
-      , ModuleName "Base" :. "Nat"
-      , ModuleName "Base" :. "Pair"
-      , ModuleName "Base" :. "Unit"
-      , ModuleName "Base" :. "Void"
+  , packageSources     =
+      [ "src/Base/Bool.path"
+      , "src/Base/Either.path"
+      , "src/Base/Fix.path"
+      , "src/Base/Function.path"
+      , "src/Base/Maybe.path"
+      , "src/Base/Nat.path"
+      , "src/Base/Pair.path"
+      , "src/Base/Unit.path"
+      , "src/Base/Void.path"
       ]
   , packageConstraints = []
   }
