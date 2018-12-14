@@ -68,15 +68,9 @@ name = Name <$> identifier <?> "name"
 class Monad m => MonadFresh m where
   freshName :: m Name
 
-mkName :: Int -> Name
-mkName i = Name ('\'' : c : replicate r c)
-  where alphabet = ['a'..'z']
-        (q, r) = i `divMod` 26
-        c = alphabet !! q
-
 instance Monad m => MonadFresh (StateT Int m) where
   freshName = do
-    n <- gets mkName
+    n <- gets Gensym
     n <$ modify succ
 
 instance MonadFresh Parser.Parser where
