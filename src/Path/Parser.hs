@@ -6,6 +6,7 @@ module Path.Parser
 , whole
 , keyword
 , identifier
+, reservedWords
 , op
 , ErrInfo
 , Span
