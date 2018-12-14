@@ -1,14 +1,20 @@
 module Path.Name where
 
-import Data.List.NonEmpty
+import Data.List.NonEmpty (NonEmpty(..))
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
 
-newtype Name = Name String
+data Name
+  = Name String
+  | Gensym Int
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
   pretty (Name s) = pretty s
+  pretty (Gensym i) = pretty ('_' : alphabet !! q : show r)
+    where (q, r) = i `divMod` 26
+          alphabet = ['a'..'z']
+
 
 instance PrettyPrec Name
 
