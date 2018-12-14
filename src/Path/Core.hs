@@ -18,12 +18,12 @@ data Core v a
 instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v a) where
   prettyPrec d c = case c of
     Var n -> pretty n
-    Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
+    Lam v b -> prettyParens (d > 0) $ cyan backslash <+> pretty v <+> cyan dot <+> prettyPrec 0 b
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> yellow (pretty "Type")
     Pi v pi t b
       | v `Set.member` fvs b -> case pi of
-        Zero -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
+        Zero -> prettyParens (d > 0) $ cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 1 t <+> cyan dot <+> prettyPrec 0 b
         _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
       | otherwise   -> withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
       where withPi
