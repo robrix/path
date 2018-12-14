@@ -62,7 +62,7 @@ whole p = whiteSpace *> p <* eof
 
 
 identifier :: (Monad m, TokenParsing m) => m String
-identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier) <?> "identifier"
+identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)
 
 reservedWords :: HashSet.HashSet String
 reservedWords =  HashSet.fromList [ "Type", "module", "where", "import" ]
