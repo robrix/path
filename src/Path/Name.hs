@@ -4,7 +4,7 @@ import Data.List.NonEmpty
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
 
-newtype Name = Name { getName :: String }
+newtype Name = Name String
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
