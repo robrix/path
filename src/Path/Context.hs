@@ -14,6 +14,9 @@ newtype Context v = Context { unContext :: Map.Map v (Type v) }
 empty :: Context v
 empty = Context Map.empty
 
+null :: Context v -> Bool
+null = Map.null . unContext
+
 lookup :: Ord v => v -> Context v -> Maybe (Type v)
 lookup n = Map.lookup n . unContext
 
