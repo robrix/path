@@ -127,13 +127,13 @@ raiseHandler = coerce
 
 
 elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError QName)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable QName)) sig) => Module QName (Term (Surface QName) Span) -> Elab QName m (Context QName, Env QName)
-elabModule (Module _ imports decls) = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
-  for_ imports $ \ (Import name) -> do
+elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
+  for_ (moduleImports m) $ \ (Import name) -> do
     (ctx, env) <- importModule name
     modify (Context.union ctx)
     modify (Env.union env)
 
-  for_ decls $ \case
+  for_ (moduleDecls m) $ \case
     Declare name ty -> elabDecl name ty
     Define  name tm -> elabDef  name tm
 
