@@ -28,7 +28,7 @@ reann = fmap respan . spanned
 
 application = atom `chainl1` pure (Surface.#) <?> "function application"
 
-type' = ann (Surface.typeT <$ keyword "Type")
+type' = ann (Surface.Type <$ keyword "Type")
 
 forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
