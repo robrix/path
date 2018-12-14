@@ -134,8 +134,9 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             modify (Env.union env)
             loop
         reload = do
+          put (Resolution mempty)
           let n = length (packageModules package)
-          sorted <- traverse (parseFile (whole module') . toPath) (packageModules package) >>= loadOrder . moduleGraph >>= resolveModules
+          sorted <- traverse (parseFile (whole module') . toPath) (packageModules package) >>= loadOrder . moduleGraph >>= traverse resolveModule
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
