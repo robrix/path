@@ -37,4 +37,4 @@ data QName = ModuleName :.: Name
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
-  pretty (m :.: n) = pretty m <> dot <> pretty n
+  pretty (_ :.: n) = pretty n
