@@ -88,10 +88,10 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop (runCommand <=< parseString (whole command) . unpack) a
-            `catchError` \ err -> printResolveError err >> loop
-            `catchError` \ err -> printElabError    err >> loop
-            `catchError` \ err -> printModuleError  err >> loop
-            `catchError` \ err -> printParserError  err >> loop
+            `catchError` (const loop <=< printResolveError)
+            `catchError` (const loop <=< printElabError)
+            `catchError` (const loop <=< printModuleError)
+            `catchError` (const loop <=< printParserError)
         printResolveError err = prettyPrint (err :: ResolveError)
         printElabError    err = prettyPrint (err :: ElabError QName)
         printModuleError  err = prettyPrint (err :: ModuleError)
