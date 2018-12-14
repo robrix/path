@@ -11,8 +11,9 @@ import Path.Term hiding (ann)
 import Path.Usage
 import Text.Trifecta
 import Text.Trifecta.Indentation
+import Text.Parser.Token.Highlight
 
-type', var :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
+type', var, hole :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
 term, application, annotation, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name) Span)
 
 term = annotation
@@ -56,6 +57,8 @@ lambda = reann (do
         patterns = (:) <$ push <*> pattern <*> (patterns <|> pure []) <* pop
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
+
+hole = ann (Surface.Hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
 atom = var <|> type' <|> lambda <|> parens term
 
