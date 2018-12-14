@@ -21,6 +21,7 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Module v a = Module
   { moduleName    :: ModuleName
+  , modulePath    :: FilePath
   , moduleImports :: [Import]
   , moduleDecls   :: [Decl v a]
   }
