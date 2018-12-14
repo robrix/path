@@ -41,8 +41,8 @@ piType = reann (do
 
 annotation = functionType `chainr1` ((Surface..:) <$ op ":")
 
-functionType = (,,) <$> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
-                <|> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id)
+functionType = (,,) <$ push <*> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
+                <|> push *> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id) <* pop
                 <|> piType
                 <|> forAll
           where arrow v t' t = (v, More, t) Surface.--> t'
@@ -50,9 +50,10 @@ functionType = (,,) <$> freshName <*> multiplicity <*> application <**> (flip (S
 var = ann (Surface.var <$> name <?> "variable")
 
 lambda = reann (do
-  vs <- op "\\" *> some pattern <* dot
+  vs <- op "\\" *> patterns <* dot
   bind vs) <?> "lambda"
   where pattern = spanned (name <|> token (string "_") *> freshName) <?> "pattern"
+        patterns = (:) <$ push <*> pattern <*> (patterns <|> pure []) <* pop
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
@@ -66,15 +67,21 @@ name = Name <$> identifier <?> "name"
 
 
 class Monad m => MonadFresh m where
+  push :: m ()
+  pop :: m ()
   freshName :: m Name
 
 instance Monad m => MonadFresh (StateT Int m) where
-  freshName = do
-    n <- gets Gensym
-    n <$ modify succ
+  push = modify succ
+  pop = modify pred
+  freshName = gets Gensym
 
 instance MonadFresh Parser.Parser where
+  push = Parser.Parser push
+  pop = Parser.Parser pop
   freshName = Parser.Parser freshName
 
 instance MonadFresh m => MonadFresh (IndentationParserT Char m) where
+  push = lift push
+  pop = lift pop
   freshName = lift freshName
