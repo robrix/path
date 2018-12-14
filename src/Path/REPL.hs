@@ -132,7 +132,7 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             table <- get
             (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule moduleName)
             modify (Context.union (Context.filter (const . inModule moduleName) ctx))
-            modify (Env.union env)
+            modify (Env.union (Env.filter (const . inModule moduleName) env))
             loop
         reload = do
           put (Resolution mempty)
