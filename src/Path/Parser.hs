@@ -14,8 +14,8 @@ module Path.Parser
 import Control.Applicative (Alternative(..))
 import Control.Effect
 import Control.Effect.Error
-import Control.Monad.IO.Class
 import Control.Monad (MonadPlus(..), (<=<))
+import Control.Monad.IO.Class
 import Control.Monad.State
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
