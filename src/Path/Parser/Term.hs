@@ -47,7 +47,7 @@ functionType = (,,) <$ push <*> freshName <*> multiplicity <*> application <**> 
                 <|> forAll
           where arrow v t' t = (v, More, t) Surface.--> t'
 
-var = ann (Surface.var <$> name <?> "variable")
+var = ann (Surface.Var <$> name <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> patterns <* dot

@@ -47,9 +47,6 @@ forAll (n, a) b = In (ForAll n a b) (ann a <> ann b)
 typeT :: Surface v a
 typeT = Type
 
-var :: v -> Surface v a
-var = Var
-
 lam :: Semigroup ann => (v, ann) -> Term (Surface v) ann -> Term (Surface v) ann
 lam (n, a) b = In (Lam n b) (a <> ann b)
 
