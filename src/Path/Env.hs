@@ -24,6 +24,9 @@ insert n v = Env . Map.insert n v . unEnv
 union :: Ord v => Env v -> Env v -> Env v
 union (Env e1) (Env e2) = Env (Map.union e1 e2)
 
+filter :: (v -> Value v -> Bool) -> Env v -> Env v
+filter f = Env . Map.filterWithKey f . unEnv
+
 instance (Ord v, Pretty v) => Pretty (Env v) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unEnv
     where prettyBinding name ty = green (pretty name) <+> pretty "=" <+> group (pretty ty)
