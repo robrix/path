@@ -7,7 +7,7 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
-import Control.Monad ((<=<))
+import Control.Monad ((<=<), unless)
 import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_)
@@ -118,9 +118,9 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             get >>= prettyPrint . eval elab >> loop
           Show Bindings -> do
             ctx <- get
-            prettyPrint (ctx :: Context QName)
+            unless (Context.null ctx) $ prettyPrint (ctx :: Context QName)
             env <- get
-            prettyPrint (env :: Env QName)
+            unless (Env.null env) $ prettyPrint (env :: Env QName)
             loop
           Show Modules -> do
             graph <- get
