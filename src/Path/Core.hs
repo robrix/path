@@ -20,7 +20,7 @@ instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v a) wh
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
-    Type -> pretty "Type"
+    Type -> yellow (pretty "Type")
     Pi v pi t b
       | v `Set.member` fvs b -> case pi of
         Zero -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
