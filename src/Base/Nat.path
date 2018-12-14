@@ -20,3 +20,7 @@ s = \ n . in NatF (sf Nat n)
 
 z : Nat
 z = in NatF (zf Nat)
+
+
+add : Nat -> Nat -> Nat
+add = \ m n . m Nat (\ _ k f . f Nat n (\ m . s (k m)))
