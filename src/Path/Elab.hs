@@ -126,7 +126,7 @@ raiseHandler :: (Eff m a -> Eff n b)
 raiseHandler = coerce
 
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError v)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable v)) sig, Ord v, Show v) => Module v (Term (Surface v) Span) -> Elab v m (Context v, Env v)
+elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError QName)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable QName)) sig) => Module QName (Term (Surface QName) Span) -> Elab QName m (Context QName, Env QName)
 elabModule (Module _ imports decls) = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
   for_ imports $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -137,8 +137,11 @@ elabModule (Module _ imports decls) = raiseHandler (runState Context.empty . run
     Declare name ty -> elabDecl name ty
     Define  name tm -> elabDef  name tm
 
-importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleTable v)) sig) => ModuleName -> Elab v m (Context v, Env v)
-importModule n = asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
+importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleTable QName)) sig) => ModuleName -> Elab QName m (Context QName, Env QName)
+importModule n = do
+  (ctx, env) <- asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
+  pure (Context.filter (const . inModule n) ctx, Env.filter (const . inModule n) env)
+  where inModule m (m' :.: _) = m == m'
 
 
 elabDecl :: (Carrier sig m, Member (Error (ElabError v)) sig, Member (State (Context v)) sig, Member (State (Env v)) sig, Ord v, Show v) => v -> Term (Surface v) Span -> Elab v m ()
