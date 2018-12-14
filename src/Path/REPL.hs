@@ -89,13 +89,13 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
           a <- prompt (pack "λ: ")
           maybe loop (runCommand <=< parseString (whole command) . unpack) a
             `catchError` \ err -> prettyResolveError err >> loop
-            `catchError` \ err -> prettyElabError err >> loop
-            `catchError` \ err -> prettyModuleError err >> loop
-            `catchError` \ err -> prettyParserError err >> loop
+            `catchError` \ err -> prettyElabError    err >> loop
+            `catchError` \ err -> prettyModuleError  err >> loop
+            `catchError` \ err -> prettyParserError  err >> loop
         prettyResolveError err = prettyPrint (err :: ResolveError)
-        prettyElabError err = prettyPrint (err :: ElabError QName)
-        prettyModuleError err = prettyPrint (err :: ModuleError)
-        prettyParserError err = prettyPrint (err :: ErrInfo)
+        prettyElabError    err = prettyPrint (err :: ElabError QName)
+        prettyModuleError  err = prettyPrint (err :: ModuleError)
+        prettyParserError  err = prettyPrint (err :: ErrInfo)
         runCommand = \case
           Quit -> pure ()
           Help -> output helpText *> loop
