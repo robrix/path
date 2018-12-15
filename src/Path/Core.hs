@@ -18,9 +18,9 @@ data Core v a
 instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v a) where
   prettyPrec d c = case c of
     Var n -> pretty n
-    Lam v b
-      | v `Set.member` fvs b -> prettyParens (d > 0) $ align (group (cyan backslash <+> pretty v <> line <> cyan dot <+> prettyPrec 0 b))
-      | otherwise            -> prettyParens (d > 0) $ align (group (cyan backslash <+> pretty '_' <> line <> cyan dot <+> prettyPrec 0 b))
+    Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> var <> line <> cyan dot <+> prettyPrec 0 b))
+      where var | v `Set.member` fvs b = pretty v
+                | otherwise            = pretty '_'
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> yellow (pretty "Type")
     Pi v pi t b
