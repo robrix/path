@@ -2,6 +2,7 @@
 module Path.Value where
 
 import Data.Function (on)
+import qualified Data.Set as Set
 import Path.Core
 import Path.Pretty
 import Path.Term
@@ -61,3 +62,7 @@ instance (Pretty v, PrettyPrec (f a)) => PrettyPrec (Label f v a) where
   prettyPrec d = \case
     Labelled v _ -> pretty v
     Unlabelled f -> prettyPrec d f
+
+instance (FreeVariables1 v f, Ord v) => FreeVariables1 v (Label f v) where
+  liftFvs _   (Labelled v _) = Set.singleton v
+  liftFvs fvs (Unlabelled f) = liftFvs fvs f
