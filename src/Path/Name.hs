@@ -23,10 +23,6 @@ toLocal :: Name -> Name
 toLocal (Global s) = Local s
 toLocal n          = n
 
-toGlobal :: Name -> Name
-toGlobal (Local s) = Global s
-toGlobal n         = n
-
 
 data ModuleName
   = ModuleName String
