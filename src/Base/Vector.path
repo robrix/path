@@ -7,3 +7,9 @@ Vector = \ n a . ∀ x : Nat -> Type
   .  x z
   -> (∀ n : Nat . a -> x n -> x (s n))
   -> x n
+
+nil : ∀ a : Type . Vector z a
+nil = \ _ _ nil _ . nil
+
+cons : ∀ n : Nat . ∀ a : Type . a -> Vector n a -> Vector (s n) a
+cons = \ n _ h t x nil cons . cons n h (t x nil cons)
