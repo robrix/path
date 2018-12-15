@@ -2,10 +2,8 @@
 module Path.Surface where
 
 import qualified Data.Set as Set
-import Path.Pretty
 import Path.Term
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Surface v a
   = Var v
@@ -17,24 +15,6 @@ data Surface v a
   | a ::: a
   | Hole v
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Surface v a) where
-  prettyPrec d c = case c of
-    Var n -> pretty n
-    Lam v b -> prettyParens (d > 0) $ backslash <+> pretty v <+> dot <+> prettyPrec 0 b
-    f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
-    Type -> pretty "Type"
-    Pi v pi t b
-      | v `Set.member` fvs b -> case pi of
-        Zero -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
-        _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> pretty "->" <+> prettyPrec 1 b
-      | otherwise   -> withPi (prettyPrec 2 t <+> pretty "->" <+> prettyPrec 1 b)
-      where withPi
-              | pi == More = id
-              | otherwise  = (pretty pi <+>)
-    ForAll v t b -> prettyParens (d > 0) $ pretty "∀" <+> pretty v <+> colon <+> prettyPrec 1 t <+> dot <+> prettyPrec 0 b
-    tm ::: ty -> prettyParens (d > 0) $ prettyPrec 1 tm <+> pretty ":" <+> prettyPrec 0 ty
-    Hole v -> pretty v
 
 (-->) :: Semigroup ann => (v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 (n, e, a) --> b = In (Pi n e a b) (ann a <> ann b)
