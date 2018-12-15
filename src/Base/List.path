@@ -4,3 +4,9 @@ import Base.Fix
 
 ListF : Type -> Type -> Type
 ListF = \ a b . ∀ c : Type . c -> (a -> b -> c) -> c
+
+nilf : ∀ a : Type . ∀ b : Type . ListF a b
+nilf = \ _ _ _ nil _ . nil
+
+consf : ∀ a : Type . ∀ b : Type . a -> b -> ListF a b
+consf = \ _ _ a b _ _ cons . cons a b
