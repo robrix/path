@@ -19,10 +19,6 @@ instance Pretty Name where
 
 instance PrettyPrec Name
 
-toLocal :: Name -> Name
-toLocal (Global s) = Local s
-toLocal n          = n
-
 
 data ModuleName
   = ModuleName String
