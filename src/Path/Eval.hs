@@ -8,7 +8,9 @@ import Path.Term
 import Path.Value
 
 eval :: Term (Core QName) a -> Env QName -> Value QName
-eval (In (Var n) _) d = fromMaybe (vfree n) (Env.lookup n d)
+eval (In (Var n) _) d
+  | isLocal n = fromMaybe (vfree n) (Env.lookup n d)
+  | otherwise = vfree n
 eval (In (Lam n b) _) d = VLam n (eval b . flip (Env.insert n) d)
 eval (In (f :@ a) _) d = eval f d `vapp` eval a d
 eval (In Type _) _ = VType
