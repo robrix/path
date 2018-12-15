@@ -15,12 +15,15 @@ data Core v a
   | Pi v Usage a a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v a) where
+instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v (Term (Core v) a)) where
   prettyPrec d c = case c of
     Var n -> pretty n
-    Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> var <> line <> cyan dot <+> prettyPrec 0 b))
-      where var | v `Set.member` fvs b = pretty v
-                | otherwise            = pretty '_'
+    Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
+      where go v b = var v <> case b of
+              In (Lam v' b') _ -> space <> go v' b'
+              _                -> line <> cyan dot <+> prettyPrec 0 b
+            var v | v `Set.member` fvs b = pretty v
+                  | otherwise            = pretty '_'
     f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
     Type -> yellow (pretty "Type")
     Pi v pi t b
