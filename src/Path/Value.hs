@@ -58,6 +58,10 @@ data Label f v a
   | Unlabelled (f a)
   deriving (Eq, Ord, Show)
 
+delabel :: Label f v a -> f a
+delabel (Labelled _ f) = f
+delabel (Unlabelled f) = f
+
 instance (Pretty v, PrettyPrec (f a)) => PrettyPrec (Label f v a) where
   prettyPrec d = \case
     Labelled v _ -> pretty v
