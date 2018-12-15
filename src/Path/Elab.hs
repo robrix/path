@@ -29,16 +29,14 @@ import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span, render)
 
 elab :: ( Carrier sig m
-        , Member (Error (ElabError v)) sig
-        , Member (Reader (Context v)) sig
-        , Member (Reader (Env v)) sig
+        , Member (Error (ElabError QName)) sig
+        , Member (Reader (Context QName)) sig
+        , Member (Reader (Env QName)) sig
         , Member (Reader Usage) sig
-        , Ord v
-        , Show v
         )
-     => Term (Surface v) Span
-     -> Maybe (Type v)
-     -> Elab v m (Term (Core v) (Resources v Usage, Type v))
+     => Term (Surface QName) Span
+     -> Maybe (Type QName)
+     -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In (e ::: t) _) Nothing = do
   t' <- check t VType
   t'' <- asks (eval t')
@@ -78,35 +76,33 @@ elab (In (Surface.Lam n e) span) (Just (VPi tn pi t t')) = do
   unless (sigma >< pi == More) . when (pi /= used) $
     throwError (ResourceMismatch n pi used span (uses n e))
   pure (In (Core.Lam n e') (Resources.delete n res, VPi tn pi t t'))
-elab (In (Surface.Hole n) span) (Just ty) = throwError (TypedHole n ty span)
+elab (In (Surface.Hole n) span) (Just ty) = do
+  ctx <- ask
+  throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
 elab tm (Just ty) = do
   v <- infer tm
   unless (snd (ann v) == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
   pure v
 
 infer :: ( Carrier sig m
-         , Member (Error (ElabError v)) sig
-         , Member (Reader (Context v)) sig
-         , Member (Reader (Env v)) sig
+         , Member (Error (ElabError QName)) sig
+         , Member (Reader (Context QName)) sig
+         , Member (Reader (Env QName)) sig
          , Member (Reader Usage) sig
-         , Ord v
-         , Show v
          )
-      => Term (Surface v) Span
-      -> Elab v m (Term (Core v) (Resources v Usage, Type v))
+      => Term (Surface QName) Span
+      -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
-         , Member (Error (ElabError v)) sig
-         , Member (Reader (Context v)) sig
-         , Member (Reader (Env v)) sig
+         , Member (Error (ElabError QName)) sig
+         , Member (Reader (Context QName)) sig
+         , Member (Reader (Env QName)) sig
          , Member (Reader Usage) sig
-         , Ord v
-         , Show v
          )
-      => Term (Surface v) Span
-      -> Type v
-      -> Elab v m (Term (Core v) (Resources v Usage, Type v))
+      => Term (Surface QName) Span
+      -> Type QName
+      -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
 check tm = elab tm . Just
 
 
@@ -144,13 +140,13 @@ importModule n = do
   pure (Context.filter (const . inModule n) ctx, Env.filter (const . inModule n) env)
 
 
-elabDecl :: (Carrier sig m, Member (Error (ElabError v)) sig, Member (State (Context v)) sig, Member (State (Env v)) sig, Ord v, Show v) => v -> Term (Surface v) Span -> Elab v m ()
+elabDecl :: (Carrier sig m, Member (Error (ElabError QName)) sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig) => QName -> Term (Surface QName) Span -> Elab QName m ()
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
   modify (Context.insert name ty'')
 
-elabDef :: (Carrier sig m, Member (Error (ElabError v)) sig, Member (State (Context v)) sig, Member (State (Env v)) sig, Ord v, Show v) => v -> Term (Surface v) Span -> Elab v m ()
+elabDef :: (Carrier sig m, Member (Error (ElabError QName)) sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig) => QName -> Term (Surface QName) Span -> Elab QName m ()
 elabDef name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runInState One (maybe infer (flip check) ty tm)
@@ -171,7 +167,7 @@ data ElabError v
   | NoRuleToInfer (Term (Surface v) Span) Span
   | IllegalApplication (Term (Core v) (Resources v Usage, Type v)) Span
   | ResourceMismatch v Usage Usage Span [Span]
-  | TypedHole v (Type v) Span
+  | TypedHole v (Type v) (Context v) Span
   deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => Pretty (ElabError v) where
@@ -191,9 +187,15 @@ instance (Ord v, Pretty v) => Pretty (ElabError v) where
       else
         map (pretty . render) spans
     )
-  pretty (TypedHole n ty span) = nest 2 $ vsep
-    [ pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-    , pretty (render span)
+  pretty (TypedHole n ty ctx span) = vsep
+    [ nest 2 $ vsep
+      [ pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
+      , pretty (render span)
+      ]
+    , nest 2 $ vsep
+      [ pretty "Local bindings:"
+      , pretty ctx
+      ]
     ]
 
 instance (Ord v, Pretty v) => PrettyPrec (ElabError v)
