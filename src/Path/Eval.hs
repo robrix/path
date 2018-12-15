@@ -18,3 +18,13 @@ vapp :: Value QName -> Value QName -> Value QName
 vapp (VLam _ f) v = f v
 vapp (VNeutral n) v = VNeutral (NApp n v)
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
+
+vforce :: Value QName -> Env QName -> Value QName
+vforce (VLam v f) d = VLam v (flip vforce d . f)
+vforce VType _ = VType
+vforce (VPi v u t b) d = VPi v u (vforce t d) (flip vforce d . b)
+vforce (VNeutral n) d = vforceN n d
+
+vforceN :: Neutral QName -> Env QName -> Value QName
+vforceN (NApp f a) d = vforceN f d `vapp` vforce a d
+vforceN (NFree v) d = maybe (vfree v) (flip vforce d) (Env.lookup v d)
