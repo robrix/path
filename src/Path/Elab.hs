@@ -103,7 +103,7 @@ check :: ( Carrier sig m
       => Term (Surface QName) Span
       -> Type QName
       -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
-check tm = elab tm . Just
+check tm ty = asks (vforce ty) >>= elab tm . Just
 
 
 type ModuleTable v = Map.Map ModuleName (Context v, Env v)
