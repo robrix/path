@@ -171,6 +171,7 @@ data ElabError v
   | NoRuleToInfer (Term (Surface v) Span) Span
   | IllegalApplication (Term (Core v) (Resources v Usage, Type v)) Span
   | ResourceMismatch v Usage Usage Span [Span]
+  | TypedHole v (Type v) Span
   deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => Pretty (ElabError v) where
@@ -190,5 +191,10 @@ instance (Ord v, Pretty v) => Pretty (ElabError v) where
       else
         map (pretty . render) spans
     )
+  pretty (TypedHole n ty span) = nest 2 $ vsep
+    [ pretty "Found hole"
+    , pretty n <+> colon <+> pretty ty
+    , pretty (render span)
+    ]
 
 instance (Ord v, Pretty v) => PrettyPrec (ElabError v)
