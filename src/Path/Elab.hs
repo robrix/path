@@ -78,6 +78,7 @@ elab (In (Surface.Lam n e) span) (Just (VPi tn pi t t')) = do
   unless (sigma >< pi == More) . when (pi /= used) $
     throwError (ResourceMismatch n pi used span (uses n e))
   pure (In (Core.Lam n e') (Resources.delete n res, VPi tn pi t t'))
+elab (In (Surface.Hole n) span) (Just ty) = throwError (TypedHole n ty span)
 elab tm (Just ty) = do
   v <- infer tm
   unless (snd (ann v) == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
