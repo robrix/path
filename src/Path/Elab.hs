@@ -143,6 +143,7 @@ importModule n = do
   (ctx, env) <- asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
   pure (Context.filter (const . inModule n) ctx, Env.filter (const . inModule n) env)
   where inModule m (m' :.: _) = m == m'
+        inModule _ _          = False
 
 
 elabDecl :: (Carrier sig m, Member (Error (ElabError v)) sig, Member (State (Context v)) sig, Member (State (Env v)) sig, Ord v, Show v) => v -> Term (Surface v) Span -> Elab v m ()

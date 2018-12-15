@@ -38,8 +38,11 @@ makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 type PackageName = String
 
 
-data QName = ModuleName :.: Name
+data QName
+  = ModuleName :.: Name
+  | Local Name
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
   pretty (_ :.: n) = pretty n
+  pretty (Local n) = pretty n
