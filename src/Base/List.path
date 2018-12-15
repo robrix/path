@@ -17,3 +17,6 @@ List = \ a . Fix (ListF a)
 
 nil : ∀ a : Type . List a
 nil = \ a . in (ListF a) (nilf a (List a))
+
+cons : ∀ a : Type . a -> List a -> List a
+cons = \ a h t . in (ListF a) (consf a (List a) h t)
