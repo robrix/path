@@ -58,7 +58,7 @@ lambda = reann (do
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
-hole = ann (Surface.Hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
+hole = ann (Surface.Hole . Local <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
 atom = var <|> type' <|> lambda <|> parens term <|> hole
 
@@ -66,7 +66,7 @@ multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
 name :: (Monad m, TokenParsing m) => m Name
-name = Name <$> identifier <?> "name"
+name = Local <$> identifier <?> "name"
 
 
 class Monad m => MonadFresh m where

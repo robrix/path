@@ -5,12 +5,12 @@ import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen
 
 data Name
-  = Name String
+  = Local String
   | Gensym Int
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
-  pretty (Name s) = pretty s
+  pretty (Local s) = pretty s
   pretty (Gensym i) = pretty ('_' : alphabet !! q : show r)
     where (q, r) = i `divMod` 26
           alphabet = ['a'..'z']
