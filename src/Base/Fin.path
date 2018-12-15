@@ -1,1 +1,10 @@
 module Base.Fin where
+
+import Base.Nat
+
+Fin : Nat -> Type
+Fin = \ n
+    .  ∀ a : Nat -> Type
+    .  a (s n)
+    -> (∀ n : Nat . a n -> a (s n))
+    -> a (s n)
