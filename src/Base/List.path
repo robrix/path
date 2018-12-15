@@ -14,3 +14,6 @@ consf = \ _ _ a b _ _ cons . cons a b
 
 List : Type -> Type
 List = \ a . Fix (ListF a)
+
+nil : ∀ a : Type . List a
+nil = \ a . in (ListF a) (nilf a (List a))
