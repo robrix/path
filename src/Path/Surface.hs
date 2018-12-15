@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Surface where
 
-import qualified Data.Set as Set
 import Path.Term
 import Path.Usage
 
@@ -75,14 +74,3 @@ uses n = cata $ \ f a -> case f of
   Hole n'
     | n == n'   -> [a]
     | otherwise -> []
-
-instance Ord v => FreeVariables1 v (Surface v) where
-  liftFvs fvs = \case
-    Var v -> Set.singleton v
-    Lam v b -> Set.delete v (fvs b)
-    f :@ a -> fvs f <> fvs a
-    Type -> Set.empty
-    Pi v _ t b -> fvs t <> Set.delete v (fvs b)
-    ForAll v t b -> fvs t <> Set.delete v (fvs b)
-    a ::: t -> fvs a <> fvs t
-    Hole v -> Set.singleton v
