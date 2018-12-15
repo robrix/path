@@ -2,6 +2,7 @@
 module Path.Pretty where
 
 import Control.Monad.IO.Class
+import Data.Foldable (toList)
 import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
@@ -20,8 +21,11 @@ putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
-prettyErr :: Span -> Doc -> Doc
-prettyErr (Span start _ _) msg = group (nest 2 (bold (pretty start <> colon <+> red (pretty "error") </> msg)))
+prettyErr :: Span -> Doc -> Maybe Doc -> Doc
+prettyErr s@(Span start _ _) msg ctx = nest 2 $ vsep
+  ( group (nest 2 (bold (pretty start <> colon <+> red (pretty "error") </> msg)))
+  : prettys s
+  : toList ctx)
 
 
 class PrettyPrec a where
