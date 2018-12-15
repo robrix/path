@@ -50,3 +50,7 @@ instance Pretty QName where
 inModule :: ModuleName -> QName -> Bool
 inModule m (m' :.: _) = m == m'
 inModule _ _          = False
+
+isLocal :: QName -> Bool
+isLocal (Local _) = True
+isLocal _         = False
