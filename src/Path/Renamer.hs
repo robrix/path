@@ -67,7 +67,7 @@ lookupName :: Name -> Resolution -> Maybe (NonEmpty QName)
 lookupName n = Map.lookup n . unResolution
 
 resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
-resolveName v s = asks (Map.lookup v . unResolution) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s
+resolveName v s = asks (lookupName v) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s
 
 unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => Name -> Span -> NonEmpty QName -> m QName
 unambiguous _ _ (q:|[]) = pure q
