@@ -13,6 +13,7 @@ data Value v
   | VType
   | VPi v Usage (Value v) (Value v -> Value v)
   | VNeutral (Neutral v)
+  | VLabel v (Value v)
 
 instance Ord v => Eq (Value v) where
   (==) = (==) `on` quote const
@@ -46,6 +47,7 @@ quote f = go 0
           VLam n b -> In (Lam (f i n) (go (succ i) (b (vfree n)))) ()
           VPi n e t b -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree n)))) ()
           VNeutral n -> goN i n
+          VLabel _ b -> go i b
 
         goN i (NFree n) = In (Var (f i n)) ()
         goN i (NApp n a) = In (goN i n :@ go i a) ()
