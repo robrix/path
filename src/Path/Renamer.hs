@@ -3,7 +3,7 @@ module Path.Renamer where
 
 import Control.Effect
 import Control.Effect.Error
-import Control.Effect.Reader
+import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty(..), nub)
@@ -23,17 +23,14 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader M
 resolveTerm (In syn ann) = case syn of
   Var v -> in' . Var <$> resolveName v ann
   Lam v b -> do
-    moduleName <- ask
-    local (insertLocal v moduleName) (in' . Lam (moduleName :.: v) <$> resolveTerm b)
+    local (insertLocal v) (in' . Lam (Local v) <$> resolveTerm b)
   f :@ a -> in' <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
   Type -> pure (in' Type)
   Pi v pi t b -> do
-    moduleName <- ask
-    in' <$> (Pi (moduleName :.: v) pi <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
+    in' <$> (Pi (Local v) pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   ForAll v t b -> do
-    moduleName <- ask
-    in' <$> (ForAll (moduleName :.: v) <$> resolveTerm t <*> local (insertLocal v moduleName) (resolveTerm b))
+    in' <$> (ForAll (Local v) <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   Hole v -> in' . Hole . (:.: v) <$> ask
   where in' = flip In ann
 
@@ -57,8 +54,8 @@ resolveModule m = do
 newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty QName) }
   deriving (Eq, Ord, Show)
 
-insertLocal :: Name -> ModuleName -> Resolution -> Resolution
-insertLocal n m = Resolution . Map.insert n (m:.:n:|[]) . unResolution
+insertLocal :: Name -> Resolution -> Resolution
+insertLocal n = Resolution . Map.insert n (Local n:|[]) . unResolution
 
 insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) . unResolution
