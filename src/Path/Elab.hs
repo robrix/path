@@ -26,7 +26,7 @@ import Path.Term
 import Path.Usage
 import Path.Value
 import Text.PrettyPrint.ANSI.Leijen
-import Text.Trifecta.Rendering (Span, render)
+import Text.Trifecta.Rendering (Span(..), render)
 
 elab :: ( Carrier sig m
         , Member (Error (ElabError QName)) sig
@@ -188,15 +188,19 @@ instance (Ord v, Pretty v) => Pretty (ElabError v) where
       else
         map (pretty . render) spans
     )
-  pretty (TypedHole n ty ctx span) = vsep
-    [ nest 2 $ vsep
-      [ pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-      , prettys span
-      ]
-    , nest 2 $ vsep
-      [ pretty "Local bindings:"
-      , pretty ctx
+  pretty (TypedHole n ty ctx span) = nest 2 $ vsep
+    [ prettySpan span <+> bold (red (pretty "error:"))
+    , vsep
+      [ nest 2 $ vsep
+        [ pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
+        , prettys span
+        ]
+      , nest 2 $ vsep
+        [ pretty "Local bindings:"
+        , pretty ctx
+        ]
       ]
     ]
+    where prettySpan (Span d1 _ _) = pretty d1 <> bold colon
 
 instance (Ord v, Pretty v) => PrettyPrec (ElabError v)
