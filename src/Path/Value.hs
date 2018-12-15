@@ -37,10 +37,6 @@ instance Ord v => FreeVariables v (Value v) where
 vfree :: v -> Value v
 vfree = VNeutral . NFree
 
-vforce :: Value v -> Value v
-vforce (VLabel _ v) = vforce v
-vforce v            = v
-
 data Neutral v
   = NFree v
   | NApp (Neutral v) (Value v)
