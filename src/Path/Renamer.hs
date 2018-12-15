@@ -82,7 +82,7 @@ instance Pretty ResolveError where
     , nest 2 $ vsep
       ( pretty "it could refer to"
       : map pretty (toList sources))
-    , pretty (render span)
+    , prettys span
     ]
 
 instance PrettyPrec ResolveError

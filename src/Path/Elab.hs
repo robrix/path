@@ -172,26 +172,26 @@ data ElabError v
   deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => Pretty (ElabError v) where
-  pretty (FreeVariable name span) = nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
+  pretty (FreeVariable name span) = nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> prettys span
   pretty (TypeMismatch expected actual span) = nest 2 $ vsep
     [ pretty "type mismatch"
     , pretty "expected:" <+> pretty expected
     , pretty "  actual:" <+> pretty actual
-    , pretty (render span)
+    , prettys span
     ]
-  pretty (NoRuleToInfer _ span) = pretty "no rule to infer type of term" <$$> pretty (render span)
-  pretty (IllegalApplication tm span) = pretty "illegal application of non-function term" <+> pretty tm <$$> pretty (render span)
+  pretty (NoRuleToInfer _ span) = pretty "no rule to infer type of term" <$$> prettys span
+  pretty (IllegalApplication tm span) = pretty "illegal application of non-function term" <+> pretty tm <$$> prettys span
   pretty (ResourceMismatch n pi used span spans) = nest 2 $ vsep
     ( pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
     : if length spans == 0 then
-        [ pretty (render span) ]
+        [ prettys span ]
       else
         map (pretty . render) spans
     )
   pretty (TypedHole n ty ctx span) = vsep
     [ nest 2 $ vsep
       [ pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-      , pretty (render span)
+      , prettys span
       ]
     , nest 2 $ vsep
       [ pretty "Local bindings:"
