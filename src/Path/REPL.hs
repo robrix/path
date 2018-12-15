@@ -161,6 +161,7 @@ basePackage = Package
       , "src/Base/Nat.path"
       , "src/Base/Pair.path"
       , "src/Base/Unit.path"
+      , "src/Base/Vector.path"
       , "src/Base/Void.path"
       ]
   , packageConstraints = []
