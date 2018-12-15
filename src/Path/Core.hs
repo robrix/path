@@ -23,7 +23,7 @@ instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v a) wh
     Type -> yellow (pretty "Type")
     Pi v pi t b
       | v `Set.member` fvs b -> case pi of
-        Zero -> prettyParens (d > 0) $ cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 1 t <+> cyan dot <+> prettyPrec 0 b
+        Zero -> prettyParens (d > 1) $ cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 2 t <+> cyan dot <+> prettyPrec 1 b
         _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
       | otherwise   -> withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
       where withPi
