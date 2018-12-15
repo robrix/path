@@ -153,6 +153,7 @@ basePackage = Package
   , packageSources     =
       [ "src/Base/Bool.path"
       , "src/Base/Either.path"
+      , "src/Base/Fin.path"
       , "src/Base/Fix.path"
       , "src/Base/Function.path"
       , "src/Base/List.path"
