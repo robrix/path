@@ -6,7 +6,7 @@ import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
-import Text.Trifecta.Rendering (Span, render)
+import Text.Trifecta.Rendering (Span(..), render)
 import Text.Trifecta.Result (ErrInfo(..))
 
 prettyPrint :: (MonadIO m, PrettyPrec a) => a -> m ()
@@ -19,6 +19,9 @@ putDoc :: MonadIO m => Doc -> m ()
 putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
+
+prettyErr :: Span -> Doc -> Doc
+prettyErr (Span start _ _) msg = pretty start <> bold colon <+> bold (red (pretty "error")) </> msg
 
 
 class PrettyPrec a where
