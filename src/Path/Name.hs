@@ -6,11 +6,13 @@ import Text.PrettyPrint.ANSI.Leijen
 
 data Name
   = Local String
+  | Global String
   | Gensym Int
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
   pretty (Local s) = pretty s
+  pretty (Global s) = pretty s
   pretty (Gensym i) = pretty ('_' : alphabet !! q : show r)
     where (q, r) = i `divMod` 26
           alphabet = ['a'..'z']
