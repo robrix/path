@@ -56,3 +56,8 @@ data Label f v a
   = Labelled v (f a)
   | Unlabelled (f a)
   deriving (Eq, Ord, Show)
+
+instance (Pretty v, PrettyPrec (f a)) => PrettyPrec (Label f v a) where
+  prettyPrec d = \case
+    Labelled v _ -> pretty v
+    Unlabelled f -> prettyPrec d f
