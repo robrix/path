@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Value where
 
 import Data.Function (on)
@@ -56,7 +56,7 @@ quote f = go 0
 data Label f v a
   = Labelled v (f a)
   | Unlabelled (f a)
-  deriving (Eq, Functor, Ord, Show)
+  deriving (Eq, Ord, Show)
 
 delabel :: Label f v a -> f a
 delabel (Labelled _ f) = f
