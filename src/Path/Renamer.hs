@@ -54,24 +54,24 @@ resolveModule m = do
   decls <- runReader (moduleName m) (traverse resolveDecl (moduleDecls m))
   pure (m { moduleDecls = decls })
 
-newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty ModuleName) }
+newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty QName) }
   deriving (Eq, Ord, Show)
 
 insertLocal :: Name -> ModuleName -> Resolution -> Resolution
-insertLocal n m = Resolution . Map.insert n (m:|[]) . unResolution
+insertLocal n m = Resolution . Map.insert n (m:.:n:|[]) . unResolution
 
 insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
-insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:|[]) . unResolution
+insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) . unResolution
 
-lookupName :: Name -> Resolution -> Maybe (NonEmpty ModuleName)
+lookupName :: Name -> Resolution -> Maybe (NonEmpty QName)
 lookupName n = Map.lookup n . unResolution
 
 resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
 resolveName v s = asks (Map.lookup v . unResolution) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s
 
-unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => Name -> Span -> NonEmpty ModuleName -> m QName
-unambiguous v _ (m:|[]) = pure (m :.: v)
-unambiguous v s (m:|ms) = throwError (AmbiguousName v s (m :.: v :| map (:.: v) ms))
+unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => Name -> Span -> NonEmpty QName -> m QName
+unambiguous _ _ (q:|[]) = pure q
+unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 
 
 data ResolveError
