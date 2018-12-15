@@ -46,3 +46,7 @@ data QName
 instance Pretty QName where
   pretty (_ :.: n) = pretty n
   pretty (Local n) = pretty n
+
+inModule :: ModuleName -> QName -> Bool
+inModule m (m' :.: _) = m == m'
+inModule _ _          = False
