@@ -1,1 +1,9 @@
 module Base.Vector where
+
+import Base.Nat
+
+Vector : Nat -> Type -> Type
+Vector = \ n a . ∀ x : Nat -> Type
+  .  x z
+  -> (∀ n : Nat . a -> x n -> x (s n))
+  -> x n
