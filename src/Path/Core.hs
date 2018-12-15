@@ -24,7 +24,10 @@ instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v (Term
               _                -> line <> cyan dot <+> prettyPrec 0 b
             var v b | v `Set.member` fvs b = pretty v
                     | otherwise            = pretty '_'
-    f :@ a -> prettyParens (d > 10) $ prettyPrec 10 f <+> prettyPrec 11 a
+    f :@ a -> prettyParens (d > 10) $ group (align (nest 2 (go f a)))
+      where go f a = case f of
+              In (f' :@ a') _ -> go f' a' </> prettyPrec 11 a
+              _               -> prettyPrec 10 f </> prettyPrec 11 a
     Type -> yellow (pretty "Type")
     Pi v pi t b
       | v `Set.member` fvs b -> case pi of
