@@ -155,6 +155,7 @@ basePackage = Package
       , "src/Base/Either.path"
       , "src/Base/Fix.path"
       , "src/Base/Function.path"
+      , "src/Base/List.path"
       , "src/Base/Maybe.path"
       , "src/Base/Nat.path"
       , "src/Base/Pair.path"
