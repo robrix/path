@@ -29,6 +29,6 @@ filter f = Env . Map.filterWithKey f . unEnv
 
 instance (Ord v, Pretty v) => Pretty (Env v) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unEnv
-    where prettyBinding name ty = green (pretty name) <+> pretty "=" <+> group (pretty ty)
+    where prettyBinding name ty = group (nest 2 (green (pretty name) </> align (pretty "=" <+> group (pretty ty))))
 
 instance (Ord v, Pretty v) => PrettyPrec (Env v)
