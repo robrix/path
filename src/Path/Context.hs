@@ -31,7 +31,7 @@ filter f = Context . Map.filterWithKey f . unContext
 
 instance (Ord v, Pretty v) => Pretty (Context v) where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unContext
-    where prettyBinding name ty = green (pretty name) <+> pretty ":" <+> group (pretty ty)
+    where prettyBinding name ty = group (nest 2 (green (pretty name) </> align (pretty ":" <+> group (pretty ty))))
 
 instance (Ord v, Pretty v) => PrettyPrec (Context v)
 
