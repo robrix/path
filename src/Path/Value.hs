@@ -51,8 +51,3 @@ quote f = go 0
 
         goN i (NFree n) = In (Var (f i n)) ()
         goN i (NApp n a) = In (goN i n :@ go i a) ()
-
-data Label f v a
-  = Labelled v (f a)
-  | Unlabelled (f a)
-  deriving (Eq, Ord, Show)
