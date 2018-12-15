@@ -193,8 +193,7 @@ instance (Ord v, Pretty v) => Pretty (ElabError v) where
         map (pretty . render) spans
     )
   pretty (TypedHole n ty span) = nest 2 $ vsep
-    [ pretty "Found hole"
-    , pretty n <+> colon <+> pretty ty
+    [ pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
     , pretty (render span)
     ]
 
