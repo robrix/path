@@ -81,7 +81,8 @@ elab (In (Surface.Hole n) span) (Just ty) = do
   throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
 elab tm (Just ty) = do
   v <- infer tm
-  unless (snd (ann v) == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
+  actual <- asks (vforce (snd (ann v)))
+  unless (actual == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
   pure v
 
 infer :: ( Carrier sig m
