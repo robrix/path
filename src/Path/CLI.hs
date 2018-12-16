@@ -30,7 +30,7 @@ package :: Parser Package
 package
   =   Package
   <$> strOption (short 'n' <> long "name" <> help "the name of the package")
-  <*> pure []
+  <*> some (Depends <$> strOption (short 'p' <> long "package" <> help "a package to depend on"))
   <*> sources
 
 versionString :: String
