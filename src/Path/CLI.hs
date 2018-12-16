@@ -30,8 +30,8 @@ package :: Parser Package
 package
   =   Package
   <$> strOption (short 'n' <> long "name" <> help "the name of the package")
-  <*> sources
   <*> pure []
+  <*> sources
 
 versionString :: String
 versionString = "pathc version " <> showVersion Library.version

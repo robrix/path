@@ -4,8 +4,8 @@ import Path.Name
 
 data Package = Package
   { packageName        :: PackageName
-  , packageSources     :: [FilePath]
   , packageConstraints :: [Constraint]
+  , packageSources     :: [FilePath]
   }
   deriving (Eq, Ord, Show)
 
