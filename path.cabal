@@ -9,7 +9,7 @@ maintainer:          rob.rix@me.com
 -- copyright:
 -- category:
 build-type:          Simple
--- extra-source-files:
+extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
