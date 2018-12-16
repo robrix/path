@@ -2,6 +2,7 @@ module Path.CLI where
 
 import Data.Version (showVersion)
 import Options.Applicative as Options
+import Path.Package
 import qualified Paths_path as Library (version)
 
 main :: IO ()
@@ -16,6 +17,13 @@ argumentsParser = info
 
 options :: Parser ()
 options = flag' () (short 'i' <> long "interactive" <> help "run interactively")
+
+package :: Parser Package
+package
+  =   Package
+  <$> strOption (short 'n' <> long "name" <> help "the name of the package")
+  <*> some (strArgument (metavar "FILES" <> help "source files"))
+  <*> pure []
 
 versionString :: String
 versionString = "pathc version " <> showVersion Library.version
