@@ -1,22 +1,23 @@
 module Path.CLI where
 
+import Control.Monad (join)
 import Data.Version (showVersion)
 import Options.Applicative as Options
 import Path.Package
 import qualified Paths_path as Library (version)
 
 main :: IO ()
-main = execParser argumentsParser
+main = join (execParser argumentsParser)
 
-argumentsParser :: ParserInfo ()
+argumentsParser :: ParserInfo (IO ())
 argumentsParser = info
   (version <*> helper <*> options)
   (  fullDesc
   <> progDesc "Path is a small experiment in quantitative type theory."
   <> header   "Path - a quantitative, dependently-typed language")
 
-options :: Parser ()
-options = flag' () (short 'i' <> long "interactive" <> help "run interactively")
+options :: Parser (IO ())
+options = flag' (pure ()) (short 'i' <> long "interactive" <> help "run interactively")
 
 package :: Parser Package
 package
