@@ -33,7 +33,7 @@ package :: Parser Package
 package
   =   Package
   <$> strOption (short 'n' <> long "name" <> help "the name of the package")
-  <*> some constraint
+  <*> many constraint
   <*> some source
 
 versionString :: String
