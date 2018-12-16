@@ -15,7 +15,7 @@ argumentsParser = info
   <> header   "Path - a quantitative, dependently-typed language")
 
 options :: Parser ()
-options = pure ()
+options = flag' () (short 'i' <> long "interactive" <> help "run interactively")
 
 versionString :: String
 versionString = "pathc version " <> showVersion Library.version
