@@ -2,12 +2,20 @@ module Path.Parser.Package where
 
 import Control.Applicative (Alternative(..))
 import Path.Name
+import Path.Package
 import Text.Parser.Token.Highlight
 import Text.Trifecta
 import Text.Trifecta.Indentation
 
-packageName :: (Monad m, TokenParsing m) => m PackageName
-packageName = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf "-'_") mempty Identifier ReservedIdentifier)
+package :: (IndentationParsing m, Monad m, TokenParsing m) => m Package
+package
+  =   Package
+  <$> field "name" packageName'
+  <*> pure []
+  <*> field "sources" (some' filePath)
+
+packageName' :: (Monad m, TokenParsing m) => m PackageName
+packageName' = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf "-'_") mempty Identifier ReservedIdentifier)
 
 filePath :: (Monad m, TokenParsing m) => m FilePath
 filePath = token ((alphaNum <|> char '.') `sepBy1` char '/')
