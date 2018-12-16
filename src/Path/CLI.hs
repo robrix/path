@@ -23,6 +23,9 @@ options
   <*> some source
 
 
+constraint :: Parser Constraint
+constraint = Depends <$> strOption (short 'p' <> long "package" <> help "a package to depend on")
+
 source :: Parser FilePath
 source = strArgument (metavar "FILES" <> help "source files")
 
@@ -30,7 +33,7 @@ package :: Parser Package
 package
   =   Package
   <$> strOption (short 'n' <> long "name" <> help "the name of the package")
-  <*> some (Depends <$> strOption (short 'p' <> long "package" <> help "a package to depend on"))
+  <*> some constraint
   <*> some source
 
 versionString :: String
