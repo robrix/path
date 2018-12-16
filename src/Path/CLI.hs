@@ -20,18 +20,18 @@ argumentsParser = info
 options :: Parser (IO ())
 options
   =   flag' repl (short 'i' <> long "interactive" <> help "run interactively")
-  <*> sources
+  <*> some source
 
 
-sources :: Parser [FilePath]
-sources = some (strArgument (metavar "FILES" <> help "source files"))
+source :: Parser FilePath
+source = strArgument (metavar "FILES" <> help "source files")
 
 package :: Parser Package
 package
   =   Package
   <$> strOption (short 'n' <> long "name" <> help "the name of the package")
   <*> some (Depends <$> strOption (short 'p' <> long "package" <> help "a package to depend on"))
-  <*> sources
+  <*> some source
 
 versionString :: String
 versionString = "pathc version " <> showVersion Library.version
