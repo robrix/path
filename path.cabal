@@ -6,7 +6,7 @@ license:             BSD3
 license-file:        LICENSE
 author:              Rob Rix
 maintainer:          rob.rix@me.com
--- copyright:
+copyright:           2018 Rob Rix
 -- category:
 build-type:          Simple
 extra-source-files:  README.md
