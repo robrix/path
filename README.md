@@ -21,12 +21,12 @@ Path’s REPL can be run from GHCI:
 
 ```haskell
 λ import Path.REPL
-λ repl basePackage
+λ repl (packageSources basePackage)
 λ: …
 ```
 
 or from the CLI:
 
 ```
-cabal new-run pathc -- -i -n Base src/Base/*.path
+cabal new-run pathc -- -i src/Base/*.path
 ```

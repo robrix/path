@@ -20,14 +20,17 @@ argumentsParser = info
 options :: Parser (IO ())
 options
   =   flag' repl (short 'i' <> long "interactive" <> help "run interactively")
-  <*> package
+  <*> sources
 
+
+sources :: Parser [FilePath]
+sources = some (strArgument (metavar "FILES" <> help "source files"))
 
 package :: Parser Package
 package
   =   Package
   <$> strOption (short 'n' <> long "name" <> help "the name of the package")
-  <*> some (strArgument (metavar "FILES" <> help "source files"))
+  <*> sources
   <*> pure []
 
 versionString :: String

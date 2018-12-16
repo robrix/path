@@ -69,8 +69,8 @@ plain :: String
 plain = "\ESC[0m\STX"
 
 
-repl :: MonadIO m => Package -> m ()
-repl package = do
+repl :: MonadIO m => [FilePath] -> m ()
+repl packageSources = do
   homeDir <- liftIO getHomeDirectory
   prefs <- liftIO (readPrefs (homeDir <> "/.haskeline"))
   let settingsDir = homeDir <> "/.local/path"
@@ -80,10 +80,10 @@ repl package = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable QName) (evalState (Env.empty :: Env QName) (evalState (Context.empty :: Context QName) (evalState (Resolution mempty) (script package)))))))
+  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable QName) (evalState (Env.empty :: Env QName) (evalState (Context.empty :: Context QName) (evalState (Resolution mempty) (script packageSources)))))))
 
-script :: (Carrier sig m, Effect sig, Functor m, Member (Lift IO) sig, Member REPL sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig, Member (State (ModuleTable QName)) sig, Member (State Resolution) sig) => Package -> m ()
-script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script :: (Carrier sig m, Effect sig, Functor m, Member (Lift IO) sig, Member REPL sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig, Member (State (ModuleTable QName)) sig, Member (State Resolution) sig) => [FilePath] -> m ()
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = do
           a <- prompt (pack "λ: ")
           maybe loop (runCommand <=< parseString (whole command) . unpack) a
@@ -133,8 +133,8 @@ script package = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surfa
             loop
         reload = do
           put (Resolution mempty)
-          let n = length (packageSources package)
-          sorted <- traverse (parseFile . whole . module' <*> id) (packageSources package) >>= loadOrder . moduleGraph >>= traverse resolveModule
+          let n = length packageSources
+          sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
