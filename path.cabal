@@ -65,6 +65,7 @@ library
 
 executable pathc
   main-is:             Main.hs
+  other-modules:       Paths_path
   build-depends:       base >= 4.11 && < 4.12
                      , optparse-applicative
                      , path
