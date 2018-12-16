@@ -9,10 +9,13 @@ main = execParser argumentsParser
 
 argumentsParser :: ParserInfo ()
 argumentsParser = info
-  (version <*> helper <*> pure ())
+  (version <*> helper <*> options)
   (  fullDesc
   <> progDesc "Path is a small experiment in quantitative type theory."
   <> header   "Path - a quantitative, dependently-typed language")
+
+options :: Parser ()
+options = pure ()
 
 versionString :: String
 versionString = "pathc version " <> showVersion Library.version
