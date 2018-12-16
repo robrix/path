@@ -4,6 +4,7 @@ import Control.Monad (join)
 import Data.Version (showVersion)
 import Options.Applicative as Options
 import Path.Package
+import Path.REPL
 import qualified Paths_path as Library (version)
 
 main :: IO ()
@@ -17,7 +18,10 @@ argumentsParser = info
   <> header   "Path - a quantitative, dependently-typed language")
 
 options :: Parser (IO ())
-options = flag' (pure ()) (short 'i' <> long "interactive" <> help "run interactively")
+options
+  =   flag' repl (short 'i' <> long "interactive" <> help "run interactively")
+  <*> package
+
 
 package :: Parser Package
 package
