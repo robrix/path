@@ -9,5 +9,10 @@ import Text.Trifecta.Indentation
 packageName :: (Monad m, TokenParsing m) => m PackageName
 packageName = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf "-'_") mempty Identifier ReservedIdentifier)
 
+some' :: (IndentationParsing m, TokenParsing m) => m a -> m [a]
+some' m
+  =   brackets (commaSep1 m)
+  <|> some (absoluteIndentation m)
+
 field :: (IndentationParsing m, Monad m, TokenParsing m) => String -> m a -> m a
 field name m = token (string name) *> colon *> localIndentation Gt m
