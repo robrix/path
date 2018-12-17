@@ -91,10 +91,6 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             `catchError` (const loop <=< printElabError)
             `catchError` (const loop <=< printModuleError)
             `catchError` (const loop <=< printParserError)
-        printResolveError err = prettyPrint (err :: ResolveError)
-        printElabError    err = prettyPrint (err :: ElabError QName)
-        printModuleError  err = prettyPrint (err :: ModuleError)
-        printParserError  err = prettyPrint (err :: ErrInfo)
         runCommand = \case
           Quit -> pure ()
           Help -> output helpText *> loop
@@ -146,6 +142,18 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
         runRenamer m = do
           res <- get
           raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
+
+printResolveError :: MonadIO m => ResolveError -> m ()
+printResolveError = prettyPrint
+
+printElabError :: MonadIO m => ElabError QName -> m ()
+printElabError = prettyPrint
+
+printModuleError :: MonadIO m => ModuleError -> m ()
+printModuleError = prettyPrint
+
+printParserError :: MonadIO m => ErrInfo -> m ()
+printParserError = prettyPrint
 
 basePackage :: Package
 basePackage = Package
