@@ -1,9 +1,13 @@
 module Path.CLI where
 
+import Control.Effect (runM)
+import Control.Effect.Error (runError)
 import Control.Monad (join)
 import Data.Version (showVersion)
 import Options.Applicative as Options
 import Path.Package
+import Path.Parser (parseFile)
+import Path.Parser.Package as Parser (package)
 import Path.REPL
 import qualified Paths_path as Library (version)
 
@@ -19,8 +23,9 @@ argumentsParser = info
 
 options :: Parser (IO ())
 options
-  =   flag' repl (short 'i' <> long "interactive" <> help "run interactively")
-  <*> some source
+  =   flag' (either printParserError repl =<<) (short 'i' <> long "interactive" <> help "run interactively")
+  <*> (pure . Right <$> some source <|> parsePackage <$> strOption (long "package-path" <> metavar "FILE" <> help "source file"))
+  where parsePackage = fmap (fmap packageSources) . runM . runError . parseFile Parser.package
 
 
 constraint :: Parser Constraint
