@@ -81,7 +81,7 @@ elab (In (Surface.Hole n) span) (Just ty) = do
   throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
 elab tm (Just ty) = do
   v <- infer tm
-  actual <- asks (vforce (snd (ann v)))
+  actual <- asks (flip vforce (snd (ann v)))
   unless (actual == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
   pure v
 
@@ -104,7 +104,7 @@ check :: ( Carrier sig m
       => Term (Surface QName) Span
       -> Type QName
       -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
-check tm ty = asks (vforce ty) >>= elab tm . Just
+check tm ty = asks (flip vforce ty) >>= elab tm . Just
 
 
 type ModuleTable v = Map.Map ModuleName (Context v, Env v)

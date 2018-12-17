@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Path.Eval where
 
 import Data.Maybe (fromMaybe)
@@ -21,12 +22,14 @@ vapp (VLam _ f) v = f v
 vapp (VNeutral n) v = VNeutral (NApp n v)
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
-vforce :: Value QName -> Env QName -> Value QName
-vforce (VLam v f) d = VLam v (flip vforce d . f)
-vforce VType _ = VType
-vforce (VPi v u t b) d = VPi v u (vforce t d) (flip vforce d . b)
-vforce (VNeutral n) d = vforceN n d
+vforce :: Env QName -> Value QName -> Value QName
+vforce d = \case
+  VLam v f    -> VLam v (vforce d . f)
+  VType       -> VType
+  VPi v u t b -> VPi v u (vforce d t) (vforce d . b)
+  VNeutral n  -> vforceN d n
 
-vforceN :: Neutral QName -> Env QName -> Value QName
-vforceN (NApp f a) d = vforceN f d `vapp` vforce a d
-vforceN (NFree v) d = maybe (vfree v) (flip vforce d) (Env.lookup v d)
+vforceN :: Env QName -> Neutral QName -> Value QName
+vforceN d = \case
+  NApp f a -> vforceN d f `vapp` vforce d a
+  NFree v  -> maybe (vfree v) (vforce d) (Env.lookup v d)
