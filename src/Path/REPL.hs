@@ -82,7 +82,18 @@ repl packageSources = do
         }
   liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable QName) (evalState (Env.empty :: Env QName) (evalState (Context.empty :: Context QName) (evalState (Resolution mempty) (script packageSources)))))))
 
-script :: (Carrier sig m, Effect sig, Functor m, Member (Lift IO) sig, Member REPL sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig, Member (State (ModuleTable QName)) sig, Member (State Resolution) sig) => [FilePath] -> m ()
+script :: ( Carrier sig m
+          , Effect sig
+          , Functor m
+          , Member (Lift IO) sig
+          , Member REPL sig
+          , Member (State (Context QName)) sig
+          , Member (State (Env QName)) sig
+          , Member (State (ModuleTable QName)) sig
+          , Member (State Resolution) sig
+          )
+       => [FilePath]
+       -> m ()
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = do
           a <- prompt (pack "λ: ")
