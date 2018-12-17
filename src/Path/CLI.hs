@@ -27,7 +27,7 @@ constraint :: Parser Constraint
 constraint = Depends <$> strOption (short 'p' <> long "package" <> help "a package to depend on")
 
 source :: Parser FilePath
-source = strArgument (metavar "FILES" <> help "source files")
+source = strArgument (metavar "FILE" <> help "source file")
 
 package :: Parser Package
 package
