@@ -17,7 +17,7 @@ packageName' :: (Monad m, TokenParsing m) => m PackageName
 packageName' = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf "-'_") mempty Identifier ReservedIdentifier)
 
 filePath :: TokenParsing m => m FilePath
-filePath = token ((alphaNum <|> char '.') `sepBy1` char '/')
+filePath = concat <$> token (some (alphaNum <|> char '.') `sepBy1` string "/")
 
 field :: (Monad m, TokenParsing m) => String -> m a -> m a
 field name m = token (string name) *> colon *> m
