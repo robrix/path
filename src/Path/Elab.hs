@@ -124,7 +124,14 @@ raiseHandler :: (Eff m a -> Eff n b)
 raiseHandler = coerce
 
 
-elabModule :: (Carrier sig m, Effect sig, Member (Error (ElabError QName)) sig, Member (Error ModuleError) sig, Member (Reader (ModuleTable QName)) sig) => Module QName (Term (Surface QName) Span) -> Elab QName m (Context QName, Env QName)
+elabModule :: ( Carrier sig m
+              , Effect sig
+              , Member (Error (ElabError QName)) sig
+              , Member (Error ModuleError) sig
+              , Member (Reader (ModuleTable QName)) sig
+              )
+           => Module QName (Term (Surface QName) Span)
+           -> Elab QName m (Context QName, Env QName)
 elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
   for_ (moduleImports m) $ \ (Import name) -> do
     (ctx, env) <- importModule name
@@ -135,19 +142,38 @@ elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.em
     Declare name ty -> elabDecl name ty
     Define  name tm -> elabDef  name tm
 
-importModule :: (Carrier sig m, Member (Error ModuleError) sig, Member (Reader (ModuleTable QName)) sig) => ModuleName -> Elab QName m (Context QName, Env QName)
+importModule :: ( Carrier sig m
+                , Member (Error ModuleError) sig
+                , Member (Reader (ModuleTable QName)) sig
+                )
+             => ModuleName
+             -> Elab QName m (Context QName, Env QName)
 importModule n = do
   (ctx, env) <- asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
   pure (Context.filter (const . inModule n) ctx, Env.filter (const . inModule n) env)
 
 
-elabDecl :: (Carrier sig m, Member (Error (ElabError QName)) sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig) => QName -> Term (Surface QName) Span -> Elab QName m ()
+elabDecl :: ( Carrier sig m
+            , Member (Error (ElabError QName)) sig
+            , Member (State (Context QName)) sig
+            , Member (State (Env QName)) sig
+            )
+         => QName
+         -> Term (Surface QName) Span
+         -> Elab QName m ()
 elabDecl name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
   modify (Context.insert name ty'')
 
-elabDef :: (Carrier sig m, Member (Error (ElabError QName)) sig, Member (State (Context QName)) sig, Member (State (Env QName)) sig) => QName -> Term (Surface QName) Span -> Elab QName m ()
+elabDef :: ( Carrier sig m
+           , Member (Error (ElabError QName)) sig
+           , Member (State (Context QName)) sig
+           , Member (State (Env QName)) sig
+           )
+        => QName
+        -> Term (Surface QName) Span
+        -> Elab QName m ()
 elabDef name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runInState One (maybe infer (flip check) ty tm)
@@ -155,7 +181,15 @@ elabDef name tm = do
   modify (Env.insert name tm'')
   maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 
-runInState :: (Carrier sig m, Member (State (Context v)) sig, Member (State (Env v)) sig) => Usage -> Elab v (ReaderC (Context v) (Eff (ReaderC (Env v) (Eff (ReaderC Usage (Eff m)))))) a -> Elab v m a
+runInState :: ( Carrier sig m
+              , Member (State (Context v)) sig
+              , Member (State (Env v)) sig
+              )
+           => Usage
+           -> Elab v (ReaderC (Context v) (Eff
+                     (ReaderC (Env v)     (Eff
+                     (ReaderC Usage       (Eff m)))))) a
+           -> Elab v m a
 runInState usage m = do
   env <- get
   ctx <- get
