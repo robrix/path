@@ -14,3 +14,9 @@ nothing = \ _ _ nothing _ . nothing
 
 isJust : ∀ a:Type . Maybe a -> Bool
 isJust = \ A m . m Bool false (const Bool A true)
+
+map :  ∀ a : Type
+    .  ∀ b : Type
+    .  (      a ->       b)
+    -> (Maybe a -> Maybe b)
+map = \ _ b f m . m (Maybe b) (nothing b) (\ a . just b (f a))
