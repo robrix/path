@@ -11,3 +11,9 @@ flip : ∀ a:Type
      . ∀ c:Type
      . (a -> b -> c) -> (b -> a -> c)
 flip = \ _ _ _ f b a . f a b
+
+fix :  ∀ a : Type
+    .  ∀ b : Type
+    .  ((a -> b) -> a -> b)
+    -> (a -> b)
+fix = \ a b f . f (fix a b f)
