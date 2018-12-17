@@ -18,7 +18,6 @@ import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
 import Control.Monad.State
-import qualified Data.ByteString.Char8 as BS
 import Data.Char (isSpace)
 import qualified Data.HashSet as HashSet
 import Text.Parser.Char
@@ -45,15 +44,12 @@ parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Indentati
 parseFile p = toError <=< parseFromFileEx (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
 
 parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> String -> m a
-parseString p = toError . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0) directed
+parseString p = toError . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0) mempty
 
 toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a
 toError (Failure e) = throwError e
 
-
-directed :: Delta
-directed = Directed BS.empty 0 0 0 0
 
 indentst :: IndentationState
 indentst = mkIndentationState 0 infIndentation True Gt
