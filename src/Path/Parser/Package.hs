@@ -16,7 +16,7 @@ package
   <*> field "sources" (commaSep1 filePath)
 
 packageName' :: (Monad m, TokenParsing m) => m PackageName
-packageName' = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf "-'_") mempty Identifier ReservedIdentifier)
+packageName' = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf "-_") mempty Identifier ReservedIdentifier)
 
 filePath :: TokenParsing m => m FilePath
 filePath = intercalate "/" <$> token (some (alphaNum <|> char '.') `sepBy1` string "/")
