@@ -80,7 +80,13 @@ repl packageSources = do
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO (runM (runREPL prefs settings (evalState (mempty :: ModuleTable QName) (evalState (Env.empty :: Env QName) (evalState (Context.empty :: Context QName) (evalState (Resolution mempty) (script packageSources)))))))
+  liftIO (runM
+         (runREPL prefs settings
+         (evalState (mempty :: ModuleTable QName)
+         (evalState (Env.empty :: Env QName)
+         (evalState (Context.empty :: Context QName)
+         (evalState (Resolution mempty)
+         (script packageSources)))))))
 
 script :: ( Carrier sig m
           , Effect sig
