@@ -17,7 +17,7 @@ package
 packageName' :: (Monad m, TokenParsing m) => m PackageName
 packageName' = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf "-'_") mempty Identifier ReservedIdentifier)
 
-filePath :: (Monad m, TokenParsing m) => m FilePath
+filePath :: TokenParsing m => m FilePath
 filePath = token ((alphaNum <|> char '.') `sepBy1` char '/')
 
 some' :: (IndentationParsing m, TokenParsing m) => m a -> m [a]
