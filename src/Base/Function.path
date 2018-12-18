@@ -17,3 +17,11 @@ fix :  ∀ a : Type
     .  ((a -> b) -> a -> b)
     -> (a -> b)
 fix = \ a b f . f (fix a b f)
+
+compose : ∀ a : Type
+        . ∀ b : Type
+        . ∀ c : Type
+        .  (b -> c)
+        -> (a -> b)
+        -> (a -> c)
+compose = \ _ _ _ f g x . f (g x)
