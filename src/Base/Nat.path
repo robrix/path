@@ -22,5 +22,9 @@ z : Nat
 z = in NatF (zf Nat)
 
 
+iter : ∀ a : Type . a -> (a -> a) -> Nat -> a
+iter = \ a z s n . n a (\ _ k f . f a z (\ m . s (k m)))
+
+
 add : Nat -> Nat -> Nat
 add = \ m n . m Nat (\ _ k f . f Nat n (\ m . s (k m)))
