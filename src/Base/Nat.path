@@ -27,4 +27,4 @@ iter = \ a z s n . n a (\ _ k f . f a z (\ m . s (k m)))
 
 
 add : Nat -> Nat -> Nat
-add = \ m n . iter Nat m s n
+add = \ m . iter Nat m s
