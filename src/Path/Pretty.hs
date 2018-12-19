@@ -33,6 +33,9 @@ prettyErr s = prettyNotice s (red (pretty "error"))
 prettyWarn :: Span -> Doc -> Maybe Doc -> Doc
 prettyWarn s = prettyNotice s (magenta (pretty "warning"))
 
+prettyInfo :: Span -> Doc -> Maybe Doc -> Doc
+prettyInfo s = prettyNotice s (bold (pretty "note"))
+
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
 
