@@ -61,7 +61,7 @@ data ModuleError
 
 instance Pretty ModuleError where
   pretty = \case
-    UnknownModule (Import name _) -> hsep (map pretty (words "Could not find module") <> [squotes (pretty name)])
+    UnknownModule (Import name span) -> prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) Nothing
     CyclicImport (Import name _ :| []) -> nest 2 (vsep
       [ hsep (map pretty (words "Module imports form a cycle:"))
       , hsep [ pretty "module", squotes (pretty name), pretty "imports", pretty "itself" ]
