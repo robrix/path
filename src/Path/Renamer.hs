@@ -15,7 +15,7 @@ import Path.Pretty
 import Path.Surface
 import Path.Term
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
-import Text.Trifecta.Rendering (Span, render)
+import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
             => Term (Surface Name) Span
@@ -78,7 +78,7 @@ data ResolveError
 
 instance Pretty ResolveError where
   pretty = \case
-    FreeVariable name span -> nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
+    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
     AmbiguousName name span sources -> nest 2 $ vsep
       [ pretty "ambiguous name" <+> squotes (pretty name)
       , nest 2 $ vsep
