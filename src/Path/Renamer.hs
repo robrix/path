@@ -47,10 +47,13 @@ resolveDecl = \case
     tm' <- runReader (res :: Resolution) (resolveTerm tm)
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
 
-resolveModule :: (Carrier sig m, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
 resolveModule m = do
-  decls <- runReader (moduleName m) (traverse resolveDecl (moduleDecls m))
+  res <- get
+  (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
+  modify (<> res)
   pure (m { moduleDecls = decls })
+  where amongImports q = any (flip inModule q . importModuleName) (moduleImports m)
 
 newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty QName) }
   deriving (Eq, Ord, Show)
