@@ -30,6 +30,9 @@ prettyNotice s lvl msg ctx = nest 2 $ vsep
 prettyErr :: Span -> Doc -> Maybe Doc -> Doc
 prettyErr s = prettyNotice s (red (pretty "error"))
 
+prettyWarn :: Span -> Doc -> Maybe Doc -> Doc
+prettyWarn s = prettyNotice s (magenta (pretty "warning"))
+
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
 
