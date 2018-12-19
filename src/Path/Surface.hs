@@ -34,24 +34,25 @@ f # a = In (f :@ a) (ann f <> ann a)
 
 
 subst :: Eq v => v -> Surface v (Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
-subst i r (In (e ::: t) ann) = In (subst i r e ::: subst i r t) ann
-subst i r (In (ForAll v t t') ann)
-  | i == v    = In (ForAll v (subst i r t) t') ann
-  | otherwise = In (ForAll v (subst i r t) (subst i r t')) ann
-subst i r (In (Var j) ann)
-  | i == j    = In r ann
-  | otherwise = In (Var j) ann
-subst i r (In (Lam n b) ann)
-  | i == n    = In (Lam n b) ann
-  | otherwise = In (Lam n (subst i r b)) ann
-subst i r (In (f :@ a) ann) = In (subst i r f :@ subst i r a) ann
-subst _ _ (In Type ann) = In Type ann
-subst i r (In (Pi n e t t') ann)
-  | i == n    = In (Pi n e (subst i r t) t') ann
-  | otherwise = In (Pi n e (subst i r t) (subst i r t')) ann
-subst i r (In (Hole v) ann)
-  | i == v    = In r ann
-  | otherwise = In (Hole v) ann
+subst i r = \case
+  In (e ::: t) ann -> In (subst i r e ::: subst i r t) ann
+  In (ForAll v t t') ann
+    | i == v    -> In (ForAll v (subst i r t) t') ann
+    | otherwise -> In (ForAll v (subst i r t) (subst i r t')) ann
+  In (Var j) ann
+    | i == j    -> In r ann
+    | otherwise -> In (Var j) ann
+  In (Lam n b) ann
+    | i == n    -> In (Lam n b) ann
+    | otherwise -> In (Lam n (subst i r b)) ann
+  In (f :@ a) ann -> In (subst i r f :@ subst i r a) ann
+  In Type ann -> In Type ann
+  In (Pi n e t t') ann
+    | i == n    -> In (Pi n e (subst i r t) t') ann
+    | otherwise -> In (Pi n e (subst i r t) (subst i r t')) ann
+  In (Hole v) ann
+    | i == v    -> In r ann
+    | otherwise -> In (Hole v) ann
 
 
 uses :: Eq v => v -> Term (Surface v) a -> [a]
