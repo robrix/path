@@ -23,7 +23,7 @@ putDoc doc = do
 
 prettyErr :: Span -> Doc -> Maybe Doc -> Doc
 prettyErr s@(Span start _ _) msg ctx = nest 2 $ vsep
-  ( group (nest 2 (bold (pretty start <> colon <+> red (pretty "error:") </> msg)))
+  ( group (nest 2 (pretty start <> colon <+> red (pretty "error") <> colon </> msg))
   : prettys s
   : toList ctx)
 
