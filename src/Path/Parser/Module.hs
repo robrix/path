@@ -17,7 +17,7 @@ module' path = flip Module.Module path <$ keyword "module" <*> moduleName <* key
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> (identifier `sepByNonEmpty` dot)
 
-import' :: (Monad m, TokenParsing m) => m Module.Import
+import' :: (Monad m, TokenParsing m) => m (Module.Import ())
 import' = Module.Import <$ keyword "import" <*> moduleName
 
 declaration :: (DeltaParsing m, MonadFresh m) => m (Decl Name (Term (Surface Name) Span))
