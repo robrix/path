@@ -35,16 +35,17 @@ resolveTerm (In syn ann) = case syn of
   where in' = flip In ann
 
 resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))
-resolveDecl (Declare n ty) = do
-  res <- get
-  moduleName <- ask
-  ty' <- runReader (res :: Resolution) (resolveTerm ty)
-  Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
-resolveDecl (Define n tm) = do
-  res <- get
-  moduleName <- ask
-  tm' <- runReader (res :: Resolution) (resolveTerm tm)
-  Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
+resolveDecl = \case
+  Declare n ty -> do
+    res <- get
+    moduleName <- ask
+    ty' <- runReader (res :: Resolution) (resolveTerm ty)
+    Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
+  Define n tm -> do
+    res <- get
+    moduleName <- ask
+    tm' <- runReader (res :: Resolution) (resolveTerm tm)
+    Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
 
 resolveModule :: (Carrier sig m, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
 resolveModule m = do
