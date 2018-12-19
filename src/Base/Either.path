@@ -16,3 +16,12 @@ map :  ∀ l : Type
     .  (         r ->          r')
     -> (Either l r -> Either l r')
 map = \ l _ r' f e . e (Either l r') (left l r') (\ r . right l r' (f r))
+
+bimap :  ∀ l : Type
+      .  ∀ r : Type
+      .  ∀ l' : Type
+      .  ∀ r' : Type
+      .  (       l   ->        l')
+      -> (         r ->           r')
+      -> (Either l r -> Either l' r')
+bimap = \ _ _ l' r' f g e . e (Either l' r') (\ l . left l' r' (f l)) (\ r . right l' r' (g r))
