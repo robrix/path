@@ -1,6 +1,6 @@
 module Base.Sigma where
 
-Sigma : { A : Type } -> (A -> Type) -> Type
+Sigma : ∀ A : Type . (A -> Type) -> Type
 Sigma = \ A B . ∀ c : Type . ({ a : A } -> B a -> c) -> c
 
 sigma :  { A : Type } -> { B : A -> Type } -> { a : A } -> B a -> Sigma A B
