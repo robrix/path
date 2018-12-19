@@ -1,1 +1,4 @@
 module Base.Sigma where
+
+Sigma : { A : Type } -> { B : A -> Type } -> Type
+Sigma = \ A B . ∀ c : Type . ({ a : A } -> B a -> c) -> c
