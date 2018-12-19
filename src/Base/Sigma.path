@@ -1,7 +1,7 @@
 module Base.Sigma where
 
 Sigma : ∀ A : Type . (A -> Type) -> Type
-Sigma = \ A B . ∀ c : Type . ({ a : A } -> B a -> c) -> c
+Sigma = \ A B . ∀ C : Type . ({ a : A } -> B a -> C) -> C
 
 sigma :  { A : Type } -> { B : A -> Type } -> { a : A } -> B a -> Sigma A B
 sigma = \ _ _ a b _ f . f a b
