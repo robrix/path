@@ -8,3 +8,11 @@ left = \ _ _ l _ left _ . left l
 
 right : ∀ l : Type . ∀ r : Type . r -> Either l r
 right = \ _ _ r _ _ right . right r
+
+
+map :  ∀ l : Type
+    .  ∀ r : Type
+    .  ∀ r' : Type
+    .  (         r ->          r')
+    -> (Either l r -> Either l r')
+map = \ l _ r' f e . e (Either l r') (left l r') (\ r . right l r' (f r))
