@@ -16,7 +16,7 @@ data Core v a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance (FreeVariables v a, Pretty v, PrettyPrec a) => PrettyPrec (Core v (Term (Core v) a)) where
-  prettyPrec d c = case c of
+  prettyPrec d = \case
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
       where go v b = var v b <> case b of
