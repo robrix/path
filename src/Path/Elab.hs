@@ -66,7 +66,7 @@ elab (In (f Surface.:@ a) _) Nothing = do
       let (g2, _) = ann a'
       env <- ask
       pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' (eval a' env)))
-    _ -> throwError (IllegalApplication f' (ann f))
+    _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
 elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
 elab (In (Surface.Lam n e) span) (Just (VPi tn pi t t')) = do
   e' <- local (Context.insert n t) (check (subst n (Surface.Var n) e) (t' (vfree n)))
@@ -200,7 +200,7 @@ data ElabError v
   = FreeVariable v Span
   | TypeMismatch (Type v) (Type v) Span
   | NoRuleToInfer (Term (Surface v) Span) Span
-  | IllegalApplication (Term (Core v) (Resources v Usage, Type v)) Span
+  | IllegalApplication (Term (Core v) ()) (Type v) Span
   | ResourceMismatch v Usage Usage Span [Span]
   | TypedHole v (Type v) (Context v) Span
   deriving (Eq, Ord, Show)
@@ -213,7 +213,7 @@ instance (Ord v, Pretty v) => Pretty (ElabError v) where
     , pretty "  actual:" <+> pretty actual
     ]) Nothing
   pretty (NoRuleToInfer _ span) = prettyErr span (pretty "no rule to infer type of term") Nothing
-  pretty (IllegalApplication tm span) = prettyErr span (pretty "illegal application of non-function term" <+> pretty tm) Nothing
+  pretty (IllegalApplication tm ty span) = prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
   pretty (ResourceMismatch n pi used span spans) = prettyErr span msg (if length spans == 0 then Nothing else Just (vsep (map prettys spans)))
     where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
   pretty (TypedHole n ty ctx span) = prettyErr span msg (Just ext)
