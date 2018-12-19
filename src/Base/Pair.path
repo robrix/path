@@ -11,3 +11,11 @@ fst = \ l _ p . p l (\ fst _ . fst)
 
 snd : ∀ l : Type . ∀ r : Type . Pair l r -> r
 snd = \ _ r p . p r (\ _ snd . snd)
+
+
+map :  ∀ l : Type
+    .  ∀ r : Type
+    .  ∀ r' : Type
+    .  (       r ->        r')
+    -> (Pair l r -> Pair l r')
+map = \ l _ r' f e . e (Pair l r') (\ l' r . pair l r' l' (f r))
