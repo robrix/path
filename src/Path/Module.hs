@@ -18,11 +18,12 @@ import Path.Decl
 import Path.Name
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
+import Text.Trifecta.Rendering (Span)
 
-data Module v a = Module
+data Module v a ann = Module
   { moduleName    :: ModuleName
   , modulePath    :: FilePath
-  , moduleImports :: [Import ()]
+  , moduleImports :: [Import ann]
   , moduleDecls   :: [Decl v a]
   }
   deriving (Eq, Ord, Show)
@@ -31,19 +32,19 @@ newtype Import ann = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
 
-newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
+newtype ModuleGraph v a ann = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a ann) }
   deriving (Eq, Ord, Show)
 
-moduleGraph :: [Module v a] -> ModuleGraph v a
+moduleGraph :: [Module v a ann] -> ModuleGraph v a ann
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-modules :: ModuleGraph v a -> [Module v a]
+modules :: ModuleGraph v a ann -> [Module v a ann]
 modules = Map.elems . unModuleGraph
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a -> ModuleName -> m (Module v a)
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a Span -> ModuleName -> m (Module v a Span)
 lookupModule g name = maybe (throwError (UnknownModule name)) ret (Map.lookup name (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> ModuleName -> m ()
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> ModuleName -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
           inPath <- asks (Set.member n)
@@ -75,7 +76,7 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> m [Module v a]
+loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> m [Module v a Span]
 loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop)))
   where loop n = do
           inPath <- asks (Set.member n)
