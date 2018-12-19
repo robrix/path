@@ -133,8 +133,8 @@ elabModule :: ( Carrier sig m
            => Module QName (Term (Surface QName) Span) Span
            -> Elab QName m (Context QName, Env QName)
 elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
-  for_ (moduleImports m) $ \ (Import name _) -> do
-    (ctx, env) <- importModule name
+  for_ (moduleImports m) $ \ i -> do
+    (ctx, env) <- importModule i
     modify (Context.union ctx)
     modify (Env.union env)
 
@@ -146,11 +146,12 @@ importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig
                 , Member (Reader (ModuleTable QName)) sig
                 )
-             => ModuleName
+             => Import Span
              -> Elab QName m (Context QName, Env QName)
 importModule n = do
-  (ctx, env) <- asks (Map.lookup n) >>= maybe (throwError (UnknownModule n)) pure
-  pure (Context.filter (const . inModule n) ctx, Env.filter (const . inModule n) env)
+  (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
+  pure (Context.filter p ctx, Env.filter p env)
+  where p = const . inModule (importModuleName n)
 
 
 elabDecl :: ( Carrier sig m

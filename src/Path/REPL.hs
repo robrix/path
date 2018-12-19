@@ -140,7 +140,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Reload -> reload *> loop
           Command.Import i -> do
             table <- get
-            (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule (importModuleName i))
+            (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule i)
             modify (Context.union ctx)
             modify (Env.union env)
             loop

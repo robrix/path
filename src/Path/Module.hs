@@ -41,35 +41,35 @@ moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 modules :: ModuleGraph v a ann -> [Module v a ann]
 modules = Map.elems . unModuleGraph
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a Span -> ModuleName -> m (Module v a Span)
-lookupModule g name = maybe (throwError (UnknownModule name)) ret (Map.lookup name (unModuleGraph g))
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a Span -> Import Span -> m (Module v a Span)
+lookupModule g i = maybe (throwError (UnknownModule i)) ret (Map.lookup (importModuleName i) (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> ModuleName -> m ()
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> Import Span -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
-          inPath <- asks (Set.member n)
+          inPath <- asks (Set.member (importModuleName n))
           if inPath then do
             m <- lookupModule g n
-            (n <|) <$> local (Set.insert (moduleName m)) (getAlt (foldMap (Alt . go . importModuleName) (moduleImports m)))
+            (n <|) <$> local (Set.insert (importModuleName n)) (getAlt (foldMap (Alt . go) (moduleImports m)))
           else
             pure (n :| [])
 
 data ModuleError
-  = UnknownModule ModuleName
-  | CyclicImport (NonEmpty ModuleName)
+  = UnknownModule (Import Span)
+  | CyclicImport (NonEmpty (Import Span))
   deriving (Eq, Ord, Show)
 
 instance Pretty ModuleError where
-  pretty (UnknownModule name) = hsep (map pretty (words "Could not find module") <> [squotes (pretty name)])
-  pretty (CyclicImport (name :| [])) = nest 2 (vsep
+  pretty (UnknownModule (Import name _)) = hsep (map pretty (words "Could not find module") <> [squotes (pretty name)])
+  pretty (CyclicImport (Import name _ :| [])) = nest 2 (vsep
     [ hsep (map pretty (words "Module imports form a cycle:"))
     , hsep [ pretty "module", squotes (pretty name), pretty "imports", pretty "itself" ]
     ])
-  pretty (CyclicImport (name :| name' : names)) = nest 2 (vsep
+  pretty (CyclicImport (Import name _ :| Import name' _ : names)) = nest 2 (vsep
     ( hsep (map pretty (words "Module imports form a cycle:"))
     : hsep [ pretty "       module", squotes (pretty name) ]
     : hsep [ pretty "      imports", squotes (pretty name') ]
-    : foldr ((:) . whichImports) [ whichImports name ] names
+    : foldr ((:) . whichImports . importModuleName) [ whichImports name ] names
     ))
     where whichImports name = fillSep [ pretty "which imports", squotes (pretty name) ]
 
@@ -77,13 +77,19 @@ instance PrettyPrec ModuleError
 
 
 loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> m [Module v a Span]
-loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.keys (unModuleGraph g)) loop)))
-  where loop n = do
-          inPath <- asks (Set.member n)
+loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.elems (unModuleGraph g)) loopM)))
+  where loopM m = do
+          visited <- gets (Set.member (moduleName m))
+          unless visited . local (Set.insert (moduleName m)) $ do
+            for_ (moduleImports m) loop
+            modify (Set.insert (moduleName m))
+            modify (m :)
+        loop n = do
+          inPath <- asks (Set.member (importModuleName n))
           when inPath (cycleFrom g n)
-          visited <- gets (Set.member n)
-          unless visited . local (Set.insert n) $ do
+          visited <- gets (Set.member (importModuleName n))
+          unless visited . local (Set.insert (importModuleName n)) $ do
             m <- lookupModule g n
-            for_ (moduleImports m) (loop . importModuleName)
-            modify (Set.insert n)
+            for_ (moduleImports m) loop
+            modify (Set.insert (importModuleName n))
             modify (m :)
