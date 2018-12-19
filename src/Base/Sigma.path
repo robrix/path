@@ -5,3 +5,6 @@ Sigma = \ A B . ∀ c : Type . ({ a : A } -> B a -> c) -> c
 
 sigma :  { A : Type } -> { B : A -> Type } -> { a : A } -> B a -> Sigma A B
 sigma = \ _ _ a b _ f . f a b
+
+fst : { A : Type } -> { B : A -> Type } -> Sigma A B -> A
+fst = \ A _ s . s A (\ a _ . a)
