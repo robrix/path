@@ -133,7 +133,7 @@ elabModule :: ( Carrier sig m
            => Module QName (Term (Surface QName) Span) Span
            -> Elab QName m (Context QName, Env QName)
 elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
-  for_ (moduleImports m) $ \ (Import name) -> do
+  for_ (moduleImports m) $ \ (Import name _) -> do
     (ctx, env) <- importModule name
     modify (Context.union ctx)
     modify (Env.union env)
