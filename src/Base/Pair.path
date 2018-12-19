@@ -19,3 +19,12 @@ map :  ∀ l : Type
     .  (       r ->        r')
     -> (Pair l r -> Pair l r')
 map = \ l _ r' f e . e (Pair l r') (\ l' r . pair l r' l' (f r))
+
+bimap :  ∀ l : Type
+      .  ∀ r : Type
+      .  ∀ l' : Type
+      .  ∀ r' : Type
+      .  (     l   ->      l')
+      -> (       r ->         r')
+      -> (Pair l r -> Pair l' r')
+bimap = \ _ _ l' r' f g e . e (Pair l' r') (\ l r . pair l' r' (f l) (g r))
