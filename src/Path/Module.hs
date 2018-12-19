@@ -47,8 +47,8 @@ lookupModule g i = maybe (throwError (UnknownModule i)) ret (Map.lookup (importM
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> Import Span -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
-          inPath <- asks (Set.member (importModuleName n))
-          if inPath then do
+          notVisited <- asks (Set.notMember (importModuleName n))
+          if notVisited then do
             m <- lookupModule g n
             (n <|) <$> local (Set.insert (importModuleName n)) (getAlt (foldMap (Alt . go) (moduleImports m)))
           else
