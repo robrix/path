@@ -6,7 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.Foldable (toList)
-import Data.List.NonEmpty (NonEmpty(..), nub)
+import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 import Path.Decl
 import Path.Module
@@ -66,6 +66,10 @@ lookupName n = Map.lookup n . unResolution
 
 resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
 resolveName v s = asks (lookupName v) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s
+
+filterResolution :: (QName -> Bool) -> Resolution -> Resolution
+filterResolution f = Resolution . Map.mapMaybe matches . unResolution
+  where matches = nonEmpty . NonEmpty.filter f
 
 unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => Name -> Span -> NonEmpty QName -> m QName
 unambiguous _ _ (q:|[]) = pure q
