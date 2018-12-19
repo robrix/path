@@ -54,3 +54,7 @@ inModule _ _          = False
 isLocal :: QName -> Bool
 isLocal (Local _) = True
 isLocal _         = False
+
+prettyQName :: QName -> Doc
+prettyQName (m :.: n) = pretty m <> dot <> pretty n
+prettyQName (Local n) = pretty n
