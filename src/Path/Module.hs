@@ -9,7 +9,7 @@ import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
 import Data.Foldable (for_)
-import Data.List.NonEmpty (NonEmpty(..), (<|))
+import Data.List.NonEmpty (NonEmpty(..), (<|), nub)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
@@ -50,7 +50,7 @@ cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m
           notVisited <- asks (Set.notMember (importModuleName n))
           if notVisited then do
             m <- lookupModule g n
-            (n <|) <$> local (Set.insert (importModuleName n)) (getAlt (foldMap (Alt . go) (moduleImports m)))
+            nub . (n <|) <$> local (Set.insert (importModuleName n)) (getAlt (foldMap (Alt . go) (moduleImports m)))
           else
             pure (n :| [])
 
