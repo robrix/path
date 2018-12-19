@@ -62,10 +62,7 @@ data ModuleError
 instance Pretty ModuleError where
   pretty = \case
     UnknownModule (Import name span) -> prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) Nothing
-    CyclicImport (Import name span :| []) -> prettyErr span (nest 2 (vsep
-      [ pretty "Cyclic import:"
-      , squotes (pretty name) <+> pretty "imports itself"
-      ])) Nothing
+    CyclicImport (Import name span :| []) -> prettyErr span (pretty "Cyclic import:" <+> squotes (pretty name) <+> pretty "imports itself") Nothing
     CyclicImport (Import name span :| names) -> prettyErr span (pretty "Cyclic import:" <+> squotes (pretty name) <> colon) (Just (vsep (foldr ((:) . whichImports) [ whichImports (Import name span) ] names)))
     where whichImports (Import name span) = pretty "which imports" <+> squotes (pretty name) <> colon <$$> prettys span
 
