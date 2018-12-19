@@ -63,16 +63,16 @@ instance Pretty ModuleError where
   pretty = \case
     UnknownModule (Import name span) -> prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) Nothing
     CyclicImport (Import name _ :| []) -> nest 2 (vsep
-      [ hsep (map pretty (words "Module imports form a cycle:"))
-      , hsep [ pretty "module", squotes (pretty name), pretty "imports", pretty "itself" ]
+      [ pretty "Module imports form a cycle:"
+      , pretty "module" <+> squotes (pretty name) <+> pretty "imports itself"
       ])
     CyclicImport (Import name _ :| Import name' _ : names) -> nest 2 (vsep
-      ( hsep (map pretty (words "Module imports form a cycle:"))
-      : hsep [ pretty "       module", squotes (pretty name) ]
-      : hsep [ pretty "      imports", squotes (pretty name') ]
+      ( pretty "Module imports form a cycle:"
+      : pretty "       module" <+> squotes (pretty name)
+      : pretty "      imports" <+> squotes (pretty name')
       : foldr ((:) . whichImports . importModuleName) [ whichImports name ] names
       ))
-    where whichImports name = fillSep [ pretty "which imports", squotes (pretty name) ]
+    where whichImports name = pretty "which imports" <+> squotes (pretty name) 
 
 instance PrettyPrec ModuleError
 
