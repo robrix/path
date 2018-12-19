@@ -82,7 +82,7 @@ instance Pretty ResolveError where
       [ pretty "ambiguous name" <+> squotes (pretty name)
       , nest 2 $ vsep
         ( pretty "it could refer to"
-        : map pretty (toList sources))
+        : map prettyQName (toList sources))
       , prettys span
       ]
 
