@@ -186,6 +186,7 @@ basePackage = Package
       , "src/Base/Maybe.path"
       , "src/Base/Nat.path"
       , "src/Base/Pair.path"
+      , "src/Base/Sigma.path"
       , "src/Base/Unit.path"
       , "src/Base/Vector.path"
       , "src/Base/Void.path"
