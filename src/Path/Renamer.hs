@@ -55,6 +55,9 @@ resolveModule m = do
 newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty QName) }
   deriving (Eq, Ord, Show)
 
+instance Semigroup Resolution where
+  Resolution m1 <> Resolution m2 = Resolution (Map.unionWith (<>) m1 m2)
+
 insertLocal :: Name -> Resolution -> Resolution
 insertLocal n = Resolution . Map.insert n (Local n:|[]) . unResolution
 
