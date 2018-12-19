@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase #-}
 module Path.Renamer where
 
 import Control.Effect
@@ -76,13 +76,14 @@ data ResolveError
   | AmbiguousName Name Span (NonEmpty QName)
 
 instance Pretty ResolveError where
-  pretty (FreeVariable name span) = nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
-  pretty (AmbiguousName name span sources) = nest 2 $ vsep
-    [ pretty "ambiguous name" <+> squotes (pretty name)
-    , nest 2 $ vsep
-      ( pretty "it could refer to"
-      : map pretty (toList sources))
-    , prettys span
-    ]
+  pretty = \case
+    FreeVariable name span -> nest 2 $ pretty "free variable" <+> squotes (pretty name) <$$> pretty (render span)
+    AmbiguousName name span sources -> nest 2 $ vsep
+      [ pretty "ambiguous name" <+> squotes (pretty name)
+      , nest 2 $ vsep
+        ( pretty "it could refer to"
+        : map pretty (toList sources))
+      , prettys span
+      ]
 
 instance PrettyPrec ResolveError
