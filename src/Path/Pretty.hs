@@ -22,10 +22,13 @@ putDoc doc = do
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
 prettyErr :: Span -> Doc -> Maybe Doc -> Doc
-prettyErr s@(Span start _ _) msg ctx = nest 2 $ vsep
-  ( group (pretty start <> colon <+> red (pretty "error") <> colon </> msg)
+prettyErr s msg ctx = nest 2 $ vsep
+  ( group (prettyStart s <> colon <+> red (pretty "error") <> colon </> msg)
   : prettys s
   : toList ctx)
+
+prettyStart :: Span -> Doc
+prettyStart (Span start _ _) = pretty start
 
 
 class PrettyPrec a where
