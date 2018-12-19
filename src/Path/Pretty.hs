@@ -1,5 +1,17 @@
 {-# LANGUAGE DefaultSignatures, FlexibleContexts #-}
-module Path.Pretty where
+module Path.Pretty
+( PrettyPrec(..)
+, prettyPrint
+, prettys
+, putDoc
+, prettyNotice
+, prettyErr
+, prettyWarn
+, prettyInfo
+, prettyStart
+, prettyParens
+, prettyBraces
+) where
 
 import Control.Monad.IO.Class
 import Data.Foldable (toList)
