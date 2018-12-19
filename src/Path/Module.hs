@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase #-}
 module Path.Module where
 
 import Control.Effect
@@ -60,17 +60,18 @@ data ModuleError
   deriving (Eq, Ord, Show)
 
 instance Pretty ModuleError where
-  pretty (UnknownModule (Import name _)) = hsep (map pretty (words "Could not find module") <> [squotes (pretty name)])
-  pretty (CyclicImport (Import name _ :| [])) = nest 2 (vsep
-    [ hsep (map pretty (words "Module imports form a cycle:"))
-    , hsep [ pretty "module", squotes (pretty name), pretty "imports", pretty "itself" ]
-    ])
-  pretty (CyclicImport (Import name _ :| Import name' _ : names)) = nest 2 (vsep
-    ( hsep (map pretty (words "Module imports form a cycle:"))
-    : hsep [ pretty "       module", squotes (pretty name) ]
-    : hsep [ pretty "      imports", squotes (pretty name') ]
-    : foldr ((:) . whichImports . importModuleName) [ whichImports name ] names
-    ))
+  pretty = \case
+    UnknownModule (Import name _) -> hsep (map pretty (words "Could not find module") <> [squotes (pretty name)])
+    CyclicImport (Import name _ :| []) -> nest 2 (vsep
+      [ hsep (map pretty (words "Module imports form a cycle:"))
+      , hsep [ pretty "module", squotes (pretty name), pretty "imports", pretty "itself" ]
+      ])
+    CyclicImport (Import name _ :| Import name' _ : names) -> nest 2 (vsep
+      ( hsep (map pretty (words "Module imports form a cycle:"))
+      : hsep [ pretty "       module", squotes (pretty name) ]
+      : hsep [ pretty "      imports", squotes (pretty name') ]
+      : foldr ((:) . whichImports . importModuleName) [ whichImports name ] names
+      ))
     where whichImports name = fillSep [ pretty "which imports", squotes (pretty name) ]
 
 instance PrettyPrec ModuleError
