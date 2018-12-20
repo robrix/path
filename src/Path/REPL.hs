@@ -176,7 +176,8 @@ basePackage :: Package
 basePackage = Package
   { packageName        = "Base"
   , packageSources     =
-      [ "src/Base/Bool.path"
+      [ "src/Base/Applicative.path"
+      , "src/Base/Bool.path"
       , "src/Base/Either.path"
       , "src/Base/Fin.path"
       , "src/Base/Fix.path"
