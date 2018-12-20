@@ -20,7 +20,7 @@ import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
 import Control.Monad.State
-import Data.Char (isPunctuation, isSpace)
+import Data.Char (isPunctuation, isSpace, isSymbol)
 import qualified Data.HashSet as HashSet
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -66,8 +66,7 @@ identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'')
 
 operator = ident (IdentifierStyle "operator" (satisfy isOperator) (satisfy isOperator) reservedOperators Operator ReservedOperator)
   where isOperator '\'' = False
-        isOperator '$'  = True
-        isOperator c    = isPunctuation c
+        isOperator c    = not (HashSet.member c reservedOperatorChars) && isPunctuation c || isSymbol c
 
 reservedWords, reservedOperators :: HashSet.HashSet String
 reservedWords     = HashSet.fromList [ "Type", "module", "import" ]
