@@ -88,6 +88,3 @@ op s = token (highlight Operator (string s)) <?> s
 
 class DeltaParsing m => LayoutParsing m where
   layout :: m a -> m a
-
-instance LayoutParsing Parser where
-  layout = id
