@@ -66,6 +66,7 @@ identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'')
 
 operator = ident (IdentifierStyle "operator" (satisfy isOperator) (satisfy isOperator) reservedOperators Operator ReservedOperator)
   where isOperator '\'' = False
+        isOperator '$'  = True
         isOperator c    = isPunctuation c
 
 reservedWords, reservedOperators :: HashSet.HashSet String
