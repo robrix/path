@@ -137,9 +137,7 @@ elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.em
     modify (Context.union ctx)
     modify (Env.union env)
 
-  for_ (moduleDecls m) $ \case
-    Declare name ty -> elabDeclare name ty
-    Define  name tm -> elabDefine  name tm
+  for_ (moduleDecls m) elabDecl
 
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig
@@ -152,6 +150,17 @@ importModule n = do
   pure (Context.filter p ctx, Env.filter p env)
   where p = const . inModule (importModuleName n)
 
+
+elabDecl :: ( Carrier sig m
+            , Member (Error (ElabError QName)) sig
+            , Member (State (Context QName)) sig
+            , Member (State (Env QName)) sig
+            )
+         => Decl QName (Term (Surface QName) Span)
+         -> Elab QName m ()
+elabDecl = \case
+  Declare name ty -> elabDeclare name ty
+  Define  name tm -> elabDefine  name tm
 
 elabDeclare :: ( Carrier sig m
                , Member (Error (ElabError QName)) sig

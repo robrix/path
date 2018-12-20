@@ -116,10 +116,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             prettyPrint (ann elab)
             loop
           Decl decl -> do
-            decl' <- runRenamer (resolveDecl decl)
-            case decl' of
-              Declare name ty -> elabDeclare name ty
-              Define  name tm -> elabDefine  name tm
+            runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm)
