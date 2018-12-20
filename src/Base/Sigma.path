@@ -1,4 +1,4 @@
-module Base.Sigma where
+module Base.Sigma
 
 Sigma : ∀ A : Type . (A -> Type) -> Type
 Sigma = \ A B . ∀ C : Type . ({ a : A } -> B a -> C) -> C

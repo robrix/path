@@ -1,4 +1,4 @@
-module Base.Vector where
+module Base.Vector
 
 import Base.Nat
 

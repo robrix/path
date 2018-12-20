@@ -1,4 +1,4 @@
-module Base.Bool where
+module Base.Bool
 
 Bool : Type
 Bool = ∀ a:Type . a -> a -> a

@@ -1,4 +1,4 @@
-module Base.Fix where
+module Base.Fix
 
 Alg : (Type -> Type) -> Type -> Type
 Alg = \ f x . ∀ r : Type . (r -> x) -> f r -> x

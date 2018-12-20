@@ -1,4 +1,4 @@
-module Base.Nat where
+module Base.Nat
 
 import Base.Fix
 

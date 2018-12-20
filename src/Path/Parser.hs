@@ -62,7 +62,7 @@ identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)
 
 reservedWords :: HashSet.HashSet String
-reservedWords =  HashSet.fromList [ "Type", "module", "where", "import" ]
+reservedWords =  HashSet.fromList [ "Type", "module", "import" ]
 
 keyword, op :: TokenParsing m => String -> m String
 

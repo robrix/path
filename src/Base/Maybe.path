@@ -1,4 +1,4 @@
-module Base.Maybe where
+module Base.Maybe
 
 import Base.Bool
 import Base.Function

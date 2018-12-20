@@ -1,4 +1,4 @@
-module Base.Fin where
+module Base.Fin
 
 import Base.Nat
 

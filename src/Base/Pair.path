@@ -1,4 +1,4 @@
-module Base.Pair where
+module Base.Pair
 
 Pair : Type -> Type -> Type
 Pair = \ l r . ∀ a : Type . (l -> r -> a) -> a

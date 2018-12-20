@@ -1,4 +1,4 @@
-module Base.Either where
+module Base.Either
 
 Either : Type -> Type -> Type
 Either = \ l r . ∀ a : Type . (l -> a) -> (r -> a) -> a

@@ -1,4 +1,4 @@
-module Base.Function where
+module Base.Function
 
 id : ∀ a:Type . a -> a
 id = \ _ a . a

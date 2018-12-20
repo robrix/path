@@ -1,4 +1,4 @@
-module Base.List where
+module Base.List
 
 import Base.Fix
 

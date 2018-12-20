@@ -1,4 +1,4 @@
-module Base.Unit where
+module Base.Unit
 
 Unit : Type
 Unit = ∀ a : Type . a -> a

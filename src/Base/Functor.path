@@ -1,4 +1,4 @@
-module Base.Functor where
+module Base.Functor
 
 Functor :  ∀ f : Type -> Type
         .  ∀ a : Type
