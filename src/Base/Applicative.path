@@ -2,6 +2,9 @@ module Base.Applicative
 
 import Base.Functor
 
+Apply : ∀ f : Type -> Type . Functor f -> Type
+Apply = \ f _ . ∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f a -> f b -> f c
+
 Applicative :  ∀ f : Type -> Type
             .  Functor f
             -> Type
