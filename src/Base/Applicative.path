@@ -1,14 +1,17 @@
 module Base.Applicative
 
 import Base.Functor
+import Base.Pointed
 
 Apply : ∀ f : Type -> Type . Functor f -> Type
 Apply = \ f _ . ∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f a -> f b -> f c
 
 Applicative :  ∀ f : Type -> Type
-            .  Functor f
+            .  { functor : Functor f }
+            -> Pointed f
+            -> Apply f functor
             -> Type
-Applicative = \  f fmap
+Applicative = \  f fmap pointed apply
               .  ∀ c : Type
-              .  ((∀ a : Type . a -> f a) -> (∀ a : Type . ∀ b : Type . f (a -> b) -> f a -> f b) -> c)
+              .  ((∀ a : Type . a -> f a) -> (∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f a -> f b -> f c) -> c)
               -> c
