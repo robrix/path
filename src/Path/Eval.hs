@@ -27,9 +27,7 @@ vforce d = \case
   VLam v f    -> VLam v (vforce d . f)
   VType       -> VType
   VPi v u t b -> VPi v u (vforce d t) (vforce d . b)
-  VNeutral n  -> vforceN d n
-
-vforceN :: (Ord v, Show v) => Env v -> Neutral v -> Value v
-vforceN d = \case
-  NApp f a -> vforceN d f `vapp` vforce d a
-  NFree v  -> maybe (vfree v) (vforce d) (Env.lookup v d)
+  VNeutral n  -> vforceN n
+  where vforceN = \case
+          NApp f a -> vforceN f `vapp` vforce d a
+          NFree v  -> maybe (vfree v) (vforce d) (Env.lookup v d)
