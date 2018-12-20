@@ -33,6 +33,7 @@ data Import ann = Import { importModuleName :: ModuleName, importAnn :: ann }
 data Decl v a
   = Declare v a
   | Define v a
+  | Commented String (Decl v a)
   deriving (Eq, Ord, Show)
 
 

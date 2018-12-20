@@ -45,6 +45,7 @@ resolveDecl = \case
     moduleName <- ask
     tm' <- runReader (res :: Resolution) (resolveTerm tm)
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
+  Commented t d -> Commented t <$> resolveDecl d
 
 resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) Span -> m (Module QName (Term (Surface QName) Span) Span)
 resolveModule m = do
