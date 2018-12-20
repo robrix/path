@@ -73,6 +73,9 @@ reservedWords, reservedOperators :: HashSet.HashSet String
 reservedWords     = HashSet.fromList [ "Type", "module", "import" ]
 reservedOperators = HashSet.fromList [ "->", ".", ":" ]
 
+reservedOperatorChars :: HashSet.HashSet Char
+reservedOperatorChars = HashSet.fromList "(){}"
+
 keyword, op :: TokenParsing m => String -> m String
 
 keyword s = token (highlight ReservedIdentifier (try (string s <* notFollowedBy alphaNum))) <?> s
