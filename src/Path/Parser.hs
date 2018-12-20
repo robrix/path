@@ -94,4 +94,4 @@ class DeltaParsing m => LayoutParsing m where
   layout :: m a -> m a
 
 instance LayoutParsing Parser where
-  layout m = braces (local (const Braces) m) <|> local (const Indent) m
+  layout m = braces (local (const Braces) m)
