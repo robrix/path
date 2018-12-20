@@ -181,6 +181,7 @@ basePackage = Package
       , "src/Base/Functor.path"
       , "src/Base/List.path"
       , "src/Base/Maybe.path"
+      , "src/Base/Monad.path"
       , "src/Base/Nat.path"
       , "src/Base/Pair.path"
       , "src/Base/Pointed.path"
