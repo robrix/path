@@ -8,9 +8,10 @@ import Path.Parser.Term
 import Path.Surface
 import Path.Term
 import Text.Trifecta
+import Text.Trifecta.Indentation
 
-module' :: (DeltaParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
-module' path = flip Module.Module path <$ keyword "module" <*> moduleName <*> many import' <*> many declaration
+module' :: (DeltaParsing m, IndentationParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
+module' path = flip Module.Module path <$ keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
