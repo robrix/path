@@ -23,11 +23,12 @@ vapp (VNeutral n) v = VNeutral (NApp n v)
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
 vforce :: (Ord v, Show v) => Env v -> Value v -> Value v
-vforce d = \case
-  VLam v f    -> VLam v (vforce d . f)
-  VType       -> VType
-  VPi v u t b -> VPi v u (vforce d t) (vforce d . b)
-  VNeutral n  -> vforceN n
-  where vforceN = \case
-          NApp f a -> vforceN f `vapp` vforce d a
-          NFree v  -> maybe (vfree v) (vforce d) (Env.lookup v d)
+vforce d = go
+  where go = \case
+          VLam v f    -> VLam v (go . f)
+          VType       -> VType
+          VPi v u t b -> VPi v u (go t) (go . b)
+          VNeutral n  -> goN n
+        goN = \case
+          NApp f a -> goN f `vapp` go a
+          NFree v  -> maybe (vfree v) go (Env.lookup v d)
