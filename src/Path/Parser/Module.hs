@@ -14,7 +14,7 @@ module' :: (DeltaParsing m, IndentationParsing m, MonadFresh m) => FilePath -> m
 module' path = flip Module.Module path <$ keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
-moduleName = makeModuleName <$> (identifier `sepByNonEmpty` dot)
+moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
 
 import' :: DeltaParsing m => m (Module.Import Span)
 import' = ann <$> spanned (Module.Import <$ keyword "import" <*> moduleName)
