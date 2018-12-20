@@ -85,7 +85,7 @@ instance MonadFresh Parser.Parser where
   pop = Parser.Parser pop
   freshName = Parser.Parser freshName
 
-instance MonadFresh m => MonadFresh (IndentationParserT Char m) where
+instance MonadFresh m => MonadFresh (IndentationParserT t m) where
   push = lift push
   pop = lift pop
   freshName = lift freshName
