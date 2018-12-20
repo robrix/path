@@ -20,6 +20,7 @@ library
                      , Path.Elab
                      , Path.Env
                      , Path.Eval
+                     , Path.Meta
                      , Path.Module
                      , Path.Name
                      , Path.Package
