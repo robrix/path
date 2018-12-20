@@ -6,6 +6,7 @@ module Path.Parser
 , whole
 , keyword
 , identifier
+, operator
 , reservedWords
 , reservedOperators
 , op
@@ -19,7 +20,7 @@ import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
 import Control.Monad.State
-import Data.Char (isSpace)
+import Data.Char (isPunctuation, isSpace)
 import qualified Data.HashSet as HashSet
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -59,8 +60,13 @@ whole :: TokenParsing m => m a -> m a
 whole p = whiteSpace *> p <* eof
 
 
-identifier :: (Monad m, TokenParsing m) => m String
+identifier, operator :: (Monad m, TokenParsing m) => m String
+
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)
+
+operator = ident (IdentifierStyle "operator" (satisfy isOperator) (satisfy isOperator) reservedOperators Operator ReservedOperator)
+  where isOperator '\'' = False
+        isOperator c    = isPunctuation c
 
 reservedWords, reservedOperators :: HashSet.HashSet String
 reservedWords     = HashSet.fromList [ "Type", "module", "import" ]
