@@ -10,7 +10,7 @@ import Path.Term
 import Text.Trifecta
 
 module' :: (DeltaParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
-module' path = flip Module.Module path <$ keyword "module" <*> moduleName <*> many import' <*> many declaration
+module' path = uncurry . flip Module.Module path <$ keyword "module" <*> moduleName <*> braces ((,) <$> (import' `sepBy` semi) <*> (declaration `sepBy` semi))
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
