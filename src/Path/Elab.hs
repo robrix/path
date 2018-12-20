@@ -161,7 +161,7 @@ elabDecl :: ( Carrier sig m
 elabDecl = \case
   Declare name ty -> elabDeclare name ty
   Define  name tm -> elabDefine  name tm
-  Doc _  d  -> elabDecl d
+  Doc _        d  -> elabDecl d
 
 elabDeclare :: ( Carrier sig m
                , Member (Error (ElabError QName)) sig
