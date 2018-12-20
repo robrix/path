@@ -16,7 +16,6 @@ library
   exposed-modules:     Path.CLI
                      , Path.Context
                      , Path.Core
-                     , Path.Decl
                      , Path.Elab
                      , Path.Env
                      , Path.Eval

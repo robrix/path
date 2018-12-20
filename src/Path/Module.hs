@@ -14,7 +14,6 @@ import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
-import Path.Decl
 import Path.Name
 import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
@@ -29,6 +28,11 @@ data Module v a ann = Module
   deriving (Eq, Ord, Show)
 
 data Import ann = Import { importModuleName :: ModuleName, importAnn :: ann }
+  deriving (Eq, Ord, Show)
+
+data Decl v a
+  = Declare v a
+  | Define v a
   deriving (Eq, Ord, Show)
 
 

@@ -8,7 +8,6 @@ import Control.Effect.State
 import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
-import Path.Decl
 import Path.Module
 import Path.Name
 import Path.Pretty

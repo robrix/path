@@ -1,7 +1,6 @@
 module Path.Parser.Module where
 
 import Control.Applicative ((<**>), Alternative(..))
-import Path.Decl
 import qualified Path.Module as Module
 import Path.Name
 import Path.Parser
@@ -21,5 +20,5 @@ import' :: DeltaParsing m => m (Module.Import Span)
 import' = ann <$> spanned (Module.Import <$ keyword "import" <*> moduleName)
   where ann (f :~ a) = f a
 
-declaration :: (DeltaParsing m, MonadFresh m) => m (Decl Name (Term (Surface Name) Span))
-declaration = name <**> (Declare <$ op ":" <|> Define <$ op "=") <*> term
+declaration :: (DeltaParsing m, MonadFresh m) => m (Module.Decl Name (Term (Surface Name) Span))
+declaration = name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term

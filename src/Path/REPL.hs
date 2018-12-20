@@ -14,7 +14,6 @@ import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Data.Text (Text, pack, unpack)
 import Path.Context as Context
-import Path.Decl
 import Path.Elab
 import Path.Env as Env
 import Path.Eval

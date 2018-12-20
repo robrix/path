@@ -13,7 +13,6 @@ import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Path.Context as Context
 import Path.Core as Core
-import Path.Decl
 import Path.Env as Env
 import Path.Eval
 import Path.Module

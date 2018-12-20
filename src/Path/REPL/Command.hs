@@ -1,6 +1,5 @@
 module Path.REPL.Command where
 
-import Path.Decl
 import Path.Module
 import Path.Name
 import Path.Surface
