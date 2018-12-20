@@ -8,4 +8,5 @@ import Test.DocTest
 main :: IO ()
 main = do
   args <- getArgs
-  doctest ("-isrc" : "--fast" : if null args then ["src"] else args)
+  autogen <- fmap (<> "/build/doctest/autogen") <$> lookupEnv "HASKELL_DIST_DIR"
+  doctest (maybe id ((:) . ("-i" <>)) autogen ("-isrc" : "--fast" : if null args then ["src"] else args))
