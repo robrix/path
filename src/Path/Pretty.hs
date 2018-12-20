@@ -34,8 +34,8 @@ putDoc doc = do
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
 prettyNotice :: Span -> Maybe Doc -> Doc -> Maybe Doc -> Doc
-prettyNotice s lvl msg ctx = nest 2 $ vsep
-  ( group (prettyStart s <> colon <> maybe empty ((space <>) . (<> colon)) lvl </> msg)
+prettyNotice s lvl msg ctx = vsep
+  ( nest 2 (group (prettyStart s <> colon <> maybe empty ((space <>) . (<> colon)) lvl </> msg))
   : prettys s
   : toList ctx)
 
