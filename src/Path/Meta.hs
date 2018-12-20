@@ -1,3 +1,4 @@
+{-# LANGUAGE KindSignatures #-}
 module Path.Meta where
 
 import Path.Name
@@ -8,8 +9,8 @@ data Module v t f = Module
   , moduleDecls   :: [f (Decl v t)]
   }
 
-data Import = Import { importModuleName :: ModuleName }
+data Import (f :: (* -> *) -> * -> *) = Import { importModuleName :: ModuleName }
 
-data Decl v t
+data Decl v t (f :: (* -> *) -> * -> *)
   = Decl v t
   | Defn v t
