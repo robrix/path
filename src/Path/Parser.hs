@@ -40,6 +40,7 @@ instance TokenParsing Parser where
   someSpace = Parser $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
   nesting = Parser . nesting . runParser
   highlight h = Parser . highlight h . runParser
+  token p = (someSpace <|> pure ()) *> p
 
 
 parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> FilePath -> m a
@@ -57,7 +58,7 @@ indentst :: IndentationState
 indentst = mkIndentationState 0 infIndentation True Gt
 
 whole :: TokenParsing m => m a -> m a
-whole p = whiteSpace *> p <* eof
+whole p = p <* whiteSpace <* eof
 
 
 identifier, operator :: (Monad m, TokenParsing m) => m String
