@@ -45,13 +45,13 @@ instance HFunctor REPL where
 instance Effect REPL where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Member REPL sig, Carrier sig m) => Text -> m (Maybe Text)
+prompt :: (Carrier sig m, Member REPL sig) => Text -> m (Maybe Text)
 prompt p = send (Prompt p ret)
 
-output :: (Member REPL sig, Carrier sig m) => Text -> m ()
+output :: (Carrier sig m, Member REPL sig) => Text -> m ()
 output s = send (Output s (ret ()))
 
-runREPL :: (MonadIO m, Carrier sig m) => Prefs -> Settings IO -> Eff (REPLC m) a -> m a
+runREPL :: (Carrier sig m, MonadIO m) => Prefs -> Settings IO -> Eff (REPLC m) a -> m a
 runREPL prefs settings = flip runREPLC (prefs, settings) . interpret
 
 newtype REPLC m a = REPLC { runREPLC :: (Prefs, Settings IO) -> m a }
