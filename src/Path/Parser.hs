@@ -7,6 +7,7 @@ module Path.Parser
 , keyword
 , identifier
 , reservedWords
+, reservedOperators
 , op
 , ErrInfo
 , Span
@@ -61,8 +62,9 @@ whole p = whiteSpace *> p <* eof
 identifier :: (Monad m, TokenParsing m) => m String
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)
 
-reservedWords :: HashSet.HashSet String
-reservedWords =  HashSet.fromList [ "Type", "module", "import" ]
+reservedWords, reservedOperators :: HashSet.HashSet String
+reservedWords     = HashSet.fromList [ "Type", "module", "import" ]
+reservedOperators = HashSet.fromList [ "->", "." ]
 
 keyword, op :: TokenParsing m => String -> m String
 
