@@ -15,6 +15,14 @@ Apply = \ f _ . ∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f 
       .  f (a -> b) -> f a -> f b
 (<*>) = \ F _ liftA2 A B . liftA2 (A -> B) A B (id (A -> B))
 
+(*>) :  ∀ f : Type -> Type
+     .  { functor : Functor f }
+     -> Apply f functor
+     -> ∀ a : Type
+     .  ∀ b : Type
+     .  f a -> f b -> f b
+(*>) = \ F _ liftA2 A B . liftA2 A B B (const B A)
+
 Applicative :  ∀ f : Type -> Type
             .  { functor : Functor f }
             -> Pointed f
