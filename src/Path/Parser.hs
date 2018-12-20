@@ -33,6 +33,9 @@ import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
 
+data Layout = Layout | Braces
+  deriving (Eq, Ord, Show)
+
 newtype Parser a = Parser { runParser :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
