@@ -66,7 +66,8 @@ multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
 name :: (Monad m, TokenParsing m) => m Name
-name = Name <$> identifier <?> "name"
+name =       (Name <$> identifier <?> "name")
+     <|> try (Name <$> parens operator <?> "operator name")
 
 
 class Monad m => MonadFresh m where
