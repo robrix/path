@@ -38,7 +38,7 @@ data Layout = Indent | Braces
   deriving (Eq, Ord, Show)
 
 newtype Parser a = Parser { runParser :: StateT Int (ReaderT Layout Trifecta.Parser) a }
-  deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
+  deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, MonadReader Layout, Parsing)
 
 instance TokenParsing Parser where
   someSpace = Parser $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
