@@ -31,7 +31,6 @@ import Text.Parser.Token.Style
 import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
-import Text.Trifecta.Indentation
 
 newtype Parser a = Parser { runParser :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
@@ -43,19 +42,16 @@ instance TokenParsing Parser where
   token p = (someSpace <|> pure ()) *> p
 
 
-parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> FilePath -> m a
-parseFile p = toError <=< parseFromFileEx (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
+parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> FilePath -> m a
+parseFile p = toError <=< parseFromFileEx (evalStateT (runParser p) 0)
 
-parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> String -> m a
-parseString p = toError . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0) mempty
+parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> String -> m a
+parseString p = toError . Trifecta.parseString (evalStateT (runParser p) 0) mempty
 
 toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a
 toError (Failure e) = throwError e
 
-
-indentst :: IndentationState
-indentst = mkIndentationState 0 infIndentation True Gt
 
 whole :: TokenParsing m => m a -> m a
 whole p = p <* whiteSpace <* eof

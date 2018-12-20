@@ -49,7 +49,6 @@ library
                      , filepath
                      , fused-effects < 0.2
                      , haskeline
-                     , indentation-trifecta
                      , mtl
                      , optparse-applicative
                      , parsers
