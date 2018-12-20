@@ -1,8 +1,14 @@
 module Base.Functor
 
+import Base.Function
+import Base.Unit
+
 Functor : ∀ f : Type -> Type . Type
 Functor =  \ f
         .  ∀ a : Type
         .  ∀ b : Type
         .  (  a ->   b)
         -> (f a -> f b)
+
+void : ∀ f : Type -> Type . Functor f -> ∀ a : Type . f a -> f Unit
+void = \ _ fmap A . fmap A Unit (const Unit A unit)
