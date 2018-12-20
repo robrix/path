@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Surface where
 
+import Data.Text
 import Path.Term
 import Path.Usage
 
@@ -13,6 +14,7 @@ data Surface v a
   | ForAll v a a
   | a ::: a
   | Hole v
+  | Doc Text a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 (-->) :: Semigroup ann => (v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
@@ -53,6 +55,7 @@ subst i r = \case
   In (Hole v) ann
     | i == v    -> In r ann
     | otherwise -> In (Hole v) ann
+  In (Doc t a) ann -> In (Doc t (subst i r a)) ann
 
 
 uses :: Eq v => v -> Term (Surface v) a -> [a]
@@ -75,3 +78,4 @@ uses n = cata $ \ f a -> case f of
   Hole n'
     | n == n'   -> [a]
     | otherwise -> []
+  Doc _ a -> a
