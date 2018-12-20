@@ -10,7 +10,6 @@ module Path.Parser
 , reservedWords
 , reservedOperators
 , op
-, LayoutParsing(..)
 , ErrInfo
 , Span
 ) where
@@ -84,7 +83,3 @@ keyword, op :: TokenParsing m => String -> m String
 keyword s = token (highlight ReservedIdentifier (try (string s <* notFollowedBy alphaNum))) <?> s
 
 op s = token (highlight Operator (string s)) <?> s
-
-
-class DeltaParsing m => LayoutParsing m where
-  layout :: m a -> m a
