@@ -33,7 +33,7 @@ import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
 
-data Layout = Layout | Braces
+data Layout = Indent | Braces
   deriving (Eq, Ord, Show)
 
 newtype Parser a = Parser { runParser :: StateT Int Trifecta.Parser a }
