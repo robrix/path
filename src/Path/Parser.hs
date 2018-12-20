@@ -64,6 +64,12 @@ identifier, operator :: (Monad m, TokenParsing m) => m String
 
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)
 
+-- | Parse an operator identifier.
+--
+-- >>> Trifecta.parseString operator mempty "$"
+-- Success "$"
+-- >>> Trifecta.parseString operator mempty ">"
+-- Success ">"
 operator = ident (IdentifierStyle "operator" (satisfy isOperator) (satisfy isOperator) reservedOperators Operator ReservedOperator)
   where isOperator '\'' = False
         isOperator c    = not (HashSet.member c reservedOperatorChars) && isPunctuation c || isSymbol c
