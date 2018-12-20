@@ -74,12 +74,7 @@ class Monad m => MonadFresh m where
   pop :: m ()
   freshName :: m Name
 
-instance Monad m => MonadFresh (StateT Int m) where
-  push = modify succ
-  pop = modify pred
-  freshName = gets Gensym
-
 instance MonadFresh Parser.Parser where
-  push = Parser.Parser push
-  pop = Parser.Parser pop
-  freshName = Parser.Parser freshName
+  push = Parser.Parser (modify succ)
+  pop = Parser.Parser (modify pred)
+  freshName = Parser.Parser (gets Gensym)
