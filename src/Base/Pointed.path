@@ -1,1 +1,4 @@
 module Base.Pointed
+
+Pointed : ∀ f : Type -> Type . Type
+Pointed = \ f . ∀ a : Type . a -> f a
