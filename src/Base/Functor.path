@@ -1,6 +1,7 @@
 module Base.Functor
 
-Functor :  ∀ f : Type -> Type
+Functor : ∀ f : Type -> Type . Type
+Functor =  \ f
         .  ∀ a : Type
         .  ∀ b : Type
         .  (  a ->   b)
