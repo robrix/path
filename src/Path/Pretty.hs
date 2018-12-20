@@ -16,6 +16,7 @@ module Path.Pretty
 import Control.Monad.IO.Class
 import Data.Foldable (toList)
 import qualified Data.Map as Map
+import Data.Text (Text, unpack)
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
@@ -79,6 +80,9 @@ instance PrettyPrec ErrInfo where
   prettyPrec _ = pretty . _errDoc
 
 instance PrettyPrec Rendering
+
+instance PrettyPrec Text where
+  prettyPrec _ = pretty . unpack
 
 prettyParens :: Bool -> Doc -> Doc
 prettyParens True = parens
