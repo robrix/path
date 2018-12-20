@@ -1,1 +1,11 @@
 module Base.Applicative
+
+import Base.Functor
+
+Applicative :  ∀ f : Type -> Type
+            .  Functor f
+            -> Type
+Applicative = \  f fmap
+              .  ∀ c : Type
+              .  ((∀ a : Type . a -> f a) -> (∀ a : Type . ∀ b : Type . f (a -> b) -> f a -> f b) -> c)
+              -> c
