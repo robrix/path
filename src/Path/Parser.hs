@@ -64,7 +64,7 @@ identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'')
 
 reservedWords, reservedOperators :: HashSet.HashSet String
 reservedWords     = HashSet.fromList [ "Type", "module", "import" ]
-reservedOperators = HashSet.fromList [ "->", "." ]
+reservedOperators = HashSet.fromList [ "->", ".", ":" ]
 
 keyword, op :: TokenParsing m => String -> m String
 
