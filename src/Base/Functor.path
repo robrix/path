@@ -12,3 +12,6 @@ Functor =  \ f
 
 void : ∀ f : Type -> Type . Functor f -> ∀ a : Type . f a -> f Unit
 void = \ _ fmap A . fmap A Unit (const Unit A unit)
+
+(<$) : ∀ f : Type -> Type . Functor f -> ∀ a : Type . ∀ b : Type . a -> f b -> f a
+(<$) = \ _ fmap A B a . fmap B A (const A B a)
