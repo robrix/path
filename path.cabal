@@ -75,3 +75,8 @@ executable pathc
     ghc-options:       -Wno-missing-export-lists
   if (impl(ghc >= 8.6))
     ghc-options:       -Wno-star-is-type
+
+
+source-repository head
+  type:     git
+  location: https://github.com/robrix/path
