@@ -67,7 +67,6 @@ elab (In (f Surface.:@ a) _) Nothing = do
       env <- ask
       pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' (eval a' env)))
     _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
-elab (In (Surface.Doc _ a) _) ty = elab a ty
 elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
 elab (In (Surface.Lam n e) span) (Just (VPi tn pi t t')) = do
   e' <- local (Context.insert n t) (check (subst n (Surface.Var n) e) (t' (vfree n)))
