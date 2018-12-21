@@ -11,6 +11,7 @@ module Path.Pretty
 , prettyStart
 , prettyParens
 , prettyBraces
+, tabulate2
 ) where
 
 import Control.Monad.IO.Class
@@ -50,6 +51,12 @@ prettyInfo s = prettyNotice s Nothing
 
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
+
+tabulate2 :: (Pretty a, Pretty b) => (a -> Int) -> [(a, b)] -> Doc
+tabulate2 _ [] = empty
+tabulate2 l cs = vsep (map (uncurry entry) cs)
+  where entry a b = fill w (pretty a) <+> space <+> pretty b
+        w = maximum (map (l . fst) cs)
 
 
 class PrettyPrec a where
