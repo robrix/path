@@ -33,7 +33,7 @@ import Path.Term
 import Path.Usage
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), cyan, plain, putDoc)
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), putDoc)
 
 data REPL cmd (m :: * -> *) k
   = Prompt T.Text (Maybe cmd -> k)
@@ -74,12 +74,8 @@ instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => 
         Right res -> pure (join res)
       runREPLC c (increment l) (k res)
     Output text k -> outputStrLn (T.unpack text) *> runREPLC c l k) op)
-
-cyan :: String
-cyan = "\ESC[1;36m\STX"
-
-plain :: String
-plain = "\ESC[0m\STX"
+    where cyan = "\ESC[1;36m\STX"
+          plain = "\ESC[0m\STX"
 
 newtype ControlIO m a = ControlIO ((forall x . Eff m x -> IO x) -> Eff m a)
 
