@@ -12,6 +12,7 @@ module Path.Pretty
 , prettyParens
 , prettyBraces
 , tabulate2
+, tabulate3
 ) where
 
 import Control.Arrow ((***))
@@ -59,6 +60,13 @@ tabulate2 s cs = vsep (map (uncurry entry) cs')
   where entry a b = fill w (pretty a) <> s <> pretty b
         w = maximum (map (columnWidth . fst) cs')
         cs' = map (column *** pretty) cs
+
+tabulate3 :: (Pretty a, Pretty b, Pretty c) => Doc -> [(a, (b, c))] -> Doc
+tabulate3 _ [] = empty
+tabulate3 s cs = tabulate2 s (map (fmap (uncurry entry)) cs')
+  where entry a b = fill w (pretty a) <> s <> pretty b
+        w = maximum (map (columnWidth . fst . snd) cs')
+        cs' = map (fmap (column *** pretty)) cs
 
 newtype Column = Column { unColumn :: (Int, Doc) }
 
