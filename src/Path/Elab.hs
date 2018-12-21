@@ -6,7 +6,7 @@ import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
-import Control.Monad (unless, when)
+import Control.Monad ((<=<), unless, when)
 import Control.Monad.IO.Class
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
@@ -126,9 +126,9 @@ raiseHandler = coerce
 
 elabModule :: ( Carrier sig m
               , Effect sig
-              , Member (Error (ElabError QName)) sig
               , Member (Error ModuleError) sig
               , Member (Reader (ModuleTable QName)) sig
+              , Member (State [ElabError QName]) sig
               )
            => Module QName (Term (Surface QName) Span) Span
            -> Elab QName m (Context QName, Env QName)
@@ -138,7 +138,10 @@ elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.em
     modify (Context.union ctx)
     modify (Env.union env)
 
-  for_ (moduleDecls m) elabDecl
+  for_ (moduleDecls m) (either logError pure <=< raiseHandler runError . elabDecl)
+
+logError :: (Carrier sig m, Member (State [ElabError QName]) sig, Monad m) => ElabError QName -> m ()
+logError = modify . (:)
 
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig

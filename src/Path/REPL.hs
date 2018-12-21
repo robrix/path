@@ -199,7 +199,8 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             let name = moduleName m
             print (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (modulePath m)))
             table <- get
-            res <- raiseHandler (runReader (table :: ModuleTable QName)) (elabModule m)
+            (errs, res) <- raiseHandler (runState [] . runReader (table :: ModuleTable QName)) (elabModule m)
+            unless (Prelude.null errs) (for_ errs printElabError)
             modify (Map.insert name res)
           put (moduleGraph sorted)
         runRenamer m = do
