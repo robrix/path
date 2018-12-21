@@ -7,7 +7,7 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
-import Control.Monad ((<=<), ap, join, unless)
+import Control.Monad ((<=<), join, unless)
 import Control.Monad.IO.Class
 import Control.Monad.Trans (MonadTrans(..))
 import Data.Coerce
@@ -77,30 +77,30 @@ instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => 
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
 
-newtype ControlIO m a = ControlIO ((forall x . Eff m x -> IO x) -> Eff m a)
+newtype ControlIO m a = ControlIO ((forall x . m x -> IO x) -> m a)
 
-instance Functor (ControlIO m) where
+instance Functor m => Functor (ControlIO m) where
   fmap f (ControlIO g) = ControlIO (\ h -> fmap f (g h))
 
-instance Applicative (ControlIO m) where
+instance Applicative m => Applicative (ControlIO m) where
   pure a = ControlIO (const (pure a))
-  (<*>) = ap
+  ControlIO f <*> ControlIO a = ControlIO (\ h -> f h <*> a h)
 
-instance Monad (ControlIO m) where
+instance Monad m => Monad (ControlIO m) where
   return = pure
   ControlIO m >>= f = ControlIO (\ handler -> m handler >>= runControlIO handler . f)
 
-instance (Carrier sig m, Member (Lift IO) sig) => MonadIO (ControlIO m) where
+instance MonadIO m => MonadIO (ControlIO m) where
   liftIO m = ControlIO (const (liftIO m))
 
-runControlIO :: (forall x . Eff m x -> IO x) -> ControlIO m a -> Eff m a
+runControlIO :: (forall x . m x -> IO x) -> ControlIO m a -> m a
 runControlIO f (ControlIO m) = m f
 
 instance Carrier sig m => Carrier sig (ControlIO m) where
-  ret = pure
+  ret a = ControlIO (const (ret a))
   eff op = ControlIO (\ handler -> eff (handlePure (runControlIO handler) op))
 
-instance (Carrier sig m, Member (Lift IO) sig) => MonadException (ControlIO m) where
+instance MonadIO m => MonadException (ControlIO m) where
   controlIO f = ControlIO (\ handler -> liftIO (f (RunIO (fmap pure . handler . runControlIO handler)) >>= handler . runControlIO handler))
 
 repl :: MonadIO m => [FilePath] -> m ()
