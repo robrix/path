@@ -15,8 +15,8 @@ data Value v
   | VPi v Usage (Value v) (Value v -> Value v)
   | VNeutral (Neutral v)
 
-instance Ord v => Eq (Value v) where
-  (==) = (==) `on` quote const
+instance Eq v => Eq (Value v) where
+  (==) = aeq
 
 instance Ord v => Ord (Value v) where
   compare = compare `on` quote const
