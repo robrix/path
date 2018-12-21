@@ -7,7 +7,7 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
-import Control.Monad ((<=<), unless)
+import Control.Monad ((<=<), join, unless)
 import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_)
@@ -54,12 +54,12 @@ output s = sendREPL (Output s (ret ()))
 sendREPL :: (Carrier sig m, Member (REPL Command) sig) => REPL Command m (m a) -> m a
 sendREPL = send
 
-runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Parser cmd -> Prefs -> Settings IO -> Eff (REPLC cmd m) a -> m a
+runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Parser (Maybe cmd) -> Prefs -> Settings IO -> Eff (REPLC cmd m) a -> m a
 runREPL parser prefs settings = runREPLC parser prefs settings (Line 0) . interpret
 
-newtype REPLC cmd m a = REPLC (Parser cmd -> Prefs -> Settings IO -> Line -> m a)
+newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Prefs -> Settings IO -> Line -> m a)
 
-runREPLC :: Parser cmd -> Prefs -> Settings IO -> Line -> REPLC cmd m a -> m a
+runREPLC :: Parser (Maybe cmd) -> Prefs -> Settings IO -> Line -> REPLC cmd m a -> m a
 runREPLC c p s l (REPLC m) = m c p s l
 
 instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
@@ -70,7 +70,7 @@ instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Carrier
       res <- runError (traverse (parseString c (lineDelta l)) str)
       res <- case res of
         Left  err -> printParserError err >> pure Nothing
-        Right res -> pure res
+        Right res -> pure (join res)
       runREPLC c p s (increment l) (k res)
     Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC c p s l k) op)
 
