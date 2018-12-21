@@ -1,4 +1,5 @@
 packages: path.cabal
+optional-packages: vendor/*/*.cabal
 jobs: $ncpus
 package path
   ghc-options: -Werror
