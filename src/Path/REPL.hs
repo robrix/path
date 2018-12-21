@@ -49,7 +49,7 @@ prompt :: (Carrier sig m, Member (Prompt cmd) sig) => String -> m (Maybe cmd)
 prompt p = send (Prompt p ret)
 
 
-data Print (m :: * -> *) k = Print T.Text k
+data Print (m :: * -> *) k = Print Doc k
   deriving (Functor)
 
 instance HFunctor Print where
@@ -58,8 +58,8 @@ instance HFunctor Print where
 instance Effect Print where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-print :: (Carrier sig m, Member Print sig) => T.Text -> m ()
-print s = send (Print s (ret ()))
+print :: (Carrier sig m, Member Print sig, PrettyPrec a) => a -> m ()
+print s = send (Print (prettys s) (ret ()))
 
 
 runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Parser (Maybe cmd) -> Prefs -> Settings m -> Eff (REPLC cmd m) a -> m a
@@ -73,7 +73,7 @@ runREPLC p l (REPLC m) = m p l
 instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . pure
   eff op = REPLC (\ c l -> handleSum (handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<)))
-    (\ (Print text k) -> outputStrLn (T.unpack text) *> runREPLC c l k))
+    (\ (Print text k) -> putDoc text *> runREPLC c l k))
     (\ (Prompt prompt k) -> do
       str <- getInputLine (cyan <> prompt <> plain)
       res <- lift (runError (traverse (parseString c (lineDelta l)) str))
