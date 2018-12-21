@@ -197,8 +197,10 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule
 
           runDeps . for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
-            let name = moduleName m
-            print (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (modulePath m)))
+            let name    = moduleName m
+                ordinal = brackets (pretty i <+> pretty "of" <+> pretty n)
+                path    = parens (pretty (modulePath m))
+            print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
             (errs, res) <- raiseHandler (runState [] . runReader (table :: ModuleTable QName)) (elabModule m)
             if Prelude.null errs then
