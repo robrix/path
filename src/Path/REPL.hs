@@ -203,15 +203,9 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
         runRenamer m = do
           res <- get
           raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
-
-printResolveError :: (Carrier sig m, Member Print sig) => ResolveError -> m ()
-printResolveError = print
-
-printElabError :: (Carrier sig m, Member Print sig) => ElabError QName -> m ()
-printElabError = print
-
-printModuleError :: (Carrier sig m, Member Print sig) => ModuleError -> m ()
-printModuleError = print
+        printResolveError err = print (err :: ResolveError)
+        printElabError    err = print (err :: ElabError QName)
+        printModuleError  err = print (err :: ModuleError)
 
 printParserError :: MonadIO m => ErrInfo -> m ()
 printParserError = prettyPrint
