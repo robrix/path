@@ -35,25 +35,31 @@ import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), putDoc)
 
-data REPL cmd (m :: * -> *) k
-  = Prompt T.Text (Maybe cmd -> k)
-  | Output T.Text k
+data Prompt cmd (m :: * -> *) k = Prompt T.Text (Maybe cmd -> k)
   deriving (Functor)
 
-instance HFunctor (REPL cmd) where
+instance HFunctor (Prompt cmd) where
   hmap _ = coerce
 
-instance Effect (REPL cmd) where
+instance Effect (Prompt cmd) where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member (REPL cmd) sig) => T.Text -> m (Maybe cmd)
+prompt :: (Carrier sig m, Member (Prompt cmd) sig) => T.Text -> m (Maybe cmd)
 prompt p = send (Prompt p ret)
 
-output :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m ()
-output s = sendREPL (Output s (ret ()))
 
-sendREPL :: (Carrier sig m, Member (REPL Command) sig) => REPL Command m (m a) -> m a
-sendREPL = send
+data Print (m :: * -> *) k = Print T.Text k
+  deriving (Functor)
+
+instance HFunctor Print where
+  hmap _ = coerce
+
+instance Effect Print where
+  handle state handler = coerce . fmap (handler . (<$ state))
+
+output :: (Carrier sig m, Member Print sig) => T.Text -> m ()
+output s = send (Print s (ret ()))
+
 
 runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Parser (Maybe cmd) -> Prefs -> Settings m -> Eff (REPLC cmd m) a -> m a
 runREPL parser prefs settings = runInputTWithPrefs prefs settings . runREPLC parser (Line 0) . interpret
@@ -63,17 +69,17 @@ newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Line -> InputT m a)
 runREPLC :: Parser (Maybe cmd) -> Line -> REPLC cmd m a -> InputT m a
 runREPLC p l (REPLC m) = m p l
 
-instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
+instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . pure
-  eff op = REPLC (\ c l -> handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<))) (\case
-    Prompt prompt k -> do
+  eff op = REPLC (\ c l -> handleSum (handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<)))
+    (\ (Print text k) -> outputStrLn (T.unpack text) *> runREPLC c l k))
+    (\ (Prompt prompt k) -> do
       str <- getInputLine (cyan <> T.unpack prompt <> plain)
       res <- lift (runError (traverse (parseString c (lineDelta l)) str))
       res <- case res of
         Left  err -> printParserError err >> pure Nothing
         Right res -> pure (join res)
-      runREPLC c (increment l) (k res)
-    Output text k -> outputStrLn (T.unpack text) *> runREPLC c l k) op)
+      runREPLC c (increment l) (k res)) op)
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
 
@@ -134,7 +140,8 @@ script :: ( Carrier sig m
           , Effect sig
           , Functor m
           , Member (Lift IO) sig
-          , Member (REPL Command) sig
+          , Member Print sig
+          , Member (Prompt Command) sig
           , Member (State (Context QName)) sig
           , Member (State (Env QName)) sig
           , Member (State (ModuleTable QName)) sig
