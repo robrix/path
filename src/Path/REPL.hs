@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, KindSignatures, LambdaCase, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
 import Control.Effect
@@ -7,8 +7,9 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
-import Control.Monad ((<=<), join, unless)
+import Control.Monad ((<=<), ap, join, unless)
 import Control.Monad.IO.Class
+import Control.Monad.Trans (MonadTrans(..))
 import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
@@ -30,7 +31,7 @@ import Path.REPL.Command as Command
 import Path.Surface
 import Path.Term
 import Path.Usage
-import System.Console.Haskeline
+import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), cyan, plain, putDoc)
 
@@ -54,25 +55,25 @@ output s = sendREPL (Output s (ret ()))
 sendREPL :: (Carrier sig m, Member (REPL Command) sig) => REPL Command m (m a) -> m a
 sendREPL = send
 
-runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Parser (Maybe cmd) -> Prefs -> Settings IO -> Eff (REPLC cmd m) a -> m a
-runREPL parser prefs settings = runREPLC parser prefs settings (Line 0) . interpret
+runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Parser (Maybe cmd) -> Prefs -> Settings m -> Eff (REPLC cmd m) a -> m a
+runREPL parser prefs settings = runInputTWithPrefs prefs settings . runWrapInputT . runREPLC parser (Line 0) . interpret
 
-newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Prefs -> Settings IO -> Line -> m a)
+newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Line -> WrapInputT m a)
 
-runREPLC :: Parser (Maybe cmd) -> Prefs -> Settings IO -> Line -> REPLC cmd m a -> m a
-runREPLC c p s l (REPLC m) = m c p s l
+runREPLC :: Parser (Maybe cmd) -> Line -> REPLC cmd m a -> WrapInputT m a
+runREPLC p l (REPLC m) = m p l
 
-instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
-  ret = REPLC . const . const . const . const . ret
-  eff op = REPLC (\ c p s l -> handleSum (eff . handlePure (runREPLC c p s l)) (\case
+instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
+  ret = REPLC . const . const . pure
+  eff op = REPLC (\ c l -> handleSum (eff . handlePure (runREPLC c l)) (\case
     Prompt prompt k -> do
-      str <- liftIO (runInputTWithPrefs p s (getInputLine (cyan <> T.unpack prompt <> plain)))
+      str <- WrapInputT (getInputLine (cyan <> T.unpack prompt <> plain))
       res <- runError (traverse (parseString c (lineDelta l)) str)
       res <- case res of
         Left  err -> printParserError err >> pure Nothing
         Right res -> pure (join res)
-      runREPLC c p s (increment l) (k res)
-    Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC c p s l k) op)
+      runREPLC c (increment l) (k res)
+    Output text k -> WrapInputT (outputStrLn (T.unpack text)) *> runREPLC c l k) op)
 
 cyan :: String
 cyan = "\ESC[1;36m\STX"
@@ -80,6 +81,38 @@ cyan = "\ESC[1;36m\STX"
 plain :: String
 plain = "\ESC[0m\STX"
 
+newtype WrapInputT m a = WrapInputT { runWrapInputT :: InputT m a }
+  deriving (Applicative, Functor, Monad, MonadException, MonadIO)
+
+instance (Carrier sig m, Effect sig, Monad m) => Carrier sig (WrapInputT m) where
+  ret = pure
+  eff = WrapInputT . join . lift . eff . handle (pure ()) (pure . (runWrapInputT =<<))
+
+newtype ControlIO m a = ControlIO ((forall x . Eff m x -> IO x) -> Eff m a)
+
+instance Functor (ControlIO m) where
+  fmap f (ControlIO g) = ControlIO (\ h -> fmap f (g h))
+
+instance Applicative (ControlIO m) where
+  pure a = ControlIO (const (pure a))
+  (<*>) = ap
+
+instance Monad (ControlIO m) where
+  return = pure
+  ControlIO m >>= f = ControlIO (\ handler -> m handler >>= runControlIO handler . f)
+
+instance (Carrier sig m, Member (Lift IO) sig) => MonadIO (ControlIO m) where
+  liftIO m = ControlIO (const (liftIO m))
+
+runControlIO :: (forall x . Eff m x -> IO x) -> ControlIO m a -> Eff m a
+runControlIO f (ControlIO m) = m f
+
+instance Carrier sig m => Carrier sig (ControlIO m) where
+  ret = pure
+  eff op = ControlIO (\ handler -> eff (handlePure (runControlIO handler) op))
+
+instance (Carrier sig m, Member (Lift IO) sig) => MonadException (ControlIO m) where
+  controlIO f = ControlIO (\ handler -> liftIO (f (RunIO (fmap pure . handler . runControlIO handler)) >>= handler . runControlIO handler))
 
 repl :: MonadIO m => [FilePath] -> m ()
 repl packageSources = do
@@ -93,12 +126,13 @@ repl packageSources = do
         , autoAddHistory = True
         }
   liftIO (runM
+         (runControlIO runM
          (runREPL command prefs settings
          (evalState (mempty :: ModuleTable QName)
          (evalState (Env.empty :: Env QName)
          (evalState (Context.empty :: Context QName)
          (evalState (Resolution mempty)
-         (script packageSources)))))))
+         (script packageSources))))))))
 
 newtype Line = Line Int64
 
