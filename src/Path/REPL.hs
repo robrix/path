@@ -45,8 +45,8 @@ instance HFunctor (REPL cmd) where
 instance Effect (REPL cmd) where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m (Maybe Command)
-prompt p = sendREPL (Prompt p ret)
+prompt :: (Carrier sig m, Member (REPL cmd) sig) => T.Text -> m (Maybe cmd)
+prompt p = send (Prompt p ret)
 
 output :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m ()
 output s = sendREPL (Output s (ret ()))
