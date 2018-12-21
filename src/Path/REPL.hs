@@ -11,6 +11,7 @@ import Control.Monad ((<=<), unless)
 import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_)
+import Data.Int (Int64)
 import qualified Data.Map as Map
 import qualified Data.Text as T
 import Path.Context as Context
@@ -86,6 +87,8 @@ repl packageSources = do
          (evalState (Context.empty :: Context QName)
          (evalState (Resolution mempty)
          (script packageSources)))))))
+
+newtype Line = Line Int64
 
 script :: ( Carrier sig m
           , Effect sig
