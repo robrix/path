@@ -14,7 +14,6 @@ import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
-import qualified Data.Text as T
 import Path.Context as Context
 import Path.Elab
 import Path.Env as Env
@@ -242,7 +241,8 @@ basePackage = Package
   , packageConstraints = []
   }
 
-helpText :: T.Text
-helpText = T.pack
-  $  ":help, :?   display this list of commands\n"
-  <> ":quit, :q   exit the repl"
+helpText :: Doc
+helpText = vsep
+  [ string ":help, :?   display this list of commands"
+  , string ":quit, :q   exit the repl"
+  ]
