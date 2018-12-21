@@ -2,6 +2,7 @@
 module Path.Value where
 
 import Data.Function (on)
+import Data.Maybe (fromMaybe)
 import Path.Core
 import Path.Pretty
 import Path.Term
@@ -49,3 +50,17 @@ quote f = go 0
 
         goN i (NFree n) = In (Var (f i n)) ()
         goN i (NApp n a) = In (goN i n :@ go i a) ()
+
+aeq :: Eq v => Value v -> Value v -> Bool
+aeq = go (0 :: Int) [] []
+  where go i env1 env2 v1 v2 = case (v1, v2) of
+          (VType,           VType)           -> True
+          (VLam n1 b1,      VLam n2 b2)      -> go (succ i) ((n1, i) : env1) ((n2, i) : env2) (b1 (vfree n1)) (b2 (vfree n2))
+          (VPi n1 e1 t1 b1, VPi n2 e2 t2 b2) -> e1 == e2 && go i env1 env2 t1 t2 && go (succ i) ((n1, i) : env1) ((n2, i) : env2) (b1 (vfree n1)) (b2 (vfree n2))
+          (VNeutral n1,     VNeutral n2)     -> goN i env1 env2 n1 n2
+          _                                  -> False
+
+        goN i env1 env2 n1 n2 = case (n1, n2) of
+          (NFree n1,   NFree n2)   -> fromMaybe (n1 == n2) ((==) <$> lookup n1 env1 <*> lookup n2 env2)
+          (NApp n1 a1, NApp n2 a2) -> goN i env1 env2 n1 n2 && go i env1 env2 a1 a2
+          _                        -> False
