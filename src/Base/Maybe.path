@@ -2,6 +2,7 @@ module Base.Maybe
 
 import Base.Bool
 import Base.Function
+import Base.Functor
 
 Maybe : Type -> Type
 Maybe = \ a . ∀ b : Type . b -> (a -> b) -> b
@@ -15,8 +16,5 @@ nothing = \ _ _ nothing _ . nothing
 isJust : ∀ a:Type . Maybe a -> Bool
 isJust = \ A m . m Bool false (const Bool A true)
 
-map :  ∀ a : Type
-    .  ∀ b : Type
-    .  (      a ->       b)
-    -> (Maybe a -> Maybe b)
+map : Functor Maybe
 map = \ _ b f m . m (Maybe b) (nothing b) (\ a . just b (f a))

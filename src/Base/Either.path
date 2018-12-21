@@ -1,5 +1,7 @@
 module Base.Either
 
+import Base.Functor
+
 Either : Type -> Type -> Type
 Either = \ l r . ∀ a : Type . (l -> a) -> (r -> a) -> a
 
@@ -10,11 +12,7 @@ right : ∀ l : Type . ∀ r : Type . r -> Either l r
 right = \ _ _ r _ _ right . right r
 
 
-map :  ∀ l : Type
-    .  ∀ r : Type
-    .  ∀ r' : Type
-    .  (         r ->          r')
-    -> (Either l r -> Either l r')
+map : ∀ l : Type . Functor (Either l)
 map = \ l _ r' f e . e (Either l r') (left l r') (\ r . right l r' (f r))
 
 bimap :  ∀ l : Type
