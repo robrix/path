@@ -21,7 +21,7 @@ import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Delta(..), ErrInfo, Span, parseFile, parseString, whole)
+import Path.Parser (Delta(..), ErrInfo, Parser, Span, parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
@@ -54,19 +54,19 @@ output s = sendREPL (Output s (ret ()))
 sendREPL :: (Carrier sig m, Member (REPL Command) sig) => REPL Command m (m a) -> m a
 sendREPL = send
 
-runREPL :: (Carrier sig m, MonadIO m) => Prefs -> Settings IO -> Eff (REPLC Command m) a -> m a
-runREPL prefs settings = runREPLC prefs settings (Line 0) . interpret
+runREPL :: (Carrier sig m, MonadIO m) => Parser cmd -> Prefs -> Settings IO -> Eff (REPLC cmd m) a -> m a
+runREPL parser prefs settings = runREPLC parser prefs settings (Line 0) . interpret
 
-newtype REPLC cmd m a = REPLC (Prefs -> Settings IO -> Line -> m a)
+newtype REPLC cmd m a = REPLC (Parser cmd -> Prefs -> Settings IO -> Line -> m a)
 
-runREPLC :: Prefs -> Settings IO -> Line -> REPLC cmd m a -> m a
-runREPLC p s l (REPLC m) = m p s l
+runREPLC :: Parser cmd -> Prefs -> Settings IO -> Line -> REPLC cmd m a -> m a
+runREPLC c p s l (REPLC m) = m c p s l
 
 instance (Carrier sig m, MonadIO m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
-  ret = REPLC . const . const . const . ret
-  eff op = REPLC (\ p s l -> handleSum (eff . handlePure (runREPLC p s l)) (\case
-    Prompt prompt k -> liftIO (runInputTWithPrefs p s (fmap T.pack <$> getInputLine (cyan <> T.unpack prompt <> plain))) >>= runREPLC p s (increment l) . k
-    Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC p s l k) op)
+  ret = REPLC . const . const . const . const . ret
+  eff op = REPLC (\ c p s l -> handleSum (eff . handlePure (runREPLC c p s l)) (\case
+    Prompt prompt k -> liftIO (runInputTWithPrefs p s (fmap T.pack <$> getInputLine (cyan <> T.unpack prompt <> plain))) >>= runREPLC c p s (increment l) . k
+    Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC c p s l k) op)
 
 cyan :: String
 cyan = "\ESC[1;36m\STX"
@@ -87,7 +87,7 @@ repl packageSources = do
         , autoAddHistory = True
         }
   liftIO (runM
-         (runREPL prefs settings
+         (runREPL command prefs settings
          (evalState (mempty :: ModuleTable QName)
          (evalState (Env.empty :: Env QName)
          (evalState (Context.empty :: Context QName)
