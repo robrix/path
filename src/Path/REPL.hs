@@ -36,7 +36,7 @@ import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), putDoc)
 
-data Prompt cmd (m :: * -> *) k = Prompt T.Text (Maybe cmd -> k)
+data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
   deriving (Functor)
 
 instance HFunctor (Prompt cmd) where
@@ -45,7 +45,7 @@ instance HFunctor (Prompt cmd) where
 instance Effect (Prompt cmd) where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member (Prompt cmd) sig) => T.Text -> m (Maybe cmd)
+prompt :: (Carrier sig m, Member (Prompt cmd) sig) => String -> m (Maybe cmd)
 prompt p = send (Prompt p ret)
 
 
@@ -75,7 +75,7 @@ instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => 
   eff op = REPLC (\ c l -> handleSum (handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<)))
     (\ (Print text k) -> outputStrLn (T.unpack text) *> runREPLC c l k))
     (\ (Prompt prompt k) -> do
-      str <- getInputLine (cyan <> T.unpack prompt <> plain)
+      str <- getInputLine (cyan <> prompt <> plain)
       res <- lift (runError (traverse (parseString c (lineDelta l)) str))
       res <- case res of
         Left  err -> printParserError err >> pure Nothing
@@ -151,7 +151,7 @@ script :: ( Carrier sig m
        => [FilePath]
        -> m ()
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span) Span) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
-  where loop = (prompt (T.pack "λ: ") >>= maybe loop runCommand)
+  where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
           `catchError` (const loop <=< printModuleError)
