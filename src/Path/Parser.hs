@@ -35,7 +35,7 @@ import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
 import Text.Trifecta.Indentation
 
-type Parser = IndentationParserT Char Inner
+type Parser = IndentationParserT Token Inner
 
 newtype Inner a = Inner { runInner :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
