@@ -77,31 +77,31 @@ instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => 
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
 
-newtype ControlIO m a = ControlIO ((forall x . m x -> IO x) -> m a)
+newtype ControlIOC m a = ControlIOC ((forall x . m x -> IO x) -> m a)
 
-instance Functor m => Functor (ControlIO m) where
-  fmap f (ControlIO g) = ControlIO (\ h -> fmap f (g h))
+instance Functor m => Functor (ControlIOC m) where
+  fmap f (ControlIOC g) = ControlIOC (\ h -> fmap f (g h))
 
-instance Applicative m => Applicative (ControlIO m) where
-  pure a = ControlIO (const (pure a))
-  ControlIO f <*> ControlIO a = ControlIO (\ h -> f h <*> a h)
+instance Applicative m => Applicative (ControlIOC m) where
+  pure a = ControlIOC (const (pure a))
+  ControlIOC f <*> ControlIOC a = ControlIOC (\ h -> f h <*> a h)
 
-instance Monad m => Monad (ControlIO m) where
+instance Monad m => Monad (ControlIOC m) where
   return = pure
-  ControlIO m >>= f = ControlIO (\ handler -> m handler >>= runControlIO handler . f)
+  ControlIOC m >>= f = ControlIOC (\ handler -> m handler >>= runControlIOC handler . f)
 
-instance MonadIO m => MonadIO (ControlIO m) where
-  liftIO m = ControlIO (const (liftIO m))
+instance MonadIO m => MonadIO (ControlIOC m) where
+  liftIO m = ControlIOC (const (liftIO m))
 
-runControlIO :: (forall x . m x -> IO x) -> ControlIO m a -> m a
-runControlIO f (ControlIO m) = m f
+runControlIOC :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
+runControlIOC f (ControlIOC m) = m f
 
-instance Carrier sig m => Carrier sig (ControlIO m) where
-  ret a = ControlIO (const (ret a))
-  eff op = ControlIO (\ handler -> eff (handlePure (runControlIO handler) op))
+instance Carrier sig m => Carrier sig (ControlIOC m) where
+  ret a = ControlIOC (const (ret a))
+  eff op = ControlIOC (\ handler -> eff (handlePure (runControlIOC handler) op))
 
-instance MonadIO m => MonadException (ControlIO m) where
-  controlIO f = ControlIO (\ handler -> liftIO (f (RunIO (fmap pure . handler . runControlIO handler)) >>= handler . runControlIO handler))
+instance MonadIO m => MonadException (ControlIOC m) where
+  controlIO f = ControlIOC (\ handler -> liftIO (f (RunIO (fmap pure . handler . runControlIOC handler)) >>= handler . runControlIOC handler))
 
 repl :: MonadIO m => [FilePath] -> m ()
 repl packageSources = do
@@ -115,7 +115,7 @@ repl packageSources = do
         , autoAddHistory = True
         }
   liftIO (runM
-         (runControlIO runM
+         (runControlIOC runM
          (runREPL command prefs settings
          (evalState (mempty :: ModuleTable QName)
          (evalState (Env.empty :: Env QName)
