@@ -21,7 +21,7 @@ Apply = \ f _ . ∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f 
      -> ∀ a : Type
      .  ∀ b : Type
      .  f a -> f b -> f b
-(*>) = \ _ _ liftA2 A B . liftA2 A B B (const B A)
+(*>) = \ _ _ liftA2 A B . liftA2 A B B (const (B -> B) A (id B))
 
 Applicative :  ∀ f : Type -> Type
             .  { functor : Functor f }
