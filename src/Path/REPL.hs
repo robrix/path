@@ -102,7 +102,7 @@ script :: ( Carrier sig m
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span) Span) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = do
           a <- prompt (pack "λ: ")
-          maybe loop (runCommand <=< parseString (whole command) . unpack) a
+          maybe loop (runCommand <=< parseString (whole command) mempty . unpack) a
             `catchError` (const loop <=< printResolveError)
             `catchError` (const loop <=< printElabError)
             `catchError` (const loop <=< printModuleError)

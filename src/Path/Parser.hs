@@ -46,8 +46,8 @@ instance TokenParsing Parser where
 parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> FilePath -> m a
 parseFile p = toError <=< parseFromFileEx (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
 
-parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> String -> m a
-parseString p = toError . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0) mempty
+parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> Delta -> String -> m a
+parseString p = fmap toError . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
 
 toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a
