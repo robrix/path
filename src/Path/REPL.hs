@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
+import Control.Arrow ((&&&))
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
@@ -180,7 +181,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Show Modules -> do
             graph <- get
             let ms = modules (graph :: ModuleGraph QName (Term (Surface QName) Span) Span)
-            unless (Prelude.null ms) $ print (vsep (map (pretty . moduleName) ms))
+            unless (Prelude.null ms) $ print (tabulate2 (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
           Command.Import i -> do
