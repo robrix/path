@@ -240,6 +240,7 @@ helpDoc = vsep (map (uncurry prettyEntry) entries)
   where colWidth = maximum (map (length . fst) entries)
         prettyEntry a b = fill colWidth (pretty a) <+> space <+> align (fillSep (map pretty (words b)))
         entries =
-          [ (":help, :?", "display this list of commands")
-          , (":quit, :q", "exit the repl")
+          [ (":help, :?",   "display this list of commands")
+          , (":quit, :q",   "exit the repl")
+          , (":reload, :r", "reload the current package")
           ]
