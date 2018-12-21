@@ -77,7 +77,7 @@ instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => 
       str <- getInputLine (cyan <> prompt <> plain)
       res <- lift (runError (traverse (parseString c (lineDelta l)) str))
       res <- case res of
-        Left  err -> printParserError err >> pure Nothing
+        Left  err -> Nothing <$ printParserError err
         Right res -> pure (join res)
       runREPLC c (increment l) (k res)) op)
     where cyan = "\ESC[1;36m\STX"
