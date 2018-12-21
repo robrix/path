@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving #-}
 module Path.Parser
-( Parser(..)
+( Parser
+, Inner(..)
 , parseFile
 , parseString
 , whole
@@ -34,21 +35,23 @@ import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
 import Text.Trifecta.Indentation
 
-newtype Parser a = Parser { runParser :: StateT Int Trifecta.Parser a }
+type Parser = IndentationParserT Char Inner
+
+newtype Inner a = Inner { runInner :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
-instance TokenParsing Parser where
-  someSpace = Parser $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
-  nesting = Parser . nesting . runParser
-  highlight h = Parser . highlight h . runParser
+instance TokenParsing Inner where
+  someSpace = Inner $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
+  nesting = Inner . nesting . runInner
+  highlight h = Inner . highlight h . runInner
   token p = (someSpace <|> pure ()) *> p
 
 
-parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> FilePath -> m a
-parseFile p = toError <=< parseFromFileEx (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
+parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> FilePath -> m a
+parseFile p = toError <=< parseFromFileEx (evalStateT (runInner (evalIndentationParserT p indentst)) 0)
 
-parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => IndentationParserT Char Parser a -> Delta -> String -> m a
-parseString p = fmap toError . Trifecta.parseString (evalStateT (runParser (evalIndentationParserT p indentst)) 0)
+parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> Delta -> String -> m a
+parseString p = fmap toError . Trifecta.parseString (evalStateT (runInner (evalIndentationParserT p indentst)) 0)
 
 toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a

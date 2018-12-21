@@ -75,10 +75,10 @@ class Monad m => MonadFresh m where
   pop :: m ()
   freshName :: m Name
 
-instance MonadFresh Parser.Parser where
-  push = Parser.Parser (modify succ)
-  pop = Parser.Parser (modify pred)
-  freshName = Parser.Parser (gets Gensym)
+instance MonadFresh Parser.Inner where
+  push = Parser.Inner (modify succ)
+  pop = Parser.Inner (modify pred)
+  freshName = Parser.Inner (gets Gensym)
 
 instance MonadFresh m => MonadFresh (IndentationParserT t m) where
   push = lift push
