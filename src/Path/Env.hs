@@ -29,9 +29,6 @@ filter :: (v -> Value v -> Bool) -> Env v -> Env v
 filter f = Env . Map.filterWithKey f . unEnv
 
 instance (Ord v, Pretty v) => Pretty (Env v) where
-  pretty (Env m) = vsep (map (uncurry prettyBinding) bindings)
-    where prettyBinding name ty = group (nest 2 (green (fill maxW name) </> align (pretty "=" <+> group ty)))
-          bindings = map (pretty *** pretty) (Map.toList m)
-          maxW = maximum (map (length . show . plain . fst) bindings)
+  pretty = tabulate2 (space <> pretty "=" <> space) . map (green . pretty *** nest 2 . align . group . pretty) . Map.toList . unEnv
 
 instance (Ord v, Pretty v) => PrettyPrec (Env v)
