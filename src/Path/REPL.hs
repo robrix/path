@@ -237,7 +237,7 @@ basePackage = Package
   }
 
 helpDoc :: Doc
-helpDoc = tabulate2 length entries
+helpDoc = tabulate2 entries
   where entries =
           [ (":help, :?",        w "display this list of commands")
           , (":quit, :q",        w "exit the repl")

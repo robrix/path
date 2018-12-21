@@ -14,12 +14,13 @@ module Path.Pretty
 , tabulate2
 ) where
 
+import Control.Arrow ((***))
 import Control.Monad.IO.Class
 import Data.Foldable (toList)
 import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), putDoc)
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), column, putDoc)
 import Text.Trifecta.Rendering (Rendering(..), Span(..), render)
 import Text.Trifecta.Result (ErrInfo(..))
 
@@ -52,11 +53,24 @@ prettyInfo s = prettyNotice s Nothing
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
 
-tabulate2 :: (Pretty a, Pretty b) => (a -> Int) -> [(a, b)] -> Doc
-tabulate2 _ [] = empty
-tabulate2 l cs = vsep (map (uncurry entry) cs)
+tabulate2 :: (Pretty a, Pretty b) => [(a, b)] -> Doc
+tabulate2 [] = empty
+tabulate2 cs = vsep (map (uncurry entry) cs')
   where entry a b = fill w (pretty a) <+> space <+> pretty b
-        w = maximum (map (l . fst) cs)
+        w = maximum (map (columnWidth . fst) cs')
+        cs' = map (column *** pretty) cs
+
+newtype Column = Column { unColumn :: (Int, Doc) }
+
+column :: Pretty a => a -> Column
+column a = Column (length (show (plain a')), a')
+  where a' = pretty a
+
+columnWidth :: Column -> Int
+columnWidth = fst . unColumn
+
+instance Pretty Column where
+  pretty = snd . unColumn
 
 
 class PrettyPrec a where
