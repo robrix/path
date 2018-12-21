@@ -44,7 +44,7 @@ instance TokenParsing Inner where
   someSpace = Inner $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
   nesting = Inner . nesting . runInner
   highlight h = Inner . highlight h . runInner
-  token p = (someSpace <|> pure ()) *> p
+  token p = whiteSpace *> p
 
 
 parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> FilePath -> m a
