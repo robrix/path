@@ -53,10 +53,10 @@ prettyInfo s = prettyNotice s Nothing
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
 
-tabulate2 :: (Pretty a, Pretty b) => [(a, b)] -> Doc
-tabulate2 [] = empty
-tabulate2 cs = vsep (map (uncurry entry) cs')
-  where entry a b = fill w (pretty a) <+> space <+> pretty b
+tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
+tabulate2 _ [] = empty
+tabulate2 s cs = vsep (map (uncurry entry) cs')
+  where entry a b = fill w (pretty a) <> s <> pretty b
         w = maximum (map (columnWidth . fst) cs')
         cs' = map (column *** pretty) cs
 

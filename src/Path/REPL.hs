@@ -181,7 +181,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Show Modules -> do
             graph <- get
             let ms = modules (graph :: ModuleGraph QName (Term (Surface QName) Span) Span)
-            unless (Prelude.null ms) $ print (tabulate2 (map (moduleName &&& parens . pretty . modulePath) ms))
+            unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
           Command.Import i -> do
@@ -238,7 +238,7 @@ basePackage = Package
   }
 
 helpDoc :: Doc
-helpDoc = tabulate2 entries
+helpDoc = tabulate2 (space <+> space) entries
   where entries =
           [ (":help, :?",        w "display this list of commands")
           , (":quit, :q",        w "exit the repl")
