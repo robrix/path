@@ -12,6 +12,7 @@ module Path.Parser
 , op
 , ErrInfo
 , Span(..)
+, Delta(..)
 ) where
 
 import Control.Applicative (Alternative(..))
