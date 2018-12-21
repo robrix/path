@@ -161,7 +161,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           TypeOf tm -> do
             tm' <- runRenamer (resolveTerm tm)
             elab <- runInState Zero (infer tm')
-            prettyPrint (ann elab)
+            print (ann elab)
             loop
           Decl decl -> do
             runRenamer (resolveDecl decl) >>= elabDecl
@@ -169,17 +169,17 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm)
             elab <- runInState One (infer tm')
-            get >>= prettyPrint . eval elab
+            get >>= print . eval elab
             loop
           Show Bindings -> do
             ctx <- get
-            unless (Context.null ctx) $ prettyPrint (ctx :: Context QName)
+            unless (Context.null ctx) $ print (ctx :: Context QName)
             env <- get
-            unless (Env.null env) $ prettyPrint (env :: Env QName)
+            unless (Env.null env) $ print (env :: Env QName)
             loop
           Show Modules -> do
             graph <- get
-            prettyPrint (vsep (map (pretty . moduleName) (modules (graph :: ModuleGraph QName (Term (Surface QName) Span) Span))))
+            print (vsep (map (pretty . moduleName) (modules (graph :: ModuleGraph QName (Term (Surface QName) Span) Span))))
             loop
           Reload -> reload *> loop
           Command.Import i -> do
@@ -195,7 +195,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
 
           for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
-            prettyPrint (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (modulePath m)))
+            print (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (modulePath m)))
             table <- get
             res <- raiseHandler (runReader (table :: ModuleTable QName)) (elabModule m)
             modify (Map.insert name res)
@@ -204,14 +204,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           res <- get
           raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
 
-printResolveError :: MonadIO m => ResolveError -> m ()
-printResolveError = prettyPrint
+printResolveError :: (Carrier sig m, Member Print sig) => ResolveError -> m ()
+printResolveError = print
 
-printElabError :: MonadIO m => ElabError QName -> m ()
-printElabError = prettyPrint
+printElabError :: (Carrier sig m, Member Print sig) => ElabError QName -> m ()
+printElabError = print
 
-printModuleError :: MonadIO m => ModuleError -> m ()
-printModuleError = prettyPrint
+printModuleError :: (Carrier sig m, Member Print sig) => ModuleError -> m ()
+printModuleError = print
 
 printParserError :: MonadIO m => ErrInfo -> m ()
 printParserError = prettyPrint
