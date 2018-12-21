@@ -34,32 +34,35 @@ import System.Console.Haskeline
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), cyan, plain, putDoc)
 
-data REPL (m :: * -> *) k
+data REPL cmd (m :: * -> *) k
   = Prompt T.Text (Maybe T.Text -> k)
   | Output T.Text k
   deriving (Functor)
 
-instance HFunctor REPL where
+instance HFunctor (REPL cmd) where
   hmap _ = coerce
 
-instance Effect REPL where
+instance Effect (REPL cmd) where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member REPL sig) => T.Text -> m (Maybe T.Text)
-prompt p = send (Prompt p ret)
+prompt :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m (Maybe T.Text)
+prompt p = sendREPL (Prompt p ret)
 
-output :: (Carrier sig m, Member REPL sig) => T.Text -> m ()
-output s = send (Output s (ret ()))
+output :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m ()
+output s = sendREPL (Output s (ret ()))
 
-runREPL :: (Carrier sig m, MonadIO m) => Prefs -> Settings IO -> Eff (REPLC m) a -> m a
+sendREPL :: (Carrier sig m, Member (REPL Command) sig) => REPL Command m (m a) -> m a
+sendREPL = send
+
+runREPL :: (Carrier sig m, MonadIO m) => Prefs -> Settings IO -> Eff (REPLC Command m) a -> m a
 runREPL prefs settings = runREPLC prefs settings (Line 0) . interpret
 
-newtype REPLC m a = REPLC (Prefs -> Settings IO -> Line -> m a)
+newtype REPLC cmd m a = REPLC (Prefs -> Settings IO -> Line -> m a)
 
-runREPLC :: Prefs -> Settings IO -> Line -> REPLC m a -> m a
+runREPLC :: Prefs -> Settings IO -> Line -> REPLC cmd m a -> m a
 runREPLC p s l (REPLC m) = m p s l
 
-instance (Carrier sig m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
+instance (Carrier sig m, MonadIO m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . const . ret
   eff op = REPLC (\ p s l -> handleSum (eff . handlePure (runREPLC p s l)) (\case
     Prompt prompt k -> liftIO (runInputTWithPrefs p s (fmap T.pack <$> getInputLine (cyan <> T.unpack prompt <> plain))) >>= runREPLC p s (increment l) . k
@@ -104,7 +107,7 @@ script :: ( Carrier sig m
           , Effect sig
           , Functor m
           , Member (Lift IO) sig
-          , Member REPL sig
+          , Member (REPL Command) sig
           , Member (State (Context QName)) sig
           , Member (State (Env QName)) sig
           , Member (State Line) sig
