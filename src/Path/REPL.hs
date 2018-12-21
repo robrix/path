@@ -236,7 +236,10 @@ basePackage = Package
   }
 
 helpDoc :: Doc
-helpDoc = vsep
-  [ string ":help, :?   display this list of commands"
-  , string ":quit, :q   exit the repl"
-  ]
+helpDoc = vsep (map (uncurry prettyEntry) entries)
+  where colWidth = maximum (map (length . fst) entries)
+        prettyEntry a b = fill colWidth (pretty a) <+> space <+> pretty b
+        entries =
+          [ (":help, :?", "display this list of commands")
+          , (":quit, :q", "exit the repl")
+          ]
