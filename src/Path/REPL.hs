@@ -52,15 +52,18 @@ output :: (Carrier sig m, Member REPL sig) => T.Text -> m ()
 output s = send (Output s (ret ()))
 
 runREPL :: (Carrier sig m, MonadIO m) => Prefs -> Settings IO -> Eff (REPLC m) a -> m a
-runREPL prefs settings = flip runREPLC (prefs, settings) . interpret
+runREPL prefs settings = runREPLC prefs settings . interpret
 
-newtype REPLC m a = REPLC { runREPLC :: (Prefs, Settings IO) -> m a }
+newtype REPLC m a = REPLC (Prefs -> Settings IO -> m a)
+
+runREPLC :: Prefs -> Settings IO -> REPLC m a -> m a
+runREPLC p s (REPLC m) = m p s
 
 instance (Carrier sig m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
-  ret = REPLC . const . ret
-  eff op = REPLC (\ args -> handleSum (eff . handleReader args runREPLC) (\case
-    Prompt p k -> liftIO (uncurry runInputTWithPrefs args (fmap T.pack <$> getInputLine (cyan <> T.unpack p <> plain))) >>= flip runREPLC args . k
-    Output s k -> liftIO (uncurry runInputTWithPrefs args (outputStrLn (T.unpack s))) *> runREPLC k args) op)
+  ret = REPLC . const . const . ret
+  eff op = REPLC (\ p s -> handleSum (eff . handlePure (runREPLC p s)) (\case
+    Prompt prompt k -> liftIO (runInputTWithPrefs p s (fmap T.pack <$> getInputLine (cyan <> T.unpack prompt <> plain))) >>= runREPLC p s . k
+    Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC p s k) op)
 
 cyan :: String
 cyan = "\ESC[1;36m\STX"
