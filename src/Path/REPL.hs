@@ -69,7 +69,7 @@ instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Carrier
       str <- liftIO (runInputTWithPrefs p s (getInputLine (cyan <> T.unpack prompt <> plain)))
       res <- runError (traverse (parseString c (lineDelta l)) str)
       res <- case res of
-        Left err -> printParserError err >> pure Nothing
+        Left  err -> printParserError err >> pure Nothing
         Right res -> pure res
       runREPLC c p s (increment l) (k res)
     Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC c p s l k) op)
