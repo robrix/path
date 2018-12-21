@@ -35,7 +35,7 @@ import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), cyan, plain, putDoc)
 
 data REPL cmd (m :: * -> *) k
-  = Prompt T.Text (Maybe T.Text -> k)
+  = Prompt T.Text (Maybe cmd -> k)
   | Output T.Text k
   deriving (Functor)
 
@@ -45,7 +45,7 @@ instance HFunctor (REPL cmd) where
 instance Effect (REPL cmd) where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m (Maybe T.Text)
+prompt :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m (Maybe Command)
 prompt p = sendREPL (Prompt p ret)
 
 output :: (Carrier sig m, Member (REPL Command) sig) => T.Text -> m ()
@@ -54,7 +54,7 @@ output s = sendREPL (Output s (ret ()))
 sendREPL :: (Carrier sig m, Member (REPL Command) sig) => REPL Command m (m a) -> m a
 sendREPL = send
 
-runREPL :: (Carrier sig m, MonadIO m) => Parser cmd -> Prefs -> Settings IO -> Eff (REPLC cmd m) a -> m a
+runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Parser cmd -> Prefs -> Settings IO -> Eff (REPLC cmd m) a -> m a
 runREPL parser prefs settings = runREPLC parser prefs settings (Line 0) . interpret
 
 newtype REPLC cmd m a = REPLC (Parser cmd -> Prefs -> Settings IO -> Line -> m a)
@@ -62,12 +62,16 @@ newtype REPLC cmd m a = REPLC (Parser cmd -> Prefs -> Settings IO -> Line -> m a
 runREPLC :: Parser cmd -> Prefs -> Settings IO -> Line -> REPLC cmd m a -> m a
 runREPLC c p s l (REPLC m) = m c p s l
 
-instance (Carrier sig m, MonadIO m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
+instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadIO m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . const . const . ret
   eff op = REPLC (\ c p s l -> handleSum (eff . handlePure (runREPLC c p s l)) (\case
     Prompt prompt k -> do
-      line <- liftIO (runInputTWithPrefs p s (fmap T.pack <$> getInputLine (cyan <> T.unpack prompt <> plain)))
-      runREPLC c p s (increment l) (k line)
+      str <- liftIO (runInputTWithPrefs p s (getInputLine (cyan <> T.unpack prompt <> plain)))
+      res <- runError (traverse (parseString c (lineDelta l)) str)
+      res <- case res of
+        Left err -> printParserError err >> pure Nothing
+        Right res -> pure res
+      runREPLC c p s (increment l) (k res)
     Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC c p s l k) op)
 
 cyan :: String
@@ -94,8 +98,7 @@ repl packageSources = do
          (evalState (Env.empty :: Env QName)
          (evalState (Context.empty :: Context QName)
          (evalState (Resolution mempty)
-         (evalState (Line 0)
-         (script packageSources))))))))
+         (script packageSources)))))))
 
 newtype Line = Line Int64
 
@@ -112,7 +115,6 @@ script :: ( Carrier sig m
           , Member (REPL Command) sig
           , Member (State (Context QName)) sig
           , Member (State (Env QName)) sig
-          , Member (State Line) sig
           , Member (State (ModuleTable QName)) sig
           , Member (State Resolution) sig
           )
@@ -120,10 +122,8 @@ script :: ( Carrier sig m
        -> m ()
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span) Span) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = do
-          line <- get
           a <- prompt (T.pack "λ: ")
-          modify increment
-          maybe loop (runCommand <=< parseString (whole command) (lineDelta line) . T.unpack) a
+          maybe loop runCommand a
             `catchError` (const loop <=< printResolveError)
             `catchError` (const loop <=< printElabError)
             `catchError` (const loop <=< printModuleError)
