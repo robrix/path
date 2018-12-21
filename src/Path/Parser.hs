@@ -11,7 +11,7 @@ module Path.Parser
 , reservedOperators
 , op
 , ErrInfo
-, Span
+, Span(..)
 ) where
 
 import Control.Applicative (Alternative(..))
