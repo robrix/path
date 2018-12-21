@@ -237,12 +237,11 @@ basePackage = Package
   }
 
 helpDoc :: Doc
-helpDoc = vsep (map (uncurry prettyEntry) entries)
-  where colWidth = maximum (map (length . fst) entries)
-        prettyEntry a b = fill colWidth (pretty a) <+> space <+> align (fillSep (map pretty (words b)))
-        entries =
-          [ (":help, :?",        "display this list of commands")
-          , (":quit, :q",        "exit the repl")
-          , (":reload, :r",      "reload the current package")
-          , (":type, :t <expr>", "show the type of <expr>")
+helpDoc = tabulate2 length entries
+  where entries =
+          [ (":help, :?",        w "display this list of commands")
+          , (":quit, :q",        w "exit the repl")
+          , (":reload, :r",      w "reload the current package")
+          , (":type, :t <expr>", w "show the type of <expr>")
           ]
+        w = align . fillSep . map pretty . words
