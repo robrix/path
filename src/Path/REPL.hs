@@ -12,7 +12,7 @@ import Control.Monad.IO.Class
 import Data.Coerce
 import Data.Foldable (for_)
 import qualified Data.Map as Map
-import Data.Text (Text, pack, unpack)
+import qualified Data.Text as T
 import Path.Context as Context
 import Path.Elab
 import Path.Env as Env
@@ -34,8 +34,8 @@ import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), cyan, plain, putDoc)
 
 data REPL (m :: * -> *) k
-  = Prompt Text (Maybe Text -> k)
-  | Output Text k
+  = Prompt T.Text (Maybe T.Text -> k)
+  | Output T.Text k
   deriving (Functor)
 
 instance HFunctor REPL where
@@ -44,10 +44,10 @@ instance HFunctor REPL where
 instance Effect REPL where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member REPL sig) => Text -> m (Maybe Text)
+prompt :: (Carrier sig m, Member REPL sig) => T.Text -> m (Maybe T.Text)
 prompt p = send (Prompt p ret)
 
-output :: (Carrier sig m, Member REPL sig) => Text -> m ()
+output :: (Carrier sig m, Member REPL sig) => T.Text -> m ()
 output s = send (Output s (ret ()))
 
 runREPL :: (Carrier sig m, MonadIO m) => Prefs -> Settings IO -> Eff (REPLC m) a -> m a
@@ -58,8 +58,8 @@ newtype REPLC m a = REPLC { runREPLC :: (Prefs, Settings IO) -> m a }
 instance (Carrier sig m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
   ret = REPLC . const . ret
   eff op = REPLC (\ args -> handleSum (eff . handleReader args runREPLC) (\case
-    Prompt p k -> liftIO (uncurry runInputTWithPrefs args (fmap pack <$> getInputLine (cyan <> unpack p <> plain))) >>= flip runREPLC args . k
-    Output s k -> liftIO (uncurry runInputTWithPrefs args (outputStrLn (unpack s))) *> runREPLC k args) op)
+    Prompt p k -> liftIO (uncurry runInputTWithPrefs args (fmap T.pack <$> getInputLine (cyan <> T.unpack p <> plain))) >>= flip runREPLC args . k
+    Output s k -> liftIO (uncurry runInputTWithPrefs args (outputStrLn (T.unpack s))) *> runREPLC k args) op)
 
 cyan :: String
 cyan = "\ESC[1;36m\STX"
@@ -101,8 +101,8 @@ script :: ( Carrier sig m
        -> m ()
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span) Span) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = do
-          a <- prompt (pack "λ: ")
-          maybe loop (runCommand <=< parseString (whole command) mempty . unpack) a
+          a <- prompt (T.pack "λ: ")
+          maybe loop (runCommand <=< parseString (whole command) mempty . T.unpack) a
             `catchError` (const loop <=< printResolveError)
             `catchError` (const loop <=< printElabError)
             `catchError` (const loop <=< printModuleError)
@@ -193,7 +193,7 @@ basePackage = Package
   , packageConstraints = []
   }
 
-helpText :: Text
-helpText = pack
+helpText :: T.Text
+helpText = T.pack
   $  ":help, :?   display this list of commands\n"
   <> ":quit, :q   exit the repl"
