@@ -31,10 +31,7 @@ filter :: (v -> Type v -> Bool) -> Context v -> Context v
 filter f = Context . Map.filterWithKey f . unContext
 
 instance (Ord v, Pretty v) => Pretty (Context v) where
-  pretty (Context m) = vsep (map (uncurry prettyBinding) bindings)
-    where prettyBinding name ty = group (nest 2 (green (fill maxW name) </> align (pretty ":" <+> group ty)))
-          bindings = map (pretty *** pretty) (Map.toList m)
-          maxW = maximum (map (length . show . plain . fst) bindings)
+  pretty = tabulate2 (space <> colon <> space) . map (green . pretty *** nest 2 . align . group . pretty) . Map.toList . unContext
 
 instance (Ord v, Pretty v) => PrettyPrec (Context v)
 
