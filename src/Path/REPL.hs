@@ -21,7 +21,7 @@ import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (ErrInfo, Span, parseFile, parseString, whole)
+import Path.Parser (Delta(..), ErrInfo, Span, parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
@@ -92,6 +92,9 @@ newtype Line = Line Int64
 
 increment :: Line -> Line
 increment (Line n) = Line (n + 1)
+
+lineDelta :: Line -> Delta
+lineDelta (Line l) = Lines l 0 0 0
 
 script :: ( Carrier sig m
           , Effect sig
