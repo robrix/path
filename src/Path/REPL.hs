@@ -31,6 +31,7 @@ import Path.REPL.Command as Command
 import Path.Surface
 import Path.Term
 import Path.Usage
+import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), putDoc)
@@ -57,8 +58,8 @@ instance HFunctor Print where
 instance Effect Print where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-output :: (Carrier sig m, Member Print sig) => T.Text -> m ()
-output s = send (Print s (ret ()))
+print :: (Carrier sig m, Member Print sig) => T.Text -> m ()
+print s = send (Print s (ret ()))
 
 
 runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Parser (Maybe cmd) -> Prefs -> Settings m -> Eff (REPLC cmd m) a -> m a
@@ -157,7 +158,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           `catchError` (const loop <=< printParserError)
         runCommand = \case
           Quit -> pure ()
-          Help -> output helpText *> loop
+          Help -> print helpText *> loop
           TypeOf tm -> do
             tm' <- runRenamer (resolveTerm tm)
             elab <- runInState Zero (infer tm')
