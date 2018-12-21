@@ -1,6 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Path.Env where
 
+import Control.Arrow ((***))
 import qualified Data.Map as Map
 import Path.Pretty
 import Path.Value
@@ -28,7 +29,9 @@ filter :: (v -> Value v -> Bool) -> Env v -> Env v
 filter f = Env . Map.filterWithKey f . unEnv
 
 instance (Ord v, Pretty v) => Pretty (Env v) where
-  pretty = vsep . map (uncurry prettyBinding) . Map.toList . unEnv
-    where prettyBinding name ty = group (nest 2 (green (pretty name) </> align (pretty "=" <+> group (pretty ty))))
+  pretty (Env m) = vsep (map (uncurry prettyBinding) bindings)
+    where prettyBinding name ty = group (nest 2 (green (fill maxW name) </> align (pretty "=" <+> group ty)))
+          bindings = map (pretty *** pretty) (Map.toList m)
+          maxW = maximum (map (length . show . plain . fst) bindings)
 
 instance (Ord v, Pretty v) => PrettyPrec (Env v)
