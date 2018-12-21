@@ -21,6 +21,7 @@ import Text.Trifecta.Rendering (Span)
 
 data Module v a ann = Module
   { moduleName    :: ModuleName
+  , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
   , moduleImports :: [Import ann]
   , moduleDecls   :: [Decl v a]

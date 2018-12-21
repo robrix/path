@@ -11,7 +11,8 @@ import Text.Trifecta
 import Text.Trifecta.Indentation
 
 module' :: (DeltaParsing m, IndentationParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
-module' path = flip Module.Module path <$ keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
+module' path = make <$ keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
+  where make name = Module.Module name Nothing path
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
