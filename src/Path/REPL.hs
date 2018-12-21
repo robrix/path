@@ -179,7 +179,8 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Show Modules -> do
             graph <- get
-            print (vsep (map (pretty . moduleName) (modules (graph :: ModuleGraph QName (Term (Surface QName) Span) Span))))
+            let ms = modules (graph :: ModuleGraph QName (Term (Surface QName) Span) Span)
+            unless (Prelude.null ms) $ print (vsep (map (pretty . moduleName) ms))
             loop
           Reload -> reload *> loop
           Command.Import i -> do
