@@ -157,7 +157,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           `catchError` (const loop <=< printParserError)
         runCommand = \case
           Quit -> pure ()
-          Help -> print helpText *> loop
+          Help -> print helpDoc *> loop
           TypeOf tm -> do
             tm' <- runRenamer (resolveTerm tm)
             elab <- runInState Zero (infer tm')
@@ -235,8 +235,8 @@ basePackage = Package
   , packageConstraints = []
   }
 
-helpText :: Doc
-helpText = vsep
+helpDoc :: Doc
+helpDoc = vsep
   [ string ":help, :?   display this list of commands"
   , string ":quit, :q   exit the repl"
   ]
