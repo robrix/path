@@ -104,24 +104,23 @@ instance MonadIO m => MonadException (ControlIOC m) where
   controlIO f = ControlIOC (\ handler -> liftIO (f (RunIO (fmap pure . handler . runControlIOC handler)) >>= handler . runControlIOC handler))
 
 repl :: MonadIO m => [FilePath] -> m ()
-repl packageSources = do
-  homeDir <- liftIO getHomeDirectory
-  prefs <- liftIO (readPrefs (homeDir <> "/.haskeline"))
+repl packageSources = liftIO $ do
+  homeDir <- getHomeDirectory
+  prefs <- readPrefs (homeDir <> "/.haskeline")
   let settingsDir = homeDir <> "/.local/path"
       settings = Settings
         { complete = noCompletion
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
-  liftIO $ createDirectoryIfMissing True settingsDir
-  liftIO (runM
-         (runControlIOC runM
-         (runREPL command prefs settings
-         (evalState (mempty :: ModuleTable QName)
-         (evalState (Env.empty :: Env QName)
-         (evalState (Context.empty :: Context QName)
-         (evalState (Resolution mempty)
-         (script packageSources))))))))
+  createDirectoryIfMissing True settingsDir
+  runM (runControlIOC runM
+       (runREPL command prefs settings
+       (evalState (mempty :: ModuleTable QName)
+       (evalState (Env.empty :: Env QName)
+       (evalState (Context.empty :: Context QName)
+       (evalState (Resolution mempty)
+       (script packageSources)))))))
 
 newtype Line = Line Int64
 
