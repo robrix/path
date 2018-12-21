@@ -65,7 +65,9 @@ runREPLC c p s l (REPLC m) = m c p s l
 instance (Carrier sig m, MonadIO m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . const . const . ret
   eff op = REPLC (\ c p s l -> handleSum (eff . handlePure (runREPLC c p s l)) (\case
-    Prompt prompt k -> liftIO (runInputTWithPrefs p s (fmap T.pack <$> getInputLine (cyan <> T.unpack prompt <> plain))) >>= runREPLC c p s (increment l) . k
+    Prompt prompt k -> do
+      line <- liftIO (runInputTWithPrefs p s (fmap T.pack <$> getInputLine (cyan <> T.unpack prompt <> plain)))
+      runREPLC c p s (increment l) (k line)
     Output text k -> liftIO (runInputTWithPrefs p s (outputStrLn (T.unpack text))) *> runREPLC c p s l k) op)
 
 cyan :: String
