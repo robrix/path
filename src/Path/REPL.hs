@@ -86,7 +86,8 @@ repl packageSources = do
          (evalState (Env.empty :: Env QName)
          (evalState (Context.empty :: Context QName)
          (evalState (Resolution mempty)
-         (script packageSources)))))))
+         (evalState (Line 0)
+         (script packageSources))))))))
 
 newtype Line = Line Int64
 
@@ -103,6 +104,7 @@ script :: ( Carrier sig m
           , Member REPL sig
           , Member (State (Context QName)) sig
           , Member (State (Env QName)) sig
+          , Member (State Line) sig
           , Member (State (ModuleTable QName)) sig
           , Member (State Resolution) sig
           )
@@ -110,8 +112,10 @@ script :: ( Carrier sig m
        -> m ()
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span) Span) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = do
+          line <- get
           a <- prompt (T.pack "λ: ")
-          maybe loop (runCommand <=< parseString (whole command) mempty . T.unpack) a
+          modify increment
+          maybe loop (runCommand <=< parseString (whole command) (lineDelta line) . T.unpack) a
             `catchError` (const loop <=< printResolveError)
             `catchError` (const loop <=< printElabError)
             `catchError` (const loop <=< printModuleError)
