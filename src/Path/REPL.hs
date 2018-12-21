@@ -108,12 +108,12 @@ repl packageSources = do
   homeDir <- liftIO getHomeDirectory
   prefs <- liftIO (readPrefs (homeDir <> "/.haskeline"))
   let settingsDir = homeDir <> "/.local/path"
-  liftIO $ createDirectoryIfMissing True settingsDir
-  let settings = Settings
+      settings = Settings
         { complete = noCompletion
         , historyFile = Just (settingsDir <> "/repl_history")
         , autoAddHistory = True
         }
+  liftIO $ createDirectoryIfMissing True settingsDir
   liftIO (runM
          (runControlIOC runM
          (runREPL command prefs settings
