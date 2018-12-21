@@ -58,35 +58,28 @@ sendREPL = send
 runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Parser (Maybe cmd) -> Prefs -> Settings m -> Eff (REPLC cmd m) a -> m a
 runREPL parser prefs settings = runInputTWithPrefs prefs settings . runREPLC parser (Line 0) . interpret
 
-newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Line -> WrapInputT m a)
+newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Line -> InputT m a)
 
 runREPLC :: Parser (Maybe cmd) -> Line -> REPLC cmd m a -> InputT m a
-runREPLC p l (REPLC m) = runWrapInputT (m p l)
+runREPLC p l (REPLC m) = m p l
 
 instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (REPL cmd :+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . pure
-  eff op = REPLC (\ c l -> handleSum (eff . handlePure (WrapInputT . runREPLC c l)) (\case
+  eff op = REPLC (\ c l -> handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<))) (\case
     Prompt prompt k -> do
-      str <- WrapInputT (getInputLine (cyan <> T.unpack prompt <> plain))
-      res <- runError (traverse (parseString c (lineDelta l)) str)
+      str <- getInputLine (cyan <> T.unpack prompt <> plain)
+      res <- lift (runError (traverse (parseString c (lineDelta l)) str))
       res <- case res of
         Left  err -> printParserError err >> pure Nothing
         Right res -> pure (join res)
-      WrapInputT (runREPLC c (increment l) (k res))
-    Output text k -> WrapInputT (outputStrLn (T.unpack text)) *> WrapInputT (runREPLC c l k)) op)
+      runREPLC c (increment l) (k res)
+    Output text k -> outputStrLn (T.unpack text) *> runREPLC c l k) op)
 
 cyan :: String
 cyan = "\ESC[1;36m\STX"
 
 plain :: String
 plain = "\ESC[0m\STX"
-
-newtype WrapInputT m a = WrapInputT { runWrapInputT :: InputT m a }
-  deriving (Applicative, Functor, Monad, MonadException, MonadIO)
-
-instance (Carrier sig m, Effect sig, Monad m) => Carrier sig (WrapInputT m) where
-  ret = pure
-  eff = WrapInputT . join . lift . eff . handle (pure ()) (pure . (runWrapInputT =<<))
 
 newtype ControlIO m a = ControlIO ((forall x . Eff m x -> IO x) -> Eff m a)
 
