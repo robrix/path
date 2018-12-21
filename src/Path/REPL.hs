@@ -90,6 +90,9 @@ repl packageSources = do
 
 newtype Line = Line Int64
 
+increment :: Line -> Line
+increment (Line n) = Line (n + 1)
+
 script :: ( Carrier sig m
           , Effect sig
           , Functor m
