@@ -11,9 +11,11 @@ import Control.Effect.Sum
 import Control.Monad ((<=<), join, unless)
 import Control.Monad.IO.Class
 import Control.Monad.Trans (MonadTrans(..))
+import Data.Bool (bool)
 import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
+import Data.List (intersect)
 import qualified Data.Map as Map
 import Path.Context as Context
 import Path.Elab
@@ -34,7 +36,7 @@ import Path.Usage
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), putDoc)
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), bool, putDoc)
 
 data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
   deriving (Functor)
@@ -195,26 +197,25 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           let n = length packageSources
           sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule
 
-          try . for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
+          runDeps . for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
             let name = moduleName m
             print (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (modulePath m)))
             table <- get
             (errs, res) <- raiseHandler (runState [] . runReader (table :: ModuleTable QName)) (elabModule m)
-            unless (Prelude.null errs) (for_ errs printElabError *> stop)
-            modify (Map.insert name res)
+            if Prelude.null errs then
+              modify (Map.insert name res)
+            else do
+              for_ errs printElabError
+              modify (name:)
           put (moduleGraph sorted)
+        runDeps = raiseHandler (evalState ([] :: [ModuleName]))
+        skipDeps m a = gets (Prelude.null . intersect (map importModuleName (moduleImports m))) >>= bool (modify (moduleName m:)) a
         runRenamer m = do
           res <- get
           raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
         printResolveError err = print (err :: ResolveError)
         printElabError    err = print (err :: ElabError QName)
         printModuleError  err = print (err :: ModuleError)
-
-stop :: (Carrier sig m, Member (Error ()) sig) => m ()
-stop = throwError ()
-
-try :: (Carrier sig m, Effect sig, Monad m) => Elab QName (ErrorC () m) a -> m ()
-try = fmap (const ()) . runError . runElab
 
 printParserError :: MonadIO m => ErrInfo -> m ()
 printParserError = prettyPrint
