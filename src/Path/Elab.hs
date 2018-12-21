@@ -36,53 +36,54 @@ elab :: ( Carrier sig m
      => Term (Surface QName) Span
      -> Maybe (Type QName)
      -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
-elab (In (e ::: t) _) Nothing = do
-  t' <- check t VType
-  t'' <- asks (eval t')
-  check e t''
-elab (In (ForAll n t b) _) Nothing = do
-  t' <- check t VType
-  t'' <- asks (eval t')
-  b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
-  pure (In (Core.Pi n Zero t' b') (Resources.empty, VType))
-elab (In Surface.Type _) Nothing = pure (In Core.Type (Resources.empty, VType))
-elab (In (Surface.Pi n e t b) _) Nothing = do
-  t' <- check t VType
-  t'' <- asks (eval t')
-  b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
-  pure (In (Core.Pi n e t' b') (Resources.empty, VType))
-elab (In (Surface.Var n) span) Nothing = do
-  res <- asks (Context.lookup n)
-  sigma <- ask
-  case res of
-    Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
-    _      -> throwError (FreeVariable n span)
-elab (In (f Surface.:@ a) _) Nothing = do
-  f' <- infer f
-  case ann f' of
-    (g1, VPi _ pi t t') -> do
-      a' <- check a t
-      let (g2, _) = ann a'
-      env <- ask
-      pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' (eval a' env)))
-    _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
-elab tm Nothing = throwError (NoRuleToInfer tm (ann tm))
-elab (In (Surface.Lam n e) span) (Just (VPi tn pi t t')) = do
-  e' <- local (Context.insert n t) (check (subst n (Surface.Var n) e) (t' (vfree n)))
-  let res = fst (ann e')
-      used = Resources.lookup n res
-  sigma <- ask
-  unless (sigma >< pi == More) . when (pi /= used) $
-    throwError (ResourceMismatch n pi used span (uses n e))
-  pure (In (Core.Lam n e') (Resources.delete n res, VPi tn pi t t'))
-elab (In (Surface.Hole n) span) (Just ty) = do
-  ctx <- ask
-  throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
-elab tm (Just ty) = do
-  v <- infer tm
-  actual <- asks (flip vforce (snd (ann v)))
-  unless (actual == ty) (throwError (TypeMismatch ty (snd (ann v)) (ann tm)))
-  pure v
+elab (In out span) ty = case (out, ty) of
+  (e ::: t, Nothing) -> do
+    t' <- check t VType
+    t'' <- asks (eval t')
+    check e t''
+  (ForAll n t b, Nothing) -> do
+    t' <- check t VType
+    t'' <- asks (eval t')
+    b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
+    pure (In (Core.Pi n Zero t' b') (Resources.empty, VType))
+  (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, VType))
+  (Surface.Pi n e t b, Nothing) -> do
+    t' <- check t VType
+    t'' <- asks (eval t')
+    b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
+    pure (In (Core.Pi n e t' b') (Resources.empty, VType))
+  (Surface.Var n, Nothing) -> do
+    res <- asks (Context.lookup n)
+    sigma <- ask
+    case res of
+      Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
+      _      -> throwError (FreeVariable n span)
+  (f Surface.:@ a, Nothing) -> do
+    f' <- infer f
+    case ann f' of
+      (g1, VPi _ pi t t') -> do
+        a' <- check a t
+        let (g2, _) = ann a'
+        env <- ask
+        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' (eval a' env)))
+      _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
+  (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
+  (Surface.Lam n e, Just (VPi tn pi t t')) -> do
+    e' <- local (Context.insert n t) (check (subst n (Surface.Var n) e) (t' (vfree n)))
+    let res = fst (ann e')
+        used = Resources.lookup n res
+    sigma <- ask
+    unless (sigma >< pi == More) . when (pi /= used) $
+      throwError (ResourceMismatch n pi used span (uses n e))
+    pure (In (Core.Lam n e') (Resources.delete n res, VPi tn pi t t'))
+  (Surface.Hole n, Just ty) -> do
+    ctx <- ask
+    throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
+  (tm, Just ty) -> do
+    v <- infer (In tm span)
+    actual <- asks (flip vforce (snd (ann v)))
+    unless (actual == ty) (throwError (TypeMismatch ty (snd (ann v)) span))
+    pure v
 
 infer :: ( Carrier sig m
          , Member (Error (ElabError QName)) sig
