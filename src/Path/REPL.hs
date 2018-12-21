@@ -195,12 +195,12 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           let n = length packageSources
           sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule
 
-          for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
+          try . for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> do
             let name = moduleName m
             print (brackets (pretty i <+> pretty "of" <+> pretty n) <+> pretty "Compiling" <+> pretty name <+> parens (pretty (modulePath m)))
             table <- get
             (errs, res) <- raiseHandler (runState [] . runReader (table :: ModuleTable QName)) (elabModule m)
-            unless (Prelude.null errs) (for_ errs printElabError)
+            unless (Prelude.null errs) (for_ errs printElabError *> stop)
             modify (Map.insert name res)
           put (moduleGraph sorted)
         runRenamer m = do
@@ -209,6 +209,12 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
         printResolveError err = print (err :: ResolveError)
         printElabError    err = print (err :: ElabError QName)
         printModuleError  err = print (err :: ModuleError)
+
+stop :: (Carrier sig m, Member (Error ()) sig) => m ()
+stop = throwError ()
+
+try :: (Carrier sig m, Effect sig, Monad m) => Elab QName (ErrorC () m) a -> m ()
+try = fmap (const ()) . runError . runElab
 
 printParserError :: MonadIO m => ErrInfo -> m ()
 printParserError = prettyPrint
