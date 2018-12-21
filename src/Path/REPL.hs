@@ -15,7 +15,6 @@ import Data.Bool (bool)
 import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
-import Data.List (intersect)
 import qualified Data.Map as Map
 import Path.Context as Context
 import Path.Elab
@@ -209,7 +208,8 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
               modify (name:)
           put (moduleGraph sorted)
         runDeps = raiseHandler (evalState ([] :: [ModuleName]))
-        skipDeps m a = gets (Prelude.null . intersect (map importModuleName (moduleImports m))) >>= bool (modify (moduleName m:)) a
+        skipDeps m a = gets (failedDep m) >>= bool (modify (moduleName m:)) a
+        failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
         runRenamer m = do
           res <- get
           raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
