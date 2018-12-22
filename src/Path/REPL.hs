@@ -198,6 +198,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 Just d -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
               Nothing -> print (pretty "no such module" <+> squotes (pretty moduleName))
+            loop
         reload = do
           put (Resolution mempty)
           let n = length packageSources
