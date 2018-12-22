@@ -26,8 +26,8 @@ iter : ∀ a : Type . a -> (a -> a) -> Nat -> a
 iter = \ a z s n . n a (\ _ k f . f a z (\ m . s (k m)))
 
 
-add : Nat -> Nat -> Nat
-add = \ m . iter Nat m s
+(_ + _) : Nat -> Nat -> Nat
+(_ + _) = \ m . iter Nat m s
 
-times : Nat -> Nat -> Nat
-times = \ m . iter Nat z (add m)
+(_ * _) : Nat -> Nat -> Nat
+(_ * _) = \ m . iter Nat z ((_ + _) m)
