@@ -27,21 +27,9 @@ placeholder :: TokenParsing m => m ()
 placeholder = () <$ token (char '_')
 
 
-operator, prefix, postfix, infix', closed :: (Monad m, TokenParsing m) => m Operator
+operator, infix', postfix, closed, prefix :: (Monad m, TokenParsing m) => m Operator
 
 operator = try infix' <|> postfix <|> try closed <|> prefix
-
--- | Parse a prefix operator.
---
--- >>> Trifecta.parseString operator mempty "if _ then _ else _"
--- Success (Prefix ("if" :| ["then","else"]))
-prefix = Prefix <$> some1 (fragment <* placeholder)
-
--- | Parse a postfix operator.
---
--- >>> Trifecta.parseString operator mempty "_ [ _ ]"
--- Success (Postfix ("[" :| ["]"]))
-postfix = Postfix <$> some1 (placeholder *> fragment)
 
 -- | Parse an infix operator.
 --
@@ -49,11 +37,23 @@ postfix = Postfix <$> some1 (placeholder *> fragment)
 -- Success (Infix ("\8866" :| [":"]))
 infix' = Infix <$ placeholder <*> (fragment `endByNonEmpty` placeholder)
 
+-- | Parse a postfix operator.
+--
+-- >>> Trifecta.parseString operator mempty "_ [ _ ]"
+-- Success (Postfix ("[" :| ["]"]))
+postfix = Postfix <$> some1 (placeholder *> fragment)
+
 -- | Parse a closed operator.
 --
 -- >>> Trifecta.parseString operator mempty "| _ |"
 -- Success (Closed "|" ("|" :| []))
 closed = Closed <$> fragment <*> some1 (placeholder *> fragment)
+
+-- | Parse a prefix operator.
+--
+-- >>> Trifecta.parseString operator mempty "if _ then _ else _"
+-- Success (Prefix ("if" :| ["then","else"]))
+prefix = Prefix <$> some1 (fragment <* placeholder)
 
 
 -- | Parse a name fragment.
