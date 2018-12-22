@@ -22,7 +22,7 @@ import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
 import Control.Monad.State
-import Data.Char (isPunctuation, isSpace, isSymbol)
+import Data.Char (isPunctuation, isSymbol)
 import qualified Data.HashSet as HashSet
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -41,7 +41,7 @@ newtype Inner a = Inner { runInner :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
 instance TokenParsing Inner where
-  someSpace = Inner $ buildSomeSpaceParser (skipSome (satisfy isSpace)) haskellCommentStyle
+  someSpace = Inner (buildSomeSpaceParser someSpace haskellCommentStyle)
   nesting = Inner . nesting . runInner
   highlight h = Inner . highlight h . runInner
   token p = whiteSpace *> p
