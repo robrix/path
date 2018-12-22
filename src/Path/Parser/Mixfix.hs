@@ -10,3 +10,6 @@ data Operator
 
 betweenOp :: String -> String -> Operator
 betweenOp a b = Closed a (b :| [])
+
+parensOp :: Operator
+parensOp = betweenOp "(" ")"
