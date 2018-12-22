@@ -29,30 +29,21 @@ placeholder = () <$ token (char '_')
 
 operator, infix', postfix, closed, prefix :: (Monad m, TokenParsing m) => m Operator
 
-operator = try infix' <|> postfix <|> try closed <|> prefix
-
--- | Parse an infix operator.
+-- | Parse a mixfix operator.
 --
 -- >>> Trifecta.parseString operator mempty "_ ⊢ _ : _"
 -- Success (Infix ("\8866" :| [":"]))
-infix' = Infix <$ placeholder <*> (fragment `endByNonEmpty` placeholder)
-
--- | Parse a postfix operator.
---
 -- >>> Trifecta.parseString operator mempty "_ [ _ ]"
 -- Success (Postfix ("[" :| ["]"]))
-postfix = Postfix <$> some1 (placeholder *> fragment)
-
--- | Parse a closed operator.
---
 -- >>> Trifecta.parseString operator mempty "| _ |"
 -- Success (Closed "|" ("|" :| []))
-closed = Closed <$> fragment <*> some1 (placeholder *> fragment)
-
--- | Parse a prefix operator.
---
 -- >>> Trifecta.parseString operator mempty "if _ then _ else _"
 -- Success (Prefix ("if" :| ["then","else"]))
+operator = try infix' <|> postfix <|> try closed <|> prefix
+
+infix' = Infix <$ placeholder <*> (fragment `endByNonEmpty` placeholder)
+postfix = Postfix <$> some1 (placeholder *> fragment)
+closed = Closed <$> fragment <*> some1 (placeholder *> fragment)
 prefix = Prefix <$> some1 (fragment <* placeholder)
 
 
