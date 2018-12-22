@@ -7,3 +7,6 @@ data Operator
   | Postfix (NonEmpty String)
   | Infix (NonEmpty String)
   | Closed String (NonEmpty String)
+
+betweenOp :: String -> String -> Operator
+betweenOp a b = Closed a (b :| [])
