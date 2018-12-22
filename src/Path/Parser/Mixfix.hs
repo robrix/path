@@ -34,7 +34,7 @@ operator = try infix' <|> postfix <|> try closed <|> prefix
 prefix = Prefix <$> some1 (fragment <* placeholder)
 postfix = Postfix <$> some1 (placeholder *> fragment)
 infix' = Infix <$ placeholder <*> (fragment `endByNonEmpty` placeholder)
-closed = Closed <$> fragment <* placeholder <*> some1 (placeholder *> fragment)
+closed = Closed <$> fragment <*> some1 (placeholder *> fragment)
 
 
 -- | Parse a name fragment.
