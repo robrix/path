@@ -1,6 +1,6 @@
 module Path.Parser.Mixfix where
 
-import Control.Applicative (Alternative(..))
+import Control.Applicative (Alternative(..), (<**>))
 import Data.Char (isPunctuation, isSymbol)
 import Data.List.NonEmpty (NonEmpty(..), some1)
 import Text.Parser.Token.Highlight
@@ -27,7 +27,7 @@ placeholder :: TokenParsing m => m ()
 placeholder = () <$ token (char '_')
 
 
-operator, infix', postfix, closed, prefix :: (Monad m, TokenParsing m) => m Operator
+operator, inOrPostfix, closed, prefix :: (Monad m, TokenParsing m) => m Operator
 
 -- | Parse a mixfix operator.
 --
@@ -39,10 +39,9 @@ operator, infix', postfix, closed, prefix :: (Monad m, TokenParsing m) => m Oper
 -- Success (Closed "|" ("|" :| []))
 -- >>> Trifecta.parseString operator mempty "if _ then _ else _"
 -- Success (Prefix ("if" :| ["then","else"]))
-operator = try infix' <|> postfix <|> try closed <|> prefix
+operator = inOrPostfix <|> try closed <|> prefix
 
-infix' = Infix <$ placeholder <*> (fragment `endByNonEmpty` placeholder)
-postfix = Postfix <$> some1 (placeholder *> fragment)
+inOrPostfix = some1 (try (placeholder *> fragment)) <**> (Infix <$ placeholder <|> pure Postfix)
 closed = Closed <$> fragment <*> some1 (placeholder *> fragment)
 prefix = Prefix <$> some1 (fragment <* placeholder)
 
