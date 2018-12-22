@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Path.Name where
 
 import Data.List.NonEmpty (NonEmpty(..))
@@ -69,3 +70,13 @@ data Operator
 
 betweenOp :: String -> String -> Operator
 betweenOp a b = Closed (a :| []) b
+
+instance Pretty Operator where
+  pretty = \case
+    Prefix (f:|fs) -> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
+    Postfix (f:|fs) -> underscore <+> pretty f <+> hsep (map (\ a -> underscore <+> pretty a) fs)
+    Infix (f:|fs) -> underscore <+> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
+    Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
+    where underscore = pretty '_'
+
+instance PrettyPrec Operator
