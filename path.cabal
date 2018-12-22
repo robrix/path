@@ -24,6 +24,7 @@ library
                      , Path.Name
                      , Path.Package
                      , Path.Parser
+                     , Path.Parser.Mixfix
                      , Path.Parser.Module
                      , Path.Parser.Package
                      , Path.Parser.REPL
