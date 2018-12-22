@@ -20,7 +20,6 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
-import Control.Monad.Reader
 import Control.Monad.State
 import Data.Char (isPunctuation, isSymbol)
 import qualified Data.HashSet as HashSet
@@ -34,10 +33,7 @@ import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
 
-data Layout = Indent Int | Braces
-  deriving (Eq, Ord, Show)
-
-newtype Parser a = Parser { runParser :: StateT Int (ReaderT Layout Trifecta.Parser) a }
+newtype Parser a = Parser { runParser :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
 instance TokenParsing Parser where
@@ -48,10 +44,10 @@ instance TokenParsing Parser where
 
 
 parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> FilePath -> m a
-parseFile p = toError <=< parseFromFileEx (runReaderT (evalStateT (runParser p) 0) (Indent 0))
+parseFile p = toError <=< parseFromFileEx (evalStateT (runParser p) 0)
 
 parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> Delta -> String -> m a
-parseString p = fmap toError . Trifecta.parseString (runReaderT (evalStateT (runParser p) 0) (Indent 0))
+parseString p = fmap toError . Trifecta.parseString (evalStateT (runParser p) 0)
 
 toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a
