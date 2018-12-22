@@ -8,9 +8,10 @@ import Path.Parser.Term
 import Path.Surface
 import Path.Term
 import Text.Trifecta
+import Text.Trifecta.Indentation
 
-module' :: (DeltaParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
-module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many import' <*> many declaration
+module' :: (DeltaParsing m, IndentationParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
+module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
   where make comment name = Module.Module name comment path
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
