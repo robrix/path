@@ -210,21 +210,22 @@ data ElabError v
   deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => Pretty (ElabError v) where
-  pretty (FreeVariable name span) = prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
-  pretty (TypeMismatch expected actual span) = prettyErr span (vsep
-    [ pretty "type mismatch"
-    , pretty "expected:" <+> pretty expected
-    , pretty "  actual:" <+> pretty actual
-    ]) Nothing
-  pretty (NoRuleToInfer _ span) = prettyErr span (pretty "no rule to infer type of term") Nothing
-  pretty (IllegalApplication tm ty span) = prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
-  pretty (ResourceMismatch n pi used span spans) = prettyErr span msg (if length spans == 0 then Nothing else Just (vsep (map prettys spans)))
-    where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
-  pretty (TypedHole n ty ctx span) = prettyErr span msg (Just ext)
-    where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-          ext = nest 2 $ vsep
-            [ pretty "Local bindings:"
-            , pretty ctx
-            ]
+  pretty = \case
+    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
+    TypeMismatch expected actual span -> prettyErr span (vsep
+      [ pretty "type mismatch"
+      , pretty "expected:" <+> pretty expected
+      , pretty "  actual:" <+> pretty actual
+      ]) Nothing
+    NoRuleToInfer _ span -> prettyErr span (pretty "no rule to infer type of term") Nothing
+    IllegalApplication tm ty span -> prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
+    ResourceMismatch n pi used span spans -> prettyErr span msg (if length spans == 0 then Nothing else Just (vsep (map prettys spans)))
+      where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
+    TypedHole n ty ctx span -> prettyErr span msg (Just ext)
+      where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
+            ext = nest 2 $ vsep
+              [ pretty "Local bindings:"
+              , pretty ctx
+              ]
 
 instance (Ord v, Pretty v) => PrettyPrec (ElabError v)
