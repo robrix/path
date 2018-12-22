@@ -2,6 +2,7 @@ module Path.Parser.Mixfix where
 
 import Control.Applicative (Alternative(..), (<**>))
 import Data.Char (isPunctuation, isSymbol)
+import Data.HashSet (HashSet, fromList, member)
 import Data.List.NonEmpty (NonEmpty(..), some1)
 import Text.Parser.Token.Highlight
 import Text.Trifecta as Trifecta
@@ -49,5 +50,9 @@ operator
 -- Nothing
 fragment :: (Monad m, TokenParsing m) => m String
 fragment = ident (IdentifierStyle "fragment" (letter <|> satisfy isOperator) (alphaNum <|> char '\'' <|> satisfy isOperator) mempty Identifier ReservedIdentifier)
-  where isOperator '_' = False
-        isOperator c   = isPunctuation c || isSymbol c
+  where isOperator c
+          | c `member` reservedOperatorChars = False
+          | otherwise                        = isPunctuation c || isSymbol c
+
+reservedOperatorChars :: HashSet Char
+reservedOperatorChars = fromList "(){}_"
