@@ -30,13 +30,13 @@ placeholder = () <$ token (char '_')
 
 -- | Parse a mixfix operator.
 --
--- >>> Trifecta.parseString operator mempty "_ ⊢ _ : _"
+-- >>> Trifecta.parseString (operator <* eof) mempty "_ ⊢ _ : _"
 -- Success (Infix ("\8866" :| [":"]))
--- >>> Trifecta.parseString operator mempty "_ [ _ ]"
+-- >>> Trifecta.parseString (operator <* eof) mempty "_ [ _ ]"
 -- Success (Postfix ("[" :| ["]"]))
--- >>> Trifecta.parseString operator mempty "| _ |"
+-- >>> Trifecta.parseString (operator <* eof) mempty "| _ |"
 -- Success (Closed ("|" :| []) "|")
--- >>> Trifecta.parseString operator mempty "if _ then _ else _"
+-- >>> Trifecta.parseString (operator <* eof) mempty "if _ then _ else _"
 -- Success (Prefix ("if" :| ["then","else"]))
 operator :: (Monad m, TokenParsing m) => m Operator
 operator
