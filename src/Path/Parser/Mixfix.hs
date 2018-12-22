@@ -1,7 +1,7 @@
 module Path.Parser.Mixfix where
 
 import Control.Applicative (Alternative(..))
-import Data.List.NonEmpty (NonEmpty(..))
+import Data.List.NonEmpty (NonEmpty(..), some1)
 import Text.Parser.Token.Highlight
 import Text.Trifecta
 
@@ -24,6 +24,9 @@ ifthenelse = Prefix ("if" :| [ "then", "else" ])
 placeholder :: TokenParsing m => m ()
 placeholder = () <$ token (char '_')
 
+
+prefix :: (Monad m, TokenParsing m) => m Operator
+prefix = Prefix <$> some1 (fragment <* placeholder)
 
 fragment :: (Monad m, TokenParsing m) => m String
 fragment = ident (IdentifierStyle "fragment" letter (alphaNum <|> char '\'') mempty Identifier ReservedIdentifier)
