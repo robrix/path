@@ -151,7 +151,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span) Span) (runError (runError (runError (runError (runElab loop)))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span) Span) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -187,7 +187,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Reload -> reload *> loop
           Command.Import i -> do
             table <- get
-            (ctx, env) <- raiseHandler (runReader (table :: ModuleTable QName)) (importModule i)
+            (ctx, env) <- runReader (table :: ModuleTable QName) (importModule i)
             modify (Context.union ctx)
             modify (Env.union env)
             loop
@@ -210,19 +210,19 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- raiseHandler (runState [] . runReader (table :: ModuleTable QName)) (elabModule m)
+            (errs, res) <- runState [] (runReader (table :: ModuleTable QName) (elabModule m))
             if Prelude.null errs then
               modify (Map.insert name res)
             else do
               for_ errs printElabError
               modify (name:)
           put (moduleGraph sorted)
-        runDeps = raiseHandler (evalState ([] :: [ModuleName]))
+        runDeps = evalState ([] :: [ModuleName])
         skipDeps m a = gets (failedDep m) >>= bool (modify (moduleName m:)) a
         failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
         runRenamer m = do
           res <- get
-          raiseHandler (runReader (res :: Resolution) . runReader (ModuleName "(interpreter)")) m
+          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
         printResolveError err = print (err :: ResolveError)
         printElabError    err = print (err :: ElabError QName)
         printModuleError  err = print (err :: ModuleError)

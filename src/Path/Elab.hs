@@ -2,13 +2,10 @@
 module Path.Elab where
 
 import Control.Effect
-import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
-import Control.Monad.IO.Class
-import Data.Coerce (coerce)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Path.Context as Context
@@ -32,10 +29,11 @@ elab :: ( Carrier sig m
         , Member (Reader (Context QName)) sig
         , Member (Reader (Env QName)) sig
         , Member (Reader Usage) sig
+        , Monad m
         )
      => Term (Surface QName) Span
      -> Maybe (Type QName)
-     -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
+     -> m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
   (e ::: t, Nothing) -> do
     t' <- check t VType
@@ -90,9 +88,10 @@ infer :: ( Carrier sig m
          , Member (Reader (Context QName)) sig
          , Member (Reader (Env QName)) sig
          , Member (Reader Usage) sig
+         , Monad m
          )
       => Term (Surface QName) Span
-      -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
+      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -100,29 +99,15 @@ check :: ( Carrier sig m
          , Member (Reader (Context QName)) sig
          , Member (Reader (Env QName)) sig
          , Member (Reader Usage) sig
+         , Monad m
          )
       => Term (Surface QName) Span
       -> Type QName
-      -> Elab QName m (Term (Core QName) (Resources QName Usage, Type QName))
+      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 check tm ty = asks (flip vforce ty) >>= elab tm . Just
 
 
 type ModuleTable v = Map.Map ModuleName (Context v, Env v)
-
-newtype Elab v m a = Elab { runElab :: Eff m a }
-  deriving (Applicative, Functor, Monad)
-
-deriving instance (Carrier sig m, Member (Lift IO) sig) => MonadIO (Elab v m)
-
-instance Carrier sig m => Carrier sig (Elab v m) where
-  ret = Elab . ret
-  eff = Elab . eff . handlePure runElab
-
-raiseHandler :: (Eff m a -> Eff n b)
-             -> Elab v m a
-             -> Elab v n b
-raiseHandler = coerce
-
 
 elabModule :: ( Carrier sig m
               , Effect sig
@@ -131,14 +116,14 @@ elabModule :: ( Carrier sig m
               , Member (State [ElabError QName]) sig
               )
            => Module QName (Term (Surface QName) Span) Span
-           -> Elab QName m (Context QName, Env QName)
-elabModule m = raiseHandler (runState Context.empty . runElab . execState Env.empty) $ do
+           -> m (Context QName, Env QName)
+elabModule m = runState Context.empty . execState Env.empty $ do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
     modify (Context.union ctx)
     modify (Env.union env)
 
-  for_ (moduleDecls m) (either logError pure <=< raiseHandler runError . elabDecl)
+  for_ (moduleDecls m) (either logError pure <=< runError . elabDecl)
 
 logError :: (Carrier sig m, Member (State [ElabError QName]) sig, Monad m) => ElabError QName -> m ()
 logError = modify . (:)
@@ -146,9 +131,10 @@ logError = modify . (:)
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig
                 , Member (Reader (ModuleTable QName)) sig
+                , Monad m
                 )
              => Import Span
-             -> Elab QName m (Context QName, Env QName)
+             -> m (Context QName, Env QName)
 importModule n = do
   (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
   pure (Context.filter p ctx, Env.filter p env)
@@ -159,9 +145,10 @@ elabDecl :: ( Carrier sig m
             , Member (Error (ElabError QName)) sig
             , Member (State (Context QName)) sig
             , Member (State (Env QName)) sig
+            , Monad m
             )
          => Decl QName (Term (Surface QName) Span)
-         -> Elab QName m ()
+         -> m ()
 elabDecl = \case
   Declare name ty -> elabDeclare name ty
   Define  name tm -> elabDefine  name tm
@@ -171,10 +158,11 @@ elabDeclare :: ( Carrier sig m
                , Member (Error (ElabError QName)) sig
                , Member (State (Context QName)) sig
                , Member (State (Env QName)) sig
+               , Monad m
                )
             => QName
             -> Term (Surface QName) Span
-            -> Elab QName m ()
+            -> m ()
 elabDeclare name ty = do
   ty' <- runInState Zero (check ty VType)
   ty'' <- gets (eval ty')
@@ -184,10 +172,11 @@ elabDefine :: ( Carrier sig m
               , Member (Error (ElabError QName)) sig
               , Member (State (Context QName)) sig
               , Member (State (Env QName)) sig
+              , Monad m
               )
            => QName
            -> Term (Surface QName) Span
-           -> Elab QName m ()
+           -> m ()
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runInState One (maybe infer (flip check) ty tm)
@@ -196,18 +185,19 @@ elabDefine name tm = do
   maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 
 runInState :: ( Carrier sig m
-              , Member (State (Context v)) sig
-              , Member (State (Env v)) sig
+              , Member (State (Context QName)) sig
+              , Member (State (Env QName)) sig
+              , Monad m
               )
            => Usage
-           -> Elab v (ReaderC (Context v) (Eff
-                     (ReaderC (Env v)     (Eff
-                     (ReaderC Usage       (Eff m)))))) a
-           -> Elab v m a
+           -> Eff (ReaderC (Context QName) (Eff
+                  (ReaderC (Env QName)     (Eff
+                  (ReaderC Usage           m))))) a
+           -> m a
 runInState usage m = do
   env <- get
   ctx <- get
-  raiseHandler (runReader usage . runReader env . runReader ctx) m
+  runReader usage (runReader env (runReader ctx m))
 
 
 data ElabError v
