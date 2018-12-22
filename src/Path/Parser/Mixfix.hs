@@ -1,6 +1,7 @@
 module Path.Parser.Mixfix where
 
 import Data.List.NonEmpty (NonEmpty(..))
+import Text.Trifecta
 
 data Operator
   = Prefix (NonEmpty String)
@@ -16,3 +17,7 @@ parensOp = betweenOp "(" ")"
 
 ifthenelse :: Operator
 ifthenelse = Prefix ("if" :| [ "then", "else" ])
+
+
+placeholder :: TokenParsing m => m ()
+placeholder = () <$ token (char '_')
