@@ -8,6 +8,7 @@ import Text.PrettyPrint.ANSI.Leijen
 data Name
   = Name String
   | Gensym Int
+  | Op Operator
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
@@ -15,6 +16,7 @@ instance Pretty Name where
   pretty (Gensym i) = pretty ('_' : alphabet !! q : show r)
     where (q, r) = i `divMod` 26
           alphabet = ['a'..'z']
+  pretty (Op op) = pretty op
 
 instance PrettyPrec Name
 
