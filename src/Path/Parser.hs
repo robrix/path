@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving #-}
 module Path.Parser
-( Parser
-, Inner(..)
+( Parser(..)
 , parseFile
 , parseString
 , whole
@@ -33,33 +32,27 @@ import Text.Parser.Token.Style
 import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
-import Text.Trifecta.Indentation
 
-type Parser = IndentationParserT Token Inner
-
-newtype Inner a = Inner { runInner :: StateT Int Trifecta.Parser a }
+newtype Parser a = Parser { runParser :: StateT Int Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
-instance TokenParsing Inner where
-  someSpace = Inner (buildSomeSpaceParser someSpace haskellCommentStyle)
-  nesting = Inner . nesting . runInner
-  highlight h = Inner . highlight h . runInner
+instance TokenParsing Parser where
+  someSpace = Parser (buildSomeSpaceParser someSpace haskellCommentStyle)
+  nesting = Parser . nesting . runParser
+  highlight h = Parser . highlight h . runParser
   token p = whiteSpace *> p
 
 
 parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> FilePath -> m a
-parseFile p = toError <=< parseFromFileEx (evalStateT (runInner (evalIndentationParserT p indentst)) 0)
+parseFile p = toError <=< parseFromFileEx (evalStateT (runParser p) 0)
 
 parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> Delta -> String -> m a
-parseString p = fmap toError . Trifecta.parseString (evalStateT (runInner (evalIndentationParserT p indentst)) 0)
+parseString p = fmap toError . Trifecta.parseString (evalStateT (runParser p) 0)
 
 toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a
 toError (Failure e) = throwError e
 
-
-indentst :: IndentationState
-indentst = mkIndentationState 0 infIndentation True Gt
 
 whole :: TokenParsing m => m a -> m a
 whole p = p <* whiteSpace <* eof

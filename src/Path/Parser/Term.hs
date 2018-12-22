@@ -10,7 +10,6 @@ import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
 import Path.Usage
 import Text.Trifecta
-import Text.Trifecta.Indentation
 import Text.Parser.Token.Highlight
 
 type', var, hole :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
@@ -75,12 +74,7 @@ class Monad m => MonadFresh m where
   pop :: m ()
   freshName :: m Name
 
-instance MonadFresh Parser.Inner where
-  push = Parser.Inner (modify succ)
-  pop = Parser.Inner (modify pred)
-  freshName = Parser.Inner (gets Gensym)
-
-instance MonadFresh m => MonadFresh (IndentationParserT t m) where
-  push = lift push
-  pop = lift pop
-  freshName = lift freshName
+instance MonadFresh Parser.Parser where
+  push = Parser.Parser (modify succ)
+  pop = Parser.Parser (modify pred)
+  freshName = Parser.Parser (gets Gensym)
