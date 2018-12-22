@@ -33,7 +33,7 @@ operator = try infix' <|> prefix <|> try closed <|> postfix
 
 prefix = Prefix <$> some1 (fragment <* placeholder)
 postfix = Postfix <$> some1 (placeholder *> fragment)
-infix' = Infix <$> ((fragment `sepByNonEmpty` placeholder) `surroundedBy` placeholder)
+infix' = Infix <$ placeholder <*> (fragment `endByNonEmpty` placeholder)
 closed = Closed <$> fragment <* placeholder <*> some1 (placeholder *> fragment)
 
 
