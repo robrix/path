@@ -10,6 +10,7 @@ data Operator
   | Postfix (NonEmpty String)
   | Infix (NonEmpty String)
   | Closed String (NonEmpty String)
+  deriving (Eq, Ord, Show)
 
 betweenOp :: String -> String -> Operator
 betweenOp a b = Closed a (b :| [])
