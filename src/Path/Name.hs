@@ -82,3 +82,7 @@ instance Pretty Operator where
     where underscore = pretty '_'
 
 instance PrettyPrec Operator
+
+
+data Assoc = L | R | Non
+  deriving (Eq, Ord, Show)
