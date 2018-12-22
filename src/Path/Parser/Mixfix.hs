@@ -25,10 +25,11 @@ placeholder :: TokenParsing m => m ()
 placeholder = () <$ token (char '_')
 
 
-prefix, postfix :: (Monad m, TokenParsing m) => m Operator
+prefix, postfix, infix' :: (Monad m, TokenParsing m) => m Operator
 
 prefix = Prefix <$> some1 (fragment <* placeholder)
 postfix = Postfix <$> some1 (placeholder *> fragment)
+infix' = Infix <$> ((fragment `sepByNonEmpty` placeholder) `surroundedBy` placeholder)
 
 
 fragment :: (Monad m, TokenParsing m) => m String
