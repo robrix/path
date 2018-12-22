@@ -30,8 +30,8 @@ placeholder = () <$ token (char '_')
 
 -- | Parse a mixfix operator.
 --
--- >>> Trifecta.parseString (operator <* eof) mempty "_ ⊢ _ : _"
--- Success (Infix ("\8866" :| [":"]))
+-- >>> Trifecta.parseString (operator <* eof) mempty "_ ⊢ _ ∈ _"
+-- Success (Infix ("\8866" :| ["\8712"]))
 -- >>> Trifecta.parseString (operator <* eof) mempty "_ [ _ ]"
 -- Success (Postfix ("[" :| ["]"]))
 -- >>> Trifecta.parseString (operator <* eof) mempty "| _ |"
@@ -49,10 +49,13 @@ operator
 -- >>> foldResult (const Nothing) Just (Trifecta.parseString fragment mempty "_")
 -- Nothing
 fragment :: (Monad m, TokenParsing m) => m String
-fragment = ident (IdentifierStyle "fragment" (letter <|> satisfy isOperator) (alphaNum <|> char '\'' <|> satisfy isOperator) mempty Identifier ReservedIdentifier)
+fragment = ident (IdentifierStyle "fragment" (letter <|> satisfy isOperator) (alphaNum <|> char '\'' <|> satisfy isOperator) reservedOperators Identifier ReservedIdentifier)
   where isOperator c
           | c `member` reservedOperatorChars = False
           | otherwise                        = isPunctuation c || isSymbol c
+
+reservedOperators :: HashSet String
+reservedOperators = fromList [ "->", ":" ]
 
 reservedOperatorChars :: HashSet Char
 reservedOperatorChars = fromList "(){}_"
