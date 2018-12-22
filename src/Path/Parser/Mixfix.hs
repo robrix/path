@@ -10,11 +10,11 @@ data Operator
   = Prefix (NonEmpty String)
   | Postfix (NonEmpty String)
   | Infix (NonEmpty String)
-  | Closed String (NonEmpty String)
+  | Closed (NonEmpty String) String
   deriving (Eq, Ord, Show)
 
 betweenOp :: String -> String -> Operator
-betweenOp a b = Closed a (b :| [])
+betweenOp a b = Closed (a :| []) b
 
 parensOp :: Operator
 parensOp = betweenOp "(" ")"
@@ -36,13 +36,13 @@ operator, inOrPostfix, closed, prefix :: (Monad m, TokenParsing m) => m Operator
 -- >>> Trifecta.parseString operator mempty "_ [ _ ]"
 -- Success (Postfix ("[" :| ["]"]))
 -- >>> Trifecta.parseString operator mempty "| _ |"
--- Success (Closed "|" ("|" :| []))
+-- Success (Closed ("|" :| []) "|")
 -- >>> Trifecta.parseString operator mempty "if _ then _ else _"
 -- Success (Prefix ("if" :| ["then","else"]))
 operator = inOrPostfix <|> try closed <|> prefix
 
 inOrPostfix = some1 (try (placeholder *> fragment)) <**> (Infix <$ placeholder <|> pure Postfix)
-closed = Closed <$> fragment <*> some1 (placeholder *> fragment)
+closed = Closed <$> some1 (try (fragment <* placeholder)) <*> fragment
 prefix = Prefix <$> some1 (fragment <* placeholder)
 
 
