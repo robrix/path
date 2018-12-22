@@ -1,7 +1,6 @@
 module Base.Bool
 
 import Base.Lazy
-import Base.Unit
 
 Bool : Type
 Bool = ∀ a:Type . a -> a -> a
@@ -16,4 +15,4 @@ not : Bool -> Bool
 not = \ f ty a b . f ty b a
 
 ifthenelse : ∀ a : Type . Bool -> Lazy a -> Lazy a -> a
-ifthenelse = \ a c t e . c (Unit -> a) t e unit
+ifthenelse = \ a c t e . force a (c (Lazy a) t e)
