@@ -6,6 +6,7 @@ import Control.Monad.State
 import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Parser as Parser
+import Path.Parser.Mixfix
 import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
 import Path.Usage
@@ -67,7 +68,7 @@ multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
 name :: (Monad m, TokenParsing m) => m Name
 name =       (Name <$> identifier <?> "name")
-     <|> try (Name <$> parens operator <?> "operator name")
+     <|> try (Op <$> parens operator <?> "operator name")
 
 
 class Monad m => MonadFresh m where

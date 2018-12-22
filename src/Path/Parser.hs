@@ -7,9 +7,7 @@ module Path.Parser
 , whole
 , keyword
 , identifier
-, operator
 , reservedWords
-, reservedOperators
 , op
 , ErrInfo
 , Span(..)
@@ -22,7 +20,6 @@ import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
 import Control.Monad.State
-import Data.Char (isPunctuation, isSymbol)
 import qualified Data.HashSet as HashSet
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -65,26 +62,13 @@ whole :: TokenParsing m => m a -> m a
 whole p = p <* whiteSpace <* eof
 
 
-identifier, operator :: (Monad m, TokenParsing m) => m String
+identifier :: (Monad m, TokenParsing m) => m String
 
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)
 
--- | Parse an operator identifier.
---
--- >>> Trifecta.parseString operator mempty "$"
--- Success "$"
--- >>> Trifecta.parseString operator mempty ">"
--- Success ">"
-operator = ident (IdentifierStyle "operator" (satisfy isOperator) (satisfy isOperator) reservedOperators Operator ReservedOperator)
-  where isOperator '\'' = False
-        isOperator c    = not (HashSet.member c reservedOperatorChars) && isPunctuation c || isSymbol c
 
-reservedWords, reservedOperators :: HashSet.HashSet String
-reservedWords     = HashSet.fromList [ "Type", "module", "import" ]
-reservedOperators = HashSet.fromList [ "->", ".", ":" ]
-
-reservedOperatorChars :: HashSet.HashSet Char
-reservedOperatorChars = HashSet.fromList "(){}"
+reservedWords :: HashSet.HashSet String
+reservedWords = HashSet.fromList [ "Type", "module", "import" ]
 
 keyword, op :: TokenParsing m => String -> m String
 
