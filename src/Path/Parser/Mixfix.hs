@@ -27,8 +27,6 @@ placeholder :: TokenParsing m => m ()
 placeholder = () <$ token (char '_')
 
 
-operator :: (Monad m, TokenParsing m) => m Operator
-
 -- | Parse a mixfix operator.
 --
 -- >>> Trifecta.parseString operator mempty "_ ⊢ _ : _"
@@ -39,6 +37,7 @@ operator :: (Monad m, TokenParsing m) => m Operator
 -- Success (Closed ("|" :| []) "|")
 -- >>> Trifecta.parseString operator mempty "if _ then _ else _"
 -- Success (Prefix ("if" :| ["then","else"]))
+operator :: (Monad m, TokenParsing m) => m Operator
 operator
   =   some1 (try (placeholder *> fragment)) <**> (Infix <$ placeholder <|> pure Postfix)
   <|> some1 (try (fragment <* placeholder)) <**> (flip Closed <$> fragment <|> pure Prefix)
