@@ -22,7 +22,8 @@ import' = ann <$> spanned (Module.Import <$ keyword "import" <*> moduleName)
   where ann (f :~ a) = f a
 
 declaration :: (DeltaParsing m, MonadFresh m) => m (Module.Decl Name (Term (Surface Name) Span))
-declaration = name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term
+declaration = (Module.Doc <$> docs <|> pure id) <*> decl
+  where decl = name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term
 
 docs :: TokenParsing m => m String
 docs = fmap unlines . (:) <$> firstLine <*> many line
