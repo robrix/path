@@ -191,6 +191,13 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             modify (Context.union ctx)
             modify (Env.union env)
             loop
+          Command.Doc moduleName -> do
+            m <- gets (Map.lookup moduleName . unModuleGraph)
+            case m :: Maybe (Module QName (Term (Surface QName) Span) Span) of
+              Just m -> case moduleDocs m of
+                Just d -> print (pretty d)
+                Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
+              Nothing -> print (pretty "no such module" <+> squotes (pretty moduleName))
         reload = do
           put (Resolution mempty)
           let n = length packageSources
