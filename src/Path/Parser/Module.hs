@@ -11,8 +11,8 @@ import Text.Trifecta
 import Text.Trifecta.Indentation
 
 module' :: (DeltaParsing m, IndentationParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
-module' path = make <$ keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
-  where make name = Module.Module name Nothing path
+module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
+  where make comment name = Module.Module name comment path
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
@@ -23,3 +23,8 @@ import' = ann <$> spanned (Module.Import <$ keyword "import" <*> moduleName)
 
 declaration :: (DeltaParsing m, MonadFresh m) => m (Module.Decl Name (Term (Surface Name) Span))
 declaration = name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term
+
+docs :: TokenParsing m => m String
+docs = fmap concat . (:) <$> firstLine <*> many line
+  where firstLine = string "--" *> whiteSpace *> char '|' *> whiteSpace *> many (satisfy (/= '\n')) <* newline
+        line = string "--" *> many (satisfy (/= '\n')) <* newline
