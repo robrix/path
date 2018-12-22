@@ -4,7 +4,7 @@ import Control.Applicative (Alternative(..))
 import Data.Char (isPunctuation, isSymbol)
 import Data.List.NonEmpty (NonEmpty(..), some1)
 import Text.Parser.Token.Highlight
-import Text.Trifecta
+import Text.Trifecta as Trifecta
 
 data Operator
   = Prefix (NonEmpty String)
@@ -37,6 +37,11 @@ infix' = Infix <$> ((fragment `sepByNonEmpty` placeholder) `surroundedBy` placeh
 closed = Closed <$> fragment <* placeholder <*> some1 (placeholder *> fragment)
 
 
+-- | Parse a name fragment.
+--
+-- >>> foldResult (const Nothing) Just (Trifecta.parseString fragment mempty "_")
+-- Nothing
 fragment :: (Monad m, TokenParsing m) => m String
 fragment = ident (IdentifierStyle "fragment" (letter <|> satisfy isOperator) (alphaNum <|> char '\'' <|> satisfy isOperator) mempty Identifier ReservedIdentifier)
-  where isOperator c = isPunctuation c || isSymbol c
+  where isOperator '_' = False
+        isOperator c   = isPunctuation c || isSymbol c
