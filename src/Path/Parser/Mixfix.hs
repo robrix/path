@@ -4,18 +4,9 @@ import Control.Applicative (Alternative(..), (<**>))
 import Data.Char (isPunctuation, isSymbol)
 import Data.HashSet (HashSet, fromList, member)
 import Data.List.NonEmpty (NonEmpty(..), some1)
+import Path.Name
 import Text.Parser.Token.Highlight
 import Text.Trifecta as Trifecta
-
-data Operator
-  = Prefix (NonEmpty String)
-  | Postfix (NonEmpty String)
-  | Infix (NonEmpty String)
-  | Closed (NonEmpty String) String
-  deriving (Eq, Ord, Show)
-
-betweenOp :: String -> String -> Operator
-betweenOp a b = Closed (a :| []) b
 
 parensOp :: Operator
 parensOp = betweenOp "(" ")"

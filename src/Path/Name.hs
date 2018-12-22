@@ -58,3 +58,14 @@ isLocal _         = False
 prettyQName :: QName -> Doc
 prettyQName (m :.: n) = pretty m <> dot <> pretty n
 prettyQName (Local n) = pretty n
+
+
+data Operator
+  = Prefix (NonEmpty String)
+  | Postfix (NonEmpty String)
+  | Infix (NonEmpty String)
+  | Closed (NonEmpty String) String
+  deriving (Eq, Ord, Show)
+
+betweenOp :: String -> String -> Operator
+betweenOp a b = Closed (a :| []) b
