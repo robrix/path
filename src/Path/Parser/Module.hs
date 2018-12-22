@@ -27,4 +27,4 @@ declaration = name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <
 docs :: TokenParsing m => m String
 docs = fmap concat . (:) <$> firstLine <*> many line
   where firstLine = string "--" *> whiteSpace *> char '|' *> whiteSpace *> many (satisfy (/= '\n')) <* newline
-        line = string "--" *> many (satisfy (/= '\n')) <* newline
+        line = string "--" *> whiteSpace *> many (satisfy (/= '\n')) <* newline
