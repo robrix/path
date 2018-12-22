@@ -42,7 +42,7 @@ newtype Parser a = Parser { runParser :: StateT Int (ReaderT Layout Trifecta.Par
 
 instance TokenParsing Parser where
   someSpace = Parser (buildSomeSpaceParser someSpace haskellCommentStyle)
-  nesting = Parser . nesting . runParser
+  nesting (Parser m) = Parser (local (const Braces) m)
   highlight h = Parser . highlight h . runParser
   token p = whiteSpace *> p
 
