@@ -195,9 +195,9 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             m <- gets (Map.lookup moduleName . unModuleGraph)
             case m :: Maybe (Module QName (Term (Surface QName) Span) Span) of
               Just m -> case moduleDocs m of
-                Just d -> print (pretty d)
+                Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
-              Nothing -> print (pretty "no such module" <+> squotes (pretty moduleName))
+              Nothing   -> print (pretty "no such module" <+> squotes (pretty moduleName))
             loop
         reload = do
           put (Resolution mempty)
