@@ -1,6 +1,7 @@
 module Path.Parser.Module where
 
 import Control.Applicative ((<**>), Alternative(..))
+import Data.Either (partitionEithers)
 import qualified Path.Module as Module
 import Path.Name
 import Path.Parser
@@ -10,8 +11,8 @@ import Path.Term
 import Text.Trifecta
 
 module' :: (DeltaParsing m, MonadFresh m) => FilePath -> m (Module.Module Name (Term (Surface Name) Span) Span)
-module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many import' <*> many declaration
-  where make comment name = Module.Module name comment path
+module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> layout (Left <$> import' <|> Right <$> declaration)
+  where make comment name contents = let (imports, decls) = partitionEithers contents in Module.Module name comment path imports decls
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
