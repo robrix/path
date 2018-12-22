@@ -13,3 +13,6 @@ betweenOp a b = Closed a (b :| [])
 
 parensOp :: Operator
 parensOp = betweenOp "(" ")"
+
+ifthenelse :: Operator
+ifthenelse = Prefix ("if" :| [ "then", "else" ])
