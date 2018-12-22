@@ -29,7 +29,7 @@ placeholder = () <$ token (char '_')
 
 operator, prefix, postfix, infix', closed :: (Monad m, TokenParsing m) => m Operator
 
-operator = try infix' <|> prefix <|> try closed <|> postfix
+operator = try infix' <|> postfix <|> try closed <|> prefix
 
 prefix = Prefix <$> some1 (fragment <* placeholder)
 postfix = Postfix <$> some1 (placeholder *> fragment)
