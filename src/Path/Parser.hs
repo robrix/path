@@ -10,7 +10,6 @@ module Path.Parser
 , reservedWords
 , reservedOperators
 , op
-, layout
 , ErrInfo
 , Span(..)
 , Delta(..)
@@ -89,7 +88,3 @@ keyword, op :: TokenParsing m => String -> m String
 keyword s = token (highlight ReservedIdentifier (try (string s <* notFollowedBy alphaNum))) <?> s
 
 op s = token (highlight Operator (string s)) <?> s
-
-
-layout :: TokenParsing m => m a -> m [a]
-layout m = braces (semiSep m) <|> semiSep m
