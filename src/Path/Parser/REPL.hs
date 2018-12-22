@@ -4,15 +4,15 @@ import Control.Applicative (Alternative(..))
 import qualified Path.Parser.Module as M
 import Path.Parser.Term
 import Path.REPL.Command
-import Text.Trifecta
+import Text.Trifecta hiding (doc)
 
 command :: (DeltaParsing m, MonadFresh m) => m (Maybe Command)
 typeof, decl, eval :: (DeltaParsing m, MonadFresh m) => m Command
-quit, help, show', reload :: (Monad m, TokenParsing m) => m Command
+quit, help, show', reload, doc :: (Monad m, TokenParsing m) => m Command
 import' :: DeltaParsing m => m Command
 info :: (Monad m, TokenParsing m) => m Info
 
-command = optional (quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> reload <|> import') <?> "command; use :? for help"
+command = optional (quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> reload <|> import' <|> doc) <?> "command; use :? for help"
 
 quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
@@ -31,3 +31,5 @@ info = Bindings <$ token (string "bindings") <|> Modules <$ token (string "modul
 reload = Reload <$ token (string ":r") <|> Reload <$ token (string ":reload") <?> "reload"
 
 import' = Import <$> M.import'
+
+doc = Doc <$ token (string ":doc") <*> M.moduleName
