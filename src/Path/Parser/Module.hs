@@ -25,6 +25,6 @@ declaration :: (DeltaParsing m, MonadFresh m) => m (Module.Decl Name (Term (Surf
 declaration = name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term
 
 docs :: TokenParsing m => m String
-docs = fmap concat . (:) <$> firstLine <*> many line
+docs = fmap unlines . (:) <$> firstLine <*> many line
   where firstLine = string "--" *> whiteSpace *> char '|' *> whiteSpace *> many (satisfy (/= '\n')) <* newline
         line = string "--" *> whiteSpace *> many (satisfy (/= '\n')) <* newline
