@@ -1,6 +1,7 @@
 module Path.Parser.Mixfix where
 
 import Control.Applicative (Alternative(..))
+import Data.Char (isPunctuation, isSymbol)
 import Data.List.NonEmpty (NonEmpty(..), some1)
 import Text.Parser.Token.Highlight
 import Text.Trifecta
@@ -37,4 +38,5 @@ closed = Closed <$> fragment <* placeholder <*> some1 (placeholder *> fragment)
 
 
 fragment :: (Monad m, TokenParsing m) => m String
-fragment = ident (IdentifierStyle "fragment" letter (alphaNum <|> char '\'') mempty Identifier ReservedIdentifier)
+fragment = ident (IdentifierStyle "fragment" (letter <|> satisfy isOperator) (alphaNum <|> char '\'' <|> satisfy isOperator) mempty Identifier ReservedIdentifier)
+  where isOperator c = isPunctuation c || isSymbol c
