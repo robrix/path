@@ -8,6 +8,7 @@ import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
+import Data.Maybe (listToMaybe)
 import Path.Context as Context
 import Path.Core as Core
 import Path.Env as Env
@@ -219,7 +220,7 @@ instance (Ord v, Pretty v) => Pretty (ElabError v) where
       ]) Nothing
     NoRuleToInfer _ span -> prettyErr span (pretty "no rule to infer type of term") Nothing
     IllegalApplication tm ty span -> prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
-    ResourceMismatch n pi used span spans -> prettyErr span msg (if length spans == 0 then Nothing else Just (vsep (map prettys spans)))
+    ResourceMismatch n pi used span spans -> prettyErr span msg (vsep (map prettys spans) <$ listToMaybe spans)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
     TypedHole n ty ctx span -> prettyErr span msg (Just ext)
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
