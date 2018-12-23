@@ -44,7 +44,6 @@ quote f = go 0
           VLam n b -> In (Lam (f i n) (go (succ i) (b (vfree n)))) ()
           VPi n e t b -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree n)))) ()
           VNeutral as n -> foldr (fmap (flip In ()) . (:@) . go i) (In (Var (f i n)) ()) as
-          -- where app f a = In (f :@ go i a) ()
 
 aeq :: Eq v => Value v -> Value v -> Bool
 aeq = go (0 :: Int) [] []
