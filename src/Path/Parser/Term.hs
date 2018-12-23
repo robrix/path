@@ -15,9 +15,9 @@ import Text.Trifecta.Indentation
 import Text.Parser.Token.Highlight
 
 type', var, hole :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
-term, application, annotation, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name) Span)
+term, application, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name) Span)
 
-term = annotation
+term = functionType
 
 ann :: DeltaParsing m => m (f (Term f Span)) -> m (Term f Span)
 ann = fmap respan . spanned
@@ -40,8 +40,6 @@ forAll = reann (do
 piType = reann (do
   (v, mult, ty) <- braces ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
   ((v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
-
-annotation = functionType `chainr1` ((Surface..:) <$ op ":")
 
 functionType = (,,) <$ push <*> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
                 <|> push *> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id) <* pop

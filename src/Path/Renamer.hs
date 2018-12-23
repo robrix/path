@@ -27,7 +27,6 @@ resolveTerm (In syn ann) = case syn of
   Type -> pure (in' Type)
   Pi v pi t b -> do
     in' <$> (Pi (Local v) pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  a ::: t -> in' <$> ((:::) <$> resolveTerm a <*> resolveTerm t)
   ForAll v t b -> do
     in' <$> (ForAll (Local v) <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   Hole v -> in' . Hole . (:.: v) <$> ask

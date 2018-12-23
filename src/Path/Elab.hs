@@ -36,10 +36,6 @@ elab :: ( Carrier sig m
      -> Maybe (Type QName)
      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
-  (e ::: t, Nothing) -> do
-    t' <- check t VType
-    t'' <- eval t'
-    check e t''
   (ForAll n t b, Nothing) -> do
     t' <- check t VType
     t'' <- eval t'

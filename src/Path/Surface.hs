@@ -11,7 +11,6 @@ data Surface v a
   | Type
   | Pi v Usage a a
   | ForAll v a a
-  | a ::: a
   | Hole v
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
@@ -26,16 +25,12 @@ forAll (n, a) b = In (ForAll n a b) (ann a <> ann b)
 lam :: Semigroup ann => (v, ann) -> Term (Surface v) ann -> Term (Surface v) ann
 lam (n, a) b = In (Lam n b) (a <> ann b)
 
-(.:)  :: Semigroup ann => Term (Surface v) ann -> Term (Surface v) ann -> Term (Surface v) ann
-a .: t = In (a ::: t) (ann a <> ann t)
-
 (#) :: Semigroup ann => Term (Surface v) ann -> Term (Surface v) ann -> Term (Surface v) ann
 f # a = In (f :@ a) (ann f <> ann a)
 
 
 subst :: Eq v => v -> Surface v (Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 subst i r = \case
-  In (e ::: t) ann -> In (subst i r e ::: subst i r t) ann
   In (ForAll v t t') ann
     | i == v    -> In (ForAll v (subst i r t) t') ann
     | otherwise -> In (ForAll v (subst i r t) (subst i r t')) ann
@@ -71,7 +66,6 @@ uses n = cata $ \ f a -> case f of
   ForAll n' t b
     | n == n'   -> t
     | otherwise -> t <> b
-  a ::: t -> a <> t
   Hole n'
     | n == n'   -> [a]
     | otherwise -> []
