@@ -3,17 +3,10 @@ module Path.Parser.Mixfix where
 import Control.Applicative (Alternative(..), (<**>))
 import Data.Char (isPunctuation, isSymbol)
 import Data.HashSet (HashSet, fromList, member)
-import Data.List.NonEmpty (NonEmpty(..), some1)
+import Data.List.NonEmpty (some1)
 import Path.Name
 import Text.Parser.Token.Highlight
 import Text.Trifecta as Trifecta
-
-parensOp :: Operator
-parensOp = betweenOp "(" ")"
-
-ifthenelse :: Operator
-ifthenelse = Prefix ("if" :| [ "then", "else" ])
-
 
 placeholder :: TokenParsing m => m ()
 placeholder = () <$ token (char '_')
