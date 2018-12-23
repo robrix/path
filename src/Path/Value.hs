@@ -11,8 +11,8 @@ import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Value v
-  = VLam v (Value v -> Value v)
-  | VType
+  = VType
+  | VLam v (Value v -> Value v)
   | VPi v Usage (Value v) (Value v -> Value v)
   | VNeutral [Value v] v                       -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
 
