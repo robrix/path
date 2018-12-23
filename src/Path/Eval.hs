@@ -23,16 +23,13 @@ eval t = asks (flip go t)
 
 vapp :: Show v => Value v -> Value v -> Value v
 vapp (VLam _ f) v = f v
-vapp (VNeutral n) v = VNeutral (NApp n v)
+vapp (VNeutral vs n) v = VNeutral (v:vs) n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
 vforce :: (Ord v, Show v) => Env v -> Value v -> Value v
 vforce d = go
   where go = \case
-          VLam v f    -> VLam v (go . f)
-          VType       -> VType
-          VPi v u t b -> VPi v u (go t) (go . b)
-          VNeutral n  -> goN n
-        goN = \case
-          NApp f a -> goN f `vapp` go a
-          NFree v  -> maybe (vfree v) go (Env.lookup v d)
+          VLam v f      -> VLam v (go . f)
+          VType         -> VType
+          VPi v u t b   -> VPi v u (go t) (go . b)
+          VNeutral vs n -> foldr (vapp . go) (maybe (vfree n) go (Env.lookup n d)) vs
