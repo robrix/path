@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Value where
 
+import Data.Foldable (foldl')
 import Data.Function (on)
 import Data.Maybe (fromMaybe)
 import Path.Core
@@ -13,7 +14,7 @@ data Value v
   = VLam v (Value v -> Value v)
   | VType
   | VPi v Usage (Value v) (Value v -> Value v)
-  | VNeutral [Value v] v                       -- ^ A neutral term defined as a list of applications in reverse (i.e. &, not $) order.
+  | VNeutral [Value v] v                       -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
 
 instance Eq v => Eq (Value v) where
   (==) = aeq
@@ -43,7 +44,8 @@ quote f = go 0
           VType -> In Type ()
           VLam n b -> In (Lam (f i n) (go (succ i) (b (vfree n)))) ()
           VPi n e t b -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree n)))) ()
-          VNeutral as n -> foldr (fmap (flip In ()) . (:@) . go i) (In (Var (f i n)) ()) as
+          VNeutral as n -> foldl' app (In (Var (f i n)) ()) (reverse as)
+          where app f a = In (f :@ go i a) ()
 
 aeq :: Eq v => Value v -> Value v -> Bool
 aeq = go (0 :: Int) [] []

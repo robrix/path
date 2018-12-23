@@ -3,6 +3,7 @@ module Path.Eval where
 
 import Control.Effect
 import Control.Effect.Reader
+import Data.Foldable (foldl')
 import Data.Maybe (fromMaybe)
 import Path.Core
 import Path.Env as Env
@@ -32,4 +33,5 @@ vforce d = go
           VLam v f      -> VLam v (go . f)
           VType         -> VType
           VPi v u t b   -> VPi v u (go t) (go . b)
-          VNeutral vs n -> foldr (vapp . go) (maybe (vfree n) go (Env.lookup n d)) vs
+          VNeutral vs n -> foldl' app (maybe (vfree n) go (Env.lookup n d)) (reverse vs)
+        app f a = f `vapp` go a
