@@ -165,7 +165,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Surface QName) Span
             -> m ()
 elabDeclare name ty = do
-  ty' <- runInState Zero (check ty VType)
+  ty' <- runReader Zero (runInState (check ty VType))
   ty'' <- gets (flip eval ty')
   modify (Context.insert name ty'')
 
@@ -180,7 +180,7 @@ elabDefine :: ( Carrier sig m
            -> m ()
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  tm' <- runInState One (maybe infer (flip check) ty tm)
+  tm' <- runReader One (runInState (maybe infer (flip check) ty tm))
   tm'' <- gets (flip eval tm')
   modify (Env.insert name tm'')
   maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
@@ -190,15 +190,13 @@ runInState :: ( Carrier sig m
               , Member (State (Env QName)) sig
               , Monad m
               )
-           => Usage
-           -> Eff (ReaderC (Context QName) (Eff
-                  (ReaderC (Env QName)     (Eff
-                  (ReaderC Usage           m))))) a
+           => Eff (ReaderC (Context QName) (Eff
+                  (ReaderC (Env QName)     m))) a
            -> m a
-runInState usage m = do
+runInState m = do
   env <- get
   ctx <- get
-  runReader usage (runReader env (runReader ctx m))
+  runReader env (runReader ctx m)
 
 
 data ElabError v

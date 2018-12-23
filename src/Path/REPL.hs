@@ -162,7 +162,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Help -> print helpDoc *> loop
           TypeOf tm -> do
             tm' <- runRenamer (resolveTerm tm)
-            elab <- runInState Zero (infer tm')
+            elab <- runReader Zero (runInState (infer tm'))
             print (snd (ann elab))
             loop
           Decl decl -> do
@@ -170,7 +170,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm)
-            elab <- runInState One (infer tm')
+            elab <- runReader One (runInState (infer tm'))
             get >>= print . flip eval elab
             loop
           Show Bindings -> do
