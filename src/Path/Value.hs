@@ -13,7 +13,7 @@ data Value v
   = VLam v (Value v -> Value v)
   | VType
   | VPi v Usage (Value v) (Value v -> Value v)
-  | VNeutral [Value v] v
+  | VNeutral [Value v] v                       -- ^ A neutral term defined as a list of applications in reverse (i.e. &, not $) order.
 
 instance Eq v => Eq (Value v) where
   (==) = aeq
