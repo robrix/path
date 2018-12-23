@@ -171,7 +171,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm)
             elab <- runReader One (runContext (runEnv (infer tm')))
-            get >>= print . flip eval elab
+            runEnv (eval elab) >>= print
             loop
           Show Bindings -> do
             ctx <- get

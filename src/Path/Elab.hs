@@ -38,17 +38,17 @@ elab :: ( Carrier sig m
 elab (In out span) ty = case (out, ty) of
   (e ::: t, Nothing) -> do
     t' <- check t VType
-    t'' <- asks (flip eval t')
+    t'' <- eval t'
     check e t''
   (ForAll n t b, Nothing) -> do
     t' <- check t VType
-    t'' <- asks (flip eval t')
+    t'' <- eval t'
     b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
     pure (In (Core.Pi n Zero t' b') (Resources.empty, VType))
   (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, VType))
   (Surface.Pi n e t b, Nothing) -> do
     t' <- check t VType
-    t'' <- asks (flip eval t')
+    t'' <- eval t'
     b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
     pure (In (Core.Pi n e t' b') (Resources.empty, VType))
   (Surface.Var n, Nothing) -> do
@@ -63,8 +63,8 @@ elab (In out span) ty = case (out, ty) of
       (g1, VPi _ pi t t') -> do
         a' <- check a t
         let (g2, _) = ann a'
-        env <- ask
-        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' (eval env a')))
+        a'' <- eval a'
+        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' a''))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
   (Surface.Lam n e, Just (VPi tn pi t t')) -> do
@@ -166,7 +166,7 @@ elabDeclare :: ( Carrier sig m
             -> m ()
 elabDeclare name ty = do
   ty' <- runReader Zero (runContext (runEnv (check ty VType)))
-  ty'' <- gets (flip eval ty')
+  ty'' <- runEnv (eval ty')
   modify (Context.insert name ty'')
 
 elabDefine :: ( Carrier sig m
@@ -181,7 +181,7 @@ elabDefine :: ( Carrier sig m
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runReader One (runContext (runEnv (maybe infer (flip check) ty tm)))
-  tm'' <- gets (flip eval tm')
+  tm'' <- runEnv (eval tm')
   modify (Env.insert name tm'')
   maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 

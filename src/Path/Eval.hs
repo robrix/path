@@ -1,6 +1,8 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase #-}
 module Path.Eval where
 
+import Control.Effect
+import Control.Effect.Reader
 import Data.Maybe (fromMaybe)
 import Path.Core
 import Path.Env as Env
@@ -8,15 +10,16 @@ import Path.Name
 import Path.Term
 import Path.Value
 
-eval :: Env QName -> Term (Core QName) a -> Value QName
-eval d = \case
-  In (Var n) _
-    | isLocal n -> fromMaybe (vfree n) (Env.lookup n d)
-    | otherwise -> vfree n
-  In (Lam n b) _ -> VLam n (flip eval b . flip (Env.insert n) d)
-  In (f :@ a) _ -> eval d f `vapp` eval d a
-  In Type _ -> VType
-  In (Pi n e ty b) _ -> VPi n e (eval d ty) (flip eval b . flip (Env.insert n) d)
+eval :: (Carrier sig m, Functor m, Member (Reader (Env QName)) sig) => Term (Core QName) a -> m (Value QName)
+eval t = asks (flip go t)
+  where go d = \case
+          In (Var n) _
+            | isLocal n -> fromMaybe (vfree n) (Env.lookup n d)
+            | otherwise -> vfree n
+          In (Lam n b) _ -> VLam n (flip go b . flip (Env.insert n) d)
+          In (f :@ a) _ -> go d f `vapp` go d a
+          In Type _ -> VType
+          In (Pi n e ty b) _ -> VPi n e (go d ty) (flip go b . flip (Env.insert n) d)
 
 vapp :: Show v => Value v -> Value v -> Value v
 vapp (VLam _ f) v = f v
