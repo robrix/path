@@ -191,19 +191,6 @@ runContext m = get >>= flip runReader m
 runEnv :: (Carrier sig m, Member (State (Env QName)) sig, Monad m) => Eff (ReaderC (Env QName) m) a -> m a
 runEnv m = get >>= flip runReader m
 
-runInState :: ( Carrier sig m
-              , Member (State (Context QName)) sig
-              , Member (State (Env QName)) sig
-              , Monad m
-              )
-           => Eff (ReaderC (Context QName) (Eff
-                  (ReaderC (Env QName)     m))) a
-           -> m a
-runInState m = do
-  env <- get
-  ctx <- get
-  runReader env (runReader ctx m)
-
 
 data ElabError v
   = FreeVariable v Span
