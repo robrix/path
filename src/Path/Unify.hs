@@ -43,3 +43,6 @@ popL = do
   case entries of
     es :> e -> e <$ put es
     Nil     -> error "popL: empty context"
+
+pushL :: (Carrier sig m, Member (State (Back (Entry tm ty))) sig, Monad m) => Entry tm ty -> m ()
+pushL e = modify (:> e)
