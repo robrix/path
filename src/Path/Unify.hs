@@ -49,14 +49,16 @@ data Problem
   deriving (Eq, Ord, Show)
 
 
-popL :: (Carrier sig m, Member (State (Back Entry)) sig, Monad m) => m Entry
+type ContextL = Back Entry
+
+popL :: (Carrier sig m, Member (State ContextL) sig, Monad m) => m Entry
 popL = do
   entries <- get
   case entries of
     es :> e -> e <$ put es
     Nil     -> error "popL: empty context"
 
-pushL :: (Carrier sig m, Member (State (Back Entry)) sig, Monad m) => Entry -> m ()
+pushL :: (Carrier sig m, Member (State ContextL) sig, Monad m) => Entry -> m ()
 pushL e = modify (:> e)
 
 
@@ -70,7 +72,7 @@ popR = do
 pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) Entry]) sig, Monad m) => Either (Subst QName tm) Entry -> m ()
 pushR e = modify (e:)
 
-lookupMeta :: (Carrier sig m, Member (State (Back Entry)) sig, Monad m) => QName -> m Type
+lookupMeta :: (Carrier sig m, Member (State ContextL) sig, Monad m) => QName -> m Type
 lookupMeta x = get >>= go
   where go (_   :> E y _T _) | x == y = pure _T
         go (mcx :> _)                 = go mcx
