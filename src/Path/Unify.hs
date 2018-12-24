@@ -4,11 +4,18 @@ module Path.Unify where
 import Control.Effect
 import Control.Effect.Reader
 import Control.Effect.State
+import qualified Path.Context as Context
+import Path.Core
 import Path.Name
 import Path.Subst
+import qualified Path.Term as Term
 
 data Back a = Nil | Back a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+
+type Term = Term.Term (Core QName)
+type Type = Context.Type QName
 
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
