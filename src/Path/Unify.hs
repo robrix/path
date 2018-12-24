@@ -11,6 +11,7 @@ import Path.Name
 import Path.Subst
 import qualified Path.Term as Term
 import Path.Usage
+import Path.Value
 
 data Back a = Nil | Back a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -60,6 +61,10 @@ data Problem
 
 
 type Telescope = Back (QName, Usage, Type)
+
+telescope :: Type -> (Telescope, Type)
+telescope (VPi n u t b) = let (tel, b') = telescope (b (vfree n)) in ((Nil :> (n, u, t)) <> tel, b')
+telescope t             = (Nil, t)
 
 
 type ContextL = Back Entry
