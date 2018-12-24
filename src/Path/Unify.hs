@@ -98,3 +98,9 @@ lookupVar x w = ask >>= go w
 freshName :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader ModuleName) sig) => m QName
 freshName = mk <$> ask <*> fresh
   where mk m i = m :.: Gensym i
+
+
+postpone :: (Carrier sig m, Member (Reader Params) sig, Member (State ContextR) sig, Monad m) => Status -> Problem -> m ()
+postpone s p = ask >>= pushR . Right . Q s . wrapProb p
+  where wrapProb :: Problem -> Params -> Problem
+        wrapProb = foldr (\ (x, e) p -> All e x p)
