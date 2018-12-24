@@ -222,3 +222,9 @@ hole gam t f = do
   pushL $ E alpha (_Pis gam t) Hole
   r <- f (meta alpha $*$ gam)
   r <$ goLeft
+
+define :: (Carrier sig m, Member (State ContextR) sig, Monad m) => Telescope -> QName -> Type -> Term -> m ()
+define _Gam alpha _S v = do  pushR $ Left [(alpha, t)]
+                             pushR $ Right $ E alpha _T (Defn t)
+  where  _T  = _Pis _Gam _S
+         t   = lams' _Gam v
