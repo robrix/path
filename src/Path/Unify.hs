@@ -1,6 +1,8 @@
-{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts #-}
 module Path.Unify where
 
+import Control.Effect
+import Control.Effect.State
 import Path.Name
 
 data Back a = Nil | Back a :> a
@@ -33,3 +35,11 @@ data Problem tm ty
   = Unify (Equation tm ty)
   | All (Param ty) QName (Problem tm ty)
   deriving (Eq, Ord, Show)
+
+
+popL :: (Carrier sig m, Member (State (Back (Entry tm ty))) sig, Monad m) => m (Entry tm ty)
+popL = do
+  entries <- get
+  case entries of
+    es :> e -> e <$ put es
+    Nil     -> error "popL: empty context"
