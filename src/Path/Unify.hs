@@ -69,6 +69,12 @@ popR = do
 pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) Entry]) sig, Monad m) => Either (Subst QName tm) Entry -> m ()
 pushR e = modify (e:)
 
+lookupMeta :: (Carrier sig m, Member (State (Back Entry)) sig, Monad m) => QName -> m Type
+lookupMeta x = get >>= go
+  where go (_   :> E y _T _) | x == y = pure _T
+        go (mcx :> _)                 = go mcx
+        go Nil                        = error $ "lookupMeta: missing " <> show x
+
 
 askParams :: (Carrier sig m, Member (Reader Params) sig) => m Params
 askParams = ask
