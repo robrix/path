@@ -21,6 +21,8 @@ sym (s :==: t) = t :==: s
 data Param ty = P ty | ty :++: ty
   deriving (Eq, Ord, Show)
 
+type Params ty = Back (Name, Param ty)
+
 data Dec a = Hole | Defn a
   deriving (Eq, Ord, Show)
 
