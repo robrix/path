@@ -55,3 +55,6 @@ popR = do
   case entries of
     e : es -> Just e <$ put es
     []     -> pure Nothing
+
+pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm ty)]) sig, Monad m) => Either (Subst QName tm) (Entry tm ty) -> m ()
+pushR e = modify (e:)
