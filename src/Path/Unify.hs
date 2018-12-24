@@ -5,6 +5,7 @@ import Control.Effect
 import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
+import Control.Monad (unless)
 import Control.Monad.Fail
 import Path.Name hiding (Assoc(..))
 
@@ -228,3 +229,9 @@ define _Gam alpha _S v = do  pushR $ Left [(alpha, t)]
                              pushR $ Right $ E alpha _T (Defn t)
   where  _T  = _Pis _Gam _S
          t   = lams' _Gam v
+
+(<||) :: Monad m => m Bool -> m () -> m ()
+a <|| b = do  x <- a
+              unless x b
+
+infixr 5 <||
