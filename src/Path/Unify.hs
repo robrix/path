@@ -2,6 +2,7 @@
 module Path.Unify where
 
 import Control.Effect
+import Control.Effect.Reader
 import Control.Effect.State
 import Path.Name
 import Path.Subst
@@ -60,3 +61,7 @@ popR = do
 
 pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm ty)]) sig, Monad m) => Either (Subst QName tm) (Entry tm ty) -> m ()
 pushR e = modify (e:)
+
+
+askParams :: (Carrier sig m, Member (Reader (Params ty)) sig) => m (Params ty)
+askParams = ask
