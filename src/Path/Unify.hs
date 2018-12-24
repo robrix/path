@@ -65,3 +65,6 @@ pushR e = modify (e:)
 
 askParams :: (Carrier sig m, Member (Reader (Params ty)) sig) => m (Params ty)
 askParams = ask
+
+localParams :: (Carrier sig m, Member (Reader (Params ty)) sig) => (Params ty -> Params ty) -> m a -> m a
+localParams = local
