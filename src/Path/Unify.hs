@@ -26,10 +26,10 @@ data Equation tm ty = (tm, ty) :==: (tm, ty)
 sym :: Equation tm ty -> Equation tm ty
 sym (s :==: t) = t :==: s
 
-data Param ty = P ty | ty :++: ty
+data Param = P Type | Type :++: Type
   deriving (Eq, Ord, Show)
 
-type Params ty = Back (Name, Param ty)
+type Params = Back (Name, Param)
 
 data Dec a = Hole | Defn a
   deriving (Eq, Ord, Show)
@@ -44,7 +44,7 @@ data Status = Blocked | Active
 
 data Problem tm ty
   = Unify (Equation tm ty)
-  | All (Param ty) QName (Problem tm ty)
+  | All Param QName (Problem tm ty)
   deriving (Eq, Ord, Show)
 
 
@@ -70,8 +70,8 @@ pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm ty)]) 
 pushR e = modify (e:)
 
 
-askParams :: (Carrier sig m, Member (Reader (Params ty)) sig) => m (Params ty)
+askParams :: (Carrier sig m, Member (Reader Params) sig) => m Params
 askParams = ask
 
-localParams :: (Carrier sig m, Member (Reader (Params ty)) sig) => (Params ty -> Params ty) -> m a -> m a
+localParams :: (Carrier sig m, Member (Reader Params) sig) => (Params -> Params) -> m a -> m a
 localParams = local
