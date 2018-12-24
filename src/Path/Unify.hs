@@ -2,6 +2,7 @@
 module Path.Unify where
 
 import Control.Effect
+import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
 import qualified Path.Context as Context
@@ -89,3 +90,8 @@ lookupVar x w = ask >>= go w
         go TwinR (_ :> (y, _ :++: t)) | x == y = return t
         go w     (c :> _)                      = go w c
         go _     Nil                           = error $ "lookupVar: missing " <> show x -- FIXME: free variable error or something?
+
+
+freshName :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader ModuleName) sig) => m QName
+freshName = mk <$> ask <*> fresh
+  where mk m i = m :.: Gensym i
