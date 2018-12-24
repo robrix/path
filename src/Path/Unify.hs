@@ -81,3 +81,11 @@ askParams = ask
 
 localParams :: (Carrier sig m, Member (Reader Params) sig) => (Params -> Params) -> m a -> m a
 localParams = local
+
+lookupVar :: (Carrier sig m, Member (Reader Params) sig, Monad m) => QName -> Twin -> m Type
+lookupVar x w = ask >>= go w
+  where go Only  (_ :> (y, P t))      | x == y = return t
+        go TwinL (_ :> (y, s :++: _)) | x == y = return s
+        go TwinR (_ :> (y, _ :++: t)) | x == y = return t
+        go w     (c :> _)                      = go w c
+        go _     Nil                           = error $ "lookupVar: missing " <> show x -- FIXME: free variable error or something?
