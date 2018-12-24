@@ -98,6 +98,10 @@ lookupMeta x = get >>= go
         go Nil                        = error $ "lookupMeta: missing " <> show x
 
 
+goLeft :: (Carrier sig m, Member (State ContextL) sig, Member (State ContextR) sig, Monad m) => m ()
+goLeft = popL >>= pushR . Right
+
+
 askParams :: (Carrier sig m, Member (Reader Params) sig) => m Params
 askParams = ask
 
