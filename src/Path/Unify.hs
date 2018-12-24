@@ -14,6 +14,11 @@ import qualified Path.Term as Term
 data Back a = Nil | Back a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+instance Semigroup (Back a) where
+  as  <> Nil     = as
+  Nil <> bs      = bs
+  as  <> bs :> b = (as <> bs) :> b
+
 
 type Term = Term.Term (Core QName) ()
 type Type = Context.Type QName
