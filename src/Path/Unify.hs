@@ -4,6 +4,7 @@ module Path.Unify where
 import Control.Effect
 import Control.Effect.State
 import Path.Name
+import Path.Subst
 
 data Back a = Nil | Back a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -46,3 +47,11 @@ popL = do
 
 pushL :: (Carrier sig m, Member (State (Back (Entry tm ty))) sig, Monad m) => Entry tm ty -> m ()
 pushL e = modify (:> e)
+
+
+popR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm ty)]) sig, Monad m) => m (Maybe (Either (Subst QName tm) (Entry tm ty)))
+popR = do
+  entries <- get
+  case entries of
+    e : es -> Just e <$ put es
+    []     -> pure Nothing
