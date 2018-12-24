@@ -1,7 +1,8 @@
+{-# LANGUAGE DeriveTraversable #-}
 module Path.Unify where
 
 data Back a = Nil | Back a :> a
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
