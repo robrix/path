@@ -14,13 +14,13 @@ data Back a = Nil | Back a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 
-type Term = Term.Term (Core QName)
+type Term = Term.Term (Core QName) ()
 type Type = Context.Type QName
 
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
 
-data Equation = (Term (), Type) :==: (Term (), Type)
+data Equation = (Term, Type) :==: (Term, Type)
   deriving (Eq, Ord, Show)
 
 sym :: Equation -> Equation
