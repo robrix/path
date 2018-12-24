@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Surface where
 
+import Path.Subst
 import Path.Term
 import Path.Usage
 
@@ -29,25 +30,25 @@ lam (n, a) b = In (Lam n b) (a <> ann b)
 f # a = In (f :@ a) (ann f <> ann a)
 
 
-subst :: Eq v => v -> Surface v (Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
-subst i r = \case
-  In (ForAll v t t') ann
-    | i == v    -> In (ForAll v (subst i r t) t') ann
-    | otherwise -> In (ForAll v (subst i r t) (subst i r t')) ann
-  In (Var j) ann
-    | i == j    -> In r ann
-    | otherwise -> In (Var j) ann
-  In (Lam n b) ann
-    | i == n    -> In (Lam n b) ann
-    | otherwise -> In (Lam n (subst i r b)) ann
-  In (f :@ a) ann -> In (subst i r f :@ subst i r a) ann
-  In Type ann -> In Type ann
-  In (Pi n e t t') ann
-    | i == n    -> In (Pi n e (subst i r t) t') ann
-    | otherwise -> In (Pi n e (subst i r t) (subst i r t')) ann
-  In (Hole v) ann
-    | i == v    -> In r ann
-    | otherwise -> In (Hole v) ann
+instance Eq v => Substitute v (Surface v) where
+  subst i r = \case
+    In (ForAll v t t') ann
+      | i == v    -> In (ForAll v (subst i r t) t') ann
+      | otherwise -> In (ForAll v (subst i r t) (subst i r t')) ann
+    In (Var j) ann
+      | i == j    -> In r ann
+      | otherwise -> In (Var j) ann
+    In (Lam n b) ann
+      | i == n    -> In (Lam n b) ann
+      | otherwise -> In (Lam n (subst i r b)) ann
+    In (f :@ a) ann -> In (subst i r f :@ subst i r a) ann
+    In Type ann -> In Type ann
+    In (Pi n e t t') ann
+      | i == n    -> In (Pi n e (subst i r t) t') ann
+      | otherwise -> In (Pi n e (subst i r t) (subst i r t')) ann
+    In (Hole v) ann
+      | i == v    -> In r ann
+      | otherwise -> In (Hole v) ann
 
 
 uses :: Eq v => v -> Term (Surface v) a -> [a]

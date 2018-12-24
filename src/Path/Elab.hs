@@ -18,6 +18,7 @@ import Path.Name
 import Path.Pretty
 import Path.Resources as Resources
 import Path.Semiring
+import Path.Subst
 import Path.Surface as Surface
 import Path.Term
 import Path.Usage
