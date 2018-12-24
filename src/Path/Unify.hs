@@ -36,15 +36,15 @@ data Dec a = Hole | Defn a
 
 data Entry tm ty
   = E QName ty (Dec tm)
-  | Q Status (Problem tm ty)
+  | Q Status (Problem tm)
   deriving (Eq, Ord, Show)
 
 data Status = Blocked | Active
   deriving (Eq, Ord, Show)
 
-data Problem tm ty
-  = Unify (Equation tm ty)
-  | All Param QName (Problem tm ty)
+data Problem tm
+  = Unify (Equation tm Type)
+  | All Param QName (Problem tm)
   deriving (Eq, Ord, Show)
 
 
