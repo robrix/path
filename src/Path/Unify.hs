@@ -135,6 +135,15 @@ telescope (Pi s t) = do
   pure ((Nil :> (x, s)) <> tel, u)
 telescope t        = pure (Nil, t)
 
+lam :: QName -> Term -> Term
+lam x t = L (bind x t)
+
+lams :: Foldable f => f QName -> Term -> Term
+lams xs t = foldr lam t xs
+
+lams' :: (Functor f, Foldable f) => f (QName, Type) -> Term -> Term
+lams' xs t = lams (fmap fst xs) t
+
 _Pi :: QName -> Type -> Type -> Type
 _Pi x _S _T = Pi _S (bind x _T)
 
