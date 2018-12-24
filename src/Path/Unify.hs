@@ -50,6 +50,7 @@ data Problem
 
 
 type ContextL = Back Entry
+type ContextR = [Either (Subst QName Term) Entry]
 
 popL :: (Carrier sig m, Member (State ContextL) sig, Monad m) => m Entry
 popL = do
@@ -62,14 +63,14 @@ pushL :: (Carrier sig m, Member (State ContextL) sig, Monad m) => Entry -> m ()
 pushL e = modify (:> e)
 
 
-popR :: (Carrier sig m, Member (State [Either (Subst QName tm) Entry]) sig, Monad m) => m (Maybe (Either (Subst QName tm) Entry))
+popR :: (Carrier sig m, Member (State ContextR) sig, Monad m) => m (Maybe (Either (Subst QName Term) Entry))
 popR = do
   entries <- get
   case entries of
     e : es -> Just e <$ put es
     []     -> pure Nothing
 
-pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) Entry]) sig, Monad m) => Either (Subst QName tm) Entry -> m ()
+pushR :: (Carrier sig m, Member (State ContextR) sig, Monad m) => Either (Subst QName Term) Entry -> m ()
 pushR e = modify (e:)
 
 lookupMeta :: (Carrier sig m, Member (State ContextL) sig, Monad m) => QName -> m Type
