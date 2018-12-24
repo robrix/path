@@ -19,6 +19,10 @@ instance Semigroup (Back a) where
   Nil <> bs      = bs
   as  <> bs :> b = (as <> bs) :> b
 
+instance Monoid (Back a) where
+  mempty = Nil
+  mappend = (<>)
+
 
 type Term = Term.Term (Core QName) ()
 type Type = Context.Type QName
