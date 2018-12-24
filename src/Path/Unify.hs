@@ -20,10 +20,10 @@ type Type = Context.Type QName
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
 
-data Equation tm = (tm, Type) :==: (tm, Type)
+data Equation = (Term (), Type) :==: (Term (), Type)
   deriving (Eq, Ord, Show)
 
-sym :: Equation tm -> Equation tm
+sym :: Equation -> Equation
 sym (s :==: t) = t :==: s
 
 data Param = P Type | Type :++: Type
@@ -43,7 +43,7 @@ data Status = Blocked | Active
   deriving (Eq, Ord, Show)
 
 data Problem tm
-  = Unify (Equation tm)
+  = Unify Equation
   | All Param QName (Problem tm)
   deriving (Eq, Ord, Show)
 
