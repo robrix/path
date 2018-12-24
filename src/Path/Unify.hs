@@ -49,6 +49,9 @@ data Problem
   deriving (Eq, Ord, Show)
 
 
+type Telescope = Back (QName, Type)
+
+
 type ContextL = Back Entry
 type ContextR = [Either (Subst QName Term) Entry]
 
