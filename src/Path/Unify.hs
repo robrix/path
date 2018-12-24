@@ -29,7 +29,7 @@ sym (s :==: t) = t :==: s
 data Param = P Type | Type :++: Type
   deriving (Eq, Ord, Show)
 
-type Params = Back (Name, Param)
+type Params = Back (QName, Param)
 
 data Dec a = Hole | Defn a
   deriving (Eq, Ord, Show)
