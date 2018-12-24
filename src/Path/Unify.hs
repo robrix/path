@@ -106,5 +106,5 @@ postpone s p = ask >>= pushR . Right . Q s . wrapProb p
         wrapProb = foldr (\ (x, e) p -> All e x p)
 
 active, block :: (Carrier sig m, Member (Reader Params) sig, Member (State ContextR) sig, Monad m) => Problem -> m ()
-active  = postpone Active
-block   = postpone Blocked
+active = postpone Active
+block  = postpone Blocked
