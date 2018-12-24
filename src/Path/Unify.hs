@@ -34,8 +34,8 @@ type Params = Back (Name, Param)
 data Dec a = Hole | Defn a
   deriving (Eq, Ord, Show)
 
-data Entry tm ty
-  = E QName ty (Dec tm)
+data Entry tm
+  = E QName Type (Dec tm)
   | Q Status (Problem tm)
   deriving (Eq, Ord, Show)
 
@@ -48,25 +48,25 @@ data Problem tm
   deriving (Eq, Ord, Show)
 
 
-popL :: (Carrier sig m, Member (State (Back (Entry tm ty))) sig, Monad m) => m (Entry tm ty)
+popL :: (Carrier sig m, Member (State (Back (Entry tm))) sig, Monad m) => m (Entry tm)
 popL = do
   entries <- get
   case entries of
     es :> e -> e <$ put es
     Nil     -> error "popL: empty context"
 
-pushL :: (Carrier sig m, Member (State (Back (Entry tm ty))) sig, Monad m) => Entry tm ty -> m ()
+pushL :: (Carrier sig m, Member (State (Back (Entry tm))) sig, Monad m) => Entry tm -> m ()
 pushL e = modify (:> e)
 
 
-popR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm ty)]) sig, Monad m) => m (Maybe (Either (Subst QName tm) (Entry tm ty)))
+popR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm)]) sig, Monad m) => m (Maybe (Either (Subst QName tm) (Entry tm)))
 popR = do
   entries <- get
   case entries of
     e : es -> Just e <$ put es
     []     -> pure Nothing
 
-pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm ty)]) sig, Monad m) => Either (Subst QName tm) (Entry tm ty) -> m ()
+pushR :: (Carrier sig m, Member (State [Either (Subst QName tm) (Entry tm)]) sig, Monad m) => Either (Subst QName tm) (Entry tm) -> m ()
 pushR e = modify (e:)
 
 
