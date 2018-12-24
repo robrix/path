@@ -1,5 +1,8 @@
 module Path.Unify where
 
+data Back a = Nil | Back a :> a
+  deriving (Eq, Ord, Show)
+
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
 
