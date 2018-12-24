@@ -165,6 +165,9 @@ popL = do
 pushL :: (Carrier sig m, Member (State ContextL) sig, Monad m) => Entry -> m ()
 pushL e = modify (:> e)
 
+pushLs :: (Carrier sig m, Member (State ContextL) sig, Monad m, Traversable f) => f Entry -> m ()
+pushLs es = traverse pushL es >> return ()
+
 
 popR :: (Carrier sig m, Member (State ContextR) sig, Monad m) => m (Maybe (Either Subs Entry))
 popR = do
