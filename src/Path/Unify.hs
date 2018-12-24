@@ -32,6 +32,8 @@ type Type = Context.Type QName
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
 
+data Head = V QName Twin | M QName
+
 data Equation = (Term, Type) :==: (Term, Type)
   deriving (Eq, Ord, Show)
 
