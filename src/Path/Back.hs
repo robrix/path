@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase #-}
 module Path.Back where
 
-import Prelude hiding (lookup)
+import Prelude hiding (filter, lookup)
 
 data Back a = Nil | Back a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -22,3 +22,11 @@ lookup k = \case
     | k == k'   -> Just v
     | otherwise -> lookup k b
   Nil           -> Nothing
+
+
+filter :: (a -> Bool) -> Back a -> Back a
+filter keep = \case
+  as :> a
+    | keep a    -> filter keep as :> a
+    | otherwise -> filter keep as
+  Nil           -> Nil
