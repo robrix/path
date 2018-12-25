@@ -1,4 +1,3 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
 module Path.Context where
 
 import Control.Arrow ((***))
