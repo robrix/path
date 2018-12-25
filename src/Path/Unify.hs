@@ -12,7 +12,7 @@ import Data.Monoid (Any(..))
 import Data.Maybe (isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Path.MetaContext
+import Path.Back
 import Path.Name hiding (Assoc(..))
 
 data Term
