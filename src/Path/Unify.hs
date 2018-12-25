@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, TupleSections #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, TupleSections #-}
 module Path.Unify where
 
 import Control.Effect
@@ -12,19 +12,8 @@ import Data.Monoid (Any(..))
 import Data.Maybe (isJust)
 import Data.Set (Set)
 import qualified Data.Set as Set
+import Path.MetaContext
 import Path.Name hiding (Assoc(..))
-
-data Back a = Nil | Back a :> a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Semigroup (Back a) where
-  as  <> Nil     = as
-  Nil <> bs      = bs
-  as  <> bs :> b = (as <> bs) :> b
-
-instance Monoid (Back a) where
-  mempty = Nil
-  mappend = (<>)
 
 data Term
   = N Var (Back Elim)
