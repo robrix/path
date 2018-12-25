@@ -136,9 +136,9 @@ eval _ Type         = Type
 eval g (Pi _S _T)   = Pi (eval g _S) (evalUnder g _T)
 
 evalHead :: Subs -> Var -> Term
-evalHead g (V x _)    | Just t <- lookup x g      = t
-evalHead g (M alpha)  | Just t <- lookup alpha g  = t
-evalHead _ h                                      = N h Nil
+evalHead g (V x _)    | Just t <- Prelude.lookup x g     = t
+evalHead g (M alpha)  | Just t <- Prelude.lookup alpha g = t
+evalHead _ h                                             = N h Nil
 
 evalUnder :: Subs -> Bind QName Term -> Bind QName Term
 evalUnder g b = bind x (eval g t)
