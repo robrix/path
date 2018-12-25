@@ -27,7 +27,7 @@ instance Monoid (Back a) where
   mappend = (<>)
 
 data Term
-  = N Head (Back Elim)
+  = N Var (Back Elim)
   | L (Bind QName Term)
   | Set
   | Type
@@ -56,7 +56,7 @@ instance Occurs Term where
     free RigVars (N (M _) _)   = mempty
     free l       (N h e)       = free l h <> free l e
 
-instance Occurs Head where
+instance Occurs Var where
     free Vars    (M _)     = mempty
     free RigVars (M _)     = mempty
     free Metas   (M alpha) = Set.singleton alpha
@@ -93,7 +93,7 @@ type Type = Term
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
 
-data Head = V QName Twin | M QName
+data Var = V QName Twin | M QName
   deriving (Eq, Ord, Show)
 
 data Bind p t = B p t
@@ -113,7 +113,7 @@ unbind2 (B p1 t1) (B p2 t2) = pure (Just (p1, t1, p2, t2))
 unsafeUnbind :: Bind a b -> (a, b)
 unsafeUnbind (B p t) = (p, t)
 
-h :: Head -> Term
+h :: Var -> Term
 h h = N h Nil
 
 twin :: QName -> Twin -> Term
@@ -152,7 +152,7 @@ eval _ Set          = Set
 eval _ Type         = Type
 eval g (Pi _S _T)   = Pi (eval g _S) (evalUnder g _T)
 
-evalHead :: Subs -> Head -> Term
+evalHead :: Subs -> Var -> Term
 evalHead g (V x _)    | Just t <- lookup x g      = t
 evalHead g (M alpha)  | Just t <- lookup alpha g  = t
 evalHead _ h                                      = N h Nil
@@ -418,8 +418,8 @@ equalise _U s t = throwError $ "Type " ++ show _U ++ " does not make "
                          ++ show s ++ " equal to " ++ show t
 
 
-equaliseN :: (Carrier sig m, Member (Error String) sig, Member Fresh sig, Member (Reader Params) sig, Member (State ContextL) sig, Monad m) => Head -> Back Elim -> Head -> Back Elim ->
-                  m (Head, Back Elim, Type)
+equaliseN :: (Carrier sig m, Member (Error String) sig, Member Fresh sig, Member (Reader Params) sig, Member (State ContextL) sig, Monad m) => Var -> Back Elim -> Var -> Back Elim ->
+                  m (Var, Back Elim, Type)
 equaliseN h Nil h' Nil | h == h'          = (h, Nil,) <$> infer h
 equaliseN h (e :> A s)  h' (e' :> A t)  = do
     (h'', e'', Pi _U _V)  <- equaliseN h e h' e'
@@ -429,7 +429,7 @@ equaliseN h e h' e' = throwError $ "Neutral terms " ++ show h ++ " . " ++ show e
                               ++ " and " ++ show h' ++ " . " ++ show e'
                               ++ " not equal!"
 
-infer :: (Carrier sig m, Member (Reader Params) sig, Member (State ContextL) sig, Monad m) => Head -> m Type
+infer :: (Carrier sig m, Member (Reader Params) sig, Member (State ContextL) sig, Monad m) => Var -> m Type
 infer (V x w)  = lookupVar x w
 infer (M x)    = lookupMeta x
 
