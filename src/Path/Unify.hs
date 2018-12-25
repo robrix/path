@@ -29,12 +29,12 @@ newtype Elim = A Term
 data Flavour = Vars | RigVars | Metas
 
 class Occurs t where
-  free   :: Flavour -> t -> Set QName
+  free :: Flavour -> t -> Set QName
 
 fvs, fvrigs, fmvs :: Occurs t => t -> Set QName
-fvs       = free Vars
-fvrigs    = free RigVars
-fmvs      = free Metas
+fvs    = free Vars
+fvrigs = free RigVars
+fmvs   = free Metas
 
 instance Occurs Term where
   free l       (L b)         = free l b
