@@ -48,45 +48,45 @@ fvrigs    = free RigVars
 fmvs      = free Metas
 
 instance Occurs Term where
-    free l       (L b)         = free l b
-    free _       Set           = mempty
-    free _       Type          = mempty
-    free l       (Pi _S _T)    = free l _S <> free l _T
-    free RigVars (N (V x _) e) = Set.singleton x <> free RigVars e
-    free RigVars (N (M _) _)   = mempty
-    free l       (N h e)       = free l h <> free l e
+  free l       (L b)         = free l b
+  free _       Set           = mempty
+  free _       Type          = mempty
+  free l       (Pi _S _T)    = free l _S <> free l _T
+  free RigVars (N (V x _) e) = Set.singleton x <> free RigVars e
+  free RigVars (N (M _) _)   = mempty
+  free l       (N h e)       = free l h <> free l e
 
 instance Occurs Var where
-    free Vars    (M _)     = mempty
-    free RigVars (M _)     = mempty
-    free Metas   (M alpha) = Set.singleton alpha
-    free Vars    (V x _)   = Set.singleton x
-    free RigVars (V x _)   = Set.singleton x
-    free Metas   (V _ _)   = mempty
+  free Vars    (M _)     = mempty
+  free RigVars (M _)     = mempty
+  free Metas   (M alpha) = Set.singleton alpha
+  free Vars    (V x _)   = Set.singleton x
+  free RigVars (V x _)   = Set.singleton x
+  free Metas   (V _ _)   = mempty
 
 instance Occurs Elim where
-   free l (A a)        = free l a
+ free l (A a)        = free l a
 
 (<?) :: Occurs t => QName -> t -> Bool
 x <? t = x `Set.member` (fmvs t <> fvs t)
 
 instance Occurs t => Occurs [t] where
-    free l = Set.unions . map (free l)
+  free l = Set.unions . map (free l)
 
 instance Occurs t => Occurs (Back t) where
-    free l = free l . toList
+  free l = free l . toList
 
 instance (Occurs s, Occurs t) => Occurs (s, t) where
-    free l (s, t) = free l s <> free l t
+  free l (s, t) = free l s <> free l t
 
 instance (Occurs s, Occurs t, Occurs u) => Occurs (s, t, u) where
-    free l (s, t, u) = Set.unions [free l s, free l t, free l u]
+  free l (s, t, u) = Set.unions [free l s, free l t, free l u]
 
 instance (Occurs s, Occurs t, Occurs u, Occurs v) => Occurs (s, t, u, v) where
-    free l (s, t, u, v) = Set.unions [free l s, free l t, free l u, free l v]
+  free l (s, t, u, v) = Set.unions [free l s, free l t, free l u, free l v]
 
 instance Occurs t => Occurs (Bind QName t) where
-    free l (B v t) = Set.delete v (free l t)
+  free l (B v t) = Set.delete v (free l t)
 
 type Type = Term
 
