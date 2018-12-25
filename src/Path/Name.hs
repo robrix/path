@@ -63,6 +63,13 @@ prettyQName (m :.: n) = pretty m <> dot <> pretty n
 prettyQName (Local n) = pretty n
 
 
+data Twin = Only | TwinL | TwinR
+  deriving (Eq, Ord, Show)
+
+data Var = V QName Twin | M QName
+  deriving (Eq, Ord, Show)
+
+
 data Operator
   = Prefix (NonEmpty String)
   | Postfix (NonEmpty String)

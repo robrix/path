@@ -90,12 +90,6 @@ instance Occurs t => Occurs (Bind QName t) where
 
 type Type = Term
 
-data Twin = Only | TwinL | TwinR
-  deriving (Eq, Ord, Show)
-
-data Var = V QName Twin | M QName
-  deriving (Eq, Ord, Show)
-
 data Bind p t = B p t
   deriving (Eq, Ord, Show)
 
