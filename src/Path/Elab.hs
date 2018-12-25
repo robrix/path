@@ -18,7 +18,6 @@ import Path.Name
 import Path.Pretty
 import Path.Resources as Resources
 import Path.Semiring
-import Path.Subst
 import Path.Surface as Surface
 import Path.Term
 import Path.Usage
@@ -40,13 +39,13 @@ elab (In out span) ty = case (out, ty) of
   (ForAll n t b, Nothing) -> do
     t' <- check t VType
     t'' <- eval t'
-    b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
+    b' <- local (Context.insert n t'') (check b VType)
     pure (In (Core.Pi n Zero t' b') (Resources.empty, VType))
   (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, VType))
   (Surface.Pi n e t b, Nothing) -> do
     t' <- check t VType
     t'' <- eval t'
-    b' <- local (Context.insert n t'') (check (subst n (Surface.Var n) b) VType)
+    b' <- local (Context.insert n t'') (check b VType)
     pure (In (Core.Pi n e t' b') (Resources.empty, VType))
   (Surface.Var n, Nothing) -> do
     res <- asks (Context.lookup n)
@@ -65,7 +64,7 @@ elab (In out span) ty = case (out, ty) of
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
   (Surface.Lam n e, Just (VPi tn pi t t')) -> do
-    e' <- local (Context.insert n t) (check (subst n (Surface.Var n) e) (t' (vfree n)))
+    e' <- local (Context.insert n t) (check e (t' (vfree n)))
     let res = fst (ann e')
         used = Resources.lookup n res
     sigma <- ask
