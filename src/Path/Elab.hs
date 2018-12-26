@@ -62,7 +62,7 @@ elab (In out span) ty = case (out, ty) of
         a'' <- eval a'
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
-  (tm, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (In tm span) ctx span)
+  (tm, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (In tm span) (Context.filter (const . isLocal) ctx) span)
   (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
