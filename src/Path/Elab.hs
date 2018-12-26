@@ -95,7 +95,8 @@ check (In tm span) ty = vforce ty >>= \ ty -> case (tm, ty) of
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
   (tm, ty) -> do
     v <- infer (In tm span)
-    v <$ unifyWith span (snd (ann v)) ty
+    ty' <- unifyWith span (snd (ann v)) ty
+    pure (In (out v) (fst (ann v), ty'))
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
