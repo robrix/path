@@ -5,6 +5,7 @@ import Control.Arrow ((&&&))
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
+import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum
@@ -162,15 +163,15 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Help -> print helpDoc *> loop
           TypeOf tm -> do
             tm' <- runRenamer (resolveTerm tm)
-            elab <- runReader Zero (runContext (runEnv (infer tm')))
+            elab <- runReader Zero (runContext (runEnv (runFresh (infer tm'))))
             print (snd (ann elab))
             loop
           Decl decl -> do
-            runRenamer (resolveDecl decl) >>= elabDecl
+            runRenamer (resolveDecl decl) >>= runFresh . elabDecl
             loop
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm)
-            elab <- runReader One (runContext (runEnv (infer tm')))
+            elab <- runReader One (runContext (runEnv (runFresh (infer tm'))))
             runEnv (eval elab) >>= print
             loop
           Show Bindings -> do
@@ -210,7 +211,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- runState [] (runReader (table :: ModuleTable) (elabModule m))
+            (errs, res) <- runState [] (runReader (table :: ModuleTable) (runFresh (elabModule m)))
             if Prelude.null errs then
               modify (Map.insert name res)
             else do

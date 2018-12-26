@@ -27,6 +27,7 @@ import Text.Trifecta.Rendering (Span)
 
 elab :: ( Carrier sig m
         , Member (Error ElabError) sig
+        , Member Fresh sig
         , Member (Reader Context) sig
         , Member (Reader Env) sig
         , Member (Reader Usage) sig
@@ -82,6 +83,7 @@ elab (In out span) ty = case (out, ty) of
 
 infer :: ( Carrier sig m
          , Member (Error ElabError) sig
+         , Member Fresh sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
@@ -93,6 +95,7 @@ infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
          , Member (Error ElabError) sig
+         , Member Fresh sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
@@ -109,6 +112,7 @@ type ModuleTable = Map.Map ModuleName (Context, Env)
 elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error ModuleError) sig
+              , Member Fresh sig
               , Member (Reader ModuleTable) sig
               , Member (State [ElabError]) sig
               )
@@ -140,6 +144,7 @@ importModule n = do
 
 elabDecl :: ( Carrier sig m
             , Member (Error ElabError) sig
+            , Member Fresh sig
             , Member (State Context) sig
             , Member (State Env) sig
             , Monad m
@@ -153,6 +158,7 @@ elabDecl = \case
 
 elabDeclare :: ( Carrier sig m
                , Member (Error ElabError) sig
+               , Member Fresh sig
                , Member (State Context) sig
                , Member (State Env) sig
                , Monad m
@@ -167,6 +173,7 @@ elabDeclare name ty = do
 
 elabDefine :: ( Carrier sig m
               , Member (Error ElabError) sig
+              , Member Fresh sig
               , Member (State Context) sig
               , Member (State Env) sig
               , Monad m
