@@ -12,6 +12,29 @@ module Path.Pretty
 , prettyParens
 , prettyBraces
 , tabulate2
+, Pretty(..)
+, Doc
+, (<+>)
+, (</>)
+, align
+, backslash
+, blue
+, brackets
+, colon
+, cyan
+, dot
+, fillSep
+, green
+, group
+, hsep
+, line
+, magenta
+, nest
+, parens
+, space
+, squotes
+, vsep
+, yellow
 ) where
 
 import Control.Arrow ((***))

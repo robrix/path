@@ -2,7 +2,6 @@ module Path.Usage where
 
 import Path.Pretty
 import Path.Semiring
-import Text.PrettyPrint.ANSI.Leijen
 
 data Usage
   = Zero

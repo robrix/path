@@ -6,7 +6,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Pretty
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen
 
 data Name
   = Name String

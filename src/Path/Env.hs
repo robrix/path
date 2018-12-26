@@ -6,7 +6,6 @@ import qualified Data.Map as Map
 import Path.Name
 import Path.Pretty
 import Path.Value
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 newtype Env = Env { unEnv :: Map.Map QName (Value QName) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)

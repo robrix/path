@@ -8,7 +8,6 @@ import Path.Back as Back
 import Path.Name
 import Path.Pretty
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Value a
   = Type                               -- ^ @'Type' : 'Type'@.

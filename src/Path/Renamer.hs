@@ -13,7 +13,6 @@ import Path.Name
 import Path.Pretty
 import Path.Surface
 import Path.Term
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)

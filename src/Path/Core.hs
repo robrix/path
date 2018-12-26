@@ -6,7 +6,6 @@ import Path.Name
 import Path.Pretty
 import Path.Term
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Core a
   = Var QName

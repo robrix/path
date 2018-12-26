@@ -24,7 +24,6 @@ import Path.Term
 import Path.Unify
 import Path.Usage
 import Path.Value as Value
-import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span)
 
 infer :: ( Carrier sig m

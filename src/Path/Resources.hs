@@ -7,7 +7,6 @@ import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Pretty
 import Path.Semiring
-import Text.PrettyPrint.ANSI.Leijen
 
 newtype Resources v r = Resources { unResources :: Map.Map v r }
   deriving (Eq, Ord, Show)

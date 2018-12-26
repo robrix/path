@@ -16,7 +16,6 @@ import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Name
 import Path.Pretty
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
 data Module v a ann = Module

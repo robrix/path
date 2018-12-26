@@ -3,7 +3,6 @@ module Path.Term where
 
 import Path.Name
 import Path.Pretty
-import Text.PrettyPrint.ANSI.Leijen
 
 data Term f a = In { out :: f (Term f a), ann :: a }
 

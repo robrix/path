@@ -36,7 +36,6 @@ import Path.Usage
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), bool, putDoc)
 
 data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
   deriving (Functor)

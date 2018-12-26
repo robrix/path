@@ -6,7 +6,6 @@ import Path.Back as Back
 import Path.Name
 import Path.Pretty
 import Path.Value
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 type Type = Value
 
