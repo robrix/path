@@ -38,3 +38,6 @@ instance PrettyPrec Context
 
 instance Semigroup Context where
   Context c1 <> Context c2 = Context (c1 <> c2)
+
+instance Monoid Context where
+  mempty = Context Nil
