@@ -11,7 +11,7 @@ import Path.Name
 import Path.Term
 import Path.Value as Value
 
-eval :: (Carrier sig m, Functor m, Member (Reader (Env QName)) sig) => Term Core a -> m Value
+eval :: (Carrier sig m, Functor m, Member (Reader Env) sig) => Term Core a -> m Value
 eval t = asks (flip go t)
   where go d = \case
           In (Core.Var n) _
@@ -22,7 +22,7 @@ eval t = asks (flip go t)
           In Core.Type _ -> Value.Type
           In (Core.Pi n e ty b) _ -> Value.Pi n e (go d ty) (go (Env.insert (Local n) (vfree (Local n)) d) b)
 
-vforce :: Env QName -> Value -> Value
+vforce :: Env -> Value -> Value
 vforce d = go
   where go = \case
           Value.Lam v b      -> Value.Lam v (go b)

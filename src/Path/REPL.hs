@@ -124,8 +124,8 @@ repl packageSources = liftIO $ do
   createDirectoryIfMissing True settingsDir
   runM (runControlIOC runM
        (runREPL command prefs settings
-       (evalState (mempty :: ModuleTable QName)
-       (evalState (Env.empty :: Env QName)
+       (evalState (mempty :: ModuleTable)
+       (evalState Env.empty
        (evalState Context.empty
        (evalState (Resolution mempty)
        (script packageSources)))))))
@@ -145,8 +145,8 @@ script :: ( Carrier sig m
           , Member Print sig
           , Member (Prompt Command) sig
           , Member (State Context) sig
-          , Member (State (Env QName)) sig
-          , Member (State (ModuleTable QName)) sig
+          , Member (State Env) sig
+          , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           )
        => [FilePath]
@@ -177,7 +177,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             ctx <- get
             unless (Context.null ctx) $ print (ctx :: Context)
             env <- get
-            unless (Env.null env) $ print (env :: Env QName)
+            unless (Env.null env) $ print (env :: Env)
             loop
           Show Modules -> do
             graph <- get
@@ -187,7 +187,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Reload -> reload *> loop
           Command.Import i -> do
             table <- get
-            (ctx, env) <- runReader (table :: ModuleTable QName) (importModule i)
+            (ctx, env) <- runReader (table :: ModuleTable) (importModule i)
             modify (Context.union ctx)
             modify (Env.union env)
             loop
@@ -210,7 +210,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- runState [] (runReader (table :: ModuleTable QName) (elabModule m))
+            (errs, res) <- runState [] (runReader (table :: ModuleTable) (elabModule m))
             if Prelude.null errs then
               modify (Map.insert name res)
             else do
