@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 import Path.Context as Context
 import Path.Elab
 import Path.Env as Env
+import Path.Error
 import Path.Eval
 import Path.Module as Module
 import Path.Name
