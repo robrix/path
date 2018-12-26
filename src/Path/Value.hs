@@ -11,35 +11,35 @@ import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-data Value u v
-  = VType                                             -- ^ @'Type' : 'Type'@.
-  | VLam v                   (Value u v -> Value u v) -- ^ A HOAS-encoded lambda abstraction.
-  | VPi  v Usage (Value u v) (Value u v -> Value u v) -- ^ A HOAS-encoded ∏ type, with a 'Usage' annotation.
-  | VNeutral (Back (Value u v)) u                     -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
+data Value v
+  = VType                                       -- ^ @'Type' : 'Type'@.
+  | VLam v                 (Value v -> Value v) -- ^ A HOAS-encoded lambda abstraction.
+  | VPi  v Usage (Value v) (Value v -> Value v) -- ^ A HOAS-encoded ∏ type, with a 'Usage' annotation.
+  | VNeutral (Back (Value v)) v                 -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
 
-instance Eq v => Eq (Value v v) where
+instance Eq v => Eq (Value v) where
   (==) = aeq
 
-instance Ord v => Ord (Value v v) where
+instance Ord v => Ord (Value v) where
   compare = compare `on` quote const
 
-instance Show v => Show (Value v v) where
+instance Show v => Show (Value v) where
   showsPrec d = showsPrec d . quote (flip const)
 
-instance (Ord v, Pretty v) => PrettyPrec (Value v v) where
+instance (Ord v, Pretty v) => PrettyPrec (Value v) where
   prettyPrec d = prettyPrec d . quote (flip const)
 
-instance (Ord v, Pretty v) => Pretty (Value v v) where
+instance (Ord v, Pretty v) => Pretty (Value v) where
   pretty = prettyPrec 0
 
-instance Ord v => FreeVariables v (Value v v) where
+instance Ord v => FreeVariables v (Value v) where
   fvs = fvs . quote (flip const)
 
-vfree :: u -> Value u v
+vfree :: v -> Value v
 vfree = VNeutral Nil
 
 
-quote :: (Int -> v -> u) -> Value v v -> Term (Core u) ()
+quote :: (Int -> v -> u) -> Value v -> Term (Core u) ()
 quote f = go 0
   where go i = \case
           VType         -> In Type ()
@@ -48,7 +48,7 @@ quote f = go 0
           VNeutral as n -> foldl' app (In (Var (f i n)) ()) as
           where app f a = In (f :@ go i a) ()
 
-aeq :: Eq v => Value v v -> Value v v -> Bool
+aeq :: Eq v => Value v -> Value v -> Bool
 aeq = go (0 :: Int) [] []
   where go i env1 env2 v1 v2 = case (v1, v2) of
           (VType,           VType)           -> True

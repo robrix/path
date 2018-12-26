@@ -33,8 +33,8 @@ elab :: ( Carrier sig m
         , Monad m
         )
      => Term (Surface QName) Span
-     -> Maybe (Type QName QName)
-     -> m (Term (Core QName) (Resources QName Usage, Type QName QName))
+     -> Maybe (Type QName)
+     -> m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
   (ForAll n t b, Nothing) -> do
     t' <- check t VType
@@ -88,7 +88,7 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term (Surface QName) Span
-      -> m (Term (Core QName) (Resources QName Usage, Type QName QName))
+      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -99,8 +99,8 @@ check :: ( Carrier sig m
          , Monad m
          )
       => Term (Surface QName) Span
-      -> Type QName QName
-      -> m (Term (Core QName) (Resources QName Usage, Type QName QName))
+      -> Type QName
+      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 check tm ty = asks (flip vforce ty) >>= elab tm . Just
 
 
@@ -190,11 +190,11 @@ runEnv m = get >>= flip runReader m
 
 data ElabError v
   = FreeVariable v Span
-  | TypeMismatch (Type v v) (Type v v) Span
+  | TypeMismatch (Type v) (Type v) Span
   | NoRuleToInfer (Term (Surface v) Span) Span
-  | IllegalApplication (Term (Core v) ()) (Type v v) Span
+  | IllegalApplication (Term (Core v) ()) (Type v) Span
   | ResourceMismatch v Usage Usage Span [Span]
-  | TypedHole v (Type v v) (Context v) Span
+  | TypedHole v (Type v) (Context v) Span
   deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => Pretty (ElabError v) where
