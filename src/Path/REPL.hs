@@ -224,7 +224,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           res <- get
           runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
         printResolveError err = print (err :: ResolveError)
-        printElabError    err = print (err :: ElabError QName)
+        printElabError    err = print (err :: ElabError)
         printModuleError  err = print (err :: ModuleError)
 
 printParserError :: MonadIO m => ErrInfo -> m ()
