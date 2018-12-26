@@ -6,7 +6,6 @@ import Path.Context
 import Path.Core
 import Path.Name
 import Path.Pretty
-import Path.Surface
 import Path.Term
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
@@ -14,7 +13,7 @@ import Text.Trifecta.Rendering (Span)
 data ElabError
   = FreeVariable QName Span
   | TypeMismatch (Type QName) (Type QName) Span
-  | NoRuleToInfer (Term (Surface QName) Span) Context Span
+  | NoRuleToInfer Context Span
   | IllegalApplication (Term Core ()) (Type QName) Span
   | ResourceMismatch Name Usage Usage Span [Span]
   | TypedHole QName (Type QName) Context Span
@@ -28,7 +27,7 @@ instance Pretty ElabError where
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
       ]) Nothing
-    NoRuleToInfer _ ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
+    NoRuleToInfer ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
     IllegalApplication tm ty span -> prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
     ResourceMismatch n pi used span spans -> prettyErr span msg (vsep (map prettys spans) <$ listToMaybe spans)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)

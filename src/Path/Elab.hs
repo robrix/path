@@ -63,7 +63,7 @@ infer (In out span) = case out of
         a'' <- eval a'
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
-  tm -> ask >>= \ ctx -> throwError (NoRuleToInfer (In tm span) (Context.filter (const . isLocal) ctx) span)
+  _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 check :: ( Carrier sig m
          , Effect sig
@@ -81,7 +81,7 @@ check (In tm span) ty = vforce ty >>= \ ty -> case (tm, ty) of
   (Surface.Implicit, ty) -> do
     synthesized <- synth ty
     ctx <- ask
-    maybe (throwError (NoRuleToInfer (In Surface.Implicit span) (Context.filter (const . isLocal) ctx) span)) pure synthesized
+    maybe (throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)) pure synthesized
   (Surface.Lam n e, Value.Pi tn pi t t') -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
