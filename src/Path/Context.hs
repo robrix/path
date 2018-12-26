@@ -3,37 +3,38 @@ module Path.Context where
 import Control.Arrow ((***))
 import Data.Foldable (toList)
 import Path.Back as Back
+import Path.Name
 import Path.Pretty
 import Path.Value
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 type Type = Value
 
-newtype Context v = Context { unContext :: Back (v, Type) }
+newtype Context = Context { unContext :: Back (QName, Type) }
   deriving (Eq, Ord, Show)
 
-empty :: Context v
+empty :: Context
 empty = Context Nil
 
-null :: Context v -> Bool
+null :: Context -> Bool
 null = Prelude.null . unContext
 
-lookup :: Eq v => v -> Context v -> Maybe Type
+lookup :: QName -> Context -> Maybe Type
 lookup n = Back.lookup n . unContext
 
-insert :: v -> Type -> Context v -> Context v
+insert :: QName -> Type -> Context -> Context
 insert n t = Context . (:> (n, t)) . unContext
 
-union :: Context v -> Context v -> Context v
+union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (v -> Type -> Bool) -> Context v -> Context v
+filter :: (QName -> Type -> Bool) -> Context -> Context
 filter f = Context . Back.filter (uncurry f) . unContext
 
-instance (Ord v, Pretty v) => Pretty (Context v) where
+instance Pretty Context where
   pretty = tabulate2 (space <> colon <> space) . map (green . pretty *** nest 2 . align . group . pretty) . toList . unContext
 
-instance (Ord v, Pretty v) => PrettyPrec (Context v)
+instance PrettyPrec Context
 
-instance Semigroup (Context v) where
+instance Semigroup Context where
   Context c1 <> Context c2 = Context (c1 <> c2)

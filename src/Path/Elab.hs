@@ -27,7 +27,7 @@ import Text.Trifecta.Rendering (Span)
 
 elab :: ( Carrier sig m
         , Member (Error ElabError) sig
-        , Member (Reader (Context QName)) sig
+        , Member (Reader Context) sig
         , Member (Reader (Env QName)) sig
         , Member (Reader Usage) sig
         , Monad m
@@ -82,7 +82,7 @@ elab (In out span) ty = case (out, ty) of
 
 infer :: ( Carrier sig m
          , Member (Error ElabError) sig
-         , Member (Reader (Context QName)) sig
+         , Member (Reader Context) sig
          , Member (Reader (Env QName)) sig
          , Member (Reader Usage) sig
          , Monad m
@@ -93,7 +93,7 @@ infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
          , Member (Error ElabError) sig
-         , Member (Reader (Context QName)) sig
+         , Member (Reader Context) sig
          , Member (Reader (Env QName)) sig
          , Member (Reader Usage) sig
          , Monad m
@@ -104,7 +104,7 @@ check :: ( Carrier sig m
 check tm ty = asks (flip vforce ty) >>= elab tm . Just
 
 
-type ModuleTable v = Map.Map ModuleName (Context v, Env v)
+type ModuleTable v = Map.Map ModuleName (Context, Env v)
 
 elabModule :: ( Carrier sig m
               , Effect sig
@@ -113,7 +113,7 @@ elabModule :: ( Carrier sig m
               , Member (State [ElabError]) sig
               )
            => Module QName (Term (Surface QName) Span) Span
-           -> m (Context QName, Env QName)
+           -> m (Context, Env QName)
 elabModule m = runState Context.empty . execState Env.empty $ do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
@@ -131,7 +131,7 @@ importModule :: ( Carrier sig m
                 , Monad m
                 )
              => Import Span
-             -> m (Context QName, Env QName)
+             -> m (Context, Env QName)
 importModule n = do
   (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
   pure (Context.filter p ctx, Env.filter p env)
@@ -140,7 +140,7 @@ importModule n = do
 
 elabDecl :: ( Carrier sig m
             , Member (Error ElabError) sig
-            , Member (State (Context QName)) sig
+            , Member (State Context) sig
             , Member (State (Env QName)) sig
             , Monad m
             )
@@ -153,7 +153,7 @@ elabDecl = \case
 
 elabDeclare :: ( Carrier sig m
                , Member (Error ElabError) sig
-               , Member (State (Context QName)) sig
+               , Member (State Context) sig
                , Member (State (Env QName)) sig
                , Monad m
                )
@@ -167,7 +167,7 @@ elabDeclare name ty = do
 
 elabDefine :: ( Carrier sig m
               , Member (Error ElabError) sig
-              , Member (State (Context QName)) sig
+              , Member (State Context) sig
               , Member (State (Env QName)) sig
               , Monad m
               )
@@ -181,7 +181,7 @@ elabDefine name tm = do
   modify (Env.insert name tm'')
   maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 
-runContext :: (Carrier sig m, Member (State (Context QName)) sig, Monad m) => Eff (ReaderC (Context QName) m) a -> m a
+runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext m = get >>= flip runReader m
 
 runEnv :: (Carrier sig m, Member (State (Env QName)) sig, Monad m) => Eff (ReaderC (Env QName) m) a -> m a
@@ -194,7 +194,7 @@ data ElabError
   | NoRuleToInfer (Term (Surface QName) Span) Span
   | IllegalApplication (Term Core ()) Type Span
   | ResourceMismatch Name Usage Usage Span [Span]
-  | TypedHole QName Type (Context QName) Span
+  | TypedHole QName Type Context Span
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where

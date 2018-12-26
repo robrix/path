@@ -126,7 +126,7 @@ repl packageSources = liftIO $ do
        (runREPL command prefs settings
        (evalState (mempty :: ModuleTable QName)
        (evalState (Env.empty :: Env QName)
-       (evalState (Context.empty :: Context QName)
+       (evalState Context.empty
        (evalState (Resolution mempty)
        (script packageSources)))))))
 
@@ -144,7 +144,7 @@ script :: ( Carrier sig m
           , Member (Lift IO) sig
           , Member Print sig
           , Member (Prompt Command) sig
-          , Member (State (Context QName)) sig
+          , Member (State Context) sig
           , Member (State (Env QName)) sig
           , Member (State (ModuleTable QName)) sig
           , Member (State Resolution) sig
@@ -175,7 +175,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Show Bindings -> do
             ctx <- get
-            unless (Context.null ctx) $ print (ctx :: Context QName)
+            unless (Context.null ctx) $ print (ctx :: Context)
             env <- get
             unless (Env.null env) $ print (env :: Env QName)
             loop
