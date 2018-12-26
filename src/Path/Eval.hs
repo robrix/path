@@ -5,7 +5,6 @@ import Control.Effect
 import Control.Effect.Reader
 import Data.Foldable (foldl')
 import Data.Maybe (fromMaybe)
-import Path.Back
 import Path.Core as Core
 import Path.Env as Env
 import Path.Name
