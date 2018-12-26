@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase, FlexibleInstances, FunctionalDependencies #-}
+{-# LANGUAGE LambdaCase, FlexibleInstances, MultiParamTypeClasses #-}
 module Path.Name where
 
 import Data.List.NonEmpty (NonEmpty(..))
