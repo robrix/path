@@ -77,7 +77,7 @@ elab (In out span) ty = case (out, ty) of
   (tm, Just ty) -> do
     v <- infer (In tm span)
     actual <- asks (flip vforce (snd (ann v)))
-    unless (actual == ty) (throwError (TypeMismatch ty (snd (ann v)) span))
+    unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span))
     pure v
 
 infer :: ( Carrier sig m
