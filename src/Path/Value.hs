@@ -17,6 +17,9 @@ data Value v
   | VPi  v Usage (Value v) (Value v -> Value v) -- ^ A HOAS-encoded ∏ type, with a 'Usage' annotation.
   | VNeutral (Back (Value v)) v                 -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
 
+newtype I a = I { unI :: a }
+  deriving (Eq, Ord, Show)
+
 instance Eq v => Eq (Value v) where
   (==) = aeq
 
