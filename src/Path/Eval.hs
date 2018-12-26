@@ -34,5 +34,5 @@ vforce d = go
           VLam v f      -> VLam v (go . f)
           VType         -> VType
           VPi v u t b   -> VPi v u (go t) (go . b)
-          VNeutral vs n -> foldl' app (maybe (vfree (unI n)) go (Env.lookup (unI n) d)) vs
+          VNeutral vs n -> foldl' app (maybe (vfree n) go (Env.lookup n d)) vs
         app f a = f `vapp` go a
