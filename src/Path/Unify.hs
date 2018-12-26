@@ -22,6 +22,12 @@ unify span = go
             n <- freshName
             Lam n <$> local (bind n1 n2 n)
               (local (Context.insert (Local tn) t) (go b b1 b2))
+          (Type, Pi n1 u1 t1 b1, Pi n2 u2 t2 b2) -> do
+            n <- freshName
+            Pi n (u1 `max` u2)
+              <$> go Type t1 t2
+              <*> local (bind n1 n2 n)
+                (go Type b1 b2)
           (_, t1, t2) -> do
             t1' <- vforce t1
             unless (t1' `aeq` t2) (throwError (TypeMismatch t1 t2 span))
