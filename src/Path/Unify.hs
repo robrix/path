@@ -20,5 +20,6 @@ unifiesWith = curry $ \case
     t1' <- vforce t1
     pure (t1' `aeq` t2)
 
+
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m QName
 freshName = Local . Gensym <$> fresh
