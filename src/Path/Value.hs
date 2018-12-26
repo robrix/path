@@ -6,6 +6,7 @@ import Data.Function (on)
 import Data.Maybe (fromMaybe)
 import Path.Back as Back
 import qualified Path.Core as Core
+import Path.Name
 import Path.Pretty
 import Path.Term
 import Path.Usage

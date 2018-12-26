@@ -4,9 +4,9 @@ module Path.Resources where
 import Data.Function (on)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
+import Path.Name
 import Path.Pretty
 import Path.Semiring
-import Path.Term
 import Text.PrettyPrint.ANSI.Leijen
 
 newtype Resources v r = Resources { unResources :: Map.Map v r }

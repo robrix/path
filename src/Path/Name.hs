@@ -1,8 +1,11 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase, FlexibleInstances, FunctionalDependencies #-}
 module Path.Name where
 
 import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Path.Pretty
+import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen
 
 data Name
@@ -97,3 +100,31 @@ instance PrettyPrec Operator
 
 data Assoc = L | R | Non
   deriving (Eq, Ord, Show)
+
+
+class Ord v => FreeVariables v a where
+  fvs :: a -> Set.Set v
+
+class Ord v => FreeVariables1 v t where
+  liftFvs :: (a -> Set.Set v) -> t a -> Set.Set v
+
+instance Ord v => FreeVariables v () where
+  fvs _ = Set.empty
+
+instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a, b) where
+  fvs (a, b) = fvs a <> fvs b
+
+instance (FreeVariables v key, FreeVariables v value) => FreeVariables v (Map.Map key value) where
+  fvs = fvs . Map.toList
+
+instance FreeVariables v a => FreeVariables v [a] where
+  fvs = foldMap fvs
+
+instance Ord v => FreeVariables v v where
+  fvs = Set.singleton
+
+instance Ord v => FreeVariables v (Set.Set v) where
+  fvs = id
+
+instance Ord v => FreeVariables v Usage where
+  fvs _ = Set.empty

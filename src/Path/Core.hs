@@ -2,6 +2,7 @@
 module Path.Core where
 
 import qualified Data.Set as Set
+import Path.Name
 import Path.Pretty
 import Path.Term
 import Path.Usage
