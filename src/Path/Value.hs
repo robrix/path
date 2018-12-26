@@ -2,7 +2,6 @@
 module Path.Value where
 
 import Data.Foldable (foldl')
-import Data.Function (on)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Path.Back as Back
@@ -18,13 +17,7 @@ data Value v
   | Lam v                 (Value v) -- ^ A HOAS-encoded lambda abstraction.
   | Pi  v Usage (Value v) (Value v) -- ^ A HOAS-encoded ∏ type, with a 'Usage' annotation.
   | Neutral (Back (Value v)) v      -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
-  deriving (Show)
-
-instance Eq v => Eq (Value v) where
-  (==) = aeq
-
-instance Ord v => Ord (Value v) where
-  compare = compare `on` quote const
+  deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => PrettyPrec (Value v) where
   prettyPrec d = prettyPrec d . quote (flip const)
