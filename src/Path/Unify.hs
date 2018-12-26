@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Unify where
 
 import Control.Effect
@@ -11,7 +11,7 @@ import Path.Name
 import Path.Value
 
 unifiesWith :: (Carrier sig m, Member Fresh sig, Member (Reader Env) sig, Monad m) => Type QName -> Type QName -> m Bool
-unifiesWith = curry $ \case
+unifiesWith t1 t2 = case (t1, t2) of
   (Type, Type) -> pure True
   (Lam n1 b1, Lam n2 b2) -> do
     n <- freshName
