@@ -21,6 +21,7 @@ import Path.Semiring
 import Path.Surface as Surface
 import Path.Synth
 import Path.Term
+import Path.Unify
 import Path.Usage
 import Path.Value as Value
 import Text.PrettyPrint.ANSI.Leijen
@@ -96,8 +97,8 @@ check (In out span) ty = vforce ty >>= \ ty -> case (out, ty) of
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
   (tm, ty) -> do
     v <- infer (In tm span)
-    actual <- vforce (snd (ann v))
-    unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span))
+    unifies <- snd (ann v) `unifiesWith` ty
+    unless unifies (throwError (TypeMismatch ty (snd (ann v)) span))
     pure v
 
 
