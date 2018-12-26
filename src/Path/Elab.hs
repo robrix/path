@@ -3,7 +3,7 @@ module Path.Elab where
 
 import Control.Effect
 import Control.Effect.Error
-import Control.Effect.Reader
+import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
@@ -39,14 +39,14 @@ elab (In out span) ty = case (out, ty) of
   (ForAll n t b, Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
-    b' <- local (Context.insert n t'') (check b Value.Type)
-    pure (In (Core.Pi n Zero t' b') (Resources.empty, Value.Type))
+    b' <- local (Context.insert (Local n) t'') (check b Value.Type)
+    pure (In (Core.Pi (Local n) Zero t' b') (Resources.empty, Value.Type))
   (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
   (Surface.Pi n e t b, Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
-    b' <- local (Context.insert n t'') (check b Value.Type)
-    pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
+    b' <- local (Context.insert (Local n) t'') (check b Value.Type)
+    pure (In (Core.Pi (Local n) e t' b') (Resources.empty, Value.Type))
   (Surface.Var n, Nothing) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
@@ -64,13 +64,13 @@ elab (In out span) ty = case (out, ty) of
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
   (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
-    e' <- local (Context.insert n t) (check e (subst tn (vfree n) t'))
+    e' <- local (Context.insert (Local n) t) (check e (subst tn (vfree (Local n)) t'))
     let res = fst (ann e')
-        used = Resources.lookup n res
+        used = Resources.lookup (Local n) res
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
-      throwError (ResourceMismatch n pi used span (uses n e))
-    pure (In (Core.Lam n e') (Resources.delete n res, Value.Pi tn pi t t'))
+      throwError (ResourceMismatch (Local n) pi used span (uses n e))
+    pure (In (Core.Lam (Local n) e') (Resources.delete (Local n) res, Value.Pi tn pi t t'))
   (Surface.Hole n, Just ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)

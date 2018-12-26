@@ -1,61 +1,62 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Surface where
 
+import Path.Name
 import Path.Subst
 import Path.Term
 import Path.Usage
 
 data Surface v a
   = Var v
-  | Lam v a
+  | Lam Name a
   | a :@ a
   | Type
-  | Pi v Usage a a
-  | ForAll v a a
+  | Pi Name Usage a a
+  | ForAll Name a a
   | Hole v
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-(-->) :: Semigroup ann => (v, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+(-->) :: Semigroup ann => (Name, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 (n, e, a) --> b = In (Pi n e a b) (ann a <> ann b)
 
 infixr 0 -->
 
-forAll :: Semigroup ann => (v, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+forAll :: Semigroup ann => (Name, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 forAll (n, a) b = In (ForAll n a b) (ann a <> ann b)
 
-lam :: Semigroup ann => (v, ann) -> Term (Surface v) ann -> Term (Surface v) ann
+lam :: Semigroup ann => (Name, ann) -> Term (Surface v) ann -> Term (Surface v) ann
 lam (n, a) b = In (Lam n b) (a <> ann b)
 
 (#) :: Semigroup ann => Term (Surface v) ann -> Term (Surface v) ann -> Term (Surface v) ann
 f # a = In (f :@ a) (ann f <> ann a)
 
 
-instance Eq v => Substitute v (Surface v) where
+instance Substitute QName (Surface QName) where
   subst i r = \case
     In (ForAll v t t') ann
-      | i == v    -> In (ForAll v (subst i r t) t') ann
-      | otherwise -> In (ForAll v (subst i r t) (subst i r t')) ann
+      | i == Local v -> In (ForAll v (subst i r t) t') ann
+      | otherwise    -> In (ForAll v (subst i r t) (subst i r t')) ann
     In (Var j) ann
       | i == j    -> In r ann
       | otherwise -> In (Var j) ann
     In (Lam n b) ann
-      | i == n    -> In (Lam n b) ann
-      | otherwise -> In (Lam n (subst i r b)) ann
+      | i == Local n -> In (Lam n b) ann
+      | otherwise    -> In (Lam n (subst i r b)) ann
     In (f :@ a) ann -> In (subst i r f :@ subst i r a) ann
     In Type ann -> In Type ann
     In (Pi n e t t') ann
-      | i == n    -> In (Pi n e (subst i r t) t') ann
-      | otherwise -> In (Pi n e (subst i r t) (subst i r t')) ann
+      | i == Local n -> In (Pi n e (subst i r t) t') ann
+      | otherwise    -> In (Pi n e (subst i r t) (subst i r t')) ann
     In (Hole v) ann
       | i == v    -> In r ann
       | otherwise -> In (Hole v) ann
 
 
-uses :: Eq v => v -> Term (Surface v) a -> [a]
+uses :: Name -> Term (Surface QName) a -> [a]
 uses n = cata $ \ f a -> case f of
   Var n'
-    | n == n'   -> [a]
-    | otherwise -> []
+    | Local n == n' -> [a]
+    | otherwise     -> []
   Lam n' b
     | n == n'   -> []
     | otherwise -> b
@@ -68,5 +69,5 @@ uses n = cata $ \ f a -> case f of
     | n == n'   -> t
     | otherwise -> t <> b
   Hole n'
-    | n == n'   -> [a]
-    | otherwise -> []
+    | Local n == n' -> [a]
+    | otherwise     -> []

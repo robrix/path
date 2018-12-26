@@ -22,13 +22,13 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader M
 resolveTerm (In syn ann) = case syn of
   Var v -> in' . Var <$> resolveName v ann
   Lam v b -> do
-    local (insertLocal v) (in' . Lam (Local v) <$> resolveTerm b)
+    local (insertLocal v) (in' . Lam v <$> resolveTerm b)
   f :@ a -> in' <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
   Type -> pure (in' Type)
   Pi v pi t b -> do
-    in' <$> (Pi (Local v) pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+    in' <$> (Pi v pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   ForAll v t b -> do
-    in' <$> (ForAll (Local v) <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+    in' <$> (ForAll v <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   Hole v -> in' . Hole . (:.: v) <$> ask
   where in' = flip In ann
 
