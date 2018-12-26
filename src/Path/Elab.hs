@@ -19,6 +19,7 @@ import Path.Pretty
 import Path.Resources as Resources
 import Path.Semiring
 import Path.Surface as Surface
+import Path.Synth
 import Path.Term
 import Path.Usage
 import Path.Value as Value
@@ -26,6 +27,7 @@ import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span)
 
 elab :: ( Carrier sig m
+        , Effect sig
         , Member (Error ElabError) sig
         , Member Fresh sig
         , Member (Reader Context) sig
@@ -64,6 +66,10 @@ elab (In out span) ty = case (out, ty) of
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (In tm span) (Context.filter (const . isLocal) ctx) span)
+  (Surface.Implicit, Just ty) -> do
+    synthesized <- synth ty
+    ctx <- ask
+    maybe (throwError (NoRuleToInfer (In Surface.Implicit span) (Context.filter (const . isLocal) ctx) span)) pure synthesized
   (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
@@ -82,6 +88,7 @@ elab (In out span) ty = case (out, ty) of
     pure v
 
 infer :: ( Carrier sig m
+         , Effect sig
          , Member (Error ElabError) sig
          , Member Fresh sig
          , Member (Reader Context) sig
@@ -94,6 +101,7 @@ infer :: ( Carrier sig m
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
+         , Effect sig
          , Member (Error ElabError) sig
          , Member Fresh sig
          , Member (Reader Context) sig
@@ -143,6 +151,7 @@ importModule n = do
 
 
 elabDecl :: ( Carrier sig m
+            , Effect sig
             , Member (Error ElabError) sig
             , Member Fresh sig
             , Member (State Context) sig
@@ -157,6 +166,7 @@ elabDecl = \case
   Doc _        d  -> elabDecl d
 
 elabDeclare :: ( Carrier sig m
+               , Effect sig
                , Member (Error ElabError) sig
                , Member Fresh sig
                , Member (State Context) sig
@@ -172,6 +182,7 @@ elabDeclare name ty = do
   modify (Context.insert name ty'')
 
 elabDefine :: ( Carrier sig m
+              , Effect sig
               , Member (Error ElabError) sig
               , Member Fresh sig
               , Member (State Context) sig
