@@ -30,8 +30,9 @@ data ModuleName
 infixl 5 :.
 
 instance Pretty ModuleName where
-  pretty (ModuleName s) = pretty s
-  pretty (ss :. s) = pretty ss <> dot <> pretty s
+  pretty = \case
+    ModuleName s -> pretty s
+    ss :. s      -> pretty ss <> dot <> pretty s
 
 instance PrettyPrec ModuleName
 
