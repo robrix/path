@@ -33,8 +33,8 @@ elab :: ( Carrier sig m
         , Monad m
         )
      => Term (Surface QName) Span
-     -> Maybe (Type I QName)
-     -> m (Term (Core QName) (Resources QName Usage, Type I QName))
+     -> Maybe (Type QName)
+     -> m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
   (ForAll n t b, Nothing) -> do
     t' <- check t VType
@@ -60,11 +60,11 @@ elab (In out span) ty = case (out, ty) of
         a' <- check a t
         let (g2, _) = ann a'
         a'' <- eval a'
-        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, unI (t' a'')))
+        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' a''))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
   (Surface.Lam n e, Just (VPi tn pi t t')) -> do
-    e' <- local (Context.insert n t) (check e (unI (t' (vfree n))))
+    e' <- local (Context.insert n t) (check e (t' (vfree n)))
     let res = fst (ann e')
         used = Resources.lookup n res
     sigma <- ask
@@ -88,7 +88,7 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term (Surface QName) Span
-      -> m (Term (Core QName) (Resources QName Usage, Type I QName))
+      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -99,8 +99,8 @@ check :: ( Carrier sig m
          , Monad m
          )
       => Term (Surface QName) Span
-      -> Type I QName
-      -> m (Term (Core QName) (Resources QName Usage, Type I QName))
+      -> Type QName
+      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 check tm ty = asks (flip vforce ty) >>= elab tm . Just
 
 
@@ -190,11 +190,11 @@ runEnv m = get >>= flip runReader m
 
 data ElabError v
   = FreeVariable v Span
-  | TypeMismatch (Type I v) (Type I v) Span
+  | TypeMismatch (Type v) (Type v) Span
   | NoRuleToInfer (Term (Surface v) Span) Span
-  | IllegalApplication (Term (Core v) ()) (Type I v) Span
+  | IllegalApplication (Term (Core v) ()) (Type v) Span
   | ResourceMismatch v Usage Usage Span [Span]
-  | TypedHole v (Type I v) (Context v) Span
+  | TypedHole v (Type v) (Context v) Span
   deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => Pretty (ElabError v) where
