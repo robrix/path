@@ -78,7 +78,7 @@ subst for rep = go 0
             | for == v  -> foldl' app rep a
             | otherwise -> Neutral (fmap (go i) a) v
             where app f a = f `vapp` go i a
-        locals = foldMap (\ n -> case n of { Local (Gensym i) -> (Set.singleton i) ; _ -> Set.empty })
+        locals = foldMap (\ n -> case n of { Local (Gensym i) -> Set.singleton i ; _ -> Set.empty })
         gensym i names = Local (Gensym (maybe i (succ . fst) (Set.maxView (locals (names <> fvsRep)))))
 
 
