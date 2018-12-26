@@ -40,6 +40,7 @@ library
                      , Path.Semiring
                      , Path.Subst
                      , Path.Surface
+                     , Path.Synth
                      , Path.Term
                      , Path.Unify
                      , Path.Usage
