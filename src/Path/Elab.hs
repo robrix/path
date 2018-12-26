@@ -77,7 +77,7 @@ check :: ( Carrier sig m
       => Term (Surface QName) Span
       -> Type QName
       -> m (Term Core (Resources QName Usage, Type QName))
-check (In out span) ty = vforce ty >>= \ ty -> case (out, ty) of
+check (In tm span) ty = vforce ty >>= \ ty -> case (tm, ty) of
   (Surface.Implicit, ty) -> do
     synthesized <- synth ty
     ctx <- ask
