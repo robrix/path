@@ -41,9 +41,9 @@ vfree = VNeutral []
 quote :: (Int -> v -> u) -> Value v -> Term (Core u) ()
 quote f = go 0
   where go i = \case
-          VType -> In Type ()
-          VLam n b -> In (Lam (f i n) (go (succ i) (b (vfree n)))) ()
-          VPi n e t b -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree n)))) ()
+          VType         -> In Type ()
+          VLam n b      -> In (Lam (f i n) (go (succ i) (b (vfree n)))) ()
+          VPi n e t b   -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree n)))) ()
           VNeutral as n -> foldl' app (In (Var (f i n)) ()) (reverse as)
           where app f a = In (f :@ go i a) ()
 
