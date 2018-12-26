@@ -8,7 +8,7 @@ import Path.Pretty
 import Path.Value
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-newtype Env = Env { unEnv :: Map.Map QName Value }
+newtype Env = Env { unEnv :: Map.Map QName (Value QName) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 empty :: Env
@@ -17,16 +17,16 @@ empty = Env Map.empty
 null :: Env -> Bool
 null = Map.null . unEnv
 
-lookup :: QName -> Env -> Maybe Value
+lookup :: QName -> Env -> Maybe (Value QName)
 lookup n = Map.lookup n . unEnv
 
-insert :: QName -> Value -> Env -> Env
+insert :: QName -> Value QName -> Env -> Env
 insert n v = Env . Map.insert n v . unEnv
 
 union :: Env -> Env -> Env
 union (Env e1) (Env e2) = Env (Map.union e1 e2)
 
-filter :: (QName -> Value -> Bool) -> Env -> Env
+filter :: (QName -> Value QName -> Bool) -> Env -> Env
 filter f = Env . Map.filterWithKey f . unEnv
 
 instance Pretty Env where

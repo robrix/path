@@ -8,7 +8,7 @@ import Path.Pretty
 import Path.Value
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-type Type = Value
+type Type = Value QName
 
 newtype Context = Context { unContext :: Back (QName, Type) }
   deriving (Eq, Ord, Show)
