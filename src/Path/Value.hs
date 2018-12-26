@@ -48,7 +48,7 @@ instance FreeVariables QName (Value QName) where
     Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
     Neutral a f -> foldMap fvs a <> Set.singleton f
 
-vfree :: QName -> Value QName
+vfree :: a -> Value a
 vfree = Neutral Nil
 
 vapp :: Value QName -> Value QName -> Value QName
