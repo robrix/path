@@ -34,19 +34,19 @@ elab :: ( Carrier sig m
         )
      => Term (Surface QName) Span
      -> Maybe (Type QName)
-     -> m (Term (Core QName) (Resources QName Usage, Type QName))
+     -> m (Term Core (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
   (ForAll n t b, Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi (Local n) Zero t' b') (Resources.empty, Value.Type))
+    pure (In (Core.Pi n Zero t' b') (Resources.empty, Value.Type))
   (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
   (Surface.Pi n e t b, Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi (Local n) e t' b') (Resources.empty, Value.Type))
+    pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
   (Surface.Var n, Nothing) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
@@ -70,7 +70,7 @@ elab (In out span) ty = case (out, ty) of
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch (Local n) pi used span (uses n e))
-    pure (In (Core.Lam (Local n) e') (Resources.delete (Local n) res, Value.Pi tn pi t t'))
+    pure (In (Core.Lam n e') (Resources.delete (Local n) res, Value.Pi tn pi t t'))
   (Surface.Hole n, Just ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
@@ -88,7 +88,7 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term (Surface QName) Span
-      -> m (Term (Core QName) (Resources QName Usage, Type QName))
+      -> m (Term Core (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -100,7 +100,7 @@ check :: ( Carrier sig m
          )
       => Term (Surface QName) Span
       -> Type QName
-      -> m (Term (Core QName) (Resources QName Usage, Type QName))
+      -> m (Term Core (Resources QName Usage, Type QName))
 check tm ty = asks (flip vforce ty) >>= elab tm . Just
 
 
@@ -192,7 +192,7 @@ data ElabError v
   = FreeVariable v Span
   | TypeMismatch (Type v) (Type v) Span
   | NoRuleToInfer (Term (Surface v) Span) Span
-  | IllegalApplication (Term (Core v) ()) (Type v) Span
+  | IllegalApplication (Term Core ()) (Type v) Span
   | ResourceMismatch v Usage Usage Span [Span]
   | TypedHole v (Type v) (Context v) Span
   deriving (Eq, Ord, Show)
