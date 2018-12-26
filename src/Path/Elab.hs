@@ -21,7 +21,7 @@ import Path.Semiring
 import Path.Surface as Surface
 import Path.Term
 import Path.Usage
-import Path.Value
+import Path.Value as Value
 import Text.PrettyPrint.ANSI.Leijen
 import Text.Trifecta.Rendering (Span)
 
@@ -37,16 +37,16 @@ elab :: ( Carrier sig m
      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
   (ForAll n t b, Nothing) -> do
-    t' <- check t VType
+    t' <- check t Value.Type
     t'' <- eval t'
-    b' <- local (Context.insert n t'') (check b VType)
-    pure (In (Core.Pi n Zero t' b') (Resources.empty, VType))
-  (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, VType))
+    b' <- local (Context.insert n t'') (check b Value.Type)
+    pure (In (Core.Pi n Zero t' b') (Resources.empty, Value.Type))
+  (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
   (Surface.Pi n e t b, Nothing) -> do
-    t' <- check t VType
+    t' <- check t Value.Type
     t'' <- eval t'
-    b' <- local (Context.insert n t'') (check b VType)
-    pure (In (Core.Pi n e t' b') (Resources.empty, VType))
+    b' <- local (Context.insert n t'') (check b Value.Type)
+    pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
   (Surface.Var n, Nothing) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
@@ -56,21 +56,21 @@ elab (In out span) ty = case (out, ty) of
   (f Surface.:@ a, Nothing) -> do
     f' <- infer f
     case ann f' of
-      (g1, VPi _ pi t t') -> do
+      (g1, Value.Pi _ pi t t') -> do
         a' <- check a t
         let (g2, _) = ann a'
         a'' <- eval a'
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' a''))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
-  (Surface.Lam n e, Just (VPi tn pi t t')) -> do
+  (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
     e' <- local (Context.insert n t) (check e (t' (vfree n)))
     let res = fst (ann e')
         used = Resources.lookup n res
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
-    pure (In (Core.Lam n e') (Resources.delete n res, VPi tn pi t t'))
+    pure (In (Core.Lam n e') (Resources.delete n res, Value.Pi tn pi t t'))
   (Surface.Hole n, Just ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
@@ -161,7 +161,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Surface QName) Span
             -> m ()
 elabDeclare name ty = do
-  ty' <- runReader Zero (runContext (runEnv (check ty VType)))
+  ty' <- runReader Zero (runContext (runEnv (check ty Value.Type)))
   ty'' <- runEnv (eval ty')
   modify (Context.insert name ty'')
 
