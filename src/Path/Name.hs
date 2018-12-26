@@ -61,8 +61,9 @@ isLocal (Local _) = True
 isLocal _         = False
 
 prettyQName :: QName -> Doc
-prettyQName (m :.: n) = pretty m <> dot <> pretty n
-prettyQName (Local n) = pretty n
+prettyQName = \case
+  m :.: n -> pretty m <> dot <> pretty n
+  Local n -> pretty n
 
 
 data Twin = Only | TwinL | TwinR
