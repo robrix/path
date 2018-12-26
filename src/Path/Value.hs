@@ -73,9 +73,7 @@ subst for rep = go 0
             where app f a = f `vapp` go i a
         gensym i names
           | let locals = foldMap (\ n -> case n of { Local (Gensym i) -> (Set.singleton i) ; _ -> Set.empty }) (names <> fvsRep)
-          = case Set.maxView locals of
-            Nothing -> Local (Gensym i)
-            Just (i', _) -> Local (Gensym (succ i'))
+          = Local (Gensym (maybe i (succ . fst) (Set.maxView locals)))
 
 
 quote :: (Int -> v -> u) -> Value v -> Term (Core.Core u) ()
