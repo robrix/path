@@ -20,13 +20,16 @@ unify span = go
           (Type, Type, Type) -> pure Type
           (Pi tn u t b, Lam n1 b1, Lam n2 b2) -> do
             n <- freshName
-            Lam n <$> local (Env.insert (Local n1) (vfree (Local n)) . Env.insert (Local n2) (vfree (Local n)))
+            Lam n <$> local (bind n1 n2 n)
               (local (Context.insert (Local tn) t) (go b b1 b2))
           (_, t1, t2) -> do
             t1' <- vforce t1
             unless (t1' `aeq` t2) (throwError (TypeMismatch t1 t2 span))
             pure t1'
 
+bind :: Name -> Name -> Name -> Env -> Env
+bind n1 n2 n = Env.insert (Local n1) n' . Env.insert (Local n2) n'
+  where n' = vfree (Local n)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
