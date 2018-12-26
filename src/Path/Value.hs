@@ -5,10 +5,8 @@ import Data.Foldable (foldl', toList)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Path.Back as Back
-import qualified Path.Core as Core
 import Path.Name
 import Path.Pretty
-import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
@@ -83,15 +81,6 @@ subst for rep = go 0
         locals = foldMap (\ n -> case n of { Local (Gensym i) -> (Set.singleton i) ; _ -> Set.empty })
         gensym i names = Local (Gensym (maybe i (succ . fst) (Set.maxView (locals (names <> fvsRep)))))
 
-
-quote :: (Int -> v -> u) -> Value v -> Term (Core.Core u) ()
-quote f = go 0
-  where go i = \case
-          Type         -> In Core.Type ()
-          Lam n b      -> In (Core.Lam (f i n) (go (succ i) b)) ()
-          Pi n e t b   -> In (Core.Pi (f i n) e (go i t) (go (succ i) b)) ()
-          Neutral as n -> foldl' app (In (Core.Var (f i n)) ()) as
-          where app f a = In (f Core.:@ go i a) ()
 
 aeq :: Eq v => Value v -> Value v -> Bool
 aeq = go (0 :: Int) [] []
