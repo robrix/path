@@ -56,15 +56,15 @@ elab (In out span) ty = case (out, ty) of
   (f Surface.:@ a, Nothing) -> do
     f' <- infer f
     case ann f' of
-      (g1, Value.Pi _ pi t t') -> do
+      (g1, Value.Pi n pi t t') -> do
         a' <- check a t
         let (g2, _) = ann a'
         a'' <- eval a'
-        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, t' a''))
+        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst n a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
   (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
-    e' <- local (Context.insert n t) (check e (t' (vfree n)))
+    e' <- local (Context.insert n t) (check e (subst tn (vfree n) t'))
     let res = fst (ann e')
         used = Resources.lookup n res
     sigma <- ask

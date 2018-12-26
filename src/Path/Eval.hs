@@ -17,16 +17,16 @@ eval t = asks (flip go t)
           In (Core.Var n) _
             | isLocal n -> fromMaybe (vfree n) (Env.lookup n d)
             | otherwise -> vfree n
-          In (Core.Lam n b) _ -> Value.Lam n (flip go b . flip (Env.insert n) d)
+          In (Core.Lam n b) _ -> Value.Lam n (go (Env.insert n (vfree n) d) b)
           In (f :@ a) _ -> go d f `vapp` go d a
           In Core.Type _ -> Value.Type
-          In (Core.Pi n e ty b) _ -> Value.Pi n e (go d ty) (flip go b . flip (Env.insert n) d)
+          In (Core.Pi n e ty b) _ -> Value.Pi n e (go d ty) (go (Env.insert n (vfree n) d) b)
 
-vforce :: (Ord v, Show v) => Env v -> Value v -> Value v
+vforce :: Env QName -> Value QName -> Value QName
 vforce d = go
   where go = \case
-          Value.Lam v f      -> Value.Lam v (go . f)
+          Value.Lam v b      -> Value.Lam v (go b)
           Value.Type         -> Value.Type
-          Value.Pi v u t b   -> Value.Pi v u (go t) (go . b)
+          Value.Pi v u t b   -> Value.Pi v u (go t) (go b)
           Value.Neutral vs n -> foldl' app (maybe (vfree n) go (Env.lookup n d)) vs
         app f a = f `vapp` go a
