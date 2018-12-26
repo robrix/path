@@ -14,7 +14,7 @@ import Text.Trifecta
 import Text.Trifecta.Indentation
 import Text.Parser.Token.Highlight
 
-type', var, hole :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
+type', var, hole, implicit :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
 term, application, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name) Span)
 
 term = functionType
@@ -59,7 +59,9 @@ lambda = reann (do
 
 hole = ann (Surface.Hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
-atom = var <|> type' <|> lambda <|> parens term <|> hole
+implicit = ann (Surface.Implicit <$ token (char '_'))
+
+atom = var <|> type' <|> lambda <|> parens term <|> hole <|> implicit
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
