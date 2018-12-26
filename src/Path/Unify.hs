@@ -15,19 +15,19 @@ import Path.Value
 import Text.Trifecta.Rendering (Span)
 
 unify :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> Type QName -> m (Type QName)
-unify span = go
-  where go ty t1 t2 = case (ty, t1, t2) of
+unify span = check
+  where check ty t1 t2 = case (ty, t1, t2) of
           (Type, Type, Type) -> pure Type
           (Pi tn u t b, Lam n1 b1, Lam n2 b2) -> do
             n <- freshName
             Lam n <$> local (bind n1 n2 n)
-              (local (Context.insert (Local tn) t) (go b b1 b2))
+              (local (Context.insert (Local tn) t) (check b b1 b2))
           (Type, Pi n1 u1 t1 b1, Pi n2 u2 t2 b2) -> do
             n <- freshName
             Pi n (u1 `max` u2)
-              <$> go Type t1 t2
+              <$> check Type t1 t2
               <*> local (bind n1 n2 n)
-                (go Type b1 b2)
+                (check Type b1 b2)
           (_, t1, t2) -> do
             t1' <- vforce t1
             unless (t1' `aeq` t2) (throwError (TypeMismatch t1 t2 span))
