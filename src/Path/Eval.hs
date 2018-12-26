@@ -12,7 +12,7 @@ import Path.Name
 import Path.Term
 import Path.Value
 
-eval :: (Carrier sig m, Functor m, Member (Reader (Env QName)) sig) => Term (Core QName) a -> m (Value QName)
+eval :: (Carrier sig m, Functor m, Member (Reader (Env QName)) sig) => Term (Core QName) a -> m (Value QName QName)
 eval t = asks (flip go t)
   where go d = \case
           In (Var n) _
@@ -23,12 +23,12 @@ eval t = asks (flip go t)
           In Type _ -> VType
           In (Pi n e ty b) _ -> VPi n e (go d ty) (flip go b . flip (Env.insert n) d)
 
-vapp :: Show v => Value v -> Value v -> Value v
+vapp :: Show v => Value v v -> Value v v -> Value v v
 vapp (VLam _ f) v = f v
 vapp (VNeutral vs n) v = VNeutral (vs :> v) n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
-vforce :: (Ord v, Show v) => Env v -> Value v -> Value v
+vforce :: (Ord v, Show v) => Env v -> Value v v -> Value v v
 vforce d = go
   where go = \case
           VLam v f      -> VLam v (go . f)
