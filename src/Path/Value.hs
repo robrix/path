@@ -12,8 +12,8 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 data Value v
   = Type                            -- ^ @'Type' : 'Type'@.
-  | Lam v                 (Value v) -- ^ A HOAS-encoded lambda abstraction.
-  | Pi  v Usage (Value v) (Value v) -- ^ A HOAS-encoded ∏ type, with a 'Usage' annotation.
+  | Lam v                 (Value v) -- ^ A lambda abstraction.
+  | Pi  v Usage (Value v) (Value v) -- ^ A ∏ type, with a 'Usage' annotation.
   | Neutral (Back (Value v)) v      -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
   deriving (Eq, Ord, Show)
 
