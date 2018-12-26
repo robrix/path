@@ -9,7 +9,7 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 type Type = Value
 
-newtype Context v = Context { unContext :: Back (v, Type v) }
+newtype Context v = Context { unContext :: Back (v, Type I v) }
   deriving (Eq, Ord, Show)
 
 empty :: Context v
@@ -18,16 +18,16 @@ empty = Context Nil
 null :: Context v -> Bool
 null = Prelude.null . unContext
 
-lookup :: Eq v => v -> Context v -> Maybe (Type v)
+lookup :: Eq v => v -> Context v -> Maybe (Type I v)
 lookup n = Back.lookup n . unContext
 
-insert :: v -> Type v -> Context v -> Context v
+insert :: v -> Type I v -> Context v -> Context v
 insert n t = Context . (:> (n, t)) . unContext
 
 union :: Context v -> Context v -> Context v
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (v -> Type v -> Bool) -> Context v -> Context v
+filter :: (v -> Type I v -> Bool) -> Context v -> Context v
 filter f = Context . Back.filter (uncurry f) . unContext
 
 instance (Ord v, Pretty v) => Pretty (Context v) where
