@@ -16,8 +16,8 @@ eval :: (Carrier sig m, Functor m, Member (Reader (Env QName)) sig) => Term (Cor
 eval t = asks (flip go t)
   where go d = \case
           In (Var n) _
-            | isLocal n -> fromMaybe (vfree (I n)) (Env.lookup n d)
-            | otherwise -> vfree (I n)
+            | isLocal n -> fromMaybe (vfree n) (Env.lookup n d)
+            | otherwise -> vfree n
           In (Lam n b) _ -> VLam n (flip go b . flip (Env.insert n) d)
           In (f :@ a) _ -> go d f `vapp` go d a
           In Type _ -> VType
@@ -34,5 +34,5 @@ vforce d = go
           VLam v f      -> VLam v (go . f)
           VType         -> VType
           VPi v u t b   -> VPi v u (go t) (go . b)
-          VNeutral vs n -> foldl' app (maybe (vfree n) go (Env.lookup (unI n) d)) vs
+          VNeutral vs n -> foldl' app (maybe (vfree (unI n)) go (Env.lookup (unI n) d)) vs
         app f a = f `vapp` go a

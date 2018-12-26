@@ -64,7 +64,7 @@ elab (In out span) ty = case (out, ty) of
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
   (Surface.Lam n e, Just (VPi tn pi t t')) -> do
-    e' <- local (Context.insert n t) (check e (t' (vfree (I n))))
+    e' <- local (Context.insert n t) (check e (t' (vfree n)))
     let res = fst (ann e')
         used = Resources.lookup n res
     sigma <- ask

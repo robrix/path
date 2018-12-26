@@ -38,16 +38,16 @@ instance (Ord v, Pretty v) => Pretty (Value v) where
 instance Ord v => FreeVariables v (Value v) where
   fvs = fvs . quote (flip const)
 
-vfree :: I v -> Value v
-vfree = VNeutral Nil
+vfree :: v -> Value v
+vfree = VNeutral Nil . I
 
 
 quote :: (Int -> v -> u) -> Value v -> Term (Core u) ()
 quote f = go 0
   where go i = \case
           VType         -> In Type ()
-          VLam n b      -> In (Lam (f i n) (go (succ i) (b (vfree (I n))))) ()
-          VPi n e t b   -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree (I n))))) ()
+          VLam n b      -> In (Lam (f i n) (go (succ i) (b (vfree n)))) ()
+          VPi n e t b   -> In (Pi (f i n) e (go i t) (go (succ i) (b (vfree n)))) ()
           VNeutral as n -> foldl' app (In (Var (f i (unI n))) ()) as
           where app f a = In (f :@ go i a) ()
 
@@ -55,7 +55,7 @@ aeq :: Eq v => Value v -> Value v -> Bool
 aeq = go (0 :: Int) [] []
   where go i env1 env2 v1 v2 = case (v1, v2) of
           (VType,           VType)           -> True
-          (VLam n1 b1,      VLam n2 b2)      -> go (succ i) ((n1, i) : env1) ((n2, i) : env2) (b1 (vfree (I n1))) (b2 (vfree (I n2)))
-          (VPi n1 e1 t1 b1, VPi n2 e2 t2 b2) -> e1 == e2 && go i env1 env2 t1 t2 && go (succ i) ((n1, i) : env1) ((n2, i) : env2) (b1 (vfree (I n1))) (b2 (vfree (I n2)))
+          (VLam n1 b1,      VLam n2 b2)      -> go (succ i) ((n1, i) : env1) ((n2, i) : env2) (b1 (vfree n1)) (b2 (vfree n2))
+          (VPi n1 e1 t1 b1, VPi n2 e2 t2 b2) -> e1 == e2 && go i env1 env2 t1 t2 && go (succ i) ((n1, i) : env1) ((n2, i) : env2) (b1 (vfree n1)) (b2 (vfree n2))
           (VNeutral as1 n1, VNeutral as2 n2) -> fromMaybe (n1 == n2) ((==) <$> Prelude.lookup (unI n1) env1 <*> Prelude.lookup (unI n2) env2) && length as1 == length as2 && and (Back.zipWith (go i env1 env2) as1 as2)
           _                                  -> False
