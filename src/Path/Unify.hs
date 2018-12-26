@@ -3,6 +3,7 @@ module Path.Unify where
 
 import Control.Effect
 import Control.Effect.Error
+import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Path.Back
 import Path.Context as Context
@@ -32,3 +33,7 @@ equal = check
           _ -> throwError (TypeMismatch t1 t2 (error "what span??"))
 
 -- FIXME: metavariables at the head of neutral terms, but not bound by lambdas/etc
+
+
+freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m QName
+freshName = Local . Gensym <$> fresh
