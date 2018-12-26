@@ -30,3 +30,11 @@ filter keep = \case
     | keep a    -> filter keep as :> a
     | otherwise -> filter keep as
   Nil           -> Nil
+
+
+zipWith :: (a -> b -> c) -> Back a -> Back b -> Back c
+zipWith f = curry go
+  where go = \case
+          (Nil,     _)       -> Nil
+          (_,       Nil)     -> Nil
+          (as :> a, bs :> b) -> go (as, bs) :> f a b
