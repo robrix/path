@@ -13,9 +13,6 @@ type Type = Value
 newtype Context = Context { unContext :: Back (QName, Type QName) }
   deriving (Eq, Ord, Show)
 
-empty :: Context
-empty = Context Nil
-
 null :: Context -> Bool
 null = Prelude.null . unContext
 

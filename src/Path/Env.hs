@@ -11,9 +11,6 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 newtype Env = Env { unEnv :: Map.Map QName (Value QName) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
-empty :: Env
-empty = Env Map.empty
-
 null :: Env -> Bool
 null = Map.null . unEnv
 

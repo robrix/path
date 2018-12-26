@@ -12,9 +12,6 @@ import Text.PrettyPrint.ANSI.Leijen
 newtype Resources v r = Resources { unResources :: Map.Map v r }
   deriving (Eq, Ord, Show)
 
-empty :: Resources v r
-empty = Resources Map.empty
-
 singleton :: v -> r -> Resources v r
 singleton n = Resources . Map.singleton n
 
