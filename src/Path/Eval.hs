@@ -11,16 +11,15 @@ import Path.Name
 import Path.Term
 import Path.Value as Value
 
-eval :: (Carrier sig m, Functor m, Member (Reader Env) sig) => Term Core a -> m Value
-eval t = asks (flip go t)
-  where go d = \case
-          In (Core.Var n) _
-            | isLocal n -> fromMaybe (vfree n) (Env.lookup n d)
-            | otherwise -> vfree n
-          In (Core.Lam n b) _ -> Value.Lam n (go (Env.insert (Local n) (vfree (Local n)) d) b)
-          In (f :@ a) _ -> go d f `vapp` go d a
-          In Core.Type _ -> Value.Type
-          In (Core.Pi n e ty b) _ -> Value.Pi n e (go d ty) (go (Env.insert (Local n) (vfree (Local n)) d) b)
+eval :: (Applicative m, Carrier sig m, Member (Reader Env) sig) => Term Core a -> m Value
+eval = \case
+  In (Core.Var n) _
+    | isLocal n -> fromMaybe (vfree n) <$> asks (Env.lookup n)
+    | otherwise -> pure (vfree n)
+  In (Core.Lam n b) _ -> Value.Lam n <$> local (Env.insert (Local n) (vfree (Local n))) (eval b)
+  In (f :@ a) _ -> vapp <$> eval f <*> eval a
+  In Core.Type _ -> pure (Value.Type)
+  In (Core.Pi n e ty b) _ -> Value.Pi n e <$> eval ty <*> local (Env.insert (Local n) (vfree (Local n))) (eval b)
 
 vforce :: Env -> Value -> Value
 vforce d = go
