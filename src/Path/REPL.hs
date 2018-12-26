@@ -126,8 +126,8 @@ repl packageSources = liftIO $ do
   runM (runControlIOC runM
        (runREPL command prefs settings
        (evalState (mempty :: ModuleTable)
-       (evalState Env.empty
-       (evalState Context.empty
+       (evalState (mempty :: Env)
+       (evalState (mempty :: Context)
        (evalState (Resolution mempty)
        (script packageSources)))))))
 

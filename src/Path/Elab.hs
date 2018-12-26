@@ -41,13 +41,13 @@ elab (In out span) ty = case (out, ty) of
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi n Zero t' b') (Resources.empty, Value.Type))
-  (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
+    pure (In (Core.Pi n Zero t' b') (mempty, Value.Type))
+  (Surface.Type, Nothing) -> pure (In Core.Type (mempty, Value.Type))
   (Surface.Pi n e t b, Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
+    pure (In (Core.Pi n e t' b') (mempty, Value.Type))
   (Surface.Var n, Nothing) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
@@ -118,7 +118,7 @@ elabModule :: ( Carrier sig m
               )
            => Module QName (Term (Surface QName) Span) Span
            -> m (Context, Env)
-elabModule m = runState Context.empty . execState Env.empty $ do
+elabModule m = runState (mempty :: Context) . execState (mempty :: Env) $ do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
     modify (Context.union ctx)
