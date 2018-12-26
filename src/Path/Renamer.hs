@@ -30,6 +30,7 @@ resolveTerm (In syn ann) = case syn of
   ForAll v t b -> do
     in' <$> (ForAll v <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   Hole v -> in' . Hole . (:.: v) <$> ask
+  Implicit -> pure (in' Implicit)
   where in' = flip In ann
 
 resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))

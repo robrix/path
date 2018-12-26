@@ -14,6 +14,7 @@ data Surface v a
   | Pi Name Usage a a
   | ForAll Name a a
   | Hole v
+  | Implicit
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 (-->) :: Semigroup ann => (Name, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
@@ -50,6 +51,7 @@ instance Substitute QName (Surface QName) where
     In (Hole v) ann
       | i == v    -> In r ann
       | otherwise -> In (Hole v) ann
+    In Implicit ann -> In Implicit ann
 
 
 uses :: Name -> Term (Surface QName) a -> [a]
@@ -71,3 +73,4 @@ uses n = cata $ \ f a -> case f of
   Hole n'
     | Local n == n' -> [a]
     | otherwise     -> []
+  Implicit -> []
