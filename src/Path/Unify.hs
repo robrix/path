@@ -5,7 +5,7 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
-import Control.Monad (unless)
+import Control.Monad (unless, void)
 import Path.Context as Context
 import Path.Env as Env
 import Path.Error
@@ -28,10 +28,16 @@ unify span = check
               <$> check Type t1 t2
               <*> local (bind n1 n2 n)
                 (check Type b1 b2)
+          (ty1, Neutral{}, Neutral{}) -> do
+            (tm, ty2) <- infer t1 t2
+            void $ check Type ty1 ty2
+            pure tm
           (_, t1, t2) -> do
             t1' <- vforce t1
             unless (t1' `aeq` t2) (throwError (TypeMismatch t1 t2 span))
             pure t1'
+
+        infer _ _ = ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 bind :: Name -> Name -> Name -> Env -> Env
 bind n1 n2 n = Env.insert (Local n1) n' . Env.insert (Local n2) n'
