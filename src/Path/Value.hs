@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Value where
 
-import Data.Foldable (foldl')
+import Data.Foldable (foldl', toList)
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Path.Back as Back
@@ -20,7 +20,25 @@ data Value v
   deriving (Eq, Ord, Show)
 
 instance (Ord v, Pretty v) => PrettyPrec (Value v) where
-  prettyPrec d = prettyPrec d . quote (flip const)
+  prettyPrec d = \case
+    Type -> yellow (pretty "Type")
+    Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
+      where go v b = var v b <> case b of
+              Lam v' b' -> space <> go v' b'
+              _         -> line <> cyan dot <+> prettyPrec 0 b
+            var v b | v `Set.member` fvs b = pretty v
+                    | otherwise            = pretty '_'
+    Neutral Nil f -> pretty f
+    Neutral as f -> prettyParens (d > 10) $ group (nest 2 (pretty f </> align (vsep (map (prettyPrec 11) (toList as)))))
+    Pi v pi t b
+      | v `Set.member` fvs b -> case pi of
+        Zero -> prettyParens (d > 1) $ align (group (cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 2 t <> line <> cyan dot <+> prettyPrec 1 b))
+        _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
+      | otherwise   -> prettyParens (d > 1) $ withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
+      where withPi
+              | pi == More = id
+              | otherwise  = (pretty pi <+>)
+            arrow = blue (pretty "->")
 
 instance (Ord v, Pretty v) => Pretty (Value v) where
   pretty = prettyPrec 0
