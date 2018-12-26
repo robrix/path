@@ -33,8 +33,8 @@ elab :: ( Carrier sig m
         , Monad m
         )
      => Term (Surface QName) Span
-     -> Maybe Type
-     -> m (Term Core (Resources QName Usage, Type))
+     -> Maybe (Type QName)
+     -> m (Term Core (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
   (ForAll n t b, Nothing) -> do
     t' <- check t Value.Type
@@ -88,7 +88,7 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term (Surface QName) Span
-      -> m (Term Core (Resources QName Usage, Type))
+      -> m (Term Core (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -99,8 +99,8 @@ check :: ( Carrier sig m
          , Monad m
          )
       => Term (Surface QName) Span
-      -> Type
-      -> m (Term Core (Resources QName Usage, Type))
+      -> Type QName
+      -> m (Term Core (Resources QName Usage, Type QName))
 check tm ty = vforce ty >>= elab tm . Just
 
 
@@ -190,11 +190,11 @@ runEnv m = get >>= flip runReader m
 
 data ElabError
   = FreeVariable QName Span
-  | TypeMismatch Type Type Span
+  | TypeMismatch (Type QName) (Type QName) Span
   | NoRuleToInfer (Term (Surface QName) Span) Span
-  | IllegalApplication (Term Core ()) Type Span
+  | IllegalApplication (Term Core ()) (Type QName) Span
   | ResourceMismatch Name Usage Usage Span [Span]
-  | TypedHole QName Type Context Span
+  | TypedHole QName (Type QName) Context Span
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where

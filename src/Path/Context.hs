@@ -8,9 +8,9 @@ import Path.Pretty
 import Path.Value
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-type Type = Value QName
+type Type = Value
 
-newtype Context = Context { unContext :: Back (QName, Type) }
+newtype Context = Context { unContext :: Back (QName, Type QName) }
   deriving (Eq, Ord, Show)
 
 empty :: Context
@@ -19,16 +19,16 @@ empty = Context Nil
 null :: Context -> Bool
 null = Prelude.null . unContext
 
-lookup :: QName -> Context -> Maybe Type
+lookup :: QName -> Context -> Maybe (Type QName)
 lookup n = Back.lookup n . unContext
 
-insert :: QName -> Type -> Context -> Context
+insert :: QName -> Type QName -> Context -> Context
 insert n t = Context . (:> (n, t)) . unContext
 
 union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (QName -> Type -> Bool) -> Context -> Context
+filter :: (QName -> Type QName -> Bool) -> Context -> Context
 filter f = Context . Back.filter (uncurry f) . unContext
 
 instance Pretty Context where

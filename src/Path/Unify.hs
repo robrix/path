@@ -11,7 +11,7 @@ import Path.Elab
 import Path.Name
 import Path.Value as Value
 
-equal :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Monad m) => Type -> Type -> Type -> m Type
+equal :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Monad m) => Type QName -> Type QName -> Type QName -> m (Type QName)
 equal = check
   where check ty t1 t2 = case (ty, t1, t2) of
           (Type, Type, Type) -> pure Type
