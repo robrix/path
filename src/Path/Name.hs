@@ -12,11 +12,12 @@ data Name
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
-  pretty (Name s) = pretty s
-  pretty (Gensym i) = pretty ('_' : alphabet !! q : show r)
-    where (q, r) = i `divMod` 26
-          alphabet = ['a'..'z']
-  pretty (Op op) = pretty op
+  pretty = \case
+    Name s -> pretty s
+    Gensym i -> pretty ('_' : alphabet !! q : show r)
+      where (q, r) = i `divMod` 26
+            alphabet = ['a'..'z']
+    Op op -> pretty op
 
 instance PrettyPrec Name
 
