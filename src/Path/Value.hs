@@ -38,6 +38,11 @@ instance Ord v => FreeVariables v (Value v) where
 vfree :: v -> Value v
 vfree = Neutral Nil
 
+vapp :: Show v => Value v -> Value v -> Value v
+vapp (Lam _ f) v = f v
+vapp (Neutral vs n) v = Neutral (vs :> v) n
+vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
+
 
 quote :: (Int -> v -> u) -> Value v -> Term (Core.Core u) ()
 quote f = go 0

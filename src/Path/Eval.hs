@@ -23,11 +23,6 @@ eval t = asks (flip go t)
           In Core.Type _ -> Value.Type
           In (Core.Pi n e ty b) _ -> Value.Pi n e (go d ty) (flip go b . flip (Env.insert n) d)
 
-vapp :: Show v => Value v -> Value v -> Value v
-vapp (Value.Lam _ f) v = f v
-vapp (Value.Neutral vs n) v = Value.Neutral (vs :> v) n
-vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
-
 vforce :: (Ord v, Show v) => Env v -> Value v -> Value v
 vforce d = go
   where go = \case
