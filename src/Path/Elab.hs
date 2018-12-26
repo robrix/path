@@ -62,7 +62,7 @@ elab (In out span) ty = case (out, ty) of
         a'' <- eval a'
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
-  (tm, Nothing) -> throwError (NoRuleToInfer (In tm span) span)
+  (tm, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (In tm span) ctx span)
   (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
@@ -191,7 +191,7 @@ runEnv m = get >>= flip runReader m
 data ElabError
   = FreeVariable QName Span
   | TypeMismatch (Type QName) (Type QName) Span
-  | NoRuleToInfer (Term (Surface QName) Span) Span
+  | NoRuleToInfer (Term (Surface QName) Span) Context Span
   | IllegalApplication (Term Core ()) (Type QName) Span
   | ResourceMismatch Name Usage Usage Span [Span]
   | TypedHole QName (Type QName) Context Span
@@ -205,15 +205,15 @@ instance Pretty ElabError where
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
       ]) Nothing
-    NoRuleToInfer _ span -> prettyErr span (pretty "no rule to infer type of term") Nothing
+    NoRuleToInfer _ ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
     IllegalApplication tm ty span -> prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
     ResourceMismatch n pi used span spans -> prettyErr span msg (vsep (map prettys spans) <$ listToMaybe spans)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
-    TypedHole n ty ctx span -> prettyErr span msg (Just ext)
+    TypedHole n ty ctx span -> prettyErr span msg (Just (prettyCtx ctx))
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-            ext = nest 2 $ vsep
-              [ pretty "Local bindings:"
-              , pretty ctx
-              ]
+    where prettyCtx ctx = nest 2 $ vsep
+            [ pretty "Local bindings:"
+            , pretty ctx
+            ]
 
 instance PrettyPrec ElabError
