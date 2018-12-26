@@ -19,6 +19,7 @@ library
                      , Path.Core
                      , Path.Elab
                      , Path.Env
+                     , Path.Error
                      , Path.Eval
                      , Path.Meta
                      , Path.MetaContext
