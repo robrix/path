@@ -66,7 +66,7 @@ prettyQName (Local n) = pretty n
 data Twin = Only | TwinL | TwinR
   deriving (Eq, Ord, Show)
 
-data Var = V QName Twin | M QName
+data Var v = V v Twin | M v
   deriving (Eq, Ord, Show)
 
 
