@@ -21,11 +21,10 @@ eval = \case
   In Core.Type _ -> pure (Value.Type)
   In (Core.Pi n e ty b) _ -> Value.Pi n e <$> eval ty <*> local (Env.insert (Local n) (vfree (Local n))) (eval b)
 
-vforce :: Env -> Value -> Value
-vforce d = go
-  where go = \case
-          Value.Lam v b      -> Value.Lam v (go b)
-          Value.Type         -> Value.Type
-          Value.Pi v u t b   -> Value.Pi v u (go t) (go b)
-          Value.Neutral vs n -> foldl' app (maybe (vfree n) go (Env.lookup n d)) vs
-        app f a = f `vapp` go a
+vforce :: (Carrier sig m, Member (Reader Env) sig, Monad m) => Value -> m Value
+vforce = \case
+  Value.Lam v b      -> Value.Lam v <$> vforce b
+  Value.Type         -> pure Value.Type
+  Value.Pi v u t b   -> Value.Pi v u <$> vforce t <*> vforce b
+  Value.Neutral vs n -> foldl' app (asks (Env.lookup n) >>= maybe (pure (vfree n)) vforce) vs
+  where app f a = vapp <$> f <*> vforce a
