@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase #-}
 module Path.Module where
 
 import Control.Effect
@@ -35,7 +35,7 @@ data Decl v a
   = Declare v a
   | Define v a
   | Doc String (Decl v a)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 
 newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
