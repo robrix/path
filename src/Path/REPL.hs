@@ -17,7 +17,9 @@ import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
-import Path.Core as Core
+import Data.Maybe (catMaybes)
+import Data.Traversable (for)
+import Path.Core hiding ((:+:))
 import Path.Context as Context
 import Path.Desugar
 import Path.Elab
@@ -26,11 +28,12 @@ import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Delta(..), ErrInfo, Parser, Span, parseFile, parseString, whole)
+import Path.Parser (Delta(..), ErrInfo, Parser, parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
+import Path.Resources
 import Path.REPL.Command as Command
 import Path.Term
 import Path.Usage
@@ -73,7 +76,7 @@ newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Line -> InputT m a)
 runREPLC :: Parser (Maybe cmd) -> Line -> REPLC cmd m a -> InputT m a
 runREPLC p l (REPLC m) = m p l
 
-instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (Prompt cmd Effect.:+: Print Effect.:+: sig) (REPLC cmd m) where
+instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . pure
   eff op = REPLC (\ c l -> handleSum (handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<)))
     (\ (Print text k) -> putDoc text *> runREPLC c l k))
@@ -153,7 +156,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Implicit QName Core.:+: Core Name QName) Span)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Core Name QName) (Resources QName Usage, Type QName))) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -183,7 +186,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Term (Implicit QName Core.:+: Core Name QName) Span))
+            let ms = modules (graph :: ModuleGraph QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -195,7 +198,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Term (Implicit QName Core.:+: Core Name QName) Span)) of
+            case m :: Maybe (Module QName (Term (Core Name QName) (Resources QName Usage, Type QName))) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
@@ -206,21 +209,22 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           let n = length packageSources
           sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule >>= traverse (runFresh . traverse desugar)
 
-          runDeps . for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
+          checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
             let name    = moduleName m
                 ordinal = brackets (pretty i <+> pretty "of" <+> pretty n)
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- runState [] (runReader (table :: ModuleTable) (runFresh (runState Context.empty (execState Env.empty (elabModule m)))))
+            (errs, (ctx, (env, res))) <- runState [] (runReader (table :: ModuleTable) (runFresh (runState Context.empty (runState Env.empty (elabModule m)))))
             if Prelude.null errs then
-              modify (Map.insert name res)
+              modify (Map.insert name (ctx, env))
             else do
               for_ errs printElabError
               modify (name:)
-          put (moduleGraph sorted)
+            pure (Just res)
+          put (moduleGraph (catMaybes checked))
         runDeps = evalState ([] :: [ModuleName])
-        skipDeps m a = gets (failedDep m) >>= bool (modify (moduleName m:)) a
+        skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
         runRenamer m = do
           res <- get
