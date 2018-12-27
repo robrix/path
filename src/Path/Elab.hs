@@ -108,11 +108,14 @@ elabModule :: ( Carrier sig m
               , Member (Error ModuleError) sig
               , Member Fresh sig
               , Member (Reader ModuleTable) sig
+              , Member (State Context) sig
+              , Member (State Env) sig
               , Member (State [ElabError]) sig
+              , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Context, Env)
-elabModule m = runState Context.empty . execState Env.empty $ do
+           -> m ()
+elabModule m = do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
     modify (Context.union ctx)

@@ -212,7 +212,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- runState [] (runReader (table :: ModuleTable) (runFresh (elabModule m)))
+            (errs, res) <- runState [] (runReader (table :: ModuleTable) (runFresh (runState Context.empty (execState Env.empty (elabModule m)))))
             if Prelude.null errs then
               modify (Map.insert name res)
             else do
