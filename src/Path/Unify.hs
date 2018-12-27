@@ -6,6 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Monad (unless, void)
+import Path.Back
 import Path.Context as Context
 import Path.Env as Env
 import Path.Error
@@ -38,6 +39,8 @@ unify span = check
             pure t1'
 
         infer t1 t2 = case (t1, t2) of
+          (Neutral Nil n1, Neutral Nil n2)
+            | n1 == n2 -> asks (Context.lookup n1) >>= maybe (throwError (FreeVariable n1 span)) (pure . (,) (vfree n1))
           _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 bind :: Name -> Name -> Name -> Env -> Env
