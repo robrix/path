@@ -19,16 +19,16 @@ import Path.Pretty
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
-data Module v a ann = Module
+data Module v a = Module
   { moduleName    :: ModuleName
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
-  , moduleImports :: [Import ann]
+  , moduleImports :: [Import]
   , moduleDecls   :: [Decl v a]
   }
   deriving (Eq, Ord, Show)
 
-data Import ann = Import { importModuleName :: ModuleName, importAnn :: ann }
+data Import = Import { importModuleName :: ModuleName, importAnn :: Span }
   deriving (Eq, Ord, Show)
 
 data Decl v a
@@ -38,19 +38,19 @@ data Decl v a
   deriving (Eq, Ord, Show)
 
 
-newtype ModuleGraph v a ann = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a ann) }
+newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
   deriving (Eq, Ord, Show)
 
-moduleGraph :: [Module v a ann] -> ModuleGraph v a ann
+moduleGraph :: [Module v a] -> ModuleGraph v a
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-modules :: ModuleGraph v a ann -> [Module v a ann]
+modules :: ModuleGraph v a -> [Module v a]
 modules = Map.elems . unModuleGraph
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a Span -> Import Span -> m (Module v a Span)
+lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a -> Import -> m (Module v a)
 lookupModule g i = maybe (throwError (UnknownModule i)) ret (Map.lookup (importModuleName i) (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> Import Span -> m ()
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> Import -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (importModuleName n))
@@ -61,8 +61,8 @@ cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m
             pure (n :| [])
 
 data ModuleError
-  = UnknownModule (Import Span)
-  | CyclicImport (NonEmpty (Import Span))
+  = UnknownModule Import
+  | CyclicImport (NonEmpty Import)
   deriving (Eq, Ord, Show)
 
 instance Pretty ModuleError where
@@ -77,7 +77,7 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a Span -> m [Module v a Span]
+loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> m [Module v a]
 loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.elems (unModuleGraph g)) loopM)))
   where loopM m = do
           visited <- gets (Set.member (moduleName m))

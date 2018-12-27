@@ -112,7 +112,7 @@ elabModule :: ( Carrier sig m
               , Member (Reader ModuleTable) sig
               , Member (State [ElabError]) sig
               )
-           => Module QName (Term (Surface QName) Span) Span
+           => Module QName (Term (Surface QName) Span)
            -> m (Context, Env)
 elabModule m = runState Context.empty . execState Env.empty $ do
   for_ (moduleImports m) $ \ i -> do
@@ -130,7 +130,7 @@ importModule :: ( Carrier sig m
                 , Member (Reader ModuleTable) sig
                 , Monad m
                 )
-             => Import Span
+             => Import
              -> m (Context, Env)
 importModule n = do
   (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure

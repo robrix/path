@@ -48,7 +48,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) Span -> m (Module QName (Term (Surface QName) Span) Span)
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))

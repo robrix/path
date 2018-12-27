@@ -14,7 +14,7 @@ data Command
   | Eval (Term (Surface Name) Span)
   | Show Info
   | Reload
-  | Import (Import Span)
+  | Import Import
   | Doc ModuleName
   deriving (Eq, Ord, Show)
 
