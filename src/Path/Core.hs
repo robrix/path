@@ -8,8 +8,8 @@ import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-data Core a
-  = Var QName
+data Core v a
+  = Var v
   | Lam Name a
   | a :@ a
   | Type
@@ -23,12 +23,12 @@ data (f :+: g) a
 
 infixr 4 :+:
 
-data Implicit a
-  = Hole QName
+data Implicit v a
+  = Hole v
   | Implicit
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core (Term Core a)) where
+instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core QName (Term (Core QName) a)) where
   prettyPrec d = \case
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
@@ -52,7 +52,7 @@ instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core (Term Core a)
               | otherwise  = (pretty pi <+>)
             arrow = blue (pretty "->")
 
-instance FreeVariables1 QName Core where
+instance FreeVariables1 QName (Core QName) where
   liftFvs fvs = \case
     Var v -> Set.singleton v
     Lam v b -> Set.delete (Local v) (fvs b)

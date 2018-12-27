@@ -7,7 +7,7 @@ import Path.Term
 import Path.Usage
 
 desugar :: Term (Surface QName) a
-        -> Maybe (Term Core a)
+        -> Maybe (Term (Core QName) a)
 desugar (In out span) = flip In span <$> case out of
   Surface.Var n -> pure (Core.Var n)
   Surface.Lam n b -> Core.Lam n <$> desugar b
