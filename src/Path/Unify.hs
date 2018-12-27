@@ -29,18 +29,18 @@ unify span = check
               <$> check Type t1 t2
               <*> local (bind n1 n2 n)
                 (check Type b1 b2)
-          (ty1, Neutral{}, Neutral{}) -> do
-            (tm, ty2) <- infer t1 t2
+          (ty1, Neutral e1 h1, Neutral e2 h2) -> do
+            (e, h, ty2) <- infer e1 h1 e2 h2
             void $ check Type ty1 ty2
-            pure tm
+            pure (Neutral e h)
           (_, t1, t2) -> do
             t1' <- vforce t1
             unless (t1' `aeq` t2) (throwError (TypeMismatch t1 t2 span))
             pure t1'
 
-        infer t1 t2 = case (t1, t2) of
-          (Neutral Nil n1, Neutral Nil n2)
-            | n1 == n2 -> asks (Context.lookup n1) >>= maybe (throwError (FreeVariable n1 span)) (pure . (vfree n1, ))
+        infer e1 h1 e2 h2 = case (e1, h1, e2, h2) of
+          (Nil, n1, Nil, n2)
+            | n1 == n2 -> asks (Context.lookup n1) >>= maybe (throwError (FreeVariable n1 span)) (pure . (Nil, n1, ))
           _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 bind :: Name -> Name -> Name -> Env -> Env
