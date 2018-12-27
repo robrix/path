@@ -21,6 +21,8 @@ data (f :+: g) a
   | R (g a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+infixr 4 :+:
+
 data Implicit a
   = Hole QName
   | Implicit
