@@ -166,16 +166,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            tm' <- runRenamer (resolveTerm tm) >>= runFresh . desugar
-            elab <- runReader Zero (runContext (runEnv (runFresh (infer tm'))))
+            elab <- runFresh (runRenamer (resolveTerm tm) >>= desugar >>= runReader Zero . runContext . runEnv . infer)
             print (snd (ann elab))
             loop
           Decl decl -> do
-            _ <- runRenamer (resolveDecl decl) >>= runFresh . traverse desugar >>= runFresh . elabDecl
+            _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
             loop
           Eval tm -> do
-            tm' <- runRenamer (resolveTerm tm) >>= runFresh . desugar
-            elab <- runReader One (runContext (runEnv (runFresh (infer tm'))))
+            elab <- runFresh (runRenamer (resolveTerm tm) >>= desugar >>= runReader One . runContext . runEnv . infer)
             runEnv (eval elab) >>= print
             loop
           Show Bindings -> do
@@ -207,7 +205,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
         reload = do
           put (Resolution mempty)
           let n = length packageSources
-          sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule >>= traverse (runFresh . traverse desugar)
+          sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph
 
           checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
             let name    = moduleName m
@@ -215,7 +213,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (ctx, (env, res))) <- runState [] (runReader (table :: ModuleTable) (runFresh (runState Context.empty (runState Env.empty (elabModule m)))))
+            (errs, (ctx, (env, res))) <- runState [] (runReader (table :: ModuleTable) (runFresh (runState Context.empty (runState Env.empty (resolveModule m >>= traverse desugar >>= elabModule)))))
             if Prelude.null errs then
               modify (Map.insert name (ctx, env))
             else do
