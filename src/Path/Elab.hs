@@ -8,6 +8,7 @@ import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
+import Path.Back
 import Path.Context as Context
 import Path.Core as Core
 import Path.Env as Env
@@ -106,7 +107,7 @@ elabModule :: ( Carrier sig m
               , Member (Error ModuleError) sig
               , Member Fresh sig
               , Member (Reader ModuleTable) sig
-              , Member (State [ElabError]) sig
+              , Member (State (Back ElabError)) sig
               )
            => Module QName (Term (Surface QName) Span) Span
            -> m (Context, Env)
@@ -118,8 +119,8 @@ elabModule m = runState (mempty :: Context) . execState (mempty :: Env) $ do
 
   for_ (moduleDecls m) (either logError pure <=< runError . elabDecl)
 
-logError :: (Carrier sig m, Member (State [ElabError]) sig, Monad m) => ElabError -> m ()
-logError = modify . (:)
+logError :: (Carrier sig m, Member (State (Back ElabError)) sig, Monad m) => ElabError -> m ()
+logError = modify . flip (:>)
 
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig

@@ -17,6 +17,7 @@ import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
+import Path.Back
 import Path.Context as Context
 import Path.Elab
 import Path.Env as Env
@@ -211,7 +212,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- runState [] (runReader (table :: ModuleTable) (runFresh (elabModule m)))
+            (errs, res) <- runState Nil (runReader (table :: ModuleTable) (runFresh (elabModule m)))
             if Prelude.null errs then
               modify (Map.insert name res)
             else do
