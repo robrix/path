@@ -2,7 +2,6 @@
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
-import Control.Monad.State
 import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Parser as Parser
@@ -11,7 +10,6 @@ import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
 import Path.Usage
 import Text.Trifecta
-import Text.Trifecta.Indentation
 import Text.Parser.Token.Highlight
 
 type', var, hole, implicit, term, application, piType, functionType, forAll, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
@@ -68,19 +66,3 @@ multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 name :: (Monad m, TokenParsing m) => m Name
 name =       (Name <$> identifier <?> "name")
      <|> try (Op <$> parens operator <?> "operator name")
-
-
-class Monad m => MonadFresh m where
-  push :: m ()
-  pop :: m ()
-  freshName :: m Name
-
-instance MonadFresh Parser.Inner where
-  push = Parser.Inner (modify succ)
-  pop = Parser.Inner (modify pred)
-  freshName = Parser.Inner (gets Gensym)
-
-instance MonadFresh m => MonadFresh (IndentationParserT t m) where
-  push = lift push
-  pop = lift pop
-  freshName = lift freshName
