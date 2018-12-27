@@ -37,7 +37,8 @@ unify span = check
             unless (t1' `aeq` t2) (throwError (TypeMismatch t1 t2 span))
             pure t1'
 
-        infer _ _ = ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
+        infer t1 t2 = case (t1, t2) of
+          _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 bind :: Name -> Name -> Name -> Env -> Env
 bind n1 n2 n = Env.insert (Local n1) n' . Env.insert (Local n2) n'
