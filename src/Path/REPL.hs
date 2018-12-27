@@ -8,7 +8,7 @@ import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
-import Control.Effect.Sum
+import Control.Effect.Sum as Effect
 import Control.Monad ((<=<), join, unless)
 import Control.Monad.IO.Class
 import Control.Monad.Trans (MonadTrans(..))
@@ -17,6 +17,7 @@ import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
+import Path.Core as Core
 import Path.Context as Context
 import Path.Desugar
 import Path.Elab
@@ -31,7 +32,6 @@ import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
-import Path.Surface
 import Path.Term
 import Path.Usage
 import Prelude hiding (print)
@@ -73,7 +73,7 @@ newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Line -> InputT m a)
 runREPLC :: Parser (Maybe cmd) -> Line -> REPLC cmd m a -> InputT m a
 runREPLC p l (REPLC m) = m p l
 
-instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
+instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (Prompt cmd Effect.:+: Print Effect.:+: sig) (REPLC cmd m) where
   ret = REPLC . const . const . pure
   eff op = REPLC (\ c l -> handleSum (handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<)))
     (\ (Print text k) -> putDoc text *> runREPLC c l k))
@@ -153,7 +153,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Surface QName) Span)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Implicit QName Core.:+: Core QName) Span)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -163,16 +163,16 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            tm' <- runRenamer (resolveTerm tm)
-            elab <- runReader Zero (runContext (runEnv (runFresh (infer (desugar tm')))))
+            tm' <- runRenamer (resolveTerm tm) >>= runFresh . desugar
+            elab <- runReader Zero (runContext (runEnv (runFresh (infer tm'))))
             print (snd (ann elab))
             loop
           Decl decl -> do
-            runRenamer (resolveDecl decl) >>= runFresh . elabDecl . fmap desugar
+            runRenamer (resolveDecl decl) >>= runFresh . traverse desugar >>= runFresh . elabDecl
             loop
           Eval tm -> do
-            tm' <- runRenamer (resolveTerm tm)
-            elab <- runReader One (runContext (runEnv (runFresh (infer (desugar tm')))))
+            tm' <- runRenamer (resolveTerm tm) >>= runFresh . desugar
+            elab <- runReader One (runContext (runEnv (runFresh (infer tm'))))
             runEnv (eval elab) >>= print
             loop
           Show Bindings -> do
@@ -183,7 +183,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Term (Surface QName) Span))
+            let ms = modules (graph :: ModuleGraph QName (Term (Implicit QName Core.:+: Core QName) Span))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -195,7 +195,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Term (Surface QName) Span)) of
+            case m :: Maybe (Module QName (Term (Implicit QName Core.:+: Core QName) Span)) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
@@ -204,7 +204,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
         reload = do
           put (Resolution mempty)
           let n = length packageSources
-          sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule
+          sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph >>= traverse resolveModule >>= traverse (runFresh . traverse desugar)
 
           runDeps . for_ (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
             let name    = moduleName m
@@ -212,7 +212,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- runState [] (runReader (table :: ModuleTable) (runFresh (elabModule (desugar <$> m))))
+            (errs, res) <- runState [] (runReader (table :: ModuleTable) (runFresh (elabModule m)))
             if Prelude.null errs then
               modify (Map.insert name res)
             else do
