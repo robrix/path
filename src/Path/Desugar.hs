@@ -10,7 +10,7 @@ import Path.Term
 import Path.Usage
 
 desugar :: (Applicative m, Carrier sig m, Member Fresh sig)
-        => Term (Sugar :+: Implicit QName :+: Core QName) a
+        => Term (Sugar Name :+: Implicit QName :+: Core QName) a
         -> m (Term (Implicit QName :+: Core QName) a)
 desugar (In out span) = flip In span <$> case out of
   L (ForAll n t b) -> R <$> (Core.Pi n Zero <$> desugar t <*> desugar b)

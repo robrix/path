@@ -6,10 +6,10 @@ import Path.Name
 import Path.Term
 import Path.Usage
 
-type Surface v = Sugar :+: Implicit v :+: Core v
+type Surface v = Sugar Name :+: Implicit v :+: Core v
 
-data Sugar a
-  = ForAll Name a a
+data Sugar b a
+  = ForAll b a a
   | (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
