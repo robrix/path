@@ -14,8 +14,8 @@ import Text.Trifecta
 import Text.Trifecta.Indentation
 import Text.Parser.Token.Highlight
 
-type', var, hole, implicit :: DeltaParsing m => m (Term (Surface.Surface Name Name) Span)
-term, application, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name Name) Span)
+type', var, hole, implicit :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
+term, application, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface (Maybe Name) Name) Span)
 
 term = functionType
 
@@ -35,10 +35,10 @@ type' = ann (Surface.type' <$ keyword "Type")
 forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
   Surface.forAll (v, ty) <$> functionType) <?> "universally quantified type"
-  where binding = (,) <$> name <* colon <*> term
+  where binding = (,) . Just <$> name <* colon <*> term
 
 piType = reann (do
-  (v, mult, ty) <- braces ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  (v, mult, ty) <- braces ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
   (Surface.piType (v, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
 
 functionType = (,) <$ push <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
@@ -52,7 +52,7 @@ var = ann (Surface.var <$> name <?> "variable")
 lambda = reann (do
   vs <- op "\\" *> patterns <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (name <|> token (string "_") *> freshName) <?> "pattern"
+  where pattern = spanned (Just <$> name <|> Nothing <$ token (string "_")) <?> "pattern"
         patterns = (:) <$ push <*> pattern <*> (patterns <|> pure []) <* pop
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv

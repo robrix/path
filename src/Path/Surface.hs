@@ -13,23 +13,23 @@ data Sugar b a
   | (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-(-->) :: Semigroup ann => (Usage, Term (Surface Name v) ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
+(-->) :: Semigroup ann => (Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
 (e, a) --> b = In (L ((e, a) :-> b)) (ann a <> ann b)
 
 infixr 0 -->
 
-piType :: Semigroup ann => (Name, Usage, Term (Surface Name v) ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
+piType :: Semigroup ann => (Maybe Name, Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
 (n, e, a) `piType` b = In (R (R (Pi n e a b))) (ann a <> ann b)
 
 infixr 0 `piType`
 
-forAll :: Semigroup ann => (Name, Term (Surface Name v) ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
+forAll :: Semigroup ann => (Maybe Name, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
 forAll (n, a) b = In (L (ForAll n a b)) (ann a <> ann b)
 
-lam :: Semigroup ann => (Name, ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
+lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
 lam (n, a) b = In (R (R (Lam n b))) (a <> ann b)
 
-(#) :: Semigroup ann => Term (Surface Name v) ann -> Term (Surface Name v) ann -> Term (Surface Name v) ann
+(#) :: Semigroup ann => Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
 f # a = In (R (R (f :@ a))) (ann f <> ann a)
 
 type' :: Surface b v a
