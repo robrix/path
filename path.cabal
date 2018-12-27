@@ -15,6 +15,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Path.Back
                      , Path.CLI
+                     , Path.Constraint
                      , Path.Context
                      , Path.Core
                      , Path.Desugar
