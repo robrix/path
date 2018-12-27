@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Core where
 
 import qualified Data.Set as Set
@@ -14,6 +14,11 @@ data Core a
   | a :@ a
   | Type
   | Pi Name Usage a a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+data (f :+: g) a
+  = L (f a)
+  | R (g a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core (Term Core a)) where
