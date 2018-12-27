@@ -1,14 +1,15 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
-import Control.Effect
+import Control.Effect hiding ((:+:))
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
-import Data.Maybe (listToMaybe)
+import Data.Maybe (catMaybes, listToMaybe)
+import Data.Traversable (for)
 import Path.Context as Context
 import Path.Core as Core
 import Path.Env as Env
@@ -18,42 +19,37 @@ import Path.Name
 import Path.Pretty
 import Path.Resources as Resources
 import Path.Semiring
-import Path.Surface as Surface
 import Path.Term
 import Path.Usage
 import Path.Value as Value
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
 elab :: ( Carrier sig m
         , Member (Error ElabError) sig
+        , Member Fresh sig
         , Member (Reader Context) sig
         , Member (Reader Env) sig
         , Member (Reader Usage) sig
         , Monad m
         )
-     => Term (Surface QName) Span
+     => Term (Implicit QName :+: Core Name QName) Span
      -> Maybe (Type QName)
-     -> m (Term Core (Resources QName Usage, Type QName))
+     -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
-  (ForAll n t b, Nothing) -> do
-    t' <- check t Value.Type
-    t'' <- eval t'
-    b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi n Zero t' b') (Resources.empty, Value.Type))
-  (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
-  (Surface.Pi n e t b, Nothing) -> do
+  (R Core.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
+  (R (Core.Pi n e t b), Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
     pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
-  (Surface.Var n, Nothing) -> do
+  (R (Var n), Nothing) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
     case res of
       Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
       _      -> throwError (FreeVariable n span)
-  (f Surface.:@ a, Nothing) -> do
+  (R (f :@ a), Nothing) -> do
     f' <- infer f
     case ann f' of
       (g1, Value.Pi n pi t t') -> do
@@ -62,8 +58,8 @@ elab (In out span) ty = case (out, ty) of
         a'' <- eval a'
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
-  (tm, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (In tm span) (Context.filter (const . isLocal) ctx) span)
-  (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
+  (_, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
+  (R (Core.Lam n e), Just (Value.Pi tn pi t t')) -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
@@ -71,7 +67,7 @@ elab (In out span) ty = case (out, ty) of
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
     pure (In (Core.Lam n e') (Resources.delete (Local n) res, Value.Pi tn pi t t'))
-  (Surface.Hole n, Just ty) -> do
+  (L (Hole n), Just ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
   (tm, Just ty) -> do
@@ -82,25 +78,27 @@ elab (In out span) ty = case (out, ty) of
 
 infer :: ( Carrier sig m
          , Member (Error ElabError) sig
+         , Member Fresh sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term (Surface QName) Span
-      -> m (Term Core (Resources QName Usage, Type QName))
+      => Term (Implicit QName :+: Core Name QName) Span
+      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
          , Member (Error ElabError) sig
+         , Member Fresh sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term (Surface QName) Span
+      => Term (Implicit QName :+: Core Name QName) Span
       -> Type QName
-      -> m (Term Core (Resources QName Usage, Type QName))
+      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 check tm ty = vforce ty >>= elab tm . Just
 
 
@@ -109,18 +107,23 @@ type ModuleTable = Map.Map ModuleName (Context, Env)
 elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error ModuleError) sig
+              , Member Fresh sig
               , Member (Reader ModuleTable) sig
+              , Member (State Context) sig
+              , Member (State Env) sig
               , Member (State [ElabError]) sig
+              , Monad m
               )
-           => Module QName (Term (Surface QName) Span) Span
-           -> m (Context, Env)
-elabModule m = runState Context.empty . execState Env.empty $ do
+           => Module QName (Term (Implicit QName :+: Core Name QName) Span)
+           -> m (Module QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
+elabModule m = do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
     modify (Context.union ctx)
     modify (Env.union env)
 
-  for_ (moduleDecls m) (either logError pure <=< runError . elabDecl)
+  decls <- for (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
+  pure m { moduleDecls = catMaybes decls }
 
 logError :: (Carrier sig m, Member (State [ElabError]) sig, Monad m) => ElabError -> m ()
 logError = modify . (:)
@@ -130,7 +133,7 @@ importModule :: ( Carrier sig m
                 , Member (Reader ModuleTable) sig
                 , Monad m
                 )
-             => Import Span
+             => Import
              -> m (Context, Env)
 importModule n = do
   (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
@@ -140,46 +143,49 @@ importModule n = do
 
 elabDecl :: ( Carrier sig m
             , Member (Error ElabError) sig
+            , Member Fresh sig
             , Member (State Context) sig
             , Member (State Env) sig
             , Monad m
             )
-         => Decl QName (Term (Surface QName) Span)
-         -> m ()
+         => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
+         -> m (Decl QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
 elabDecl = \case
-  Declare name ty -> elabDeclare name ty
-  Define  name tm -> elabDefine  name tm
-  Doc _        d  -> elabDecl d
+  Declare name ty -> Declare name <$> elabDeclare name ty
+  Define  name tm -> Define  name <$> elabDefine  name tm
+  Doc docs     d  -> Doc docs <$> elabDecl d
 
 elabDeclare :: ( Carrier sig m
                , Member (Error ElabError) sig
+               , Member Fresh sig
                , Member (State Context) sig
                , Member (State Env) sig
                , Monad m
                )
             => QName
-            -> Term (Surface QName) Span
-            -> m ()
+            -> Term (Implicit QName :+: Core Name QName) Span
+            -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elabDeclare name ty = do
   ty' <- runReader Zero (runContext (runEnv (check ty Value.Type)))
   ty'' <- runEnv (eval ty')
-  modify (Context.insert name ty'')
+  ty' <$ modify (Context.insert name ty'')
 
 elabDefine :: ( Carrier sig m
               , Member (Error ElabError) sig
+              , Member Fresh sig
               , Member (State Context) sig
               , Member (State Env) sig
               , Monad m
               )
            => QName
-           -> Term (Surface QName) Span
-           -> m ()
+           -> Term (Implicit QName :+: Core Name QName) Span
+           -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runReader One (runContext (runEnv (maybe infer (flip check) ty tm)))
   tm'' <- runEnv (eval tm')
   modify (Env.insert name tm'')
-  maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
+  tm' <$ maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 
 runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext m = get >>= flip runReader m
@@ -191,8 +197,8 @@ runEnv m = get >>= flip runReader m
 data ElabError
   = FreeVariable QName Span
   | TypeMismatch (Type QName) (Type QName) Span
-  | NoRuleToInfer (Term (Surface QName) Span) Context Span
-  | IllegalApplication (Term Core ()) (Type QName) Span
+  | NoRuleToInfer Context Span
+  | IllegalApplication (Term (Core Name QName) ()) (Type QName) Span
   | ResourceMismatch Name Usage Usage Span [Span]
   | TypedHole QName (Type QName) Context Span
   deriving (Eq, Ord, Show)
@@ -205,7 +211,7 @@ instance Pretty ElabError where
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
       ]) Nothing
-    NoRuleToInfer _ ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
+    NoRuleToInfer ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
     IllegalApplication tm ty span -> prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
     ResourceMismatch n pi used span spans -> prettyErr span msg (vsep (map prettys spans) <$ listToMaybe spans)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)

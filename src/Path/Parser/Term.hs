@@ -2,7 +2,6 @@
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
-import Control.Monad.State
 import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Parser as Parser
@@ -11,11 +10,9 @@ import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
 import Path.Usage
 import Text.Trifecta
-import Text.Trifecta.Indentation
 import Text.Parser.Token.Highlight
 
-type', var, hole, implicit :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
-term, application, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name) Span)
+type', var, hole, implicit, term, application, piType, functionType, forAll, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
 
 term = functionType
 
@@ -30,36 +27,36 @@ reann = fmap respan . spanned
 
 application = atom `chainl1` pure (Surface.#) <?> "function application"
 
-type' = ann (Surface.Type <$ keyword "Type")
+type' = ann (Surface.type' <$ keyword "Type")
 
 forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
   Surface.forAll (v, ty) <$> functionType) <?> "universally quantified type"
-  where binding = (,) <$> name <* colon <*> term
+  where binding = (,) . Just <$> name <* colon <*> term
 
 piType = reann (do
-  (v, mult, ty) <- braces ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  ((v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
+  (v, mult, ty) <- braces ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  (Surface.piType (v, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
 
-functionType = (,,) <$ push <*> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
-                <|> push *> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id) <* pop
+functionType = (,) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+                <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
                 <|> forAll
-          where arrow v t' t = (v, More, t) Surface.--> t'
+          where arrow t' t = (More, t) Surface.--> t'
 
-var = ann (Surface.Var <$> name <?> "variable")
+var = ann (Surface.var <$> name <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> patterns <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (name <|> token (string "_") *> freshName) <?> "pattern"
-        patterns = (:) <$ push <*> pattern <*> (patterns <|> pure []) <* pop
+  where pattern = spanned (Just <$> name <|> Nothing <$ token (string "_")) <?> "pattern"
+        patterns = (:) <$> pattern <*> (patterns <|> pure [])
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
-hole = ann (Surface.Hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
+hole = ann (Surface.hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
-implicit = ann (Surface.Implicit <$ token (char '_'))
+implicit = ann (Surface.implicit <$ token (char '_'))
 
 atom = var <|> type' <|> lambda <|> parens term <|> hole <|> implicit
 
@@ -69,19 +66,3 @@ multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 name :: (Monad m, TokenParsing m) => m Name
 name =       (Name <$> identifier <?> "name")
      <|> try (Op <$> parens operator <?> "operator name")
-
-
-class Monad m => MonadFresh m where
-  push :: m ()
-  pop :: m ()
-  freshName :: m Name
-
-instance MonadFresh Parser.Inner where
-  push = Parser.Inner (modify succ)
-  pop = Parser.Inner (modify pred)
-  freshName = Parser.Inner (gets Gensym)
-
-instance MonadFresh m => MonadFresh (IndentationParserT t m) where
-  push = lift push
-  pop = lift pop
-  freshName = lift freshName

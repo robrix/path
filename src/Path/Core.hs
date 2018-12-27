@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Core where
 
 import qualified Data.Set as Set
@@ -8,15 +8,27 @@ import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-data Core a
-  = Var QName
-  | Lam Name a
+data Core b v a
+  = Var v
+  | Lam b a
   | a :@ a
   | Type
-  | Pi Name Usage a a
+  | Pi b Usage a a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core (Term Core a)) where
+data (f :+: g) a
+  = L (f a)
+  | R (g a)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+infixr 4 :+:
+
+data Implicit v a
+  = Hole v
+  | Implicit
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
   prettyPrec d = \case
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
@@ -40,10 +52,29 @@ instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core (Term Core a)
               | otherwise  = (pretty pi <+>)
             arrow = blue (pretty "->")
 
-instance FreeVariables1 QName Core where
+instance FreeVariables1 QName (Core Name QName) where
   liftFvs fvs = \case
     Var v -> Set.singleton v
     Lam v b -> Set.delete (Local v) (fvs b)
     f :@ a -> fvs f <> fvs a
     Type -> Set.empty
     Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
+
+
+uses :: Name -> Term (Implicit QName :+: Core Name QName) a -> [a]
+uses n = cata $ \ f a -> case f of
+  R (Var n')
+    | Local n == n' -> [a]
+    | otherwise     -> []
+  R (Lam n' b)
+    | n == n'   -> []
+    | otherwise -> b
+  R (f :@ a) -> f <> a
+  R Type -> []
+  R (Pi n' _ t b)
+    | n == n'   -> t
+    | otherwise -> t <> b
+  L (Hole n')
+    | Local n == n' -> [a]
+    | otherwise     -> []
+  L Implicit -> []
