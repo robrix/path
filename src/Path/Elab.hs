@@ -32,9 +32,9 @@ elab :: ( Carrier sig m
         , Member (Reader Usage) sig
         , Monad m
         )
-     => Term (Implicit QName :+: Core QName) Span
+     => Term (Implicit QName :+: Core Name QName) Span
      -> Maybe (Type QName)
-     -> m (Term (Core QName) (Resources QName Usage, Type QName))
+     -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
   (R Core.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
   (R (Core.Pi n e t b), Nothing) -> do
@@ -83,8 +83,8 @@ infer :: ( Carrier sig m
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term (Implicit QName :+: Core QName) Span
-      -> m (Term (Core QName) (Resources QName Usage, Type QName))
+      => Term (Implicit QName :+: Core Name QName) Span
+      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
 check :: ( Carrier sig m
@@ -95,9 +95,9 @@ check :: ( Carrier sig m
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term (Implicit QName :+: Core QName) Span
+      => Term (Implicit QName :+: Core Name QName) Span
       -> Type QName
-      -> m (Term (Core QName) (Resources QName Usage, Type QName))
+      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 check tm ty = vforce ty >>= elab tm . Just
 
 
@@ -110,7 +110,7 @@ elabModule :: ( Carrier sig m
               , Member (Reader ModuleTable) sig
               , Member (State [ElabError]) sig
               )
-           => Module QName (Term (Implicit QName :+: Core QName) Span)
+           => Module QName (Term (Implicit QName :+: Core Name QName) Span)
            -> m (Context, Env)
 elabModule m = runState Context.empty . execState Env.empty $ do
   for_ (moduleImports m) $ \ i -> do
@@ -143,7 +143,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Env) sig
             , Monad m
             )
-         => Decl QName (Term (Implicit QName :+: Core QName) Span)
+         => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
          -> m ()
 elabDecl = \case
   Declare name ty -> elabDeclare name ty
@@ -158,7 +158,7 @@ elabDeclare :: ( Carrier sig m
                , Monad m
                )
             => QName
-            -> Term (Implicit QName :+: Core QName) Span
+            -> Term (Implicit QName :+: Core Name QName) Span
             -> m ()
 elabDeclare name ty = do
   ty' <- runReader Zero (runContext (runEnv (check ty Value.Type)))
@@ -173,7 +173,7 @@ elabDefine :: ( Carrier sig m
               , Monad m
               )
            => QName
-           -> Term (Implicit QName :+: Core QName) Span
+           -> Term (Implicit QName :+: Core Name QName) Span
            -> m ()
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
@@ -193,7 +193,7 @@ data ElabError
   = FreeVariable QName Span
   | TypeMismatch (Type QName) (Type QName) Span
   | NoRuleToInfer Context Span
-  | IllegalApplication (Term (Core QName) ()) (Type QName) Span
+  | IllegalApplication (Term (Core Name QName) ()) (Type QName) Span
   | ResourceMismatch Name Usage Usage Span [Span]
   | TypedHole QName (Type QName) Context Span
   deriving (Eq, Ord, Show)

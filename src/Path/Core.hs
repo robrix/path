@@ -8,12 +8,12 @@ import Path.Term
 import Path.Usage
 import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-data Core v a
+data Core b v a
   = Var v
-  | Lam Name a
+  | Lam b a
   | a :@ a
   | Type
-  | Pi Name Usage a a
+  | Pi b Usage a a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 data (f :+: g) a
@@ -28,7 +28,7 @@ data Implicit v a
   | Implicit
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core QName (Term (Core QName) a)) where
+instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
   prettyPrec d = \case
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
@@ -52,7 +52,7 @@ instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core QName (Term (
               | otherwise  = (pretty pi <+>)
             arrow = blue (pretty "->")
 
-instance FreeVariables1 QName (Core QName) where
+instance FreeVariables1 QName (Core Name QName) where
   liftFvs fvs = \case
     Var v -> Set.singleton v
     Lam v b -> Set.delete (Local v) (fvs b)
@@ -61,7 +61,7 @@ instance FreeVariables1 QName (Core QName) where
     Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
 
 
-uses :: Name -> Term (Implicit QName :+: Core QName) a -> [a]
+uses :: Name -> Term (Implicit QName :+: Core Name QName) a -> [a]
 uses n = cata $ \ f a -> case f of
   R (Var n')
     | Local n == n' -> [a]

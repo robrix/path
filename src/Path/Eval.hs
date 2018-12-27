@@ -11,7 +11,7 @@ import Path.Name
 import Path.Term
 import Path.Value as Value
 
-eval :: (Applicative m, Carrier sig m, Member (Reader Env) sig) => Term (Core QName) a -> m (Value QName)
+eval :: (Applicative m, Carrier sig m, Member (Reader Env) sig) => Term (Core Name QName) a -> m (Value QName)
 eval = \case
   In (Core.Var n) _
     | isLocal n -> fromMaybe (vfree n) <$> asks (Env.lookup n)

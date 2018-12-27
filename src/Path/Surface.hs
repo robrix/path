@@ -6,7 +6,7 @@ import Path.Name
 import Path.Term
 import Path.Usage
 
-type Surface b v = Sugar b :+: Implicit v :+: Core v
+type Surface b v = Sugar b :+: Implicit v :+: Core b v
 
 data Sugar b a
   = ForAll b a a
