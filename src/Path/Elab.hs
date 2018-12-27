@@ -21,7 +21,7 @@ import Path.Semiring
 import Path.Term
 import Path.Usage
 import Path.Value as Value
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
 elab :: ( Carrier sig m
@@ -118,7 +118,7 @@ elabModule m = runState Context.empty . execState Env.empty $ do
     modify (Context.union ctx)
     modify (Env.union env)
 
-  for_ (moduleDecls m) (either logError pure <=< runError . elabDecl)
+  for_ (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
 
 logError :: (Carrier sig m, Member (State [ElabError]) sig, Monad m) => ElabError -> m ()
 logError = modify . (:)
@@ -144,11 +144,11 @@ elabDecl :: ( Carrier sig m
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m ()
+         -> m (Decl QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
 elabDecl = \case
-  Declare name ty -> elabDeclare name ty
-  Define  name tm -> elabDefine  name tm
-  Doc _        d  -> elabDecl d
+  Declare name ty -> Declare name <$> elabDeclare name ty
+  Define  name tm -> Define  name <$> elabDefine  name tm
+  Doc docs     d  -> Doc docs <$> elabDecl d
 
 elabDeclare :: ( Carrier sig m
                , Member (Error ElabError) sig
@@ -159,11 +159,11 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m ()
+            -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elabDeclare name ty = do
   ty' <- runReader Zero (runContext (runEnv (check ty Value.Type)))
   ty'' <- runEnv (eval ty')
-  modify (Context.insert name ty'')
+  ty' <$ modify (Context.insert name ty'')
 
 elabDefine :: ( Carrier sig m
               , Member (Error ElabError) sig
@@ -174,13 +174,13 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m ()
+           -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
   tm' <- runReader One (runContext (runEnv (maybe infer (flip check) ty tm)))
   tm'' <- runEnv (eval tm')
   modify (Env.insert name tm'')
-  maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
+  tm' <$ maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
 
 runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext m = get >>= flip runReader m

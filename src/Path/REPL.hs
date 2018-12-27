@@ -168,7 +168,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             print (snd (ann elab))
             loop
           Decl decl -> do
-            runRenamer (resolveDecl decl) >>= runFresh . traverse desugar >>= runFresh . elabDecl
+            _ <- runRenamer (resolveDecl decl) >>= runFresh . traverse desugar >>= runFresh . elabDecl
             loop
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm) >>= runFresh . desugar
