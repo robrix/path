@@ -52,6 +52,7 @@ vfree = Neutral Nil
 
 vapp :: Value QName -> Value QName -> Value QName
 vapp (Lam n b) v = subst (Local n) v b
+vapp (Pi n _ _ b) v = subst (Local n) v b
 vapp (Neutral vs n) v = Neutral (vs :> v) n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
