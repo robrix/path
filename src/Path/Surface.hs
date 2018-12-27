@@ -17,6 +17,10 @@ data Surface v a
   | Implicit
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+data Sugar v a
+  = ForAll' Name a a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
 (-->) :: Semigroup ann => (Name, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 (n, e, a) --> b = In (Pi n e a b) (ann a <> ann b)
 
