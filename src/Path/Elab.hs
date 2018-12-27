@@ -1,7 +1,7 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
-import Control.Effect
+import Control.Effect hiding ((:+:))
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
@@ -18,7 +18,6 @@ import Path.Name
 import Path.Pretty
 import Path.Resources as Resources
 import Path.Semiring
-import Path.Surface as Surface
 import Path.Term
 import Path.Usage
 import Path.Value as Value
@@ -32,28 +31,23 @@ elab :: ( Carrier sig m
         , Member (Reader Usage) sig
         , Monad m
         )
-     => Term (Surface QName) Span
+     => Term (Implicit QName :+: Core QName) Span
      -> Maybe (Type QName)
      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
-  (L (ForAll n t b), Nothing) -> do
-    t' <- check t Value.Type
-    t'' <- eval t'
-    b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi n Zero t' b') (Resources.empty, Value.Type))
-  (R (R Core.Type), Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
-  (R (R (Core.Pi n e t b)), Nothing) -> do
+  (R Core.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
+  (R (Core.Pi n e t b), Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
     pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
-  (R (R (Var n)), Nothing) -> do
+  (R (Var n), Nothing) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
     case res of
       Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
       _      -> throwError (FreeVariable n span)
-  (R (R (f :@ a)), Nothing) -> do
+  (R (f :@ a), Nothing) -> do
     f' <- infer f
     case ann f' of
       (g1, Value.Pi n pi t t') -> do
@@ -63,7 +57,7 @@ elab (In out span) ty = case (out, ty) of
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (_, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
-  (R (R (Core.Lam n e)), Just (Value.Pi tn pi t t')) -> do
+  (R (Core.Lam n e), Just (Value.Pi tn pi t t')) -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
@@ -71,7 +65,7 @@ elab (In out span) ty = case (out, ty) of
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
     pure (In (Core.Lam n e') (Resources.delete (Local n) res, Value.Pi tn pi t t'))
-  (R (L (Hole n)), Just ty) -> do
+  (L (Hole n), Just ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
   (tm, Just ty) -> do
@@ -87,7 +81,7 @@ infer :: ( Carrier sig m
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term (Surface QName) Span
+      => Term (Implicit QName :+: Core QName) Span
       -> m (Term (Core QName) (Resources QName Usage, Type QName))
 infer tm = elab tm Nothing
 
@@ -98,7 +92,7 @@ check :: ( Carrier sig m
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term (Surface QName) Span
+      => Term (Implicit QName :+: Core QName) Span
       -> Type QName
       -> m (Term (Core QName) (Resources QName Usage, Type QName))
 check tm ty = vforce ty >>= elab tm . Just
@@ -112,7 +106,7 @@ elabModule :: ( Carrier sig m
               , Member (Reader ModuleTable) sig
               , Member (State [ElabError]) sig
               )
-           => Module QName (Term (Surface QName) Span)
+           => Module QName (Term (Implicit QName :+: Core QName) Span)
            -> m (Context, Env)
 elabModule m = runState Context.empty . execState Env.empty $ do
   for_ (moduleImports m) $ \ i -> do
@@ -144,7 +138,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Env) sig
             , Monad m
             )
-         => Decl QName (Term (Surface QName) Span)
+         => Decl QName (Term (Implicit QName :+: Core QName) Span)
          -> m ()
 elabDecl = \case
   Declare name ty -> elabDeclare name ty
@@ -158,7 +152,7 @@ elabDeclare :: ( Carrier sig m
                , Monad m
                )
             => QName
-            -> Term (Surface QName) Span
+            -> Term (Implicit QName :+: Core QName) Span
             -> m ()
 elabDeclare name ty = do
   ty' <- runReader Zero (runContext (runEnv (check ty Value.Type)))
@@ -172,7 +166,7 @@ elabDefine :: ( Carrier sig m
               , Monad m
               )
            => QName
-           -> Term (Surface QName) Span
+           -> Term (Implicit QName :+: Core QName) Span
            -> m ()
 elabDefine name tm = do
   ty <- gets (Context.lookup name)

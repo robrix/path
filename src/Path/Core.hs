@@ -59,3 +59,22 @@ instance FreeVariables1 QName (Core QName) where
     f :@ a -> fvs f <> fvs a
     Type -> Set.empty
     Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
+
+
+uses :: Name -> Term (Implicit QName :+: Core QName) a -> [a]
+uses n = cata $ \ f a -> case f of
+  R (Var n')
+    | Local n == n' -> [a]
+    | otherwise     -> []
+  R (Lam n' b)
+    | n == n'   -> []
+    | otherwise -> b
+  R (f :@ a) -> f <> a
+  R Type -> []
+  R (Pi n' _ t b)
+    | n == n'   -> t
+    | otherwise -> t <> b
+  L (Hole n')
+    | Local n == n' -> [a]
+    | otherwise     -> []
+  L Implicit -> []

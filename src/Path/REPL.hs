@@ -17,6 +17,7 @@ import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
 import Path.Context as Context
+import Path.Desugar
 import Path.Elab
 import Path.Env as Env
 import Path.Eval
@@ -162,15 +163,15 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Help -> print helpDoc *> loop
           TypeOf tm -> do
             tm' <- runRenamer (resolveTerm tm)
-            elab <- runReader Zero (runContext (runEnv (infer tm')))
+            elab <- runReader Zero (runContext (runEnv (infer (desugar tm'))))
             print (snd (ann elab))
             loop
           Decl decl -> do
-            runRenamer (resolveDecl decl) >>= elabDecl
+            runRenamer (resolveDecl decl) >>= elabDecl . fmap desugar
             loop
           Eval tm -> do
             tm' <- runRenamer (resolveTerm tm)
-            elab <- runReader One (runContext (runEnv (infer tm')))
+            elab <- runReader One (runContext (runEnv (infer (desugar tm'))))
             runEnv (eval elab) >>= print
             loop
           Show Bindings -> do
@@ -210,7 +211,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, res) <- runState [] (runReader (table :: ModuleTable) (elabModule m))
+            (errs, res) <- runState [] (runReader (table :: ModuleTable) (elabModule (desugar <$> m)))
             if Prelude.null errs then
               modify (Map.insert name res)
             else do

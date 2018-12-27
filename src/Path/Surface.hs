@@ -37,25 +37,3 @@ var = R . R . Var
 
 hole :: v -> Surface v a
 hole = R . L . Hole
-
-
-uses :: Name -> Term (Surface QName) a -> [a]
-uses n = cata $ \ f a -> case f of
-  R (R (Var n'))
-    | Local n == n' -> [a]
-    | otherwise     -> []
-  R (R (Lam n' b))
-    | n == n'   -> []
-    | otherwise -> b
-  R (R (f :@ a)) -> f <> a
-  R (R Type) -> []
-  R (R (Pi n' _ t b))
-    | n == n'   -> t
-    | otherwise -> t <> b
-  L (ForAll n' t b)
-    | n == n'   -> t
-    | otherwise -> t <> b
-  R (L (Hole n'))
-    | Local n == n' -> [a]
-    | otherwise     -> []
-  R (L Implicit) -> []
