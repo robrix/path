@@ -97,7 +97,7 @@ instance Pretty Operator where
 instance PrettyPrec Operator
 
 
-data Assoc = L | R | Non
+data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
 
 

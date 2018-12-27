@@ -3,11 +3,13 @@ module Path.Renamer where
 
 import Control.Effect
 import Control.Effect.Error
+import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
+import Path.Core
 import Path.Module
 import Path.Name
 import Path.Pretty
@@ -15,24 +17,26 @@ import Path.Surface
 import Path.Term
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-            => Term (Surface Name) Span
-            -> m (Term (Surface QName) Span)
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
+            => Term (Surface (Maybe Name) Name) Span
+            -> m (Term (Surface Name QName) Span)
 resolveTerm (In syn ann) = case syn of
-  Var v -> in' . Var <$> resolveName v ann
-  Lam v b -> do
-    local (insertLocal v) (in' . Lam v <$> resolveTerm b)
-  f :@ a -> in' <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
-  Type -> pure (in' Type)
-  Pi v pi t b -> do
-    in' <$> (Pi v pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  ForAll v t b -> do
-    in' <$> (ForAll v <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  Hole v -> in' . Hole . (:.: v) <$> ask
-  Implicit -> pure (in' Implicit)
+  R (R (Var v)) -> in' . R . R . Var <$> resolveName v ann
+  R (R (Lam v b)) ->
+    local (insertLocal v) (in' . R . R <$> (Lam <$> freshen v <*> resolveTerm b))
+  R (R (f :@ a)) -> in' . R . R <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
+  R (R Type) -> pure (in' (R (R Type)))
+  R (R (Pi v pi t b)) ->
+    in' . R . R <$> (Pi <$> freshen v <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  L (ForAll v t b) ->
+    in' . L <$> (ForAll <$> freshen v <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  L ((u, a) :-> b) ->
+    in' . L <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
+  R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
+  R (L Implicit) -> pure (in' (R (L Implicit)))
   where in' = flip In ann
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface (Maybe Name) Name) Span) -> m (Decl QName (Term (Surface Name QName) Span))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -46,7 +50,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) Span -> m (Module QName (Term (Surface QName) Span) Span)
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface (Maybe Name) Name) Span) -> m (Module QName (Term (Surface Name QName) Span))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -60,8 +64,9 @@ newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty QName) 
 instance Semigroup Resolution where
   Resolution m1 <> Resolution m2 = Resolution (Map.unionWith (fmap nub . (<>)) m1 m2)
 
-insertLocal :: Name -> Resolution -> Resolution
-insertLocal n = Resolution . Map.insert n (Local n:|[]) . unResolution
+insertLocal :: Maybe Name -> Resolution -> Resolution
+insertLocal Nothing  = id
+insertLocal (Just n) = Resolution . Map.insert n (Local n:|[]) . unResolution
 
 insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) . unResolution
@@ -79,6 +84,10 @@ filterResolution f = Resolution . Map.mapMaybe matches . unResolution
 unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => Name -> Span -> NonEmpty QName -> m QName
 unambiguous _ _ (q:|[]) = pure q
 unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
+
+freshen :: (Applicative m, Carrier sig m, Member Fresh sig) => Maybe Name -> m Name
+freshen Nothing  = Gensym <$> fresh
+freshen (Just n) = pure n
 
 
 data ResolveError

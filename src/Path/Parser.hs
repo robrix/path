@@ -19,7 +19,6 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
-import Control.Monad.State
 import qualified Data.HashSet as HashSet
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -34,7 +33,7 @@ import Text.Trifecta.Indentation
 
 type Parser = IndentationParserT Token Inner
 
-newtype Inner a = Inner { runInner :: StateT Int Trifecta.Parser a }
+newtype Inner a = Inner { runInner :: Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
 instance TokenParsing Inner where
@@ -45,10 +44,10 @@ instance TokenParsing Inner where
 
 
 parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> FilePath -> m a
-parseFile p = toError <=< parseFromFileEx (evalStateT (runInner (evalIndentationParserT p indentst)) 0)
+parseFile p = toError <=< parseFromFileEx (runInner (evalIndentationParserT p indentst))
 
 parseString :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> Delta -> String -> m a
-parseString p = fmap toError . Trifecta.parseString (evalStateT (runInner (evalIndentationParserT p indentst)) 0)
+parseString p = fmap toError . Trifecta.parseString (runInner (evalIndentationParserT p indentst))
 
 toError :: (Applicative m, Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a

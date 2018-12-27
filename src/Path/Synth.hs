@@ -21,10 +21,10 @@ synth :: ( Carrier sig m
          , Monad m
          )
       => Type QName
-      -> m (Maybe (Term Core (Resources QName Usage, Type QName)))
+      -> m (Maybe (Term (Core Name QName) (Resources QName Usage, Type QName)))
 synth ty = runNonDetOnce (ask >>= tryInScopeVars ty . Context.filter (const . isLocal))
 
-tryInScopeVars :: (Alternative m, Carrier sig m, Member (Reader Usage) sig, Monad m) => Type QName -> Context -> m (Term Core (Resources QName Usage, Type QName))
+tryInScopeVars :: (Alternative m, Carrier sig m, Member (Reader Usage) sig, Monad m) => Type QName -> Context -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 tryInScopeVars ty = getAlt . foldMap (Alt . uncurry tryVar) . unContext
   where tryVar n ty' = do
           unless (ty `aeq` ty') empty
