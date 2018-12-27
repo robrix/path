@@ -22,13 +22,13 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader M
             -> m (Term (Surface QName) Span)
 resolveTerm (In syn ann) = case syn of
   R (R (Var v)) -> in' . R . R . Var <$> resolveName v ann
-  R (R (Lam v b)) -> do
+  R (R (Lam v b)) ->
     local (insertLocal v) (in' . R . R . Lam v <$> resolveTerm b)
   R (R (f :@ a)) -> in' . R . R <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
   R (R Type) -> pure (in' (R (R Type)))
-  R (R (Pi v pi t b)) -> do
+  R (R (Pi v pi t b)) ->
     in' . R . R <$> (Pi v pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  L (ForAll v t b) -> do
+  L (ForAll v t b) ->
     in' . L <$> (ForAll v <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
   R (L Implicit) -> pure (in' (R (L Implicit)))
