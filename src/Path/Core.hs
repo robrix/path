@@ -21,6 +21,11 @@ data (f :+: g) a
   | R (g a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+data Implicit a
+  = Hole QName
+  | Implicit
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
 instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core (Term Core a)) where
   prettyPrec d = \case
     Var n -> pretty n
