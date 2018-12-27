@@ -8,6 +8,7 @@ import Control.Effect.State
 import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
+import Path.Core
 import Path.Module
 import Path.Name
 import Path.Pretty
@@ -20,17 +21,17 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader M
             => Term (Surface Name) Span
             -> m (Term (Surface QName) Span)
 resolveTerm (In syn ann) = case syn of
-  Var v -> in' . Var <$> resolveName v ann
-  Lam v b -> do
-    local (insertLocal v) (in' . Lam v <$> resolveTerm b)
-  f :@ a -> in' <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
-  Type -> pure (in' Type)
-  Pi v pi t b -> do
-    in' <$> (Pi v pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  ForAll v t b -> do
-    in' <$> (ForAll v <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  Hole v -> in' . Hole . (:.: v) <$> ask
-  Implicit -> pure (in' Implicit)
+  R (R (Var v)) -> in' . R . R . Var <$> resolveName v ann
+  R (R (Lam v b)) -> do
+    local (insertLocal v) (in' . R . R . Lam v <$> resolveTerm b)
+  R (R (f :@ a)) -> in' . R . R <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
+  R (R Type) -> pure (in' (R (R Type)))
+  R (R (Pi v pi t b)) -> do
+    in' . R . R <$> (Pi v pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  L (ForAll v t b) -> do
+    in' . L <$> (ForAll v <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
+  R (L Implicit) -> pure (in' (R (L Implicit)))
   where in' = flip In ann
 
 resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))

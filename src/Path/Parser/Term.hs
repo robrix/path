@@ -30,7 +30,7 @@ reann = fmap respan . spanned
 
 application = atom `chainl1` pure (Surface.#) <?> "function application"
 
-type' = ann (Surface.Type <$ keyword "Type")
+type' = ann (Surface.type' <$ keyword "Type")
 
 forAll = reann (do
   (v, ty) <- op "∀" *> binding <* dot
@@ -47,7 +47,7 @@ functionType = (,,) <$ push <*> freshName <*> multiplicity <*> application <**> 
                 <|> forAll
           where arrow v t' t = (v, More, t) Surface.--> t'
 
-var = ann (Surface.Var <$> name <?> "variable")
+var = ann (Surface.var <$> name <?> "variable")
 
 lambda = reann (do
   vs <- op "\\" *> patterns <* dot
@@ -57,9 +57,9 @@ lambda = reann (do
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
-hole = ann (Surface.Hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
+hole = ann (Surface.hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
-implicit = ann (Surface.Implicit <$ token (char '_'))
+implicit = ann (Surface.implicit <$ token (char '_'))
 
 atom = var <|> type' <|> lambda <|> parens term <|> hole <|> implicit
 

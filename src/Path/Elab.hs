@@ -36,24 +36,24 @@ elab :: ( Carrier sig m
      -> Maybe (Type QName)
      -> m (Term (Core QName) (Resources QName Usage, Type QName))
 elab (In out span) ty = case (out, ty) of
-  (ForAll n t b, Nothing) -> do
+  (L (ForAll n t b), Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
     pure (In (Core.Pi n Zero t' b') (Resources.empty, Value.Type))
-  (Surface.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
-  (Surface.Pi n e t b, Nothing) -> do
+  (R (R Core.Type), Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
+  (R (R (Core.Pi n e t b)), Nothing) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
     pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
-  (Surface.Var n, Nothing) -> do
+  (R (R (Var n)), Nothing) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
     case res of
       Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
       _      -> throwError (FreeVariable n span)
-  (f Surface.:@ a, Nothing) -> do
+  (R (R (f :@ a)), Nothing) -> do
     f' <- infer f
     case ann f' of
       (g1, Value.Pi n pi t t') -> do
@@ -63,7 +63,7 @@ elab (In out span) ty = case (out, ty) of
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
   (tm, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (In tm span) (Context.filter (const . isLocal) ctx) span)
-  (Surface.Lam n e, Just (Value.Pi tn pi t t')) -> do
+  (R (R (Core.Lam n e)), Just (Value.Pi tn pi t t')) -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
@@ -71,7 +71,7 @@ elab (In out span) ty = case (out, ty) of
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
     pure (In (Core.Lam n e') (Resources.delete (Local n) res, Value.Pi tn pi t t'))
-  (Surface.Hole n, Just ty) -> do
+  (R (L (Hole n)), Just ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
   (tm, Just ty) -> do
