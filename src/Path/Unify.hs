@@ -26,8 +26,8 @@ unify span = check
           (Type, Pi n1 u1 t1 b1, Pi n2 u2 t2 b2) -> do
             n <- freshName
             t <- check Type t1 t2
-            Pi n (u1 `max` u2) t
-              <$> local (Context.insert (Local n) t) (check Type b1 b2)
+            Pi n (u1 `max` u2) t <$> local (Context.insert (Local n) t)
+              (check Type (subst (Local n1) (vfree (Local n)) b1) (subst (Local n2) (vfree (Local n)) b2))
           (ty1, Neutral e1 h1, Neutral e2 h2) -> do
             (e, h, ty2) <- infer e1 h1 e2 h2
             void $ check Type ty1 ty2
