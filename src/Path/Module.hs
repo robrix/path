@@ -26,7 +26,7 @@ data Module v a = Module
   , moduleImports :: [Import]
   , moduleDecls   :: [Decl v a]
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 data Import = Import { importModuleName :: ModuleName, importAnn :: Span }
   deriving (Eq, Ord, Show)
