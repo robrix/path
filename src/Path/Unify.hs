@@ -41,6 +41,13 @@ unify span = check
         infer e1 h1 e2 h2 = case (e1, h1, e2, h2) of
           (Nil, n1, Nil, n2)
             | n1 == n2 -> asks (Context.lookup n1) >>= maybe (throwError (FreeVariable n1 span)) (pure . (Nil, n1, ))
+          (as1 :> a1, n1, as2 :> a2, n2) -> do
+              (as, n, ty) <- infer as1 n1 as2 n2
+              case ty of
+                Pi tn _ t t' -> do
+                  a <- check t a1 a2
+                  pure (as :> a, n, subst (Local tn) a t') -- FIXME: unify the resource reqs
+                _ -> throwError (IllegalApplication ty span)
           _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 bind :: Name -> Name -> Name -> Env -> Env
