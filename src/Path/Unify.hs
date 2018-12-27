@@ -21,14 +21,12 @@ unify span = check
           (Type, Type, Type) -> pure Type
           (Pi tn _ t b, Lam n1 b1, Lam n2 b2) -> do
             n <- freshName
-            Lam n <$> local (bind n1 n2 n)
-              (local (Context.insert (Local tn) t) (check b b1 b2))
+            Lam n <$> local (Context.insert (Local tn) t) (check b b1 b2)
           (Type, Pi n1 u1 t1 b1, Pi n2 u2 t2 b2) -> do
             n <- freshName
-            Pi n (u1 `max` u2)
-              <$> check Type t1 t2
-              <*> local (bind n1 n2 n)
-                (check Type b1 b2)
+            t <- check Type t1 t2
+            Pi n (u1 `max` u2) t
+              <$> check Type b1 b2
           (ty1, Neutral e1 h1, Neutral e2 h2) -> do
             (e, h, ty2) <- infer e1 h1 e2 h2
             void $ check Type ty1 ty2
@@ -49,10 +47,6 @@ unify span = check
                   pure (as :> a, n, subst (Local tn) a t') -- FIXME: unify the resource reqs
                 _ -> throwError (IllegalApplication ty span)
           _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
-
-bind :: Name -> Name -> Name -> Env -> Env
-bind n1 n2 n = Env.insert (Local n1) n' . Env.insert (Local n2) n'
-  where n' = vfree (Local n)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
