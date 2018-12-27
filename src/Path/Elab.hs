@@ -8,7 +8,8 @@ import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
-import Data.Maybe (listToMaybe)
+import Data.Maybe (catMaybes, listToMaybe)
+import Data.Traversable (for)
 import Path.Context as Context
 import Path.Core as Core
 import Path.Env as Env
@@ -114,14 +115,15 @@ elabModule :: ( Carrier sig m
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m ()
+           -> m (Module QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
 elabModule m = do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
     modify (Context.union ctx)
     modify (Env.union env)
 
-  for_ (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
+  decls <- for (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
+  pure m { moduleDecls = catMaybes decls }
 
 logError :: (Carrier sig m, Member (State [ElabError]) sig, Monad m) => ElabError -> m ()
 logError = modify . (:)
