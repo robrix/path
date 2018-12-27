@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, TupleSections #-}
 module Path.Unify where
 
 import Control.Effect
@@ -40,7 +40,7 @@ unify span = check
 
         infer t1 t2 = case (t1, t2) of
           (Neutral Nil n1, Neutral Nil n2)
-            | n1 == n2 -> asks (Context.lookup n1) >>= maybe (throwError (FreeVariable n1 span)) (pure . (,) (vfree n1))
+            | n1 == n2 -> asks (Context.lookup n1) >>= maybe (throwError (FreeVariable n1 span)) (pure . (vfree n1, ))
           _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 bind :: Name -> Name -> Name -> Env -> Env
