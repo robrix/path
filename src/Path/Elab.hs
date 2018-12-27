@@ -96,7 +96,7 @@ check (In tm span) ty = vforce ty >>= \ ty -> case (tm, ty) of
     throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
   (tm, ty) -> do
     v <- infer (In tm span)
-    ty' <- unify span Value.Type (snd (ann v)) ty
+    ty' <- equate span Value.Type (snd (ann v)) ty
     pure (In (out v) (fst (ann v), ty'))
 
 
