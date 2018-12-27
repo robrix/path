@@ -41,8 +41,8 @@ piType = reann (do
   (v, mult, ty) <- braces ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
   (Surface.piType (v, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
 
-functionType = (,) <$ push <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
-                <|> push *> application <**> (arrow <$ op "->" <*> functionType <|> pure id) <* pop
+functionType = (,) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+                <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
                 <|> forAll
           where arrow t' t = (More, t) Surface.--> t'
@@ -53,7 +53,7 @@ lambda = reann (do
   vs <- op "\\" *> patterns <* dot
   bind vs) <?> "lambda"
   where pattern = spanned (Just <$> name <|> Nothing <$ token (string "_")) <?> "pattern"
-        patterns = (:) <$ push <*> pattern <*> (patterns <|> pure []) <* pop
+        patterns = (:) <$> pattern <*> (patterns <|> pure [])
         bind [] = term
         bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
 
