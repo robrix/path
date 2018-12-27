@@ -17,7 +17,7 @@ import Text.Trifecta.Rendering (Span)
 
 unify :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> Type QName -> m (Type QName)
 unify span = check
-  where check ty t1 t2 = case (ty, t1, t2) of
+  where check ty tm1 tm2 = case (ty, tm1, tm2) of
           (Type, Type, Type) -> pure Type
           (Pi tn _ t b, t1, t2) -> do
             n <- freshName
