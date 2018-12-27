@@ -39,7 +39,7 @@ forAll = reann (do
 
 piType = reann (do
   (v, mult, ty) <- braces ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  ((v, fromMaybe More mult, ty) Surface.-->) <$> functionType) <?> "dependent function type"
+  (Surface.piType (v, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
 
 functionType = (,,) <$ push <*> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
                 <|> push *> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id) <* pop

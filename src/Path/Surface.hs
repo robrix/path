@@ -17,6 +17,11 @@ data Sugar v a
 
 infixr 0 -->
 
+piType :: Semigroup ann => (Name, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+(n, e, a) `piType` b = In (R (R (Pi n e a b))) (ann a <> ann b)
+
+infixr 0 `piType`
+
 forAll :: Semigroup ann => (Name, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
 forAll (n, a) b = In (L (ForAll n a b)) (ann a <> ann b)
 
