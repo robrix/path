@@ -62,7 +62,7 @@ infer (In out span) = case out of
         let (g2, _) = ann a'
         a'' <- eval a'
         pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
-      _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
+      _ -> throwError (IllegalApplication (snd (ann f')) (ann f))
   _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 check :: ( Carrier sig m
