@@ -19,9 +19,10 @@ unify :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member 
 unify span = check
   where check ty t1 t2 = case (ty, t1, t2) of
           (Type, Type, Type) -> pure Type
-          (Pi tn _ t b, Lam n1 b1, Lam n2 b2) -> do
+          (Pi tn _ t b, t1, t2) -> do
             n <- freshName
-            Lam n <$> local (Context.insert (Local tn) t) (check b b1 b2)
+            Lam n <$> local (Context.insert (Local n) t)
+              (check b (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n)))
           (Type, Pi n1 u1 t1 b1, Pi n2 u2 t2 b2) -> do
             n <- freshName
             t <- check Type t1 t2
