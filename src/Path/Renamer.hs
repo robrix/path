@@ -18,8 +18,8 @@ import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-            => Term (Surface Name) Span
-            -> m (Term (Surface QName) Span)
+            => Term (Surface Name Name) Span
+            -> m (Term (Surface Name QName) Span)
 resolveTerm (In syn ann) = case syn of
   R (R (Var v)) -> in' . R . R . Var <$> resolveName v ann
   R (R (Lam v b)) ->
@@ -36,7 +36,7 @@ resolveTerm (In syn ann) = case syn of
   R (L Implicit) -> pure (in' (R (L Implicit)))
   where in' = flip In ann
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name) Span) -> m (Decl QName (Term (Surface QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface Name Name) Span) -> m (Decl QName (Term (Surface Name QName) Span))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -50,7 +50,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name) Span) -> m (Module QName (Term (Surface QName) Span))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface Name Name) Span) -> m (Module QName (Term (Surface Name QName) Span))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))

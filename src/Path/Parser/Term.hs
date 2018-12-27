@@ -14,8 +14,8 @@ import Text.Trifecta
 import Text.Trifecta.Indentation
 import Text.Parser.Token.Highlight
 
-type', var, hole, implicit :: DeltaParsing m => m (Term (Surface.Surface Name) Span)
-term, application, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name) Span)
+type', var, hole, implicit :: DeltaParsing m => m (Term (Surface.Surface Name Name) Span)
+term, application, piType, functionType, forAll, lambda, atom :: (DeltaParsing m, MonadFresh m) => m (Term (Surface.Surface Name Name) Span)
 
 term = functionType
 

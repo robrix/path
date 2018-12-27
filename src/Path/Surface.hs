@@ -6,40 +6,40 @@ import Path.Name
 import Path.Term
 import Path.Usage
 
-type Surface v = Sugar Name :+: Implicit v :+: Core v
+type Surface b v = Sugar b :+: Implicit v :+: Core v
 
 data Sugar b a
   = ForAll b a a
   | (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-(-->) :: Semigroup ann => (Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+(-->) :: Semigroup ann => (Usage, Term (Surface Name v) ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
 (e, a) --> b = In (L ((e, a) :-> b)) (ann a <> ann b)
 
 infixr 0 -->
 
-piType :: Semigroup ann => (Name, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+piType :: Semigroup ann => (Name, Usage, Term (Surface Name v) ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
 (n, e, a) `piType` b = In (R (R (Pi n e a b))) (ann a <> ann b)
 
 infixr 0 `piType`
 
-forAll :: Semigroup ann => (Name, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+forAll :: Semigroup ann => (Name, Term (Surface Name v) ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
 forAll (n, a) b = In (L (ForAll n a b)) (ann a <> ann b)
 
-lam :: Semigroup ann => (Name, ann) -> Term (Surface v) ann -> Term (Surface v) ann
+lam :: Semigroup ann => (Name, ann) -> Term (Surface Name v) ann -> Term (Surface Name v) ann
 lam (n, a) b = In (R (R (Lam n b))) (a <> ann b)
 
-(#) :: Semigroup ann => Term (Surface v) ann -> Term (Surface v) ann -> Term (Surface v) ann
+(#) :: Semigroup ann => Term (Surface Name v) ann -> Term (Surface Name v) ann -> Term (Surface Name v) ann
 f # a = In (R (R (f :@ a))) (ann f <> ann a)
 
-type' :: Surface v a
+type' :: Surface b v a
 type' = R (R Type)
 
-implicit :: Surface v a
+implicit :: Surface b v a
 implicit = R (L Implicit)
 
-var :: v -> Surface v a
+var :: v -> Surface b v a
 var = R . R . Var
 
-hole :: v -> Surface v a
+hole :: v -> Surface b v a
 hole = R . L . Hole
