@@ -41,11 +41,11 @@ piType = reann (do
   (v, mult, ty) <- braces ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
   (Surface.piType (v, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
 
-functionType = (,,) <$ push <*> freshName <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
-                <|> push *> application <**> (arrow <$ op "->" <*> freshName <*> functionType <|> pure id) <* pop
+functionType = (,) <$ push <*> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType) <* pop
+                <|> push *> application <**> (arrow <$ op "->" <*> functionType <|> pure id) <* pop
                 <|> piType
                 <|> forAll
-          where arrow v t' t = (v, More, t) Surface.--> t'
+          where arrow t' t = (More, t) Surface.--> t'
 
 var = ann (Surface.var <$> name <?> "variable")
 

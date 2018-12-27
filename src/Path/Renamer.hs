@@ -30,6 +30,8 @@ resolveTerm (In syn ann) = case syn of
     in' . R . R <$> (Pi v pi <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   L (ForAll v t b) ->
     in' . L <$> (ForAll v <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  L ((u, a) :-> b) ->
+    in' . L <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
   R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
   R (L Implicit) -> pure (in' (R (L Implicit)))
   where in' = flip In ann

@@ -10,10 +10,11 @@ type Surface v = Sugar v :+: Implicit v :+: Core v
 
 data Sugar v a
   = ForAll Name a a
+  | (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-(-->) :: Semigroup ann => (Name, Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
-(n, e, a) --> b = In (R (R (Pi n e a b))) (ann a <> ann b)
+(-->) :: Semigroup ann => (Usage, Term (Surface v) ann) -> Term (Surface v) ann -> Term (Surface v) ann
+(e, a) --> b = In (L ((e, a) :-> b)) (ann a <> ann b)
 
 infixr 0 -->
 
