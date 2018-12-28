@@ -26,78 +26,6 @@ import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
-inferEq :: ( Carrier sig m
-           , Effect sig
-           , Member (Error ElabError) sig
-           , Member Fresh sig
-           , Member (Reader Context) sig
-           , Member (Reader Env) sig
-           , Member (Reader Usage) sig
-           , Monad m
-           )
-        => Term (Implicit QName :+: Core Name QName) Span
-        -> Term (Implicit QName :+: Core Name QName) Span
-        -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-inferEq (In out1 span1) (In out2 _) = case (out1, out2) of
-  (R Core.Type, R Core.Type) -> pure (In Core.Type (mempty, Value.Type))
-  (R (Core.Pi n1 e1 t1 b1), R (Core.Pi n2 e2 t2 b2)) | n1 == n2 -> do
-    t' <- checkEq t1 t2 Value.Type
-    t'' <- eval t'
-    b' <- local (Context.insert (Local n1) t'') (checkEq b1 b2 Value.Type)
-    pure (In (Core.Pi n1 (e1 `max` e2) t' b') (mempty, Value.Type))
-  (R (Core.Var n1), R (Core.Var n2)) | n1 == n2 -> do
-    res <- asks (Context.lookup n1)
-    sigma <- ask
-    case res of
-      Just t -> pure (In (Core.Var n1) (Resources.singleton n1 sigma, t))
-      _      -> throwError (FreeVariable n1 span1)
-  (R (f1 :@ a1), R (f2 :@ a2)) -> do
-    f' <- inferEq f1 f2
-    case ann f' of
-      (g1, Value.Pi n pi t t') -> do
-        a' <- checkEq a1 a2 t
-        let (g2, _) = ann a'
-        a'' <- eval a'
-        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
-      _ -> throwError (IllegalApplication (snd (ann f')) (ann f1))
-  _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span1)
-
-checkEq :: ( Carrier sig m
-           , Effect sig
-           , Member (Error ElabError) sig
-           , Member Fresh sig
-           , Member (Reader Context) sig
-           , Member (Reader Env) sig
-           , Member (Reader Usage) sig
-           , Monad m
-           )
-        => Term (Implicit QName :+: Core Name QName) Span
-        -> Term (Implicit QName :+: Core Name QName) Span
-        -> Type QName
-        -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-checkEq (In tm1 span1) (In tm2 span2) ty = vforce ty >>= \ ty -> case (tm1, tm2, ty) of
-  (L Core.Implicit, L Core.Implicit, ty) -> do
-    synthesized <- synth ty
-    ctx <- ask
-    maybe (throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span1)) pure synthesized
-  (R (Core.Lam n1 e1), R (Core.Lam n2 e2), Value.Pi tn pi t t') | n1 == n2 -> do
-    e' <- local (Context.insert (Local n1) t) (checkEq e1 e2 (subst (Local tn) (vfree (Local n1)) t'))
-    let res = fst (ann e')
-        used = Resources.lookup (Local n1) res
-    sigma <- ask
-    unless (sigma >< pi == More) . when (pi /= used) $
-      throwError (ResourceMismatch n1 pi used span1 (uses n1 e1))
-    pure (In (Core.Lam n1 e') (Resources.delete (Local n1) res, ty))
-  (L (Core.Hole n1), L (Core.Hole n2), ty) | n1 == n2 -> do
-    ctx <- ask
-    throwError (TypedHole n1 ty (Context.filter (const . isLocal) ctx) span1)
-  (tm1, tm2, ty) -> do
-    v <- inferEq (In tm1 span1) (In tm2 span2)
-    actual <- vforce (snd (ann v))
-    unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span1))
-    pure v
-
-
 infer :: ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
@@ -109,7 +37,29 @@ infer :: ( Carrier sig m
          )
       => Term (Implicit QName :+: Core Name QName) Span
       -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-infer tm = inferEq tm tm
+infer (In out span) = case out of
+  R Core.Type -> pure (In Core.Type (mempty, Value.Type))
+  R (Core.Pi n e t b) -> do
+    t' <- check t Value.Type
+    t'' <- eval t'
+    b' <- local (Context.insert (Local n) t'') (check b Value.Type)
+    pure (In (Core.Pi n e t' b') (mempty, Value.Type))
+  R (Core.Var n) -> do
+    res <- asks (Context.lookup n)
+    sigma <- ask
+    case res of
+      Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
+      _      -> throwError (FreeVariable n span)
+  R (f :@ a) -> do
+    f' <- infer f
+    case ann f' of
+      (g1, Value.Pi n pi t t') -> do
+        a' <- check a t
+        let (g2, _) = ann a'
+        a'' <- eval a'
+        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
+      _ -> throwError (IllegalApplication (snd (ann f')) (ann f))
+  _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 
 check :: ( Carrier sig m
          , Effect sig
@@ -123,7 +73,27 @@ check :: ( Carrier sig m
       => Term (Implicit QName :+: Core Name QName) Span
       -> Type QName
       -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-check tm = checkEq tm tm
+check (In tm span) ty = vforce ty >>= \ ty -> case (tm, ty) of
+  (L Core.Implicit, ty) -> do
+    synthesized <- synth ty
+    ctx <- ask
+    maybe (throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)) pure synthesized
+  (R (Core.Lam n e), Value.Pi tn pi t t') -> do
+    e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
+    let res = fst (ann e')
+        used = Resources.lookup (Local n) res
+    sigma <- ask
+    unless (sigma >< pi == More) . when (pi /= used) $
+      throwError (ResourceMismatch n pi used span (uses n e))
+    pure (In (Core.Lam n e') (Resources.delete (Local n) res, ty))
+  (L (Core.Hole n), ty) -> do
+    ctx <- ask
+    throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
+  (tm, ty) -> do
+    v <- infer (In tm span)
+    actual <- vforce (snd (ann v))
+    unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span))
+    pure v
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
