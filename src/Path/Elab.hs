@@ -8,6 +8,7 @@ import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back
@@ -18,6 +19,7 @@ import Path.Error
 import Path.Eval
 import Path.Module
 import Path.Name
+import Path.Plicity
 import Path.Resources as Resources
 import Path.Semiring
 import Path.Synth
@@ -162,9 +164,13 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elabDeclare name ty = do
-  ty' <- runReader Zero (runContext (runEnv (check Value.Type ty)))
+  ty' <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
   ty'' <- runEnv (eval ty')
   ty' <$ modify (Context.insert name ty'')
+  where generalize ty = do
+          ctx <- ask
+          pure (foldr bind ty (foldMap (\case { Local v -> Set.singleton v ; _ -> mempty }) (fvs ty Set.\\ Context.boundVars ctx)))
+        bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
 elabDefine :: ( Carrier sig m
               , Effect sig
