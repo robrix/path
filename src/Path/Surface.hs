@@ -29,8 +29,8 @@ forAll (n, a) b = In (L (ForAll n a b)) (ann a <> ann b)
 lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
 lam (n, a) b = In (R (R (Lam n b))) (a <> ann b)
 
-(#) :: Semigroup ann => Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-f # a = In (R (R (f :$ a))) (ann f <> ann a)
+($$) :: Semigroup ann => Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
+f $$ a = In (R (R (f :$ a))) (ann f <> ann a)
 
 type' :: Surface b v a
 type' = R (R Type)

@@ -25,7 +25,7 @@ reann = fmap respan . spanned
   where respan (In f _ :~ a) = In f a
 
 
-application = atom `chainl1` pure (Surface.#) <?> "function application"
+application = atom `chainl1` pure (Surface.$$) <?> "function application"
 
 type' = ann (Surface.type' <$ keyword "Type")
 
