@@ -68,6 +68,11 @@ instance Ord v => FreeVariables1 v (Implicit v) where
     Hole v -> Set.singleton v
     Implicit -> mempty
 
+instance (FreeVariables1 v f, FreeVariables1 v g, Ord v) => FreeVariables1 v (f :+: g) where
+  liftFvs fvs = \case
+    L f -> liftFvs fvs f
+    R g -> liftFvs fvs g
+
 uses :: Name -> Term (Implicit QName :+: Core Name QName) a -> [a]
 uses n = cata $ \ f a -> case f of
   R (Var n')
