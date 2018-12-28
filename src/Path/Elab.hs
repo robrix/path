@@ -50,14 +50,14 @@ infer (In out span) = case out of
     case res of
       Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
       _      -> throwError (FreeVariable n span)
-  R (f :@ a) -> do
+  R (f :$ a) -> do
     f' <- infer f
     case ann f' of
       (g1, Value.Pi n pi t t') -> do
         a' <- check a t
         let (g2, _) = ann a'
         a'' <- eval a'
-        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
+        pure (In (f' Core.:$ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (snd (ann f')) (ann f))
   _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
 

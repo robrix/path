@@ -17,7 +17,7 @@ eval = \case
     | isLocal n -> fromMaybe (vfree n) <$> asks (Env.lookup n)
     | otherwise -> pure (vfree n)
   In (Core.Lam n b) _ -> Value.Lam n <$> local (Env.insert (Local n) (vfree (Local n))) (eval b)
-  In (f :@ a) _ -> vapp <$> eval f <*> eval a
+  In (f :$ a) _ -> vapp <$> eval f <*> eval a
   In Core.Type _ -> pure (Value.Type)
   In (Core.Pi n e ty b) _ -> Value.Pi n e <$> eval ty <*> local (Env.insert (Local n) (vfree (Local n))) (eval b)
 

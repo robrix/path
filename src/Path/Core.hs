@@ -10,7 +10,7 @@ import Path.Usage
 data Core b v a
   = Var v
   | Lam b a
-  | a :@ a
+  | a :$ a
   | Type
   | Pi b Usage a a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -36,9 +36,9 @@ instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core Name QName (T
               _                -> line <> cyan dot <+> prettyPrec 0 b
             var v b | Local v `Set.member` fvs b = pretty v
                     | otherwise                  = pretty '_'
-    f :@ a -> prettyParens (d > 10) $ group (align (nest 2 (go f a)))
+    f :$ a -> prettyParens (d > 10) $ group (align (nest 2 (go f a)))
       where go f a = case f of
-              In (f' :@ a') _ -> go f' a' </> prettyPrec 11 a
+              In (f' :$ a') _ -> go f' a' </> prettyPrec 11 a
               _               -> prettyPrec 10 f </> prettyPrec 11 a
     Type -> yellow (pretty "Type")
     Pi v pi t b
@@ -55,7 +55,7 @@ instance FreeVariables1 QName (Core Name QName) where
   liftFvs fvs = \case
     Var v -> Set.singleton v
     Lam v b -> Set.delete (Local v) (fvs b)
-    f :@ a -> fvs f <> fvs a
+    f :$ a -> fvs f <> fvs a
     Type -> Set.empty
     Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
 
@@ -68,7 +68,7 @@ uses n = cata $ \ f a -> case f of
   R (Lam n' b)
     | n == n'   -> []
     | otherwise -> b
-  R (f :@ a) -> f <> a
+  R (f :$ a) -> f <> a
   R Type -> []
   R (Pi n' _ t b)
     | n == n'   -> t
