@@ -44,7 +44,7 @@ infer (In out span) = case out of
   R (Core.Pi n i e t b) -> do
     t' <- check Value.Type t
     t'' <- eval t'
-    b' <- local (Context.insert (Local n) t'') (check Value.Type b)
+    b' <- (n, t'') |- check Value.Type b
     pure (In (Core.Pi n i e t' b') (mempty, Value.Type))
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
@@ -81,7 +81,7 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     ctx <- ask
     maybe (throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)) pure synthesized
   (R (Core.Lam n e), Value.Pi tn _ pi t t') -> do
-    e' <- local (Context.insert (Local n) t) (check (subst (Local tn) (vfree (Local n)) t') e)
+    e' <- (n, t) |- check (subst (Local tn) (vfree (Local n)) t') e
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
     sigma <- ask
@@ -96,6 +96,9 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     actual <- vforce (snd (ann v))
     unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span))
     pure v
+
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => (Name, Type QName) -> m a -> m a
+(n, t) |- m = local (Context.insert (Local n) t) m
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
