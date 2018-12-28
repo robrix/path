@@ -63,6 +63,10 @@ instance FreeVariables1 QName (Core Name QName) where
     Type -> Set.empty
     Pi v _ _ t b -> fvs t <> Set.delete (Local v) (fvs b)
 
+instance Ord v => FreeVariables1 v (Implicit v) where
+  liftFvs _ = \case
+    Hole v -> Set.singleton v
+    Implicit -> mempty
 
 uses :: Name -> Term (Implicit QName :+: Core Name QName) a -> [a]
 uses n = cata $ \ f a -> case f of
