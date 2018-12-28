@@ -6,6 +6,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Pretty
 import Path.Usage
+import Text.Trifecta.Rendering (Span)
 
 data Name
   = Name String
@@ -127,3 +128,6 @@ instance Ord v => FreeVariables v (Set.Set v) where
 
 instance Ord v => FreeVariables v Usage where
   fvs _ = Set.empty
+
+instance Ord v => FreeVariables v Span where
+  fvs _ = mempty
