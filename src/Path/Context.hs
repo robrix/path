@@ -10,7 +10,8 @@ import Path.Value
 
 type Type = Value
 
-data Typed a = a ::: Type QName 
+data Typed a = a ::: Type QName
+  deriving (Eq, Ord, Show)
 
 newtype Context = Context { unContext :: Back (QName, Type QName) }
   deriving (Eq, Ord, Show)
