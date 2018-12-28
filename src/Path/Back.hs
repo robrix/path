@@ -19,11 +19,7 @@ instance Monoid (Back a) where
 
 
 lookup :: Eq a => a -> Back (a, b) -> Maybe b
-lookup k = \case
-  b :> (k', v)
-    | k == k'   -> Just v
-    | otherwise -> lookup k b
-  Nil           -> Nothing
+lookup k = fmap snd . find ((== k) . fst)
 
 
 find :: (a -> Bool) -> Back a -> Maybe a
