@@ -7,8 +7,6 @@ import Path.Name
 import Path.Term
 import Text.Trifecta.Rendering (Span)
 
-data Constraint = Constraint
-  { constraintLhs     :: Term (Implicit QName :+: Core Name QName) Span
-  , constraintRhs     :: Term (Implicit QName :+: Core Name QName) Span
-  , constraintType    :: Type QName
-  }
+data Equation = Term (Implicit QName :+: Core Name QName) Span :==: Term (Implicit QName :+: Core Name QName) Span
+
+data Constraint = Equation ::: Type QName
