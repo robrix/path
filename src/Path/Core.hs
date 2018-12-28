@@ -3,6 +3,7 @@ module Path.Core where
 
 import qualified Data.Set as Set
 import Path.Name
+import Path.Plicity
 import Path.Pretty
 import Path.Term
 import Path.Usage
@@ -12,7 +13,7 @@ data Core b v a
   | Lam b a
   | a :$ a
   | Type
-  | Pi b Usage a a
+  | Pi b Plicity Usage a a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 data (f :+: g) a
@@ -41,14 +42,17 @@ instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core Name QName (T
               In (f' :$ a') _ -> go f' a' </> prettyPrec 11 a
               _               -> prettyPrec 10 f </> prettyPrec 11 a
     Type -> yellow (pretty "Type")
-    Pi v pi t b
+    Pi v ie pi t b
       | Local v `Set.member` fvs b -> case pi of
         Zero -> prettyParens (d > 1) $ align (group (cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 2 t <> line <> cyan dot <+> prettyPrec 1 b))
-        _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
+        _    -> prettyParens (d > 1) $ withIe (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
       | otherwise                  -> prettyParens (d > 1) $ withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
       where withPi
               | pi == More = id
               | otherwise  = (pretty pi <+>)
+            withIe
+              | ie == Im  = prettyBraces True
+              | otherwise = prettyParens True
             arrow = blue (pretty "->")
 
 instance FreeVariables1 QName (Core Name QName) where
@@ -57,7 +61,7 @@ instance FreeVariables1 QName (Core Name QName) where
     Lam v b -> Set.delete (Local v) (fvs b)
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
-    Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
+    Pi v _ _ t b -> fvs t <> Set.delete (Local v) (fvs b)
 
 
 uses :: Name -> Term (Implicit QName :+: Core Name QName) a -> [a]
@@ -70,7 +74,7 @@ uses n = cata $ \ f a -> case f of
     | otherwise -> b
   R (f :$ a) -> f <> a
   R Type -> []
-  R (Pi n' _ t b)
+  R (Pi n' _ _ t b)
     | n == n'   -> t
     | otherwise -> t <> b
   L (Hole n')

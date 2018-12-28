@@ -3,6 +3,7 @@ module Path.Surface where
 
 import Path.Core
 import Path.Name
+import Path.Plicity
 import Path.Term
 import Path.Usage
 
@@ -19,7 +20,7 @@ data Sugar b a
 infixr 0 -->
 
 piType :: Semigroup ann => (Maybe Name, Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-(n, e, a) `piType` b = In (R (R (Pi n e a b))) (ann a <> ann b)
+(n, e, a) `piType` b = In (R (R (Pi n Ex e a b))) (ann a <> ann b)
 
 infixr 0 `piType`
 

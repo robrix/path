@@ -39,11 +39,11 @@ infer :: ( Carrier sig m
       -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 infer (In out span) = case out of
   R Core.Type -> pure (In Core.Type (mempty, Value.Type))
-  R (Core.Pi n e t b) -> do
+  R (Core.Pi n i e t b) -> do
     t' <- check t Value.Type
     t'' <- eval t'
     b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi n e t' b') (mempty, Value.Type))
+    pure (In (Core.Pi n i e t' b') (mempty, Value.Type))
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
@@ -53,7 +53,7 @@ infer (In out span) = case out of
   R (f :$ a) -> do
     f' <- infer f
     case ann f' of
-      (g1, Value.Pi n pi t t') -> do
+      (g1, Value.Pi n _ pi t t') -> do
         a' <- check a t
         let (g2, _) = ann a'
         a'' <- eval a'
@@ -78,7 +78,7 @@ check (In tm span) ty = vforce ty >>= \ ty -> case (tm, ty) of
     synthesized <- synth ty
     ctx <- ask
     maybe (throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)) pure synthesized
-  (R (Core.Lam n e), Value.Pi tn pi t t') -> do
+  (R (Core.Lam n e), Value.Pi tn _ pi t t') -> do
     e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
