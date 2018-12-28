@@ -9,4 +9,4 @@ import Text.Trifecta.Rendering (Span)
 
 data Equation = Term (Implicit QName :+: Core Name QName) Span :==: Term (Implicit QName :+: Core Name QName) Span
 
-data Constraint = Equation ::: Type QName
+type Constraint = Typed Equation
