@@ -13,7 +13,7 @@ data Value a
   = Type                               -- ^ @'Type' : 'Type'@.
   | Lam Name                 (Value a) -- ^ A lambda abstraction.
   | Pi  Name Usage (Value a) (Value a) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Neutral (Back (Value a)) a         -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
+  | Back (Value a) :& a                -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
   deriving (Eq, Ord, Show)
 
 instance PrettyPrec (Value QName) where
@@ -25,8 +25,8 @@ instance PrettyPrec (Value QName) where
               _         -> line <> cyan dot <+> prettyPrec 0 b
             var v b | Local v `Set.member` fvs b = pretty v
                     | otherwise                  = pretty '_'
-    Neutral Nil f -> pretty f
-    Neutral as f -> prettyParens (d > 10) $ group (nest 2 (pretty f </> align (vsep (map (prettyPrec 11) (toList as)))))
+    Nil :& f -> pretty f
+    as :& f -> prettyParens (d > 10) $ group (nest 2 (pretty f </> align (vsep (map (prettyPrec 11) (toList as)))))
     Pi v pi t b
       | Local v `Set.member` fvs b -> case pi of
         Zero -> prettyParens (d > 1) $ align (group (cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 2 t <> line <> cyan dot <+> prettyPrec 1 b))
@@ -45,15 +45,15 @@ instance FreeVariables QName (Value QName) where
     Type -> mempty
     Lam v b -> Set.delete (Local v) (fvs b)
     Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
-    Neutral a f -> foldMap fvs a <> Set.singleton f
+    a :& f -> foldMap fvs a <> Set.singleton f
 
 vfree :: a -> Value a
-vfree = Neutral Nil
+vfree = (Nil :&)
 
 vapp :: Value QName -> Value QName -> Value QName
 vapp (Lam n b) v = subst (Local n) v b
 vapp (Pi n _ _ b) v = subst (Local n) v b
-vapp (Neutral vs n) v = Neutral (vs :> v) n
+vapp (vs :& n) v = (vs :> v) :& n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
 -- | Capture-avoiding substitution.
@@ -74,9 +74,9 @@ subst for rep = go 0
             , let new = gensym i (fvs b)
             -> Pi new u (go i t) (go (succ i) (subst (Local v) (vfree (Local new)) b))
             | otherwise -> Pi v u (go i t) (go i b)
-          Neutral a v
+          a :& v
             | for == v  -> foldl' app rep a
-            | otherwise -> Neutral (fmap (go i) a) v
+            | otherwise -> fmap (go i) a :& v
             where app f a = f `vapp` go i a
         locals = foldMap (\case { Local (Gensym i) -> Set.singleton i ; _ -> Set.empty })
         gensym i names = Gensym (maybe i (succ . fst) (Set.maxView (locals (names <> fvsRep))))
@@ -88,5 +88,5 @@ aeq = go (0 :: Int) [] []
           (Type,           Type)           -> True
           (Lam n1 b1,      Lam n2 b2)      -> go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
           (Pi n1 e1 t1 b1, Pi n2 e2 t2 b2) -> e1 == e2 && go i env1 env2 t1 t2 && go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
-          (Neutral as1 n1, Neutral as2 n2) -> fromMaybe (n1 == n2) ((==) <$> Prelude.lookup n1 env1 <*> Prelude.lookup n2 env2) && length as1 == length as2 && and (Back.zipWith (go i env1 env2) as1 as2)
+          (as1 :& n1, as2 :& n2) -> fromMaybe (n1 == n2) ((==) <$> Prelude.lookup n1 env1 <*> Prelude.lookup n2 env2) && length as1 == length as2 && and (Back.zipWith (go i env1 env2) as1 as2)
           _                                -> False

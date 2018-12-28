@@ -26,5 +26,5 @@ vforce = \case
   Value.Lam v b      -> Value.Lam v <$> vforce b
   Value.Type         -> pure Value.Type
   Value.Pi v u t b   -> Value.Pi v u <$> vforce t <*> vforce b
-  Value.Neutral vs n -> foldl' app (asks (Env.lookup n) >>= maybe (pure (vfree n)) vforce) vs
+  vs :& n -> foldl' app (asks (Env.lookup n) >>= maybe (pure (vfree n)) vforce) vs
   where app f a = vapp <$> f <*> vforce a
