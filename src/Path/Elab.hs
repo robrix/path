@@ -100,6 +100,8 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => (Name, Type QName) -> m a -> m a
 (n, t) |- m = local (Context.insert (Local n) t) m
 
+infix 5 |-
+
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
