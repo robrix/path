@@ -2,6 +2,7 @@ module Path.Context where
 
 import Control.Arrow ((***))
 import Data.Foldable (toList)
+import qualified Data.Set as Set
 import Path.Back as Back
 import Path.Name
 import Path.Pretty
@@ -26,6 +27,9 @@ union (Context c1) (Context c2) = Context (c1 <> c2)
 
 filter :: (QName -> Type QName -> Bool) -> Context -> Context
 filter f = Context . Back.filter (uncurry f) . unContext
+
+boundVars :: Context -> Set.Set QName
+boundVars = foldMap (Set.singleton . fst) . unContext
 
 instance Pretty Context where
   pretty = tabulate2 (space <> colon <> space) . map (green . pretty *** nest 2 . align . group . pretty) . toList . unContext
