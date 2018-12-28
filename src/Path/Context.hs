@@ -13,6 +13,8 @@ type Type = Value
 data Typed a = a ::: Type QName
   deriving (Eq, Ord, Show)
 
+infix 6 :::
+
 newtype Context = Context { unContext :: Back (QName, Type QName) }
   deriving (Eq, Ord, Show)
 
