@@ -55,11 +55,11 @@ infer (In out span) = case out of
   R (f :$ a) -> do
     f' <- infer f
     case ann f' of
-      (g1, Value.Pi n _ pi t t') -> do
+      (g1, Value.Pi _ _ pi t _) -> do
         a' <- check t a
         let (g2, _) = ann a'
         a'' <- eval a'
-        pure (In (f' Core.:$ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
+        pure (In (f' Core.:$ a') (g1 <> pi ><< g2, snd (ann f') `vapp` a''))
       _ -> throwError (IllegalApplication (snd (ann f')) (ann f))
   _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
 
@@ -80,8 +80,8 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     synthesized <- synth ty
     ctx <- ask
     maybe (throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)) pure synthesized
-  (R (Core.Lam n e), Value.Pi tn _ pi t t') -> do
-    e' <- n ::: t |- check (subst (Local tn) (vfree (Local n)) t') e
+  (R (Core.Lam n e), Value.Pi _ _ pi t _) -> do
+    e' <- n ::: t |- check (ty `vapp` vfree (Local n)) e
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
     sigma <- ask
