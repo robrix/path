@@ -7,13 +7,13 @@ import Base.Functor
 Maybe : Type -> Type
 Maybe = \ a . ∀ b : Type . b -> (a -> b) -> b
 
-just : ∀ a:Type . a -> Maybe a
+just : a -> Maybe a
 just = \ _ a _ _ just . just a
 
-nothing : ∀ a:Type . Maybe a
+nothing : Maybe a
 nothing = \ _ _ nothing _ . nothing
 
-isJust : ∀ a:Type . Maybe a -> Bool
+isJust : Maybe a -> Bool
 isJust = \ A m . m Bool false (const Bool A true)
 
 map : Functor Maybe

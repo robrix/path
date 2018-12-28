@@ -5,10 +5,10 @@ import Base.Fix
 NatF : Type -> Type
 NatF = \ a . ∀ b : Type . b -> (a -> b) -> b
 
-sf : ∀ a:Type . a -> NatF a
+sf : a -> NatF a
 sf = \ _ a _ _ s . s a
 
-zf : ∀ a:Type . NatF a
+zf : NatF a
 zf = \ _ _ z _ . z
 
 
@@ -22,7 +22,7 @@ z : Nat
 z = in NatF (zf Nat)
 
 
-iter : ∀ a : Type . a -> (a -> a) -> Nat -> a
+iter : a -> (a -> a) -> Nat -> a
 iter = \ a z s n . n a (\ _ k f . f a z (\ m . s (k m)))
 
 
