@@ -40,9 +40,9 @@ infer :: ( Carrier sig m
 infer (In out span) = case out of
   R Core.Type -> pure (In Core.Type (mempty, Value.Type))
   R (Core.Pi n i e t b) -> do
-    t' <- check t Value.Type
+    t' <- check Value.Type t
     t'' <- eval t'
-    b' <- local (Context.insert (Local n) t'') (check b Value.Type)
+    b' <- local (Context.insert (Local n) t'') (check Value.Type b)
     pure (In (Core.Pi n i e t' b') (mempty, Value.Type))
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
@@ -54,7 +54,7 @@ infer (In out span) = case out of
     f' <- infer f
     case ann f' of
       (g1, Value.Pi n _ pi t t') -> do
-        a' <- check a t
+        a' <- check t a
         let (g2, _) = ann a'
         a'' <- eval a'
         pure (In (f' Core.:$ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
@@ -70,16 +70,16 @@ check :: ( Carrier sig m
          , Member (Reader Usage) sig
          , Monad m
          )
-      => Term (Implicit QName :+: Core Name QName) Span
-      -> Type QName
+      => Type QName
+      -> Term (Implicit QName :+: Core Name QName) Span
       -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-check (In tm span) ty = vforce ty >>= \ ty -> case (tm, ty) of
+check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
   (L Core.Implicit, ty) -> do
     synthesized <- synth ty
     ctx <- ask
     maybe (throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)) pure synthesized
   (R (Core.Lam n e), Value.Pi tn _ pi t t') -> do
-    e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
+    e' <- local (Context.insert (Local n) t) (check (subst (Local tn) (vfree (Local n)) t') e)
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
     sigma <- ask
@@ -162,7 +162,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elabDeclare name ty = do
-  ty' <- runReader Zero (runContext (runEnv (check ty Value.Type)))
+  ty' <- runReader Zero (runContext (runEnv (check Value.Type ty)))
   ty'' <- runEnv (eval ty')
   ty' <$ modify (Context.insert name ty'')
 
@@ -179,7 +179,7 @@ elabDefine :: ( Carrier sig m
            -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  tm' <- runReader One (runContext (runEnv (maybe infer (flip check) ty tm)))
+  tm' <- runReader One (runContext (runEnv (maybe infer check ty tm)))
   tm'' <- runEnv (eval tm')
   modify (Env.insert name tm'')
   tm' <$ maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
