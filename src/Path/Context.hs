@@ -16,6 +16,9 @@ data Typed a = a ::: Type QName
 getTerm :: Typed a -> a
 getTerm (a ::: _) = a
 
+getType :: Typed a -> Type QName
+getType (_ ::: t) = t
+
 infix 6 :::
 
 newtype Context = Context { unContext :: Back (QName, Type QName) }
