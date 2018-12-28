@@ -44,7 +44,7 @@ infer (In out span) = case out of
   R (Core.Pi n i e t b) -> do
     t' <- check Value.Type t
     t'' <- eval t'
-    b' <- (n, t'') |- check Value.Type b
+    b' <- n ::: t'' |- check Value.Type b
     pure (In (Core.Pi n i e t' b') (mempty, Value.Type))
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
@@ -61,7 +61,7 @@ infer (In out span) = case out of
         a'' <- eval a'
         pure (In (f' Core.:$ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
       _ -> throwError (IllegalApplication (snd (ann f')) (ann f))
-  _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
+  _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
 
 check :: ( Carrier sig m
          , Effect sig
@@ -79,9 +79,9 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
   (L Core.Implicit, ty) -> do
     synthesized <- synth ty
     ctx <- ask
-    maybe (throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)) pure synthesized
+    maybe (throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)) pure synthesized
   (R (Core.Lam n e), Value.Pi tn _ pi t t') -> do
-    e' <- (n, t) |- check (subst (Local tn) (vfree (Local n)) t') e
+    e' <- n ::: t |- check (subst (Local tn) (vfree (Local n)) t') e
     let res = fst (ann e')
         used = Resources.lookup (Local n) res
     sigma <- ask
@@ -90,15 +90,15 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     pure (In (Core.Lam n e') (Resources.delete (Local n) res, ty))
   (L (Core.Hole n), ty) -> do
     ctx <- ask
-    throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
+    throwError (TypedHole n ty (Context.filter (isLocal . getTerm) ctx) span)
   (tm, ty) -> do
     v <- infer (In tm span)
     actual <- vforce (snd (ann v))
     unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span))
     pure v
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => (Name, Type QName) -> m a -> m a
-(n, t) |- m = local (Context.insert (Local n) t) m
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
+n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
 infix 5 |-
 
@@ -138,8 +138,8 @@ importModule :: ( Carrier sig m
              -> m (Context, Env)
 importModule n = do
   (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
-  pure (Context.filter p ctx, Env.filter p env)
-  where p = const . inModule (importModuleName n)
+  pure (Context.filter (p . getTerm) ctx, Env.filter (const . p) env)
+  where p = inModule (importModuleName n)
 
 
 elabDecl :: ( Carrier sig m
@@ -171,7 +171,7 @@ elabDeclare :: ( Carrier sig m
 elabDeclare name ty = do
   ty' <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
   ty'' <- runEnv (eval ty')
-  ty' <$ modify (Context.insert name ty'')
+  ty' <$ modify (Context.insert (name ::: ty''))
   where generalize ty = do
           ctx <- ask
           pure (foldr bind ty (foldMap (\case { Local v -> Set.singleton v ; _ -> mempty }) (fvs ty Set.\\ Context.boundVars ctx)))
@@ -193,7 +193,7 @@ elabDefine name tm = do
   tm' <- runReader One (runContext (runEnv (maybe infer check ty tm)))
   tm'' <- runEnv (eval tm')
   modify (Env.insert name tm'')
-  tm' <$ maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
+  tm' <$ maybe (modify (Context.insert (name ::: snd (ann tm')))) (const (pure ())) ty
 
 runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext m = get >>= flip runReader m
