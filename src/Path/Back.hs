@@ -26,6 +26,14 @@ lookup k = \case
   Nil           -> Nothing
 
 
+find :: (a -> Bool) -> Back a -> Maybe a
+find p = \case
+  b :> a
+    | p a       -> Just a
+    | otherwise -> find p b
+  Nil           -> Nothing
+
+
 filter :: (a -> Bool) -> Back a -> Back a
 filter keep = \case
   as :> a
