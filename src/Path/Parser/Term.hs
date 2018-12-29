@@ -36,8 +36,10 @@ forAll = reann (do
   where binding = (,) . Just <$> name <* colon <*> term
 
 piType = reann (do
-  (v, mult, ty) <- braces ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  (Surface.piType (v, Ex, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
+  (p, (v, mult, ty)) <- plicity ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  (Surface.piType (v, p, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
+  where plicity m = (,) Im <$> braces m
+                <|> (,) Ex <$> parens m
 
 functionType = (,) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
@@ -59,7 +61,7 @@ hole = ann (Surface.hole . Name <$> ident (IdentifierStyle "hole" (char '?') (al
 
 implicit = ann (Surface.implicit <$ token (char '_'))
 
-atom = var <|> type' <|> lambda <|> parens term <|> hole <|> implicit
+atom = var <|> type' <|> lambda <|> try (parens term) <|> hole <|> implicit
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"

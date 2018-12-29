@@ -13,7 +13,7 @@ Apply = \ f _ . ∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f 
           -> ∀ a : Type
           .  ∀ b : Type
           .  f (a -> b) -> f a -> f b
-(_ <*> _) = \ _ _ liftA2 A B . liftA2 (A -> B) A B (id (A -> B))
+(_ <*> _) = \ _ liftA2 A B . liftA2 (A -> B) A B (id (A -> B))
 
 (_ *> _) :  ∀ f : Type -> Type
          .  { functor : Functor f }
@@ -21,7 +21,7 @@ Apply = \ f _ . ∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f 
          -> ∀ a : Type
          .  ∀ b : Type
          .  f a -> f b -> f b
-(_ *> _) = \ _ _ liftA2 A B . liftA2 A B B (const (B -> B) A (id B))
+(_ *> _) = \ _ liftA2 A B . liftA2 A B B (const (B -> B) A (id B))
 
 (_ <* _) :  ∀ f : Type -> Type
          .  { functor : Functor f }
@@ -29,14 +29,14 @@ Apply = \ f _ . ∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f 
          -> ∀ a : Type
          .  ∀ b : Type
          .  f a -> f b -> f a
-(_ <* _) = \ _ _ liftA2 A B . liftA2 A B A (const A B)
+(_ <* _) = \ _ liftA2 A B . liftA2 A B A (const A B)
 
 Applicative :  ∀ f : Type -> Type
             .  { functor : Functor f }
             -> Pointed f
             -> Apply f functor
             -> Type
-Applicative = \  f fmap pointed apply
+Applicative = \  f pointed apply
               .  ∀ c : Type
               .  ((∀ a : Type . a -> f a) -> (∀ a : Type . ∀ b : Type . ∀ c : Type . (a -> b -> c) -> f a -> f b -> f c) -> c)
               -> c
