@@ -125,10 +125,16 @@ unify span t1 t2 = case (t1, t2) of
     Value.Pi n p1 u1
       <$> unify span a1 a2
       <*> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+  (sp1 Value.:& h1, sp2 Value.:& h2) | h1 == h2 -> do
+    (Value.:& h1) <$> unifySpines sp1 sp2
   (act, exp) -> do
     act' <- vforce act
     unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
     pure act
+  where unifySpines sp1 sp2 = case (sp1, sp2) of
+          (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> unify span l1 l2
+          (Nil, Nil) -> pure Nil
+          _ -> throwError (TypeMismatch t1 t2 span)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
