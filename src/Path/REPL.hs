@@ -20,7 +20,6 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back
-import Path.Core hiding ((:+:))
 import Path.Context as Context
 import Path.Desugar
 import Path.Elab
@@ -35,9 +34,7 @@ import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
-import Path.Resources
 import Path.REPL.Command as Command
-import Path.Term
 import Path.Usage
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
@@ -157,7 +154,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Core Name QName) (), Resources Usage, Type QName)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName Elaborated) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -167,15 +164,15 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (_, _, ty) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . runContext . runEnv . infer)
-            print ty
+            elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . runContext . runEnv . infer)
+            print (elaboratedType elab)
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
             loop
           Eval tm -> do
-            (tm, _, _) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . runContext . runEnv . infer)
-            runEnv (eval tm) >>= print
+            elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . runContext . runEnv . infer)
+            runEnv (eval (elaboratedTerm elab)) >>= print
             loop
           Show Bindings -> do
             ctx <- get
@@ -185,7 +182,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Term (Core Name QName) (), Resources Usage, Type QName))
+            let ms = modules (graph :: ModuleGraph QName Elaborated)
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -197,7 +194,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Term (Core Name QName) (), Resources Usage, Type QName)) of
+            case m :: Maybe (Module QName Elaborated) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
