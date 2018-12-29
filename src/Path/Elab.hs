@@ -28,6 +28,13 @@ import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
+data Elaborated = Elaborated
+  { elaboratedTerm      :: Term (Core Name QName) ()
+  , elaboratedResources :: Resources QName Usage
+  , elaboratedType      :: Type QName
+  }
+  deriving (Eq, Ord, Show)
+
 infer :: ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
