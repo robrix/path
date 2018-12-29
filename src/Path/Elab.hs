@@ -118,7 +118,16 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 infix 5 |-
 
 
-unify :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> m (Type QName)
+unify :: ( Carrier sig m
+         , Member (Error ElabError) sig
+         , Member Fresh sig
+         , Member (Reader Env) sig
+         , Monad m
+         )
+      => Span
+      -> Type QName
+      -> Type QName
+      -> m (Type QName)
 unify span t1 t2 = case (t1, t2) of
   (Value.Type, Value.Type) -> pure Value.Type
   (Value.Lam _ _, Value.Lam _ _) -> do
