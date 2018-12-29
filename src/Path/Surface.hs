@@ -19,8 +19,8 @@ data Sugar b a
 
 infixr 0 -->
 
-piType :: Semigroup ann => (Maybe Name, Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-(n, e, a) `piType` b = In (R (R (Pi n Ex e a b))) (ann a <> ann b)
+piType :: Semigroup ann => (Maybe Name, Plicity, Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
+(n, p, e, a) `piType` b = In (R (R (Pi n p e a b))) (ann a <> ann b)
 
 infixr 0 `piType`
 

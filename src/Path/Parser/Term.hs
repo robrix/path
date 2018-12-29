@@ -5,6 +5,7 @@ import Control.Applicative (Alternative(..), (<**>))
 import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Parser as Parser
+import Path.Plicity
 import Path.Parser.Mixfix
 import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
@@ -36,7 +37,7 @@ forAll = reann (do
 
 piType = reann (do
   (v, mult, ty) <- braces ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  (Surface.piType (v, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
+  (Surface.piType (v, Ex, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
 
 functionType = (,) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
