@@ -104,14 +104,20 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     throwError (TypedHole n ty (Context.filter (isLocal . getTerm) ctx) span)
   (tm, ty) -> do
     v <- infer (In tm span)
-    actual <- vforce (elabType v)
-    unless (actual `aeq` ty) (throwError (TypeMismatch ty (elabType v) span))
-    pure v
+    unified <- unify span ty (elabType v)
+    pure v { elabType = unified }
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
 n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
 infix 5 |-
+
+
+unify :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> m (Type QName)
+unify span exp act = do
+  act' <- vforce act
+  unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
+  pure act
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
