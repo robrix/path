@@ -1,5 +1,5 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
-module Path.Elab where
+module Path.Check where
 
 import Control.Effect hiding ((:+:))
 import Control.Effect.Error

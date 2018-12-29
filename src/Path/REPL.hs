@@ -22,7 +22,7 @@ import Data.Traversable (for)
 import Path.Back
 import Path.Context as Context
 import Path.Desugar
-import Path.Elab
+import Path.Check
 import Path.Env as Env
 import Path.Error
 import Path.Eval
