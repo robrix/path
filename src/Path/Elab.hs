@@ -104,7 +104,7 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     throwError (TypedHole n ty (Context.filter (isLocal . getTerm) ctx) span)
   (tm, ty) -> do
     v <- infer (In tm span)
-    unified <- unify span ty (elabType v)
+    unified <- unify span (elabType v) ty
     pure v { elabType = unified }
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
@@ -114,7 +114,7 @@ infix 5 |-
 
 
 unify :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> m (Type QName)
-unify span exp act = case (exp, act) of
+unify span act exp = case (act, exp) of
   (Value.Type, Value.Type) -> pure Value.Type
   _ -> do
     act' <- vforce act
