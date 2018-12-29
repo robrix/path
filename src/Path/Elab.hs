@@ -114,10 +114,11 @@ infix 5 |-
 
 
 unify :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> m (Type QName)
-unify span exp act = do
-  act' <- vforce act
-  unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
-  pure act
+unify span exp act = case (exp, act) of
+  _ -> do
+    act' <- vforce act
+    unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
+    pure act
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
