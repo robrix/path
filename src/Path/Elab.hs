@@ -120,6 +120,9 @@ unify span t1 t2 = case (t1, t2) of
   (Value.Lam _ _, Value.Lam _ _) -> do
     n <- freshName
     Value.Lam n <$> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+  (Value.Pi _ p1 u1 a1 _, Value.Pi _ p2 u2 a2 _) | p1 == p2, u1 == u2 -> do
+    n <- freshName
+    Value.Pi n p1 u1 <$> unify span a1 a2 <*> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
   (act, exp) -> do
     act' <- vforce act
     unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
