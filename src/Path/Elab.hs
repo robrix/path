@@ -114,9 +114,9 @@ infix 5 |-
 
 
 unify :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> m (Type QName)
-unify span act exp = case (act, exp) of
+unify span t1 t2 = case (t1, t2) of
   (Value.Type, Value.Type) -> pure Value.Type
-  _ -> do
+  (act, exp) -> do
     act' <- vforce act
     unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
     pure act
