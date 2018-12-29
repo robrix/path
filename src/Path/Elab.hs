@@ -38,29 +38,28 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
+      -> m (Term (Core Name QName) (), Resources QName Usage, Type QName)
 infer (In out span) = case out of
-  R Core.Type -> pure (In Core.Type (mempty, Value.Type))
+  R Core.Type -> pure (In Core.Type (), mempty, Value.Type)
   R (Core.Pi n i e t b) -> do
-    t' <- check Value.Type t
+    (t', _, _) <- check Value.Type t
     t'' <- eval t'
-    b' <- n ::: t'' |- check Value.Type b
-    pure (In (Core.Pi n i e t' b') (mempty, Value.Type))
+    (b', _, _) <- n ::: t'' |- check Value.Type b
+    pure (In (Core.Pi n i e t' b') (), mempty, Value.Type)
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
     case res of
-      Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
+      Just t -> pure (In (Core.Var n) (), Resources.singleton n sigma, t)
       _      -> throwError (FreeVariable n span)
   R (f :$ a) -> do
-    f' <- infer f
-    case ann f' of
-      (g1, Value.Pi _ _ pi t _) -> do
-        a' <- check t a
-        let (g2, _) = ann a'
+    (f', g1, ft) <- infer f
+    case ft of
+      Value.Pi _ _ pi t _ -> do
+        (a', g2, _) <- check t a
         a'' <- eval a'
-        pure (In (f' Core.:$ a') (g1 <> pi ><< g2, snd (ann f') `vapp` a''))
-      _ -> throwError (IllegalApplication (snd (ann f')) (ann f))
+        pure (In (f' Core.:$ a') (), g1 <> pi ><< g2, ft `vapp` a'')
+      _ -> throwError (IllegalApplication ft (ann f))
   _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
 
 check :: ( Carrier sig m
@@ -74,30 +73,29 @@ check :: ( Carrier sig m
          )
       => Type QName
       -> Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
+      -> m (Term (Core Name QName) (), Resources QName Usage, Type QName)
 check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
   (L Core.Implicit, ty) -> do
     synthesized <- synth ty
     ctx <- ask
     maybe (throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)) pure synthesized
   (_, Value.Pi tn Im pi t t') -> do
-    b <- tn ::: t |- check t' (In tm span)
-    pure (In (Core.Lam tn b) (ann b))
+    (b, br, bt) <- tn ::: t |- check t' (In tm span)
+    pure (In (Core.Lam tn b) (), br, bt)
   (R (Core.Lam n e), Value.Pi _ _ pi t _) -> do
-    e' <- n ::: t |- check (ty `vapp` vfree (Local n)) e
-    let res = fst (ann e')
-        used = Resources.lookup (Local n) res
+    (e', res, _) <- n ::: t |- check (ty `vapp` vfree (Local n)) e
+    let used = Resources.lookup (Local n) res
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
-    pure (In (Core.Lam n e') (Resources.delete (Local n) res, ty))
+    pure (In (Core.Lam n e') (), Resources.delete (Local n) res, ty)
   (L (Core.Hole n), ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (isLocal . getTerm) ctx) span)
   (tm, ty) -> do
-    v <- infer (In tm span)
-    actual <- vforce (snd (ann v))
-    unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span))
+    v@(_, _, actual) <- infer (In tm span)
+    actual' <- vforce actual
+    unless (actual' `aeq` ty) (throwError (TypeMismatch ty actual span))
     pure v
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
@@ -119,7 +117,7 @@ elabModule :: ( Carrier sig m
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Module QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
+           -> m (Module QName (Term (Core Name QName) (), Resources QName Usage, Type QName))
 elabModule m = do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
@@ -154,7 +152,7 @@ elabDecl :: ( Carrier sig m
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m (Decl QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
+         -> m (Decl QName (Term (Core Name QName) (), Resources QName Usage, Type QName))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -170,11 +168,11 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
+            -> m (Term (Core Name QName) (), Resources QName Usage, Type QName)
 elabDeclare name ty = do
-  ty' <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
+  res@(ty', _, _) <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
   ty'' <- runEnv (eval ty')
-  ty' <$ modify (Context.insert (name ::: ty''))
+  res <$ modify (Context.insert (name ::: ty''))
   where generalize ty = do
           ctx <- ask
           pure (foldr bind ty (foldMap (\case { Local v -> Set.singleton v ; _ -> mempty }) (fvs ty Set.\\ Context.boundVars ctx)))
@@ -190,13 +188,13 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
+           -> m (Term (Core Name QName) (), Resources QName Usage, Type QName)
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  tm' <- runReader One (runContext (runEnv (maybe infer check ty tm)))
+  res@(tm', _, ty') <- runReader One (runContext (runEnv (maybe infer check ty tm)))
   tm'' <- runEnv (eval tm')
   modify (Env.insert name tm'')
-  tm' <$ maybe (modify (Context.insert (name ::: snd (ann tm')))) (const (pure ())) ty
+  res <$ maybe (modify (Context.insert (name ::: ty'))) (const (pure ())) ty
 
 runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext m = get >>= flip runReader m
