@@ -49,10 +49,10 @@ infer :: ( Carrier sig m
 infer (In out span) = case out of
   R Core.Type -> pure (Elab (In Core.Type ()) mempty Value.Type)
   R (Core.Pi n i e t b) -> do
-    Elab t' _ _ <- check Value.Type t
-    t'' <- eval t'
-    Elab b' _ _ <- n ::: t'' |- check Value.Type b
-    pure (Elab (In (Core.Pi n i e t' b') ()) mempty Value.Type)
+    t' <- check Value.Type t
+    t'' <- eval (elabTerm t')
+    b' <- n ::: t'' |- check Value.Type b
+    pure (Elab (In (Core.Pi n i e (elabTerm t') (elabTerm b')) ()) mempty Value.Type)
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
@@ -103,9 +103,9 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (isLocal . getTerm) ctx) span)
   (tm, ty) -> do
-    v@(Elab _ _ actual) <- infer (In tm span)
-    actual' <- vforce actual
-    unless (actual' `aeq` ty) (throwError (TypeMismatch ty actual span))
+    v <- infer (In tm span)
+    actual <- vforce (elabType v)
+    unless (actual `aeq` ty) (throwError (TypeMismatch ty (elabType v) span))
     pure v
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
