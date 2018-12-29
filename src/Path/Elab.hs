@@ -3,6 +3,7 @@ module Path.Elab where
 
 import Control.Effect hiding ((:+:))
 import Control.Effect.Error
+import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
@@ -113,13 +114,19 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 infix 5 |-
 
 
-unify :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> m (Type QName)
+unify :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Env) sig, Monad m) => Span -> Type QName -> Type QName -> m (Type QName)
 unify span t1 t2 = case (t1, t2) of
   (Value.Type, Value.Type) -> pure Value.Type
+  (Value.Lam _ _, Value.Lam _ _) -> do
+    n <- freshName
+    Value.Lam n <$> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
   (act, exp) -> do
     act' <- vforce act
     unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
     pure act
+
+freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
+freshName = Gensym <$> fresh
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
