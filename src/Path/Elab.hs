@@ -28,10 +28,10 @@ import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
-data Elaborated = Elaborated
-  { elaboratedTerm      :: Term (Core Name QName) ()
-  , elaboratedResources :: Resources Usage
-  , elaboratedType      :: Type QName
+data Elab = Elab
+  { elabTerm      :: Term (Core Name QName) ()
+  , elabResources :: Resources Usage
+  , elabType      :: Type QName
   }
   deriving (Eq, Ord, Show)
 
@@ -45,27 +45,27 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m Elaborated
+      -> m Elab
 infer (In out span) = case out of
-  R Core.Type -> pure (Elaborated (In Core.Type ()) mempty Value.Type)
+  R Core.Type -> pure (Elab (In Core.Type ()) mempty Value.Type)
   R (Core.Pi n i e t b) -> do
-    Elaborated t' _ _ <- check Value.Type t
+    Elab t' _ _ <- check Value.Type t
     t'' <- eval t'
-    Elaborated b' _ _ <- n ::: t'' |- check Value.Type b
-    pure (Elaborated (In (Core.Pi n i e t' b') ()) mempty Value.Type)
+    Elab b' _ _ <- n ::: t'' |- check Value.Type b
+    pure (Elab (In (Core.Pi n i e t' b') ()) mempty Value.Type)
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
     case res of
-      Just t -> pure (Elaborated (In (Core.Var n) ()) (Resources.singleton n sigma) t)
+      Just t -> pure (Elab (In (Core.Var n) ()) (Resources.singleton n sigma) t)
       _      -> throwError (FreeVariable n span)
   R (f :$ a) -> do
-    Elaborated f' g1 ft <- infer f
+    Elab f' g1 ft <- infer f
     case ft of
       Value.Pi _ _ pi t _ -> do
-        Elaborated a' g2 _ <- check t a
+        Elab a' g2 _ <- check t a
         a'' <- eval a'
-        pure (Elaborated (In (f' Core.:$ a') ()) (g1 <> pi ><< g2) (ft `vapp` a''))
+        pure (Elab (In (f' Core.:$ a') ()) (g1 <> pi ><< g2) (ft `vapp` a''))
       _ -> throwError (IllegalApplication ft (ann f))
   _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
 
@@ -80,30 +80,30 @@ check :: ( Carrier sig m
          )
       => Type QName
       -> Term (Implicit QName :+: Core Name QName) Span
-      -> m Elaborated
+      -> m Elab
 check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
   (L Core.Implicit, ty) -> do
     synthesized <- synth ty
     case synthesized of
-      Just (tm, r, ty) -> pure (Elaborated tm r ty)
+      Just (tm, r, ty) -> pure (Elab tm r ty)
       Nothing          -> do
         ctx <- ask
         throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
   (_, Value.Pi tn Im pi t t') -> do
-    Elaborated b br bt <- tn ::: t |- check t' (In tm span)
-    pure (Elaborated (In (Core.Lam tn b) ()) br bt)
+    Elab b br bt <- tn ::: t |- check t' (In tm span)
+    pure (Elab (In (Core.Lam tn b) ()) br bt)
   (R (Core.Lam n e), Value.Pi _ _ pi t _) -> do
-    Elaborated e' res _ <- n ::: t |- check (ty `vapp` vfree (Local n)) e
+    Elab e' res _ <- n ::: t |- check (ty `vapp` vfree (Local n)) e
     let used = Resources.lookup (Local n) res
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
-    pure (Elaborated (In (Core.Lam n e') ()) (Resources.delete (Local n) res) ty)
+    pure (Elab (In (Core.Lam n e') ()) (Resources.delete (Local n) res) ty)
   (L (Core.Hole n), ty) -> do
     ctx <- ask
     throwError (TypedHole n ty (Context.filter (isLocal . getTerm) ctx) span)
   (tm, ty) -> do
-    v@(Elaborated _ _ actual) <- infer (In tm span)
+    v@(Elab _ _ actual) <- infer (In tm span)
     actual' <- vforce actual
     unless (actual' `aeq` ty) (throwError (TypeMismatch ty actual span))
     pure v
@@ -127,7 +127,7 @@ elabModule :: ( Carrier sig m
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Module QName Elaborated)
+           -> m (Module QName Elab)
 elabModule m = do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
@@ -162,7 +162,7 @@ elabDecl :: ( Carrier sig m
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m (Decl QName Elaborated)
+         -> m (Decl QName Elab)
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -178,9 +178,9 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m Elaborated
+            -> m Elab
 elabDeclare name ty = do
-  res@(Elaborated ty' _ _) <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
+  res@(Elab ty' _ _) <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
   ty'' <- runEnv (eval ty')
   res <$ modify (Context.insert (name ::: ty''))
   where generalize ty = do
@@ -198,10 +198,10 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m Elaborated
+           -> m Elab
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  res@(Elaborated tm' _ ty') <- runReader One (runContext (runEnv (maybe infer check ty tm)))
+  res@(Elab tm' _ ty') <- runReader One (runContext (runEnv (maybe infer check ty tm)))
   tm'' <- runEnv (eval tm')
   modify (Env.insert name tm'')
   res <$ maybe (modify (Context.insert (name ::: ty'))) (const (pure ())) ty
