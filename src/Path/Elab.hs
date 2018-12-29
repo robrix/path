@@ -180,9 +180,9 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m Elab
 elabDeclare name ty = do
-  res@(Elab ty' _ _) <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
-  ty'' <- runEnv (eval ty')
-  res <$ modify (Context.insert (name ::: ty''))
+  elab <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
+  ty' <- runEnv (eval (elabTerm elab))
+  elab <$ modify (Context.insert (name ::: ty'))
   where generalize ty = do
           ctx <- ask
           pure (foldr bind ty (foldMap (\case { Local v -> Set.singleton v ; _ -> mempty }) (fvs ty Set.\\ Context.boundVars ctx)))
@@ -201,10 +201,10 @@ elabDefine :: ( Carrier sig m
            -> m Elab
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  res@(Elab tm' _ ty') <- runReader One (runContext (runEnv (maybe infer check ty tm)))
-  tm'' <- runEnv (eval tm')
-  modify (Env.insert name tm'')
-  res <$ maybe (modify (Context.insert (name ::: ty'))) (const (pure ())) ty
+  elab <- runReader One (runContext (runEnv (maybe infer check ty tm)))
+  tm' <- runEnv (eval (elabTerm elab))
+  modify (Env.insert name tm')
+  elab <$ maybe (modify (Context.insert (name ::: elabType elab))) (const (pure ())) ty
 
 runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext m = get >>= flip runReader m
