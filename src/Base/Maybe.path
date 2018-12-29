@@ -8,13 +8,13 @@ Maybe : Type -> Type
 Maybe = \ a . ∀ b : Type . b -> (a -> b) -> b
 
 just : a -> Maybe a
-just = \ _ a _ _ just . just a
+just = \ a _ _ just . just a
 
 nothing : Maybe a
-nothing = \ _ _ nothing _ . nothing
+nothing = \ _ nothing _ . nothing
 
 isJust : Maybe a -> Bool
-isJust = \ A m . m Bool false (const Bool A true)
+isJust = \ m . m Bool false (\ _ . true)
 
 map : Functor Maybe
 map = \ _ b f m . m (Maybe b) (nothing b) (\ a . just b (f a))

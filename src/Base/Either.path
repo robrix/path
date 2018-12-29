@@ -6,16 +6,18 @@ Either : Type -> Type -> Type
 Either = \ l r . ∀ a : Type . (l -> a) -> (r -> a) -> a
 
 left : l -> Either l r
-left = \ _ _ l _ left _ . left l
+left = \ l _ left _ . left l
 
 right : r -> Either l r
-right = \ _ _ r _ _ right . right r
+right = \ r _ _ right . right r
 
 
-map : Functor (Either l)
+map : ∀ l : Type . Functor (Either l)
 map = \ l _ r' f e . e (Either l r') (left l r') (\ r . right l r' (f r))
 
-bimap :  (       l   ->        l')
+bimap :  ∀ l' : Type
+      .  ∀ r' : Type
+      .  (       l   ->        l')
       -> (         r ->           r')
       -> (Either l r -> Either l' r')
-bimap = \ _ l' _ r' f g e . e (Either l' r') (\ l . left l' r' (f l)) (\ r . right l' r' (g r))
+bimap = \ l' r' f g e . e (Either l' r') (\ l . left l' r' (f l)) (\ r . right l' r' (g r))

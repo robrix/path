@@ -7,23 +7,23 @@ ListF : Type -> Type -> Type
 ListF = \ a b . ∀ c : Type . c -> (a -> b -> c) -> c
 
 nilf : ListF a b
-nilf = \ _ _ _ nil _ . nil
+nilf = \ _ nil _ . nil
 
 consf : a -> b -> ListF a b
-consf = \ _ _ a b _ _ cons . cons a b
+consf = \ a b _ _ cons . cons a b
 
 
 List : Type -> Type
 List = \ a . Fix (ListF a)
 
-nil : List a
+nil : ∀ a : Type . List a
 nil = \ a . in (ListF a) (nilf a (List a))
 
-cons : a -> List a -> List a
+cons : ∀ a : Type . a -> List a -> List a
 cons = \ a h t . in (ListF a) (consf a (List a) h t)
 
 
-append : List a -> List a -> List a
+append : ∀ a : Type . List a -> List a -> List a
 append = \ a xs ys . xs (List a) (\ _ k f . f (List a) ys (\ x xs . cons a x (k xs)))
 
 

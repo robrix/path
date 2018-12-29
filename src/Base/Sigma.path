@@ -1,10 +1,10 @@
 module Base.Sigma
 
-Sigma : (A -> Type) -> Type
+Sigma : ∀ A : Type . (A -> Type) -> Type
 Sigma = \ A B . ∀ C : Type . ({ a : A } -> B a -> C) -> C
 
-sigma :  { A : Type } -> { B : A -> Type } -> { a : A } -> B a -> Sigma A B
+sigma :  ∀ A : Type . { B : A -> Type } -> { a : A } -> B a -> Sigma A B
 sigma = \ _ _ a b _ f . f a b
 
-fst : { A : Type } -> { B : A -> Type } -> Sigma A B -> A
+fst : ∀ A : Type . { B : A -> Type } -> Sigma A B -> A
 fst = \ A _ s . s A (\ a _ . a)

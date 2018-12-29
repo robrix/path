@@ -80,6 +80,9 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     synthesized <- synth ty
     ctx <- ask
     maybe (throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)) pure synthesized
+  (_, Value.Pi tn Im pi t t') -> do
+    b <- tn ::: t |- check t' (In tm span)
+    pure (In (Core.Lam tn b) (ann b))
   (R (Core.Lam n e), Value.Pi _ _ pi t _) -> do
     e' <- n ::: t |- check (ty `vapp` vfree (Local n)) e
     let res = fst (ann e')

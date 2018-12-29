@@ -6,19 +6,21 @@ Pair : Type -> Type -> Type
 Pair = \ l r . ∀ a : Type . (l -> r -> a) -> a
 
 pair : l -> r -> Pair l r
-pair = \ _ _ l r _ f . f l r
+pair = \ l r _ f . f l r
 
-fst : Pair l r -> l
-fst = \ l _ p . p l (\ fst _ . fst)
+fst : ∀ l : Type . Pair l r -> l
+fst = \ l p . p l (\ fst _ . fst)
 
-snd : Pair l r -> r
-snd = \ _ r p . p r (\ _ snd . snd)
+snd : ∀ r : Type . Pair l r -> r
+snd = \ r p . p r (\ _ snd . snd)
 
 
-map : Functor (Pair l)
+map : ∀ l : Type . Functor (Pair l)
 map = \ l _ r' f e . e (Pair l r') (\ l' r . pair l r' l' (f r))
 
-bimap :  (     l   ->      l')
+bimap :  ∀ l' : Type
+      .  ∀ r' : Type
+      .  (     l   ->      l')
       -> (       r ->         r')
       -> (Pair l r -> Pair l' r')
-bimap = \ _ l' _ r' f g e . e (Pair l' r') (\ l r . pair l' r' (f l) (g r))
+bimap = \ l' r' f g e . e (Pair l' r') (\ l r . pair l' r' (f l) (g r))

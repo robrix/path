@@ -6,10 +6,10 @@ NatF : Type -> Type
 NatF = \ a . ∀ b : Type . b -> (a -> b) -> b
 
 sf : a -> NatF a
-sf = \ _ a _ _ s . s a
+sf = \ a _ _ s . s a
 
 zf : NatF a
-zf = \ _ _ z _ . z
+zf = \ _ z _ . z
 
 
 Nat : Type
@@ -22,7 +22,7 @@ z : Nat
 z = in NatF (zf Nat)
 
 
-iter : a -> (a -> a) -> Nat -> a
+iter : ∀ a : Type . a -> (a -> a) -> Nat -> a
 iter = \ a z s n . n a (\ _ k f . f a z (\ m . s (k m)))
 
 

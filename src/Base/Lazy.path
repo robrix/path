@@ -6,4 +6,4 @@ Lazy : Type -> Type
 Lazy = \ a . Unit -> a
 
 force : Lazy a -> a
-force = \ _ f . f unit
+force = \ f . f unit

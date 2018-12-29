@@ -10,7 +10,7 @@ Vector = \ n a
   -> x n
 
 nil : Vector z a
-nil = \ _ _ nil _ . nil
+nil = \ _ nil _ . nil
 
-cons : ∀ n : Nat . ∀ a : Type . a -> Vector n a -> Vector (s n) a
-cons = \ n _ h t x nil cons . cons n h (t x nil cons)
+cons : ∀ n : Nat . a -> Vector n a -> Vector (s n) a
+cons = \ n h t x nil cons . cons n h (t x nil cons)

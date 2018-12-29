@@ -14,5 +14,5 @@ false = \ _ _ b . b
 not : Bool -> Bool
 not = \ f ty a b . f ty b a
 
-(if _ then _ else _) : Bool -> Lazy a -> Lazy a -> a
+(if _ then _ else _) : ∀ a : Type . Bool -> Lazy a -> Lazy a -> a
 (if _ then _ else _) = \ a c t e . force a (c (Lazy a) t e)
