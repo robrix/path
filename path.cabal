@@ -20,6 +20,7 @@ library
                      , Path.Context
                      , Path.Core
                      , Path.Desugar
+                     , Path.Elab
                      , Path.Env
                      , Path.Error
                      , Path.Eval
