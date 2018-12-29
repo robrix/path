@@ -92,6 +92,10 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
         throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
   (_, Value.Pi tn Im pi t t') -> do
     Elab b br bt <- tn ::: t |- check t' (In tm span)
+    let used = Resources.lookup (Local tn) br
+    sigma <- ask
+    unless (sigma >< pi == More) . when (pi /= used) $
+      throwError (ResourceMismatch tn pi used span (uses tn (In tm span)))
     pure (Elab (In (Core.Lam tn b) ()) br bt)
   (R (Core.Lam n e), Value.Pi _ _ pi t _) -> do
     Elab e' res _ <- n ::: t |- check (ty `vapp` vfree (Local n)) e
