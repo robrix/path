@@ -37,6 +37,7 @@ data Elab = Elab
   deriving (Eq, Ord, Show)
 
 infer :: ( Carrier sig m
+         , Effect sig
          , Member (Error ElabError) sig
          , Member Fresh sig
          , Member (Reader Context) sig
@@ -70,6 +71,7 @@ infer (In out span) = case out of
   _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
 
 check :: ( Carrier sig m
+         , Effect sig
          , Member (Error ElabError) sig
          , Member Fresh sig
          , Member (Reader Context) sig
