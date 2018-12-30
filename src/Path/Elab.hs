@@ -131,6 +131,7 @@ unify :: ( Carrier sig m
          , Member (Error ElabError) sig
          , Member Fresh sig
          , Member (Reader Env) sig
+         , Member (State Subst) sig
          , Monad m
          )
       => Span
@@ -139,6 +140,12 @@ unify :: ( Carrier sig m
       -> m (Type QName)
 unify span t1 t2 = case (t1, t2) of
   (Value.Type, Value.Type) -> pure Value.Type
+  (sp1 Value.:& Local (Meta m1), sp2 Value.:& Local (Meta m2)) -> case compare m1 m2 of
+    LT -> solve m2 t1
+    EQ -> (:& Local (Meta m1)) <$> unifySpines sp1 sp2
+    GT -> solve m1 t2
+  (sp1 Value.:& Local (Meta m1), _) -> foldl vapp <$> solve m1 t2 <*> pure sp1
+  (_, sp2 Value.:& Local (Meta m2)) -> foldl vapp <$> solve m2 t1 <*> pure sp2
   (Value.Lam _ _, Value.Lam _ _) -> do
     n <- freshName
     Value.Lam n <$> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
@@ -163,6 +170,8 @@ unify span t1 t2 = case (t1, t2) of
           (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> unify span l1 l2
           (Nil, Nil) -> pure Nil
           _ -> throwError (TypeMismatch t1 t2 span)
+        solve :: (Carrier sig m, Member (State Subst) sig, Monad m) => Meta -> Type QName -> m (Type QName)
+        solve (M m) t = t <$ modify (IntMap.insert m t)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
