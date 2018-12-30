@@ -44,7 +44,6 @@ library
                      , Path.Surface
                      , Path.Synth
                      , Path.Term
-                     , Path.Unify
                      , Path.Usage
                      , Path.Value
   other-modules:       Paths_path
