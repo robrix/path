@@ -70,10 +70,7 @@ prettyQName = \case
   Local n -> pretty n
 
 
-data Var v = V v Twin | M v
-  deriving (Eq, Ord, Show)
-
-data Twin = Only | TwinL | TwinR
+data Var v = V v | M v
   deriving (Eq, Ord, Show)
 
 
