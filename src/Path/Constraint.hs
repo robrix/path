@@ -11,7 +11,7 @@ newtype MetaVar = M Int
 
 -- | 'Solver' effects specify constraint generation.
 data Solver (m :: * -> *) a
-  = Unify MetaVar MetaVar a
+  = (:~~:) MetaVar MetaVar a
   deriving (Functor)
 
 instance HFunctor Solver where
@@ -22,7 +22,7 @@ instance Effect Solver where
 
 
 (~~) :: (Carrier sig m, Member Solver sig) => MetaVar -> MetaVar -> m ()
-m1 ~~ m2 = send (Unify m1 m2 (ret ()))
+m1 ~~ m2 = send (m1 :~~: m2 $ ret ())
 
 
 runSolver :: Carrier sig m => Eff (SolverC m) a -> m a
@@ -33,4 +33,4 @@ newtype SolverC m a = SolverC { runSolverC :: m a }
 instance Carrier sig m => Carrier (Solver :+: sig) (SolverC m) where
   ret = SolverC . ret
   eff = SolverC . handleSum (eff . handleCoercible) (\case
-    Unify _ _ k -> runSolverC k)
+    (:~~:) _ _ k -> runSolverC k)
