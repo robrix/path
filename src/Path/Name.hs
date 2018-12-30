@@ -22,11 +22,6 @@ instance Pretty Name where
     Meta i -> pretty "__" <> prettyVar i
     Op op -> pretty op
 
-prettyVar :: Int -> Doc
-prettyVar i = pretty (alphabet !! q : show r)
-    where (q, r) = i `divMod` 26
-          alphabet = ['a'..'z']
-
 instance PrettyPrec Name
 
 

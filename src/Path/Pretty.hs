@@ -9,6 +9,7 @@ module Path.Pretty
 , prettyWarn
 , prettyInfo
 , prettyStart
+, prettyVar
 , prettyParens
 , prettyBraces
 , tabulate2
@@ -75,6 +76,11 @@ prettyInfo s = prettyNotice s Nothing
 
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
+
+prettyVar :: Int -> Doc
+prettyVar i = pretty (alphabet !! q : show r)
+    where (q, r) = i `divMod` 26
+          alphabet = ['a'..'z']
 
 tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
 tabulate2 _ [] = empty
