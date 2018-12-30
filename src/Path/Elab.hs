@@ -170,7 +170,6 @@ unify span t1 t2 = case (t1, t2) of
           (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> unify span l1 l2
           (Nil, Nil) -> pure Nil
           _ -> throwError (TypeMismatch t1 t2 span)
-        solve :: (Carrier sig m, Member (State Subst) sig, Monad m) => Meta -> Type QName -> m (Type QName)
         solve (M m) t = t <$ modify (IntMap.insert m t)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
