@@ -15,6 +15,7 @@ data ElabError
   | IllegalApplication (Type QName) Span
   | ResourceMismatch Name Usage Usage Span [Span]
   | TypedHole QName (Type QName) Context Span
+  | InfiniteType QName (Type QName) Span
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
@@ -31,6 +32,7 @@ instance Pretty ElabError where
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
     TypedHole n ty ctx span -> prettyErr span msg (Just (prettyCtx ctx))
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
+    InfiniteType n t span -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) Nothing
     where prettyCtx ctx = nest 2 $ vsep
             [ pretty "Local bindings:"
             , pretty ctx
