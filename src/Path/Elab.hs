@@ -74,7 +74,7 @@ infer (In out span) = case out of
         a'' <- eval a'
         pure (Elab (In (f' Core.:$ a') ()) (g1 <> pi ><< g2) (ft `vapp` a''))
       _ -> throwError (IllegalApplication ft (ann f))
-  _ -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
+  _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
 
 check :: ( Carrier sig m
          , Effect sig
@@ -93,9 +93,7 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     synthesized <- synth ty
     case synthesized of
       Just (tm, r, ty) -> pure (Elab tm r ty)
-      Nothing          -> do
-        ctx <- ask
-        throwError (NoRuleToInfer (Context.filter (isLocal . getTerm) ctx) span)
+      Nothing          -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
   (_, Value.Pi tn Im pi t t') -> do
     Elab b br bt <- tn ::: t |- check t' (In tm span)
     let used = Resources.lookup (Local tn) br
@@ -110,9 +108,7 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
     pure (Elab (In (Core.Lam n e') ()) (Resources.delete (Local n) res) ty)
-  (L (Core.Hole n), ty) -> do
-    ctx <- ask
-    throwError (TypedHole n ty (Context.filter (isLocal . getTerm) ctx) span)
+  (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
   (tm, ty) -> do
     v <- infer (In tm span)
     unified <- unify span (elabType v) ty
