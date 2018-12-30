@@ -13,7 +13,7 @@ import Path.Usage
 import Text.Trifecta
 import Text.Parser.Token.Highlight
 
-type', var, hole, implicit, term, application, piType, functionType, forAll, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
+type', var, hole, term, application, piType, functionType, forAll, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
 
 term = functionType
 
@@ -59,9 +59,7 @@ lambda = reann (do
 
 hole = ann (Surface.hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
-implicit = ann (Surface.implicit <$ token (char '_'))
-
-atom = var <|> type' <|> lambda <|> try (parens term) <|> hole <|> implicit
+atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
