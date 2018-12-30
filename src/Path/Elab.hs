@@ -24,7 +24,6 @@ import Path.Name
 import Path.Plicity
 import Path.Resources as Resources
 import Path.Semiring
-import Path.Synth
 import Path.Term
 import Path.Usage
 import Path.Value as Value
@@ -90,11 +89,6 @@ check :: ( Carrier sig m
       -> Term (Implicit QName :+: Core Name QName) Span
       -> m Elab
 check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
-  (L Core.Implicit, ty) -> do
-    synthesized <- synth ty
-    case synthesized of
-      Just (tm, r) -> pure (Elab tm r)
-      Nothing          -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
   (_, Value.Pi tn Im pi t t') -> do
     Elab b br <- tn ::: t |- check t' (In tm span)
     let used = Resources.lookup (Local tn) br
