@@ -7,7 +7,9 @@ import Path.Name
 data Constraint
   = Top
   | Constraint :/\: Constraint
+  | Int :=: Int
   | Exists Int Constraint
-  | Type QName :=: Type QName
-  | Let Int Int Constraint Constraint
+  | Instance Name Int
+  | Def Name Int Constraint
+  | Let Name Int Constraint Constraint
   | Int :@ (Type QName)
