@@ -33,7 +33,6 @@ resolveTerm (In syn ann) = case syn of
   L ((u, a) :-> b) ->
     in' . L <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
   R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
-  R (L Implicit) -> pure (in' (R (L Implicit)))
   where in' = flip In ann
 
 data Mode = Decl | Defn

@@ -36,9 +36,6 @@ f $$ a = In (R (R (f :$ a))) (ann f <> ann a)
 type' :: Surface b v a
 type' = R (R Type)
 
-implicit :: Surface b v a
-implicit = R (L Implicit)
-
 var :: v -> Surface b v a
 var = R . R . Var
 

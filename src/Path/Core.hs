@@ -25,7 +25,6 @@ infixr 4 :+:
 
 data Implicit v a
   = Hole v
-  | Implicit
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
@@ -66,7 +65,6 @@ instance FreeVariables1 QName (Core Name QName) where
 instance Ord v => FreeVariables1 v (Implicit v) where
   liftFvs _ = \case
     Hole v -> Set.singleton v
-    Implicit -> mempty
 
 instance (FreeVariables1 v f, FreeVariables1 v g, Ord v) => FreeVariables1 v (f :+: g) where
   liftFvs fvs = \case
@@ -89,4 +87,3 @@ uses n = cata $ \ f a -> case f of
   L (Hole n')
     | Local n == n' -> [a]
     | otherwise     -> []
-  L Implicit -> []
