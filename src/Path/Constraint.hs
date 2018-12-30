@@ -7,7 +7,7 @@ import Path.Name
 data Constraint a where
   Top :: Constraint ()
   (:/\:) :: Constraint a -> Constraint b -> Constraint (a, b)
-  (:=:) :: Int -> Int -> Constraint ()
+  (:==:) :: Int -> Int -> Constraint ()
   Instance :: QName -> Int -> Constraint [Type QName]
 
 data Witness a where
