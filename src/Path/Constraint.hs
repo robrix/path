@@ -31,12 +31,12 @@ instance Effect Solver where
 m1 ~~ m2 = send (m1 :~~: m2 $ ret ())
 
 
-runSolver :: Carrier sig m => Eff (SolverC m) a -> m a
-runSolver = runSolverC . interpret
+runSolver :: (Carrier sig m, Effect sig, Functor m) => Eff (SolverC m) a -> m a
+runSolver = fmap snd . flip runSolverC Top . interpret
 
-newtype SolverC m a = SolverC { runSolverC :: m a }
+newtype SolverC m a = SolverC { runSolverC :: Constraint -> m (Constraint, a) }
 
-instance Carrier sig m => Carrier (Solver :+: sig) (SolverC m) where
-  ret = SolverC . ret
-  eff = SolverC . handleSum (eff . handleCoercible) (\case
-    (:~~:) _ _ k -> runSolverC k)
+instance (Carrier sig m, Effect sig) => Carrier (Solver :+: sig) (SolverC m) where
+  ret a = SolverC (\ c -> ret (c, a))
+  eff op = SolverC (\ c -> handleSum (eff . handleState c runSolverC) (\case
+    (:~~:) m1 m2 k -> runSolverC k (c :/\: (m1 :==: m2))) op)
