@@ -31,9 +31,8 @@ import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
 data Elab = Elab
-  { elabTerm      :: Term (Core Name QName) ()
+  { elabTerm      :: Term (Core Name QName) (Type QName)
   , elabResources :: Resources Usage
-  , elabType      :: Type QName
   }
   deriving (Eq, Ord, Show)
 
@@ -50,32 +49,31 @@ infer :: ( Carrier sig m
       => Term (Implicit QName :+: Core Name QName) Span
       -> m Elab
 infer (In out span) = case out of
-  R Core.Type -> pure (Elab (In Core.Type ()) mempty Value.Type)
+  R Core.Type -> pure (Elab (In Core.Type Value.Type) mempty)
   R (Core.Pi n i e t b) -> do
     t' <- check Value.Type t
     t'' <- eval (elabTerm t')
     b' <- n ::: t'' |- check Value.Type b
-    pure (Elab (In (Core.Pi n i e (elabTerm t') (elabTerm b')) ()) mempty Value.Type)
+    pure (Elab (In (Core.Pi n i e (elabTerm t') (elabTerm b')) Value.Type) mempty)
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
     case res of
-      Just t -> do
-        (tm, ty) <- elabImplicits (In (Core.Var n) ()) t
-        pure (Elab tm (Resources.singleton n sigma) ty)
+      Just t -> Elab <$> elabImplicits (In (Core.Var n) t) <*> pure (Resources.singleton n sigma)
       _      -> throwError (FreeVariable n span)
-    where elabImplicits tm t@(Value.Pi _ Im _ _ _) = do
-            n <- Meta <$> fresh
-            elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) ()) ()) (t `vapp` vfree (Local n))
-          elabImplicits tm t                       = pure (tm, t)
+    where elabImplicits tm
+            | Value.Pi _ Im _ t _ <- ann tm = do
+              n <- Meta <$> fresh
+              elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n)))
+            | otherwise = pure tm
   R (f :$ a) -> do
-    Elab f' g1 ft <- infer f
-    case ft of
+    Elab f' g1 <- infer f
+    case ann f' of
       Value.Pi _ _ pi t _ -> do
-        Elab a' g2 _ <- check t a
+        Elab a' g2 <- check t a
         a'' <- eval a'
-        pure (Elab (In (f' Core.:$ a') ()) (g1 <> pi ><< g2) (ft `vapp` a''))
-      _ -> throwError (IllegalApplication ft (ann f))
+        pure (Elab (In (f' Core.:$ a') (ann f' `vapp` a'')) (g1 <> pi ><< g2))
+      _ -> throwError (IllegalApplication (ann f') (ann f))
   _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
 
 check :: ( Carrier sig m
@@ -95,27 +93,27 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
   (L Core.Implicit, ty) -> do
     synthesized <- synth ty
     case synthesized of
-      Just (tm, r, ty) -> pure (Elab tm r ty)
+      Just (tm, r) -> pure (Elab tm r)
       Nothing          -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
   (_, Value.Pi tn Im pi t t') -> do
-    Elab b br bt <- tn ::: t |- check t' (In tm span)
+    Elab b br <- tn ::: t |- check t' (In tm span)
     let used = Resources.lookup (Local tn) br
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch tn pi used span (uses tn (In tm span)))
-    pure (Elab (In (Core.Lam tn b) ()) br bt)
+    pure (Elab (In (Core.Lam tn b) ty) br)
   (R (Core.Lam n e), Value.Pi _ _ pi t _) -> do
-    Elab e' res _ <- n ::: t |- check (ty `vapp` vfree (Local n)) e
+    Elab e' res <- n ::: t |- check (ty `vapp` vfree (Local n)) e
     let used = Resources.lookup (Local n) res
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch n pi used span (uses n e))
-    pure (Elab (In (Core.Lam n e') ()) (Resources.delete (Local n) res) ty)
+    pure (Elab (In (Core.Lam n e') ty) (Resources.delete (Local n) res))
   (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
   (tm, ty) -> do
     v <- infer (In tm span)
-    unified <- unify span (elabType v) ty
-    pure v { elabType = unified }
+    _ <- unify span (ann (elabTerm v)) ty
+    pure v
 
 localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
 localVars = asks (Context.filter (isLocal . getTerm))
@@ -257,7 +255,7 @@ elabDefine name tm = do
   elab <- runReader One (runContext (runEnv (runSolver (maybe infer check ty tm))))
   tm' <- runEnv (eval (elabTerm elab))
   modify (Env.insert name tm')
-  elab <$ maybe (modify (Context.insert (name ::: elabType elab))) (const (pure ())) ty
+  elab <$ maybe (modify (Context.insert (name ::: ann (elabTerm elab)))) (const (pure ())) ty
 
 runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext m = get >>= flip runReader m

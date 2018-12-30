@@ -36,6 +36,7 @@ import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
+import Path.Term
 import Path.Usage
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
@@ -166,7 +167,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName Elab)
           Help -> print helpDoc *> loop
           TypeOf tm -> do
             elab <- runFresh (runSolver (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . runContext . runEnv . infer))
-            print (elabType elab)
+            print (ann (elabTerm elab))
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
