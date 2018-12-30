@@ -63,7 +63,7 @@ infer (In out span) = case out of
         pure (Elab tm (Resources.singleton n sigma) ty)
       _      -> throwError (FreeVariable n span)
     where elabImplicits tm t@(Value.Pi _ Im _ _ _) = do
-            n <- freshName
+            n <- Meta <$> fresh
             elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) ()) ()) (t `vapp` vfree (Local n))
           elabImplicits tm t                       = pure (tm, t)
   R (f :$ a) -> do
