@@ -5,9 +5,7 @@ import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Sum
 import Data.Coerce
-
-newtype MetaVar = M Int
-  deriving (Eq, Ord, Show)
+import Path.Name
 
 data Constraint
   = Top

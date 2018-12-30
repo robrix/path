@@ -15,6 +15,9 @@ data Name
   | Op Operator
   deriving (Eq, Ord, Show)
 
+newtype MetaVar = M Int
+  deriving (Eq, Ord, Show)
+
 instance Pretty Name where
   pretty = \case
     Name s -> pretty s
