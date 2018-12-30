@@ -170,7 +170,9 @@ unify span t1 t2 = case (t1, t2) of
           (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> unify span l1 l2
           (Nil, Nil) -> pure Nil
           _ -> throwError (TypeMismatch t1 t2 span)
-        solve (M m) t = t <$ modify (IntMap.insert m t)
+        solve (M m) t
+          | Local (Meta (M m)) `Set.member` fvs t = throwError (InfiniteType (Local (Meta (M m))) t span)
+          | otherwise                             = t <$ modify (IntMap.insert m t)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
