@@ -13,3 +13,6 @@ data Solver (m :: * -> *) a
 
 instance HFunctor Solver where
   hmap _ = coerce
+
+instance Effect Solver where
+  handle state handler = coerce . fmap (handler . (<$ state))
