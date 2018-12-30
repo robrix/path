@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DeriveFunctor, TypeOperators #-}
 module Path.Constraint where
 
 import Path.Context
@@ -15,3 +15,6 @@ data Constraint
   | Int :@ (Type QName)
 
 data Witness = Witness
+
+data Solver m a = Solver Constraint (Witness -> m a)
+  deriving (Functor)
