@@ -174,8 +174,9 @@ type Subst = IntMap.IntMap (Type QName)
 runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) Elab -> m Elab
 runSubst = fmap (\ (s, (tm, res)) -> (substitute s tm, res)) . runState mempty
   where substitute s tm = case IntMap.minViewWithKey s of
-          Just ((m, ty), rest) -> substitute rest (subst (Local (Meta (M m))) ty <$> tm)
+          Just ((m, ty), rest) -> substitute rest (cata (run (Local (Meta (M m))) ty) tm)
           Nothing              -> tm
+        run q ty core ann = In core (subst q ty ann)
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
