@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, KindSignatures #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, KindSignatures, LambdaCase, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
 module Path.Constraint where
 
 import Control.Effect.Carrier
@@ -21,3 +21,11 @@ instance Effect Solver where
 
 (~~) :: (Carrier sig m, Member Solver sig) => MetaVar -> MetaVar -> m ()
 m1 ~~ m2 = send (Unify m1 m2 (ret ()))
+
+
+newtype SolverC m a = SolverC { runSolverC :: m a }
+
+instance Carrier sig m => Carrier (Solver :+: sig) (SolverC m) where
+  ret = SolverC . ret
+  eff = SolverC . handleSum (eff . handleCoercible) (\case
+    Unify _ _ k -> runSolverC k)
