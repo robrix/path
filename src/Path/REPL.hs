@@ -37,6 +37,7 @@ import Path.Pretty
 import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
+import Path.Subst
 import Path.Term
 import Path.Usage
 import Prelude hiding (print)

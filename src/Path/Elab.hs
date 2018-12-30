@@ -24,6 +24,7 @@ import Path.Name
 import Path.Plicity
 import Path.Resources as Resources
 import Path.Semiring
+import Path.Subst
 import Path.Term
 import Path.Usage
 import Path.Value as Value
@@ -165,16 +166,6 @@ unify span t1 t2 = case (t1, t2) of
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
-
-
-type Subst = IntMap.IntMap (Type QName)
-
-runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) (Term (Core Name QName) (Type QName), Resources Usage) -> m (Term (Core Name QName) (Type QName), Resources Usage)
-runSubst = fmap (\ (s, (tm, res)) -> (substitute s tm, res)) . runState mempty
-  where substitute s tm = case IntMap.minViewWithKey s of
-          Just ((m, ty), rest) -> substitute rest (cata (run (Local (Meta (M m))) ty) tm)
-          Nothing              -> tm
-        run q ty core ann = In core (subst q ty ann)
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
