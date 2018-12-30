@@ -28,6 +28,9 @@ instance PrettyPrec Name
 newtype Meta = M Int
   deriving (Eq, Ord, Show)
 
+instance Pretty Meta where
+  pretty (M i) = prettyVar i
+
 
 data ModuleName
   = ModuleName String
