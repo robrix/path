@@ -31,6 +31,8 @@ newtype Meta = M Int
 instance Pretty Meta where
   pretty (M i) = prettyVar i
 
+instance PrettyPrec Meta
+
 
 data ModuleName
   = ModuleName String
