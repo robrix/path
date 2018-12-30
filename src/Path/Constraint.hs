@@ -12,6 +12,7 @@ newtype MetaVar = M Int
 data Constraint
   = Top
   | Constraint :/\: Constraint
+  | MetaVar :==: MetaVar
   deriving (Eq, Ord, Show)
 
 -- | 'Solver' effects specify constraint generation.
