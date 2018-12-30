@@ -63,7 +63,7 @@ infer (In out span) = case out of
       _      -> throwError (FreeVariable n span)
     where elabImplicits tm
             | Value.Pi _ Im _ t _ <- ann tm = do
-              n <- Meta <$> fresh
+              n <- Meta . M <$> fresh
               elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n)))
             | otherwise = pure tm
   R (f :$ a) -> do
