@@ -45,6 +45,7 @@ infer :: ( Carrier sig m
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
          , Member Solver sig
+         , Member (State Subst) sig
          , Monad m
          )
       => Term (Implicit QName :+: Core Name QName) Span
@@ -85,6 +86,7 @@ check :: ( Carrier sig m
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
          , Member Solver sig
+         , Member (State Subst) sig
          , Monad m
          )
       => Type QName
@@ -238,7 +240,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m Elab
 elabDeclare name ty = do
-  elab <- runReader Zero (runContext (runEnv (runSolver (generalize ty >>= check Value.Type))))
+  elab <- runReader Zero (runContext (runEnv (runSolver (runSubst (generalize ty >>= check Value.Type)))))
   ty' <- runEnv (eval (elabTerm elab))
   elab <$ modify (Context.insert (name ::: ty'))
   where generalize ty = do
@@ -259,7 +261,7 @@ elabDefine :: ( Carrier sig m
            -> m Elab
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  elab <- runReader One (runContext (runEnv (runSolver (maybe infer check ty tm))))
+  elab <- runReader One (runContext (runEnv (runSolver (runSubst (maybe infer check ty tm)))))
   tm' <- runEnv (eval (elabTerm elab))
   modify (Env.insert name tm')
   elab <$ maybe (modify (Context.insert (name ::: ann (elabTerm elab)))) (const (pure ())) ty
