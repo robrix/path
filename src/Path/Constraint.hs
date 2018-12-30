@@ -9,6 +9,7 @@ import Data.Coerce
 newtype MetaVar = M Int
   deriving (Eq, Ord, Show)
 
+-- | 'Solver' effects specify constraint generation.
 data Solver (m :: * -> *) a
   = Unify MetaVar MetaVar a
   deriving (Functor)
