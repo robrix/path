@@ -9,6 +9,11 @@ import Data.Coerce
 newtype MetaVar = M Int
   deriving (Eq, Ord, Show)
 
+data Constraint
+  = Top
+  | Constraint :/\: Constraint
+  deriving (Eq, Ord, Show)
+
 -- | 'Solver' effects specify constraint generation.
 data Solver (m :: * -> *) a
   = (:~~:) MetaVar MetaVar a
