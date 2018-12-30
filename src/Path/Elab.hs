@@ -118,6 +118,9 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     unified <- unify span (elabType v) ty
     pure v { elabType = unified }
 
+localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
+localVars = asks (Context.filter (isLocal . getTerm))
+
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
 n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
