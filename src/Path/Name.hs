@@ -15,9 +15,6 @@ data Name
   | Op Operator
   deriving (Eq, Ord, Show)
 
-newtype Meta = M Int
-  deriving (Eq, Ord, Show)
-
 instance Pretty Name where
   pretty = \case
     Name s -> pretty s
@@ -31,6 +28,10 @@ prettyI i = pretty (alphabet !! q : show r)
           alphabet = ['a'..'z']
 
 instance PrettyPrec Name
+
+
+newtype Meta = M Int
+  deriving (Eq, Ord, Show)
 
 
 data ModuleName
