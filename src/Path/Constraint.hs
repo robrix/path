@@ -2,11 +2,12 @@
 module Path.Constraint where
 
 import Path.Context
-import Path.Core
 import Path.Name
-import Path.Term
-import Text.Trifecta.Rendering (Span)
 
-data Equation = Term (Implicit QName :+: Core Name QName) Span :==: Term (Implicit QName :+: Core Name QName) Span
-
-type Constraint = Typed Equation
+data Constraint
+  = Top
+  | Constraint :/\: Constraint
+  | Exists Int Constraint
+  | Type QName :=: Type QName
+  | Let Int Int Constraint Constraint
+  | Int :@ (Type QName)
