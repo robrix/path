@@ -13,6 +13,7 @@ import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back
+import Path.Constraint
 import Path.Context as Context
 import Path.Core as Core
 import Path.Env as Env
@@ -43,6 +44,7 @@ infer :: ( Carrier sig m
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
+         , Member Solver sig
          , Monad m
          )
       => Term (Implicit QName :+: Core Name QName) Span
@@ -83,6 +85,7 @@ check :: ( Carrier sig m
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
+         , Member Solver sig
          , Monad m
          )
       => Type QName
@@ -230,7 +233,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m Elab
 elabDeclare name ty = do
-  elab <- runReader Zero (runContext (runEnv (generalize ty >>= check Value.Type)))
+  elab <- runReader Zero (runContext (runEnv (runSolver (generalize ty >>= check Value.Type))))
   ty' <- runEnv (eval (elabTerm elab))
   elab <$ modify (Context.insert (name ::: ty'))
   where generalize ty = do
@@ -251,7 +254,7 @@ elabDefine :: ( Carrier sig m
            -> m Elab
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  elab <- runReader One (runContext (runEnv (maybe infer check ty tm)))
+  elab <- runReader One (runContext (runEnv (runSolver (maybe infer check ty tm))))
   tm' <- runEnv (eval (elabTerm elab))
   modify (Env.insert name tm')
   elab <$ maybe (modify (Context.insert (name ::: elabType elab))) (const (pure ())) ty

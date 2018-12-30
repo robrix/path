@@ -20,6 +20,7 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back
+import Path.Constraint
 import Path.Context as Context
 import Path.Desugar
 import Path.Elab
@@ -164,14 +165,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName Elab)
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . runContext . runEnv . infer)
+            elab <- runFresh (runSolver (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . runContext . runEnv . infer))
             print (elabType elab)
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
             loop
           Eval tm -> do
-            elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . runContext . runEnv . infer)
+            elab <- runFresh (runSolver (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . runContext . runEnv . infer))
             runEnv (eval (elabTerm elab)) >>= print
             loop
           Show Bindings -> do
