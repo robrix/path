@@ -41,7 +41,6 @@ library
                      , Path.REPL.Command
                      , Path.Resources
                      , Path.Semiring
-                     , Path.Subst
                      , Path.Surface
                      , Path.Synth
                      , Path.Term
