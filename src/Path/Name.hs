@@ -18,12 +18,12 @@ data Name
 instance Pretty Name where
   pretty = \case
     Name s -> pretty s
-    Gensym i -> pretty '_' <> prettyI i
-    Meta i -> pretty "__" <> prettyI i
+    Gensym i -> pretty '_' <> prettyVar i
+    Meta i -> pretty "__" <> prettyVar i
     Op op -> pretty op
 
-prettyI :: Int -> Doc
-prettyI i = pretty (alphabet !! q : show r)
+prettyVar :: Int -> Doc
+prettyVar i = pretty (alphabet !! q : show r)
     where (q, r) = i `divMod` 26
           alphabet = ['a'..'z']
 
