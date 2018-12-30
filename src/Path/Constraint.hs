@@ -17,6 +17,9 @@ data Witness a where
 
 data Solver m a = forall b . Solver (Constraint b) (Witness b -> m a)
 
+(~~) :: Applicative m => Int -> Int -> Solver m ()
+v1 ~~ v2 = Solver (v1 :==: v2) (const (pure ()))
+
 instance' :: Applicative m => QName -> Int -> Solver m [Type QName]
 instance' x v = Solver (Instance x v) (\case
   WInst tys -> pure tys)
