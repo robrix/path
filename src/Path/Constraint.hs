@@ -13,3 +13,5 @@ data Constraint
   | Def Name Int Constraint
   | Let Name Int Constraint Constraint
   | Int :@ (Type QName)
+
+data Witness = Witness
