@@ -10,12 +10,12 @@ import Path.Name
 data Constraint
   = Top
   | Constraint :/\: Constraint
-  | MetaVar :==: MetaVar
+  | Meta :==: Meta
   deriving (Eq, Ord, Show)
 
 -- | 'Solver' effects specify constraint generation.
 data Solver (m :: * -> *) a
-  = (:~~:) MetaVar MetaVar a
+  = (:~~:) Meta Meta a
   deriving (Functor)
 
 instance HFunctor Solver where
@@ -25,7 +25,7 @@ instance Effect Solver where
   handle state handler = coerce . fmap (handler . (<$ state))
 
 
-(~~) :: (Carrier sig m, Member Solver sig) => MetaVar -> MetaVar -> m ()
+(~~) :: (Carrier sig m, Member Solver sig) => Meta -> Meta -> m ()
 m1 ~~ m2 = send (m1 :~~: m2 $ ret ())
 
 

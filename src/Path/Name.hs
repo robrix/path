@@ -15,7 +15,7 @@ data Name
   | Op Operator
   deriving (Eq, Ord, Show)
 
-newtype MetaVar = M Int
+newtype Meta = M Int
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
