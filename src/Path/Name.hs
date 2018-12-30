@@ -75,10 +75,6 @@ prettyQName = \case
   Local n -> pretty n
 
 
-data Var v = V v | M v
-  deriving (Eq, Ord, Show)
-
-
 data Operator
   = Prefix (NonEmpty String)
   | Postfix (NonEmpty String)
