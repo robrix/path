@@ -1,4 +1,4 @@
-{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE DeriveFunctor, KindSignatures #-}
 module Path.Constraint where
 
 newtype MetaVar = M Int
@@ -6,3 +6,4 @@ newtype MetaVar = M Int
 
 data Solver (m :: * -> *) a
   = Unify MetaVar MetaVar a
+  deriving (Functor)
