@@ -8,6 +8,7 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
+import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -163,6 +164,9 @@ unify span t1 t2 = case (t1, t2) of
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
+
+
+type Subst = IntMap.IntMap (Type QName)
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
