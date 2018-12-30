@@ -39,7 +39,6 @@ library
                      , Path.Resources
                      , Path.Semiring
                      , Path.Surface
-                     , Path.Synth
                      , Path.Term
                      , Path.Usage
                      , Path.Value
