@@ -58,8 +58,14 @@ infer (In out span) = case out of
     res <- asks (Context.lookup n)
     sigma <- ask
     case res of
-      Just t -> pure (Elab (In (Core.Var n) ()) (Resources.singleton n sigma) t)
+      Just t -> do
+        (tm, ty) <- elabImplicits (In (Core.Var n) ()) t
+        pure (Elab tm (Resources.singleton n sigma) ty)
       _      -> throwError (FreeVariable n span)
+    where elabImplicits tm t@(Value.Pi _ Im _ _ _) = do
+            n <- freshName
+            elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) ()) ()) (t `vapp` vfree (Local n))
+          elabImplicits tm t                       = pure (tm, t)
   R (f :$ a) -> do
     Elab f' g1 ft <- infer f
     case ft of
