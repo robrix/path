@@ -171,7 +171,7 @@ freshName = Gensym <$> fresh
 
 type Subst = IntMap.IntMap (Type QName)
 
-runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) a -> m a
+runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) Elab -> m Elab
 runSubst = evalState mempty
 
 
