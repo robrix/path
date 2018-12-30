@@ -172,7 +172,10 @@ freshName = Gensym <$> fresh
 type Subst = IntMap.IntMap (Type QName)
 
 runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) Elab -> m Elab
-runSubst = evalState mempty
+runSubst = fmap (\ (s, (tm, res)) -> (substitute s tm, res)) . runState mempty
+  where substitute s tm = case IntMap.minViewWithKey s of
+          Just ((m, ty), rest) -> substitute rest (subst (Local (Meta (M m))) ty <$> tm)
+          Nothing              -> tm
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
