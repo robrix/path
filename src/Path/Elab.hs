@@ -9,8 +9,8 @@ import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
+import qualified Data.Set as Set
 import Data.Traversable (for)
 import Path.Back
 import Path.Context as Context
