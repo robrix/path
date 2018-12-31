@@ -161,7 +161,7 @@ unify span t1 t2 = do
             Value.piType n p1 u1
               <$> go a1 a2
               <*> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (Value (sp1 Value.:& h1), Value (sp2 Value.:& h2)) | h1 == h2 -> do
+          (Value (sp1 Value.:& h1), Value (sp2 Value.:& h2)) | h1 == h2 ->
             (Value.& h1) <$> unifySpines sp1 sp2
           (act, exp) -> do
             act' <- vforce act
