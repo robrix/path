@@ -24,7 +24,7 @@ import Path.Name
 import Path.Plicity
 import Path.Resources as Resources
 import Path.Semiring
-import Path.Subst
+import Path.Subst as Subst
 import Path.Term
 import Path.Usage
 import Path.Value as Value
@@ -162,7 +162,7 @@ unify span t1 t2 = case (t1, t2) of
             extant <- gets (IntMap.lookup m . getSubst)
             case extant of
               Just ty -> unify span ty t
-              Nothing -> t <$ modify (Subst . IntMap.insert m t . getSubst)
+              Nothing -> t <$ modify (Subst.insert (M m) t)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh

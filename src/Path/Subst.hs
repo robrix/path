@@ -15,6 +15,10 @@ import Path.Value
 newtype Subst = Subst { getSubst :: IntMap.IntMap (Type QName) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
+insert :: Meta -> Type QName -> Subst -> Subst
+insert (M m) t = Subst . IntMap.insert m t . getSubst
+
+
 runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) (Term (Core Name QName) (Type QName), Resources Usage) -> m (Term (Core Name QName) (Type QName), Resources Usage)
 runSubst = fmap (\ (Subst s, (tm, res)) -> (substitute s tm, res)) . runState mempty
   where substitute s tm = case IntMap.minViewWithKey s of
