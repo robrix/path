@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Path.Subst where
 
 import Control.Effect
@@ -11,10 +12,11 @@ import Path.Term
 import Path.Usage
 import Path.Value
 
-type Subst = IntMap.IntMap (Type QName)
+newtype Subst = Subst { getSubst :: IntMap.IntMap (Type QName) }
+  deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) (Term (Core Name QName) (Type QName), Resources Usage) -> m (Term (Core Name QName) (Type QName), Resources Usage)
-runSubst = fmap (\ (s, (tm, res)) -> (substitute s tm, res)) . runState mempty
+runSubst = fmap (\ (Subst s, (tm, res)) -> (substitute s tm, res)) . runState mempty
   where substitute s tm = case IntMap.minViewWithKey s of
           Just ((m, ty), rest) -> substitute rest (cata (run (Local (Meta (M m))) ty) tm)
           Nothing              -> tm

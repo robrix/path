@@ -159,10 +159,10 @@ unify span t1 t2 = case (t1, t2) of
         solve (M m) t
           | Local (Meta (M m)) `Set.member` fvs t = throwError (InfiniteType (Local (Meta (M m))) t span)
           | otherwise                             = do
-            extant <- gets (IntMap.lookup m)
+            extant <- gets (IntMap.lookup m . getSubst)
             case extant of
               Just ty -> unify span ty t
-              Nothing -> t <$ modify (IntMap.insert m t)
+              Nothing -> t <$ modify (Subst . IntMap.insert m t . getSubst)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
