@@ -130,7 +130,7 @@ unify span t1 t2 = go t1 t2
           _ -> throwError (TypeMismatch t1 t2 span)
         solve m t
           | Local (Meta m) `Set.member` fvs t = throwError (InfiniteType (Local (Meta m)) t span)
-          | otherwise                             = do
+          | otherwise                         = do
             extant <- gets (Subst.lookup m)
             case extant of
               Just ty -> go ty t
