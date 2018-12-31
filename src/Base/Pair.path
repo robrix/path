@@ -16,11 +16,11 @@ snd = \ r p . p r (\ _ snd . snd)
 
 
 map : ∀ l : Type . Functor (Pair l)
-map = \ l _ r' f e . e (Pair l r') (\ l' r . pair l r' l' (f r))
+map = \ l _ r' f e . e (Pair l r') (\ l' r . pair l' (f r))
 
 bimap :  ∀ l' : Type
       .  ∀ r' : Type
       .  (     l   ->      l')
       -> (       r ->         r')
       -> (Pair l r -> Pair l' r')
-bimap = \ l' r' f g e . e (Pair l' r') (\ l r . pair l' r' (f l) (g r))
+bimap = \ l' r' f g e . e (Pair l' r') (\ l r . pair (f l) (g r))

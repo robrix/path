@@ -16,10 +16,10 @@ Nat : Type
 Nat = Fix NatF
 
 s : Nat -> Nat
-s = \ n . in NatF (sf Nat n)
+s = \ n . in NatF (sf n)
 
 z : Nat
-z = in NatF (zf Nat)
+z = in NatF zf
 
 
 iter : ∀ a : Type . a -> (a -> a) -> Nat -> a

@@ -17,4 +17,4 @@ isJust : Maybe a -> Bool
 isJust = \ m . m Bool false (\ _ . true)
 
 map : Functor Maybe
-map = \ _ b f m . m (Maybe b) (nothing b) (\ a . just b (f a))
+map = \ _ b f m . m (Maybe b) nothing (\ a . just (f a))
