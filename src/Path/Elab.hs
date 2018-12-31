@@ -23,7 +23,6 @@ import Path.Name
 import Path.Plicity
 import Path.Resources as Resources
 import Path.Semiring
-import Path.Subst as Subst
 import Path.Term
 import Path.Unify
 import Path.Usage
@@ -113,62 +112,6 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
 infix 5 |-
 
-
-unify :: ( Carrier sig m
-         , Member (Error ElabError) sig
-         , Member Fresh sig
-         , Member (Reader Context) sig
-         , Member (Reader Env) sig
-         , Member (State Subst) sig
-         , Monad m
-         )
-      => Span
-      -> Type
-      -> Type
-      -> m Type
-unify span t1 t2 = do
-  t1' <- vforce t1
-  t2' <- vforce t2
-  go t1' t2'
-  where go t1 t2 = case (t1, t2) of
-          (Value Value.Type, Value Value.Type) -> pure Value.type'
-          (Value (sp1 Value.:& Local (Meta m1)), Value (sp2 Value.:& Local (Meta m2))) -> case compare m1 m2 of
-            LT -> solve m2 t1
-            EQ -> (& Local (Meta m1)) <$> unifySpines sp1 sp2
-            GT -> solve m1 t2
-          (Value (sp1 Value.:& Local (Meta m1)), _) -> foldl vapp <$> solve m1 t2 <*> pure sp1
-          (_, Value (sp2 Value.:& Local (Meta m2))) -> foldl vapp <$> solve m2 t1 <*> pure sp2
-          (Value (Value.Lam _ _), Value (Value.Lam _ _)) -> do
-            n <- freshName
-            Value.lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (Value (Value.Lam _ _), _) -> do
-            n <- freshName
-            Value.lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (_, Value (Value.Lam _ _)) -> do
-            n <- freshName
-            Value.lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (Value (Value.Pi _ p1 u1 a1 _), Value (Value.Pi _ p2 u2 a2 _)) | p1 == p2, u1 == u2 -> do
-            n <- freshName
-            Value.piType n p1 u1
-              <$> go a1 a2
-              <*> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (Value (sp1 Value.:& h1), Value (sp2 Value.:& h2)) | h1 == h2 ->
-            (Value.& h1) <$> unifySpines sp1 sp2
-          (act, exp) -> do
-            act' <- vforce act
-            unless (exp `aeq` act') (TypeMismatch exp act <$> localVars <*> pure span >>= throwError)
-            pure act
-        unifySpines sp1 sp2 = case (sp1, sp2) of
-          (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> go l1 l2
-          (Nil, Nil) -> pure Nil
-          _ -> TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
-        solve m t
-          | Local (Meta m) `Set.member` fvs t = throwError (InfiniteType (Local (Meta m)) t span)
-          | otherwise                         = do
-            extant <- gets (Subst.lookup m)
-            case extant of
-              Just ty -> go ty t
-              Nothing -> t <$ modify (Subst.insert m t)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
