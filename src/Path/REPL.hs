@@ -37,7 +37,6 @@ import Path.Pretty
 import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
-import Path.Subst
 import Path.Term
 import Path.Unify
 import Path.Usage
@@ -169,14 +168,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            elab <- runFresh (runConstraints (runSubst (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . runContext . runEnv . infer)))
+            elab <- runFresh (runConstraints (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . runContext . runEnv . infer))
             print (ann (fst elab))
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
             loop
           Eval tm -> do
-            elab <- runFresh (runConstraints (runSubst (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . runContext . runEnv . infer)))
+            elab <- runFresh (runConstraints (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . runContext . runEnv . infer))
             runEnv (eval (fst elab)) >>= print
             loop
           Show Bindings -> do
