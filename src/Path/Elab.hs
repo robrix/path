@@ -103,7 +103,8 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
   (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
   (tm, ty) -> do
     v <- infer (In tm span)
-    _ <- unify span (ann (fst v)) ty
+    unless (ann (fst v) `aeq` ty) $
+      TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
     pure v
 
 localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
