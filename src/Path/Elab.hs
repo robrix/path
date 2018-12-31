@@ -40,7 +40,7 @@ infer :: ( Carrier sig m
          , Monad m
          )
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core Name QName) (Type QName), Resources Usage)
+      -> m (Term (Core Name QName) Type, Resources Usage)
 infer (In out span) = case out of
   R Core.Type -> pure (In Core.Type Value.Type, mempty)
   R (Core.Pi n i e t b) -> do
@@ -79,9 +79,9 @@ check :: ( Carrier sig m
          , Member (State Subst) sig
          , Monad m
          )
-      => Type QName
+      => Type
       -> Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core Name QName) (Type QName), Resources Usage)
+      -> m (Term (Core Name QName) Type, Resources Usage)
 check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
   (_, Value.Pi tn Im pi t t') -> do
     (b, br) <- tn ::: t |- check t' (In tm span)
@@ -121,9 +121,9 @@ unify :: ( Carrier sig m
          , Monad m
          )
       => Span
-      -> Type QName
-      -> Type QName
-      -> m (Type QName)
+      -> Type
+      -> Type
+      -> m Type
 unify span t1 t2 = do
   t1' <- vforce t1
   t2' <- vforce t2
@@ -185,7 +185,7 @@ elabModule :: ( Carrier sig m
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Module QName (Term (Core Name QName) (Type QName), Resources Usage))
+           -> m (Module QName (Term (Core Name QName) Type, Resources Usage))
 elabModule m = do
   for_ (moduleImports m) $ \ i -> do
     (ctx, env) <- importModule i
@@ -220,7 +220,7 @@ elabDecl :: ( Carrier sig m
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m (Decl QName (Term (Core Name QName) (Type QName), Resources Usage))
+         -> m (Decl QName (Term (Core Name QName) Type, Resources Usage))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -236,7 +236,7 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m (Term (Core Name QName) (Type QName), Resources Usage)
+            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
   elab <- runReader Zero (runContext (runEnv (runSubst (generalize ty >>= check Value.Type))))
   ty' <- runEnv (eval (fst elab))
@@ -256,7 +256,7 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m (Term (Core Name QName) (Type QName), Resources Usage)
+           -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
   elab <- runReader One (runContext (runEnv (runSubst (maybe infer check ty tm))))

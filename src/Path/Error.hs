@@ -10,12 +10,12 @@ import Text.Trifecta.Rendering (Span)
 
 data ElabError
   = FreeVariable QName Span
-  | TypeMismatch (Type QName) (Type QName) Context Span
+  | TypeMismatch Type Type Context Span
   | NoRuleToInfer Context Span
-  | IllegalApplication (Type QName) Span
+  | IllegalApplication Type Span
   | ResourceMismatch Name Usage Usage Span [Span]
-  | TypedHole QName (Type QName) Context Span
-  | InfiniteType QName (Type QName) Span
+  | TypedHole QName Type Context Span
+  | InfiniteType QName Type Span
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where

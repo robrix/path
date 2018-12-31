@@ -10,13 +10,13 @@ import Path.Value
 
 type Type = Value
 
-data Typed a = a ::: Type QName
+data Typed a = a ::: Type
   deriving (Eq, Ord, Show)
 
 getTerm :: Typed a -> a
 getTerm (a ::: _) = a
 
-getType :: Typed a -> Type QName
+getType :: Typed a -> Type
 getType (_ ::: t) = t
 
 infix 6 :::
@@ -27,7 +27,7 @@ newtype Context = Context { unContext :: Back (Typed QName) }
 null :: Context -> Bool
 null = Prelude.null . unContext
 
-lookup :: QName -> Context -> Maybe (Type QName)
+lookup :: QName -> Context -> Maybe Type
 lookup n = fmap getType . Back.find ((== n) . getTerm) . unContext
 
 insert :: Typed QName -> Context -> Context

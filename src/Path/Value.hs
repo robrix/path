@@ -10,14 +10,14 @@ import Path.Plicity
 import Path.Pretty
 import Path.Usage
 
-data Value a
-  = Type                                       -- ^ @'Type' : 'Type'@.
-  | Lam Name                         (Value a) -- ^ A lambda abstraction.
-  | Pi  Name Plicity Usage (Value a) (Value a) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Back (Value a) :& a                        -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
+data Value
+  = Type                               -- ^ @'Type' : 'Type'@.
+  | Lam Name                     Value -- ^ A lambda abstraction.
+  | Pi  Name Plicity Usage Value Value -- ^ A ∏ type, with a 'Usage' annotation.
+  | Back Value :& QName                -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
   deriving (Eq, Ord, Show)
 
-instance PrettyPrec (Value QName) where
+instance PrettyPrec Value where
   prettyPrec d = \case
     Type -> yellow (pretty "Type")
     Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
@@ -41,27 +41,27 @@ instance PrettyPrec (Value QName) where
               | otherwise = prettyParens True
             arrow = blue (pretty "->")
 
-instance Pretty (Value QName) where
+instance Pretty Value where
   pretty = prettyPrec 0
 
-instance FreeVariables QName (Value QName) where
+instance FreeVariables QName Value where
   fvs = \case
     Type -> mempty
     Lam v b -> Set.delete (Local v) (fvs b)
     Pi v _ _ t b -> fvs t <> Set.delete (Local v) (fvs b)
     a :& f -> foldMap fvs a <> Set.singleton f
 
-vfree :: a -> Value a
+vfree :: QName -> Value
 vfree = (Nil :&)
 
-vapp :: Value QName -> Value QName -> Value QName
+vapp :: Value -> Value -> Value
 vapp (Lam n b) v = subst (Local n) v b
 vapp (Pi n _ _ _ b) v = subst (Local n) v b
 vapp (vs :& n) v = (vs :> v) :& n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
 -- | Capture-avoiding substitution.
-subst :: QName -> Value QName -> Value QName -> Value QName
+subst :: QName -> Value -> Value -> Value
 subst for rep = go 0
   where fvsRep = fvs rep
         go i = \case
@@ -86,7 +86,7 @@ subst for rep = go 0
         gensym i names = Gensym (maybe i (succ . fst) (Set.maxView (locals (names <> fvsRep))))
 
 
-aeq :: Value QName -> Value QName -> Bool
+aeq :: Value -> Value -> Bool
 aeq = go (0 :: Int) [] []
   where go i env1 env2 v1 v2 = case (v1, v2) of
           (Type,              Type)              -> True
