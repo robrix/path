@@ -8,7 +8,6 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
-import qualified Data.IntMap as IntMap
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -156,13 +155,13 @@ unify span t1 t2 = case (t1, t2) of
           (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> unify span l1 l2
           (Nil, Nil) -> pure Nil
           _ -> throwError (TypeMismatch t1 t2 span)
-        solve (M m) t
-          | Local (Meta (M m)) `Set.member` fvs t = throwError (InfiniteType (Local (Meta (M m))) t span)
+        solve m t
+          | Local (Meta m) `Set.member` fvs t = throwError (InfiniteType (Local (Meta m)) t span)
           | otherwise                             = do
-            extant <- gets (IntMap.lookup m . getSubst)
+            extant <- gets (Subst.lookup m)
             case extant of
               Just ty -> unify span ty t
-              Nothing -> t <$ modify (Subst.insert (M m) t)
+              Nothing -> t <$ modify (Subst.insert m t)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh

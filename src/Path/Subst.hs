@@ -18,6 +18,9 @@ newtype Subst = Subst { getSubst :: IntMap.IntMap (Type QName) }
 insert :: Meta -> Type QName -> Subst -> Subst
 insert (M m) t = Subst . IntMap.insert m t . getSubst
 
+lookup :: Meta -> Subst -> Maybe (Type QName)
+lookup (M m) = IntMap.lookup m . getSubst
+
 
 runSubst :: (Carrier sig m, Effect sig, Functor m) => Eff (StateC Subst m) (Term (Core Name QName) (Type QName), Resources Usage) -> m (Term (Core Name QName) (Type QName), Resources Usage)
 runSubst = fmap (\ (Subst s, (tm, res)) -> (substitute s tm, res)) . runState mempty
