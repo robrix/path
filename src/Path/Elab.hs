@@ -123,7 +123,10 @@ unify :: ( Carrier sig m
       -> Type QName
       -> Type QName
       -> m (Type QName)
-unify span t1 t2 = go t1 t2
+unify span t1 t2 = do
+  t1' <- vforce t1
+  t2' <- vforce t2
+  go t1' t2'
   where unifySpines sp1 sp2 = case (sp1, sp2) of
           (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> go l1 l2
           (Nil, Nil) -> pure Nil
