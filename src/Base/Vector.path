@@ -4,13 +4,13 @@ import Base.Nat
 
 Vector : Nat -> Type -> Type
 Vector = \ n a
-  .  ∀ x : Nat -> Type
-  .  x z
-  -> (∀ n : Nat . a -> x n -> x (s n))
+  .  { x : Nat -> Type }
+  -> x z
+  -> ({ n : Nat } -> a -> x n -> x (s n))
   -> x n
 
 nil : Vector z a
-nil = \ _ nil _ . nil
+nil = \ nil _ . nil
 
-cons : ∀ n : Nat . a -> Vector n a -> Vector (s n) a
-cons = \ n h t x nil cons . cons n h (t x nil cons)
+cons : { n : Nat } -> a -> Vector n a -> Vector (s n) a
+cons = \ h t nil cons . cons h (t nil cons)

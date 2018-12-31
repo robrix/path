@@ -4,13 +4,13 @@ import Base.Fix
 import Base.Functor
 
 ListF : Type -> Type -> Type
-ListF = \ a b . ∀ c : Type . c -> (a -> b -> c) -> c
+ListF = \ a b . { c : Type } -> c -> (a -> b -> c) -> c
 
 nilf : ListF a b
-nilf = \ _ nil _ . nil
+nilf = \ nil _ . nil
 
 consf : a -> b -> ListF a b
-consf = \ a b _ _ cons . cons a b
+consf = \ a b _ cons . cons a b
 
 
 List : Type -> Type
@@ -19,8 +19,8 @@ List = \ a . Fix (ListF a)
 nil : ∀ a : Type . List a
 nil = \ a . in (ListF a) nilf
 
-cons : ∀ a : Type . a -> List a -> List a
-cons = \ a h t . in (ListF a) (consf h t)
+cons : { a : Type } -> a -> List a -> List a
+cons = \ h t . in (consf h t)
 
 
 append : ∀ a : Type . List a -> List a -> List a

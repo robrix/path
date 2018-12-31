@@ -3,13 +3,13 @@ module Base.Nat
 import Base.Fix
 
 NatF : Type -> Type
-NatF = \ a . ∀ b : Type . b -> (a -> b) -> b
+NatF = \ a . { b : Type } -> b -> (a -> b) -> b
 
 sf : a -> NatF a
-sf = \ a _ _ s . s a
+sf = \ a _ s . s a
 
 zf : NatF a
-zf = \ _ z _ . z
+zf = \ z _ . z
 
 
 Nat : Type

@@ -3,24 +3,22 @@ module Base.Pair
 import Base.Functor
 
 Pair : Type -> Type -> Type
-Pair = \ l r . ∀ a : Type . (l -> r -> a) -> a
+Pair = \ l r . { a : Type } -> (l -> r -> a) -> a
 
 pair : l -> r -> Pair l r
-pair = \ l r _ f . f l r
+pair = \ l r f . f l r
 
-fst : ∀ l : Type . Pair l r -> l
-fst = \ l p . p l (\ fst _ . fst)
+fst : Pair l r -> l
+fst = \ p . p (\ fst _ . fst)
 
-snd : ∀ r : Type . Pair l r -> r
-snd = \ r p . p r (\ _ snd . snd)
+snd : Pair l r -> r
+snd = \ p . p (\ _ snd . snd)
 
 
-map : ∀ l : Type . Functor (Pair l)
-map = \ l _ r' f e . e (Pair l r') (\ l' r . pair l' (f r))
+map : Functor (Pair l)
+map = \ f e . e (\ l' r . pair l' (f r))
 
-bimap :  ∀ l' : Type
-      .  ∀ r' : Type
-      .  (     l   ->      l')
+bimap :  (     l   ->      l')
       -> (       r ->         r')
       -> (Pair l r -> Pair l' r')
-bimap = \ l' r' f g e . e (Pair l' r') (\ l r . pair (f l) (g r))
+bimap = \ f g e . e (\ l r . pair (f l) (g r))

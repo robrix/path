@@ -1,4 +1,4 @@
 module Base.Void
 
 Void : Type
-Void = ∀ a : Type . a
+Void = { a : Type } -> a

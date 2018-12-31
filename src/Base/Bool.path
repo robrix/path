@@ -3,16 +3,16 @@ module Base.Bool
 import Base.Lazy
 
 Bool : Type
-Bool = ∀ a:Type . a -> a -> a
+Bool = { a : Type } -> a -> a -> a
 
 true : Bool
-true = \ _ a _ . a
+true = \ a _ . a
 
 false : Bool
-false = \ _ _ b . b
+false = \ _ b . b
 
 not : Bool -> Bool
-not = \ f ty a b . f ty b a
+not = \ f a b . f b a
 
-(if _ then _ else _) : ∀ a : Type . Bool -> Lazy a -> Lazy a -> a
-(if _ then _ else _) = \ a c t e . force (c (Lazy a) t e)
+(if _ then _ else _) : { a : Type } -> Bool -> Lazy a -> Lazy a -> a
+(if _ then _ else _) = \ c t e . force (c t e)

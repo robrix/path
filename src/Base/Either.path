@@ -3,21 +3,19 @@ module Base.Either
 import Base.Functor
 
 Either : Type -> Type -> Type
-Either = \ l r . ∀ a : Type . (l -> a) -> (r -> a) -> a
+Either = \ l r . { a : Type } -> (l -> a) -> (r -> a) -> a
 
 left : l -> Either l r
-left = \ l _ left _ . left l
+left = \ l left _ . left l
 
 right : r -> Either l r
-right = \ r _ _ right . right r
+right = \ r _ right . right r
 
 
-map : ∀ l : Type . Functor (Either l)
-map = \ l _ r' f e . e (Either l r') left (\ r . right (f r))
+map : Functor (Either l)
+map = \ f e . e left (\ r . right (f r))
 
-bimap :  ∀ l' : Type
-      .  ∀ r' : Type
-      .  (       l   ->        l')
+bimap :  (       l   ->        l')
       -> (         r ->           r')
       -> (Either l r -> Either l' r')
-bimap = \ l' r' f g e . e (Either l' r') (\ l . left (f l)) (\ r . right (g r))
+bimap = \ f g e . e (\ l . left (f l)) (\ r . right (g r))
