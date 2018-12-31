@@ -123,36 +123,9 @@ unify :: ( Carrier sig m
       -> Type QName
       -> Type QName
       -> m (Type QName)
-unify span t1 t2 = case (t1, t2) of
-  (Value.Type, Value.Type) -> pure Value.Type
-  (sp1 Value.:& Local (Meta m1), sp2 Value.:& Local (Meta m2)) -> case compare m1 m2 of
-    LT -> solve m2 t1
-    EQ -> (:& Local (Meta m1)) <$> unifySpines sp1 sp2
-    GT -> solve m1 t2
-  (sp1 Value.:& Local (Meta m1), _) -> foldl vapp <$> solve m1 t2 <*> pure sp1
-  (_, sp2 Value.:& Local (Meta m2)) -> foldl vapp <$> solve m2 t1 <*> pure sp2
-  (Value.Lam _ _, Value.Lam _ _) -> do
-    n <- freshName
-    Value.Lam n <$> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-  (Value.Lam _ _, _) -> do
-    n <- freshName
-    Value.Lam n <$> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-  (_, Value.Lam _ _) -> do
-    n <- freshName
-    Value.Lam n <$> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-  (Value.Pi _ p1 u1 a1 _, Value.Pi _ p2 u2 a2 _) | p1 == p2, u1 == u2 -> do
-    n <- freshName
-    Value.Pi n p1 u1
-      <$> unify span a1 a2
-      <*> unify span (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-  (sp1 Value.:& h1, sp2 Value.:& h2) | h1 == h2 -> do
-    (Value.:& h1) <$> unifySpines sp1 sp2
-  (act, exp) -> do
-    act' <- vforce act
-    unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
-    pure act
+unify span t1 t2 = go t1 t2
   where unifySpines sp1 sp2 = case (sp1, sp2) of
-          (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> unify span l1 l2
+          (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> go l1 l2
           (Nil, Nil) -> pure Nil
           _ -> throwError (TypeMismatch t1 t2 span)
         solve m t
@@ -160,8 +133,36 @@ unify span t1 t2 = case (t1, t2) of
           | otherwise                             = do
             extant <- gets (Subst.lookup m)
             case extant of
-              Just ty -> unify span ty t
+              Just ty -> go ty t
               Nothing -> t <$ modify (Subst.insert m t)
+        go t1 t2 = case (t1, t2) of
+          (Value.Type, Value.Type) -> pure Value.Type
+          (sp1 Value.:& Local (Meta m1), sp2 Value.:& Local (Meta m2)) -> case compare m1 m2 of
+            LT -> solve m2 t1
+            EQ -> (:& Local (Meta m1)) <$> unifySpines sp1 sp2
+            GT -> solve m1 t2
+          (sp1 Value.:& Local (Meta m1), _) -> foldl vapp <$> solve m1 t2 <*> pure sp1
+          (_, sp2 Value.:& Local (Meta m2)) -> foldl vapp <$> solve m2 t1 <*> pure sp2
+          (Value.Lam _ _, Value.Lam _ _) -> do
+            n <- freshName
+            Value.Lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+          (Value.Lam _ _, _) -> do
+            n <- freshName
+            Value.Lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+          (_, Value.Lam _ _) -> do
+            n <- freshName
+            Value.Lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+          (Value.Pi _ p1 u1 a1 _, Value.Pi _ p2 u2 a2 _) | p1 == p2, u1 == u2 -> do
+            n <- freshName
+            Value.Pi n p1 u1
+              <$> go a1 a2
+              <*> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+          (sp1 Value.:& h1, sp2 Value.:& h2) | h1 == h2 -> do
+            (Value.:& h1) <$> unifySpines sp1 sp2
+          (act, exp) -> do
+            act' <- vforce act
+            unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
+            pure act
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
