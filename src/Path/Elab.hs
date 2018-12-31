@@ -58,7 +58,7 @@ infer (In out span) = case out of
       _      -> throwError (FreeVariable n span)
     where elabImplicits tm
             | Value (Value.Pi _ Im _ t _) <- ann tm = do
-              n <- Meta . M <$> fresh
+              n <- freshMeta
               elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n)))
             | otherwise = pure tm
   R (f :$ a) -> do
@@ -173,6 +173,9 @@ unify span t1 t2 = do
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
+
+freshMeta :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
+freshMeta = Meta . M <$> fresh
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
