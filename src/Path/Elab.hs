@@ -128,18 +128,7 @@ unify span t1 t2 = do
   t1' <- vforce t1
   t2' <- vforce t2
   go t1' t2'
-  where unifySpines sp1 sp2 = case (sp1, sp2) of
-          (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> go l1 l2
-          (Nil, Nil) -> pure Nil
-          _ -> TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
-        solve m t
-          | Local (Meta m) `Set.member` fvs t = throwError (InfiniteType (Local (Meta m)) t span)
-          | otherwise                         = do
-            extant <- gets (Subst.lookup m)
-            case extant of
-              Just ty -> go ty t
-              Nothing -> t <$ modify (Subst.insert m t)
-        go t1 t2 = case (t1, t2) of
+  where go t1 t2 = case (t1, t2) of
           (Value Value.Type, Value Value.Type) -> pure Value.type'
           (Value (sp1 Value.:& Local (Meta m1)), Value (sp2 Value.:& Local (Meta m2))) -> case compare m1 m2 of
             LT -> solve m2 t1
@@ -167,6 +156,17 @@ unify span t1 t2 = do
             act' <- vforce act
             unless (exp `aeq` act') (TypeMismatch exp act <$> localVars <*> pure span >>= throwError)
             pure act
+        unifySpines sp1 sp2 = case (sp1, sp2) of
+          (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> go l1 l2
+          (Nil, Nil) -> pure Nil
+          _ -> TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
+        solve m t
+          | Local (Meta m) `Set.member` fvs t = throwError (InfiniteType (Local (Meta m)) t span)
+          | otherwise                         = do
+            extant <- gets (Subst.lookup m)
+            case extant of
+              Just ty -> go ty t
+              Nothing -> t <$ modify (Subst.insert m t)
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshName = Gensym <$> fresh
