@@ -108,4 +108,4 @@ aeq = go (0 :: Int) [] []
           (Value (Lam n1 b1),         Value (Lam n2 b2))         -> go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
           (Value (Pi n1 p1 e1 t1 b1), Value (Pi n2 p2 e2 t2 b2)) -> p1 == p2 && e1 == e2 && go i env1 env2 t1 t2 && go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
           (Value (as1 :& n1),         Value (as2 :& n2))         -> fromMaybe (n1 == n2) ((==) <$> Prelude.lookup n1 env1 <*> Prelude.lookup n2 env2) && length as1 == length as2 && and (Back.zipWith (go i env1 env2) as1 as2)
-          _                                      -> False
+          _                                                      -> False
