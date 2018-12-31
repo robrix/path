@@ -10,7 +10,7 @@ import Text.Trifecta.Rendering (Span)
 
 data ElabError
   = FreeVariable QName Span
-  | TypeMismatch (Type QName) (Type QName) Span
+  | TypeMismatch (Type QName) (Type QName) Context Span
   | NoRuleToInfer Context Span
   | IllegalApplication (Type QName) Span
   | ResourceMismatch Name Usage Usage Span [Span]
@@ -21,11 +21,11 @@ data ElabError
 instance Pretty ElabError where
   pretty = \case
     FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
-    TypeMismatch expected actual span -> prettyErr span (vsep
+    TypeMismatch expected actual ctx span -> prettyErr span (vsep
       [ pretty "type mismatch"
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
-      ]) Nothing
+      ]) (Just (prettyCtx ctx))
     NoRuleToInfer ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
     IllegalApplication ty span -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) Nothing
     ResourceMismatch n pi used span spans -> prettyErr span msg (vsep (map prettys spans) <$ listToMaybe spans)

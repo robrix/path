@@ -115,6 +115,7 @@ infix 5 |-
 unify :: ( Carrier sig m
          , Member (Error ElabError) sig
          , Member Fresh sig
+         , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (State Subst) sig
          , Monad m
@@ -130,7 +131,7 @@ unify span t1 t2 = do
   where unifySpines sp1 sp2 = case (sp1, sp2) of
           (i1 :> l1, i2 :> l2) -> (:>) <$> unifySpines i1 i2 <*> go l1 l2
           (Nil, Nil) -> pure Nil
-          _ -> throwError (TypeMismatch t1 t2 span)
+          _ -> TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
         solve m t
           | Local (Meta m) `Set.member` fvs t = throwError (InfiniteType (Local (Meta m)) t span)
           | otherwise                         = do
@@ -164,7 +165,7 @@ unify span t1 t2 = do
             (Value.:& h1) <$> unifySpines sp1 sp2
           (act, exp) -> do
             act' <- vforce act
-            unless (exp `aeq` act') (throwError (TypeMismatch exp act span))
+            unless (exp `aeq` act') (TypeMismatch exp act <$> localVars <*> pure span >>= throwError)
             pure act
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
