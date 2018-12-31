@@ -42,6 +42,13 @@ filter f = Context . Back.filter f . unContext
 boundVars :: Context -> Set.Set QName
 boundVars = foldMap (Set.singleton . getTerm) . unContext
 
+nub :: Context -> Context
+nub = Context . go mempty . unContext
+  where go _ Nil = Nil
+        go v (init :> last)
+          | getTerm last `Set.member` v = go v init
+          | otherwise                   = go (Set.insert (getTerm last) v) init :> last
+
 instance Pretty Context where
   pretty = tabulate2 (space <> colon <> space) . map (green . pretty . getTerm &&& nest 2 . align . group . pretty . getType) . toList . unContext
 
