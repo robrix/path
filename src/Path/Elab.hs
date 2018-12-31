@@ -42,12 +42,12 @@ infer :: ( Carrier sig m
       => Term (Implicit QName :+: Core Name QName) Span
       -> m (Term (Core Name QName) Type, Resources Usage)
 infer (In out span) = case out of
-  R Core.Type -> pure (In Core.Type Value.Type, mempty)
+  R Core.Type -> pure (In Core.Type Value.type', mempty)
   R (Core.Pi n i e t b) -> do
-    (t', _) <- check Value.Type t
+    (t', _) <- check Value.type' t
     t'' <- eval t'
-    (b', _) <- n ::: t'' |- check Value.Type b
-    pure (In (Core.Pi n i e t' b') Value.Type, mempty)
+    (b', _) <- n ::: t'' |- check Value.type' b
+    pure (In (Core.Pi n i e t' b') Value.type', mempty)
   R (Core.Var n) -> do
     res <- asks (Context.lookup n)
     sigma <- ask
@@ -55,14 +55,14 @@ infer (In out span) = case out of
       Just t -> (,) <$> elabImplicits (In (Core.Var n) t) <*> pure (Resources.singleton n sigma)
       _      -> throwError (FreeVariable n span)
     where elabImplicits tm
-            | Value.Pi _ Im _ t _ <- ann tm = do
+            | Value (Value.Pi _ Im _ t _) <- ann tm = do
               n <- Meta . M <$> fresh
               elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n)))
             | otherwise = pure tm
   R (f :$ a) -> do
     (f', g1) <- infer f
     case ann f' of
-      Value.Pi _ _ pi t _ -> do
+      Value (Value.Pi _ _ pi t _) -> do
         (a', g2) <- check t a
         a'' <- eval a'
         pure (In (f' Core.:$ a') (ann f' `vapp` a''), g1 <> pi ><< g2)
@@ -83,14 +83,14 @@ check :: ( Carrier sig m
       -> Term (Implicit QName :+: Core Name QName) Span
       -> m (Term (Core Name QName) Type, Resources Usage)
 check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
-  (_, Value.Pi tn Im pi t t') -> do
+  (_, Value (Value.Pi tn Im pi t t')) -> do
     (b, br) <- tn ::: t |- check t' (In tm span)
     let used = Resources.lookup (Local tn) br
     sigma <- ask
     unless (sigma >< pi == More) . when (pi /= used) $
       throwError (ResourceMismatch tn pi used span (uses tn (In tm span)))
     pure (In (Core.Lam tn b) ty, br)
-  (R (Core.Lam n e), Value.Pi _ _ pi t _) -> do
+  (R (Core.Lam n e), Value (Value.Pi _ _ pi t _)) -> do
     (e', res) <- n ::: t |- check (ty `vapp` vfree (Local n)) e
     let used = Resources.lookup (Local n) res
     sigma <- ask
@@ -140,29 +140,29 @@ unify span t1 t2 = do
               Just ty -> go ty t
               Nothing -> t <$ modify (Subst.insert m t)
         go t1 t2 = case (t1, t2) of
-          (Value.Type, Value.Type) -> pure Value.Type
-          (sp1 Value.:& Local (Meta m1), sp2 Value.:& Local (Meta m2)) -> case compare m1 m2 of
+          (Value Value.Type, Value Value.Type) -> pure Value.type'
+          (Value (sp1 Value.:& Local (Meta m1)), Value (sp2 Value.:& Local (Meta m2))) -> case compare m1 m2 of
             LT -> solve m2 t1
-            EQ -> (:& Local (Meta m1)) <$> unifySpines sp1 sp2
+            EQ -> (& Local (Meta m1)) <$> unifySpines sp1 sp2
             GT -> solve m1 t2
-          (sp1 Value.:& Local (Meta m1), _) -> foldl vapp <$> solve m1 t2 <*> pure sp1
-          (_, sp2 Value.:& Local (Meta m2)) -> foldl vapp <$> solve m2 t1 <*> pure sp2
-          (Value.Lam _ _, Value.Lam _ _) -> do
+          (Value (sp1 Value.:& Local (Meta m1)), _) -> foldl vapp <$> solve m1 t2 <*> pure sp1
+          (_, Value (sp2 Value.:& Local (Meta m2))) -> foldl vapp <$> solve m2 t1 <*> pure sp2
+          (Value (Value.Lam _ _), Value (Value.Lam _ _)) -> do
             n <- freshName
-            Value.Lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (Value.Lam _ _, _) -> do
+            Value.lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+          (Value (Value.Lam _ _), _) -> do
             n <- freshName
-            Value.Lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (_, Value.Lam _ _) -> do
+            Value.lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+          (_, Value (Value.Lam _ _)) -> do
             n <- freshName
-            Value.Lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (Value.Pi _ p1 u1 a1 _, Value.Pi _ p2 u2 a2 _) | p1 == p2, u1 == u2 -> do
+            Value.lam n <$> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
+          (Value (Value.Pi _ p1 u1 a1 _), Value (Value.Pi _ p2 u2 a2 _)) | p1 == p2, u1 == u2 -> do
             n <- freshName
-            Value.Pi n p1 u1
+            Value.piType n p1 u1
               <$> go a1 a2
               <*> go (t1 `vapp` vfree (Local n)) (t2 `vapp` vfree (Local n))
-          (sp1 Value.:& h1, sp2 Value.:& h2) | h1 == h2 -> do
-            (Value.:& h1) <$> unifySpines sp1 sp2
+          (Value (sp1 Value.:& h1), Value (sp2 Value.:& h2)) | h1 == h2 -> do
+            (Value.& h1) <$> unifySpines sp1 sp2
           (act, exp) -> do
             act' <- vforce act
             unless (exp `aeq` act') (TypeMismatch exp act <$> localVars <*> pure span >>= throwError)
@@ -238,7 +238,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
-  elab <- runReader Zero (runContext (runEnv (runSubst (generalize ty >>= check Value.Type))))
+  elab <- runReader Zero (runContext (runEnv (runSubst (generalize ty >>= check Value.type'))))
   ty' <- runEnv (eval (fst elab))
   elab <$ modify (Context.insert (name ::: ty'))
   where generalize ty = do
