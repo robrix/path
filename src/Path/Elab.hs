@@ -63,6 +63,9 @@ solMeta (m := _) = m
 solDefn :: Solution -> Value
 solDefn (_ := v ::: _) = v
 
+solType :: Solution -> Type
+solType (_ := _ ::: t) = t
+
 
 runElab :: ( Carrier sig m
            , Effect sig
