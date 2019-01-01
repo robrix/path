@@ -34,22 +34,22 @@ import Text.Trifecta.Rendering (Span)
 data Elab m k
   = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | forall a . Unify Span (Typed Value) (Typed Value) (Type -> m a) (a    -> k)
-  | Exists Type                                                     (Name -> k)
+  | forall a . Unify (Typed Value) (Typed Value) (Type -> m a) (a    -> k)
+  | Exists Type                                                (Name -> k)
 
 deriving instance Functor (Elab m)
 
 instance HFunctor Elab where
-  hmap _ (Infer      tm   k) = Infer      tm         k
-  hmap _ (Check   ty tm   k) = Check   ty tm         k
-  hmap f (Unify s t1 t2 h k) = Unify s t1 t2 (f . h) k
-  hmap _ (Exists  ty      k) = Exists  ty            k
+  hmap _ (Infer     tm   k) = Infer     tm         k
+  hmap _ (Check  ty tm   k) = Check  ty tm         k
+  hmap f (Unify  t1 t2 h k) = Unify  t1 t2 (f . h) k
+  hmap _ (Exists ty      k) = Exists ty            k
 
 instance Effect Elab where
-  handle state handler (Infer      tm   k) = Infer      tm                            (handler . (<$ state) . k)
-  handle state handler (Check   ty tm   k) = Check   ty tm                            (handler . (<$ state) . k)
-  handle state handler (Unify s t1 t2 h k) = Unify s t1 t2 (handler . (<$ state) . h) (handler . fmap k)
-  handle state handler (Exists  ty      k) = Exists  ty                               (handler . (<$ state) . k)
+  handle state handler (Infer     tm   k) = Infer     tm                            (handler . (<$ state) . k)
+  handle state handler (Check  ty tm   k) = Check  ty tm                            (handler . (<$ state) . k)
+  handle state handler (Unify  t1 t2 h k) = Unify  t1 t2 (handler . (<$ state) . h) (handler . fmap k)
+  handle state handler (Exists ty      k) = Exists ty                               (handler . (<$ state) . k)
 
 data Solution
   = Meta := Typed Type
@@ -133,17 +133,17 @@ instance ( Carrier sig m
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
       (tm, ty) -> runElabC $ do
         (tm', res) <- infer (In tm span)
-        unify span (ann tm' ::: type') (ty ::: type') $ \ unified -> k (tm' { ann = unified }, res)
+        unify (ann tm' ::: type') (ty ::: type') $ \ unified -> k (tm' { ann = unified }, res)
 
-    Unify _    (Value Value.Type ::: Value Value.Type) (Value Value.Type ::: Value Value.Type) h k -> runElabC (h Value.type' >>= k)
-    Unify span (Value (Value.Pi n1 p1 u1 t1 b1) ::: Value Value.Type) (Value (Value.Pi n2 p2 u2 t2 b2) ::: Value Value.Type) h k
+    Unify (Value Value.Type ::: Value Value.Type) (Value Value.Type ::: Value Value.Type) h k -> runElabC (h Value.type' >>= k)
+    Unify (Value (Value.Pi n1 p1 u1 t1 b1) ::: Value Value.Type) (Value (Value.Pi n2 p2 u2 t2 b2) ::: Value Value.Type) h k
       | n1 == n2, p1 == p2, u1 == u2 ->
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
-        runElabC (unify span (t1 ::: type') (t2 ::: type') (\ t ->
-          n1 ::: t |- unify span (b1 ::: t) (b2 ::: t) (\ b -> h (Value.piType n1 p1 u1 t b) >>= k)))
-    Unify span (t1 ::: ty1) (t2 ::: ty2) h k -> do
+        runElabC (unify (t1 ::: type') (t2 ::: type') (\ t ->
+          n1 ::: t |- unify (b1 ::: t) (b2 ::: t) (\ b -> h (Value.piType n1 p1 u1 t b) >>= k)))
+    Unify (t1 ::: ty1) (t2 ::: ty2) h k -> do
       unless (ty1 `aeq` ty2 && t1 `aeq` t2) $
-        TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
+        TypeMismatch t1 t2 <$> localVars <*> ask >>= throwError
       runElabC (h t1 >>= k)
 
     Exists ty k -> do
@@ -165,12 +165,11 @@ check ty tm = send (Check ty tm ret)
 
 
 unify :: (Carrier sig m, Member Elab sig)
-      => Span
-      -> Typed Value
+      => Typed Value
       -> Typed Value
       -> (Type -> m a)
       -> m a
-unify span t1 t2 m = send (Unify span t1 t2 m ret)
+unify t1 t2 m = send (Unify t1 t2 m ret)
 
 exists :: (Carrier sig m, Member Elab sig)
        => Type
