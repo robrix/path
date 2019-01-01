@@ -60,8 +60,8 @@ infix 5 :=
 solMeta :: Solution -> Meta
 solMeta (m := _) = m
 
-solDefn :: Solution -> Value
-solDefn (_ := v ::: _) = v
+solValue :: Solution -> Value
+solValue (_ := v ::: _) = v
 
 solType :: Solution -> Type
 solType (_ := _ ::: t) = t
