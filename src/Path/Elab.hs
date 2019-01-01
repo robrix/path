@@ -35,7 +35,7 @@ data Elab m k
   = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | forall a . Unify Span (Typed Value) (Typed Value) (Type -> m a) (a    -> k)
-  | Exists Type                                   (Name -> k)
+  | Exists Type                                                     (Name -> k)
 
 deriving instance Functor (Elab m)
 
