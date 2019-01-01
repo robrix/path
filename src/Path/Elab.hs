@@ -51,6 +51,12 @@ instance Effect Elab where
   handle state handler (Unify s t1 t2 h k) = Unify s t1 t2 (handler . (<$ state) . h) (handler . fmap k)
   handle state handler (Exists  ty      k) = Exists  ty                               (handler . (<$ state) . k)
 
+data Solution
+  = Meta := Typed Type
+  deriving (Eq, Ord, Show)
+
+infix 5 :=
+
 runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
