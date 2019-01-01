@@ -187,6 +187,9 @@ infix 5 |-
 withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 withSpan = local . const
 
+runSpan :: (Carrier sig m, Monad m) => (Term f Span -> Eff (ReaderC Span m) a) -> Term f Span -> m a
+runSpan f = runReader . ann <*> f
+
 inferRoot :: ( Carrier sig m
              , Effect sig
              , Member (Error ElabError) sig
