@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
@@ -11,6 +11,7 @@ import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
+import Data.List as List (find)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
@@ -198,10 +199,10 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
 infix 5 |-
 
-lookupMeta :: (Carrier sig m, Member (State (Back Solution)) sig, Monad m) => Meta -> m (Maybe (Either (Typed Value) Type))
+lookupMeta :: (Carrier sig m, Member (State [Typed Meta]) sig, Member (State (Back Solution)) sig, Monad m) => Meta -> m (Maybe (Either (Typed Value) Type))
 lookupMeta m = do
-  soln <- gets (Back.find ((== m) . solMeta))
-  maybe (pure Nothing) (pure . Just . Left . solDefn) soln
+  soln <- gets (fmap (Left . solDefn) . Back.find ((== m) . solMeta))
+  maybe (gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))) (pure . Just) soln
 
 
 withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
