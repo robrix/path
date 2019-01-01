@@ -2,11 +2,13 @@
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
+import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Monad ((<=<), unless, when)
+import Data.Coerce
 import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
@@ -34,6 +36,9 @@ data Elab (m :: * -> *) k
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Assume Type (Meta -> k)
   deriving (Functor)
+
+instance HFunctor Elab where
+  hmap _ = coerce
 
 infer :: ( Carrier sig m
          , Effect sig
