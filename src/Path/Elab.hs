@@ -128,10 +128,10 @@ instance ( Carrier sig m
         unify span (ann tm') ty $ \ unified -> k (tm' { ann = unified }, res)
 
     Unify _    (Value Value.Type) (Value Value.Type) h k -> runElabC (h Value.type' >>= k)
-    Unify span (Value (Value.Lam n1 b1)) (Value (Value.Lam n2 b2)) h k | n1 == n2 -> do
+    Unify span (Value (Value.Lam n1 b1)) (Value (Value.Lam n2 b2)) h k | n1 == n2 ->
       runElabC (unify span b1 b2 (\ b -> h (Value.lam n1 b) >>= k))
     Unify span (Value (Value.Pi n1 p1 u1 t1 b1)) (Value (Value.Pi n2 p2 u2 t2 b2)) h k
-      | n1 == n2, p1 == p2, u1 == u2 -> do
+      | n1 == n2, p1 == p2, u1 == u2 ->
         runElabC (unify span t1 t2 (\ t -> unify span b1 b2 (\ b -> h (Value.piType n1 p1 u1 t b) >>= k)))
     Unify span t1 t2 h k -> do
       unless (t1 `aeq` t2) $
