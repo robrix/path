@@ -36,7 +36,7 @@ import Text.Trifecta.Rendering (Span)
 data Elab (m :: * -> *) k
   = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | Assume Type (Meta -> k)
+  | Exists Type (Meta -> k)
   deriving (Functor)
 
 instance HFunctor Elab where
@@ -122,7 +122,7 @@ instance ( Carrier sig m
         unless (ann (fst v) `aeq` ty) $
           TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
         pure v
-    Assume _ k -> fresh >>= runElabC . k . M)
+    Exists _ k -> fresh >>= runElabC . k . M)
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
