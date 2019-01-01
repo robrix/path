@@ -18,10 +18,6 @@ instance Monoid (Back a) where
   mappend = (<>)
 
 
-lookup :: Eq a => a -> Back (a, b) -> Maybe b
-lookup k = fmap snd . find ((== k) . fst)
-
-
 find :: (a -> Bool) -> Back a -> Maybe a
 find p = \case
   b :> a
