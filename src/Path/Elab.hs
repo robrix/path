@@ -27,7 +27,6 @@ import Path.Plicity
 import Path.Resources as Resources
 import Path.Semiring
 import Path.Term
-import Path.Unify
 import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
@@ -59,7 +58,6 @@ runElab :: ( Carrier sig m
            , Member (Reader Context) sig
            , Member (Reader Env) sig
            , Member (Reader Usage) sig
-           , Member (State Constraint) sig
            , Monad m
            )
         => Eff (ElabC m) a
@@ -76,7 +74,6 @@ instance ( Carrier sig m
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Usage) sig
-         , Member (State Constraint) sig
          , Monad m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
@@ -244,7 +241,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
-  elab <- runReader Zero (runContext (runEnv (runConstraints (runElab (generalize ty >>= check Value.type')))))
+  elab <- runReader Zero (runContext (runEnv (runElab (generalize ty >>= check Value.type'))))
   ty' <- runEnv (eval (fst elab))
   elab <$ modify (Context.insert (name ::: ty'))
   where generalize ty = do
@@ -265,7 +262,7 @@ elabDefine :: ( Carrier sig m
            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  elab <- runReader One (runContext (runEnv (runConstraints (runElab (maybe infer check ty tm)))))
+  elab <- runReader One (runContext (runEnv (runElab (maybe infer check ty tm))))
   tm' <- runEnv (eval (fst elab))
   modify (Env.insert name tm')
   elab <$ maybe (modify (Context.insert (name ::: ann (fst elab)))) (const (pure ())) ty
