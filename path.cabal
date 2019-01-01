@@ -41,7 +41,6 @@ library
                      , Path.Subst
                      , Path.Surface
                      , Path.Term
-                     , Path.Unify
                      , Path.Usage
                      , Path.Value
   other-modules:       Paths_path
