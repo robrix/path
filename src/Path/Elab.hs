@@ -40,6 +40,9 @@ data Elab (m :: * -> *) k
 instance HFunctor Elab where
   hmap _ = coerce
 
+instance Effect Elab where
+  handle state handler = coerce . fmap (handler . (<$ state))
+
 infer :: ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
