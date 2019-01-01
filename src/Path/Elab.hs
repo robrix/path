@@ -131,6 +131,7 @@ instance ( Carrier sig m
         unify span (ann (fst v)) ty
         k v
 
+    Unify _    (Value Value.Type) (Value Value.Type) k -> runElabC k
     Unify span t1 t2 k -> do
       unless (t1 `aeq` t2) $
         TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
