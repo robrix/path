@@ -90,7 +90,7 @@ instance ( Carrier sig m
         res <- asks (Context.lookup n)
         sigma <- ask
         case res of
-          Just t -> fmap (sigma ><<) <$> elabImplicits (In (Core.Var n) t) (Resources.singleton n One) >>= k
+          Just t -> elabImplicits (In (Core.Var n) t) (Resources.singleton n One) >>= k . fmap (sigma ><<)
           _      -> throwError (FreeVariable n span)
         where elabImplicits tm res
                 | Value (Value.Pi _ Im _ t _) <- ann tm = do
