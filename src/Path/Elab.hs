@@ -52,7 +52,7 @@ instance Effect Elab where
   handle state handler (Exists ty      k) = Exists ty                               (handler . (<$ state) . k)
 
 data Solution
-  = Meta := Typed Type
+  = Meta := Typed Value
   deriving (Eq, Ord, Show)
 
 infix 5 :=
