@@ -115,13 +115,13 @@ instance ( Carrier sig m
           _ -> throwError (IllegalApplication (ann f') (ann f))
       _ -> NoRuleToInfer <$> localVars <*> ask >>= throwError
 
-    Check ty (In tm span) k -> withSpan span $ vforce ty >>= \ ty -> case (tm, ty) of
+    Check ty tm k -> withSpan (ann tm) $ vforce ty >>= \ ty -> case (out tm, ty) of
       (_, Value (Value.Pi tn Im pi t t')) -> do
-        (b, br) <- tn ::: t |- runElabC (check t' (In tm span))
+        (b, br) <- tn ::: t |- runElabC (check t' tm)
         let used = Resources.lookup (Local tn) br
         sigma <- ask
         unless (sigma >< pi == More) . when (pi /= used) $
-          ResourceMismatch tn pi used <$> ask <*> pure (uses tn (In tm span)) >>= throwError
+          ResourceMismatch tn pi used <$> ask <*> pure (uses tn tm) >>= throwError
         runElabC (k (In (Core.Lam tn b) ty, br))
       (R (Core.Lam n e), Value (Value.Pi _ Ex pi t _)) -> do
         (e', res) <- n ::: t |- runElabC (check (ty `vapp` vfree (Local n)) e)
@@ -131,8 +131,8 @@ instance ( Carrier sig m
           ResourceMismatch n pi used <$> ask <*> pure (uses n e) >>= throwError
         runElabC (k (In (Core.Lam n e') ty, Resources.delete (Local n) res))
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
-      (tm, ty) -> runElabC $ do
-        (tm', res) <- infer (In tm span)
+      (_, ty) -> runElabC $ do
+        (tm', res) <- infer tm
         unify (ann tm' ::: type') (ty ::: type') $ \ unified -> k (tm' { ann = unified }, res)
 
     Unify (Value Value.Type ::: Value Value.Type) (Value Value.Type ::: Value Value.Type) h k -> runElabC (h Value.type' >>= k)
