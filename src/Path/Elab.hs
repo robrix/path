@@ -74,49 +74,40 @@ instance ( Carrier sig m
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
   eff = ElabC . handleSum (eff . handleCoercible) (\case
-    Infer tm k -> infer tm >>= runElabC . k
+    Infer (In out span) k -> runElabC . k =<< case out of
+      R Core.Type -> pure (In Core.Type Value.type', mempty)
+      R (Core.Pi n i e t b) -> do
+        (t', _) <- check Value.type' t
+        t'' <- eval t'
+        (b', _) <- n ::: t'' |- check Value.type' b
+        pure (In (Core.Pi n i e t' b') Value.type', mempty)
+      R (Core.Var n) -> do
+        res <- asks (Context.lookup n)
+        sigma <- ask
+        case res of
+          Just t -> (,) <$> elabImplicits (In (Core.Var n) t) <*> pure (Resources.singleton n sigma)
+          _      -> throwError (FreeVariable n span)
+        where elabImplicits tm
+                | Value (Value.Pi _ Im _ t _) <- ann tm = do
+                  n <- freshMeta
+                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n)))
+                | otherwise = pure tm
+      R (f :$ a) -> do
+        (f', g1) <- runElabC (infer f)
+        case ann f' of
+          Value (Value.Pi _ _ pi t _) -> do
+            (a', g2) <- check t a
+            a'' <- eval a'
+            pure (In (f' Core.:$ a') (ann f' `vapp` a''), g1 <> pi ><< g2)
+          _ -> throwError (IllegalApplication (ann f') (ann f))
+      _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
     Check ty tm k -> check ty tm >>= runElabC . k
     Assume _ k -> fresh >>= runElabC . k . M)
 
-infer :: ( Carrier sig m
-         , Effect sig
-         , Member (Error ElabError) sig
-         , Member Fresh sig
-         , Member (Reader Context) sig
-         , Member (Reader Env) sig
-         , Member (Reader Usage) sig
-         , Member (State Constraint) sig
-         , Monad m
-         )
+infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
       -> m (Term (Core Name QName) Type, Resources Usage)
-infer (In out span) = case out of
-  R Core.Type -> pure (In Core.Type Value.type', mempty)
-  R (Core.Pi n i e t b) -> do
-    (t', _) <- check Value.type' t
-    t'' <- eval t'
-    (b', _) <- n ::: t'' |- check Value.type' b
-    pure (In (Core.Pi n i e t' b') Value.type', mempty)
-  R (Core.Var n) -> do
-    res <- asks (Context.lookup n)
-    sigma <- ask
-    case res of
-      Just t -> (,) <$> elabImplicits (In (Core.Var n) t) <*> pure (Resources.singleton n sigma)
-      _      -> throwError (FreeVariable n span)
-    where elabImplicits tm
-            | Value (Value.Pi _ Im _ t _) <- ann tm = do
-              n <- freshMeta
-              elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n)))
-            | otherwise = pure tm
-  R (f :$ a) -> do
-    (f', g1) <- infer f
-    case ann f' of
-      Value (Value.Pi _ _ pi t _) -> do
-        (a', g2) <- check t a
-        a'' <- eval a'
-        pure (In (f' Core.:$ a') (ann f' `vapp` a''), g1 <> pi ><< g2)
-      _ -> throwError (IllegalApplication (ann f') (ann f))
-  _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
+infer tm = send (Infer tm ret)
 
 check :: ( Carrier sig m
          , Effect sig
@@ -148,7 +139,7 @@ check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
     pure (In (Core.Lam n e') ty, Resources.delete (Local n) res)
   (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
   (tm, ty) -> do
-    v <- infer (In tm span)
+    v <- runElabC (infer (In tm span))
     unless (ann (fst v) `aeq` ty) $
       TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
     pure v
