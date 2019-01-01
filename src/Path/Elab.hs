@@ -2,11 +2,13 @@
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
+import qualified Control.Effect as Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
+import Control.Effect.Sum hiding ((:+:)(..))
 import Control.Monad ((<=<), unless, when)
 import Data.Coerce
 import Data.Foldable (for_)
@@ -42,6 +44,39 @@ instance HFunctor Elab where
 
 instance Effect Elab where
   handle state handler = coerce . fmap (handler . (<$ state))
+
+runElab :: ( Carrier sig m
+           , Effect sig
+           , Member (Error ElabError) sig
+           , Member Fresh sig
+           , Member (Reader Context) sig
+           , Member (Reader Env) sig
+           , Member (Reader Usage) sig
+           , Member (State Constraint) sig
+           , Monad m
+           )
+        => Eff (ElabC m) a
+        -> m a
+runElab = runElabC . interpret
+
+newtype ElabC m a = ElabC { runElabC :: m a }
+
+instance ( Carrier sig m
+         , Effect sig
+         , Member (Error ElabError) sig
+         , Member Fresh sig
+         , Member (Reader Context) sig
+         , Member (Reader Env) sig
+         , Member (Reader Usage) sig
+         , Member (State Constraint) sig
+         , Monad m
+         )
+      => Carrier (Elab Effect.:+: sig) (ElabC m) where
+  ret = ElabC . ret
+  eff = ElabC . handleSum (eff . handleCoercible) (\case
+    Infer tm k -> infer tm >>= runElabC . k
+    Check ty tm k -> check ty tm >>= runElabC . k
+    Assume _ k -> fresh >>= runElabC . k . M)
 
 infer :: ( Carrier sig m
          , Effect sig
