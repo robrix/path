@@ -60,6 +60,9 @@ infix 5 :=
 solMeta :: Solution -> Meta
 solMeta (m := _) = m
 
+solDefn :: Solution -> Value
+solDefn (_ := v ::: _) = v
+
 
 runElab :: ( Carrier sig m
            , Effect sig
