@@ -57,6 +57,10 @@ data Solution
 
 infix 5 :=
 
+solMeta :: Solution -> Meta
+solMeta (m := _) = m
+
+
 runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
