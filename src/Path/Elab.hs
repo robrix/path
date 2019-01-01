@@ -10,7 +10,6 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
 import Control.Monad ((<=<), unless, when)
-import Data.Coerce
 import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
@@ -45,7 +44,9 @@ instance HFunctor Elab where
   hmap _ (Exists ty    k) = Exists ty    k
 
 instance Effect Elab where
-  handle state handler = coerce . fmap (handler . (<$ state))
+  handle state handler (Infer     tm k) = Infer     tm (handler . (<$ state) . k)
+  handle state handler (Check  ty tm k) = Check  ty tm (handler . (<$ state) . k)
+  handle state handler (Exists ty    k) = Exists ty    (handler . (<$ state) . k)
 
 runElab :: ( Carrier sig m
            , Effect sig
