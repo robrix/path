@@ -129,10 +129,11 @@ instance ( Carrier sig m
           TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
         runElabC (k v)
 
-    Exists ty h k -> runElabC $ do
+    Exists ty h k -> do
       i <- fresh
       let m = Meta (M i)
-      m ::: ty |- h m >>= k)
+      modify (Context.insert (Local m ::: ty))
+      runElabC (h m >>= k))
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
