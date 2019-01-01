@@ -12,6 +12,7 @@ data Name
   = Name String
   | Gensym Int
   | Meta Meta
+  | V Name Twin
   | Op Operator
   deriving (Eq, Ord, Show)
 
@@ -20,6 +21,7 @@ instance Pretty Name where
     Name s -> pretty s
     Gensym i -> pretty '_' <> prettyVar i
     Meta m -> pretty m
+    V v t -> pretty v <> pretty t
     Op op -> pretty op
 
 instance PrettyPrec Name
