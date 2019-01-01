@@ -106,6 +106,7 @@ instance ( Carrier sig m
             runElabC (k (In (f' Core.:$ a') (ann f' `vapp` a''), g1 <> pi ><< g2))
           _ -> throwError (IllegalApplication (ann f') (ann f))
       _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
+
     Check ty (In tm span) k -> vforce ty >>= \ ty -> case (tm, ty) of
       (_, Value (Value.Pi tn Im pi t t')) -> do
         (b, br) <- tn ::: t |- runElabC (check t' (In tm span))
@@ -127,6 +128,7 @@ instance ( Carrier sig m
         unless (ann (fst v) `aeq` ty) $
           TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
         runElabC (k v)
+
     Exists ty h k -> runElabC $ do
       i <- fresh
       let m = Meta (M i)
