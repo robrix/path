@@ -139,6 +139,12 @@ check :: (Carrier sig m, Member Elab sig)
       -> m (Term (Core Name QName) Type, Resources Usage)
 check ty tm = send (Check ty tm ret)
 
+exists :: (Carrier sig m, Member Elab sig)
+       => Type
+       -> (Meta -> m a)
+       -> m a
+exists ty h = send (Exists ty h ret)
+
 
 localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
 localVars = asks (Context.nub . Context.filter (isLocal . getTerm))
