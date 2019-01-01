@@ -158,8 +158,8 @@ check ty tm = send (Check ty tm ret)
 
 unify :: (Carrier sig m, Member Elab sig)
       => Span
-      -> Value
-      -> Value
+      -> Type
+      -> Type
       -> m ()
 unify span t1 t2 = send (Unify span t1 t2 (ret ()))
 
