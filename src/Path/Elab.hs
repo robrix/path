@@ -40,7 +40,9 @@ data Elab (m :: * -> *) k
   deriving (Functor)
 
 instance HFunctor Elab where
-  hmap _ = coerce
+  hmap _ (Infer     tm k) = Infer     tm k
+  hmap _ (Check  ty tm k) = Check  ty tm k
+  hmap _ (Exists ty    k) = Exists ty    k
 
 instance Effect Elab where
   handle state handler = coerce . fmap (handler . (<$ state))
