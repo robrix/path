@@ -34,6 +34,10 @@ instance Pretty Meta where
 instance PrettyPrec Meta
 
 
+data Twin = Only | TwinL | TwinR
+  deriving (Eq, Ord, Show)
+
+
 data ModuleName
   = ModuleName String
   | ModuleName :. String
