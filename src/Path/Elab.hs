@@ -156,9 +156,6 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 infix 5 |-
 
 
-freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
-freshName = Gensym <$> fresh
-
 freshMeta :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
 freshMeta = Meta . M <$> fresh
 
