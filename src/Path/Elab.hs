@@ -184,6 +184,9 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
 infix 5 |-
 
+withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
+withSpan = local . const
+
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
