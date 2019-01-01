@@ -38,7 +38,6 @@ library
                      , Path.REPL.Command
                      , Path.Resources
                      , Path.Semiring
-                     , Path.Subst
                      , Path.Surface
                      , Path.Term
                      , Path.Usage
