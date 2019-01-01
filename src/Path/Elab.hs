@@ -60,11 +60,14 @@ infix 5 :=
 solMeta :: Solution -> Meta
 solMeta (m := _) = m
 
+solDefn :: Solution -> Typed Value
+solDefn (_ := d) = d
+
 solValue :: Solution -> Value
-solValue (_ := v ::: _) = v
+solValue = typedTerm . solDefn
 
 solType :: Solution -> Type
-solType (_ := _ ::: t) = t
+solType = typedType . solDefn
 
 
 runElab :: ( Carrier sig m
