@@ -156,10 +156,6 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 infix 5 |-
 
 
-freshMeta :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
-freshMeta = Meta . M <$> fresh
-
-
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
 elabModule :: ( Carrier sig m
