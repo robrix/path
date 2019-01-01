@@ -68,9 +68,9 @@ runElab :: ( Carrier sig m
            )
         => Eff (ElabC m) a
         -> m a
-runElab = evalState mempty . runElabC . interpret
+runElab = evalState Nil . evalState mempty . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (StateC Context m) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (StateC Context (Eff (StateC (Back Solution) m))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -84,7 +84,7 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = ElabC . handleSum (eff . Effect.R . handleCoercible) (\case
+  eff = ElabC . handleSum (eff . Effect.R . Effect.R . handleCoercible) (\case
     Infer (In out span) k -> case out of
       R Core.Type -> runElabC (k (In Core.Type Value.type', mempty))
       R (Core.Pi n i e t b) -> do
