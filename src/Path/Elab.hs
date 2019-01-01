@@ -187,6 +187,19 @@ infix 5 |-
 withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 withSpan = local . const
 
+inferRoot :: ( Carrier sig m
+             , Effect sig
+             , Member (Error ElabError) sig
+             , Member Fresh sig
+             , Member (Reader Usage) sig
+             , Member (State Context) sig
+             , Member (State Env) sig
+             , Monad m
+             )
+          => Term (Implicit QName :+: Core Name QName) Span
+          -> m (Term (Core Name QName) Type, Resources Usage)
+inferRoot = runContext . runEnv . runElab . infer
+
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
