@@ -93,9 +93,9 @@ instance ( Carrier sig m
           Just t -> elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
           _      -> throwError (FreeVariable n span)
         where elabImplicits tm res k
-                | Value (Value.Pi _ Im _ t _) <- ann tm = do
-                  n <- freshMeta
-                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n))) (Resources.singleton (Local n) One <> res) k
+                | Value (Value.Pi _ Im _ t _) <- ann tm =
+                  exists t $ \ n ->
+                    elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n))) (Resources.singleton (Local n) One <> res) k
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
         (f', g1) <- runElabC (infer f)
