@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
@@ -32,21 +32,22 @@ import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
-data Elab (m :: * -> *) k
+data Elab m k
   = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | Exists Type (Meta -> k)
-  deriving (Functor)
+  | forall a . Exists Type (Meta -> m a) (a -> k)
+
+deriving instance Functor (Elab m)
 
 instance HFunctor Elab where
-  hmap _ (Infer     tm k) = Infer     tm k
-  hmap _ (Check  ty tm k) = Check  ty tm k
-  hmap _ (Exists ty    k) = Exists ty    k
+  hmap _ (Infer     tm k) = Infer     tm      k
+  hmap _ (Check  ty tm k) = Check  ty tm      k
+  hmap f (Exists ty h  k) = Exists ty (f . h) k
 
 instance Effect Elab where
-  handle state handler (Infer     tm k) = Infer     tm (handler . (<$ state) . k)
-  handle state handler (Check  ty tm k) = Check  ty tm (handler . (<$ state) . k)
-  handle state handler (Exists ty    k) = Exists ty    (handler . (<$ state) . k)
+  handle state handler (Infer     tm k) = Infer     tm                         (handler . (<$ state) . k)
+  handle state handler (Check  ty tm k) = Check  ty tm                         (handler . (<$ state) . k)
+  handle state handler (Exists ty h  k) = Exists ty (handler . (<$ state) . h) (handler . fmap k)
 
 runElab :: ( Carrier sig m
            , Effect sig
@@ -125,7 +126,7 @@ instance ( Carrier sig m
         unless (ann (fst v) `aeq` ty) $
           TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
         pure v
-    Exists _ k -> fresh >>= runElabC . k . M)
+    Exists _ h k -> fresh >>= runElabC . h . M >>= runElabC . k)
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
