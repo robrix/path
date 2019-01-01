@@ -63,6 +63,7 @@ runElab :: ( Carrier sig m
            , Member Fresh sig
            , Member (Reader Context) sig
            , Member (Reader Env) sig
+           , Member (Reader Span) sig
            , Member (Reader Usage) sig
            , Monad m
            )
@@ -79,6 +80,7 @@ instance ( Carrier sig m
          , Member Fresh sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
+         , Member (Reader Span) sig
          , Member (Reader Usage) sig
          , Monad m
          )
