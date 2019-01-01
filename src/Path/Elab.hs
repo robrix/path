@@ -200,6 +200,20 @@ inferRoot :: ( Carrier sig m
           -> m (Term (Core Name QName) Type, Resources Usage)
 inferRoot = runContext . runEnv . runElab . infer
 
+checkRoot :: ( Carrier sig m
+             , Effect sig
+             , Member (Error ElabError) sig
+             , Member Fresh sig
+             , Member (Reader Usage) sig
+             , Member (State Context) sig
+             , Member (State Env) sig
+             , Monad m
+             )
+          => Type
+          -> Term (Implicit QName :+: Core Name QName) Span
+          -> m (Term (Core Name QName) Type, Resources Usage)
+checkRoot ty = runContext . runEnv . runElab . check ty
+
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
 
