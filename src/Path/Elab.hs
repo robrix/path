@@ -99,7 +99,7 @@ instance ( Carrier sig m
         sigma <- ask
         case res of
           Just t -> elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
-          _      -> throwError (FreeVariable n span)
+          _      -> FreeVariable n <$> ask >>= throwError
         where elabImplicits tm res k
                 | Value (Value.Pi _ Im _ t _) <- ann tm = do
                   n <- exists t
@@ -113,7 +113,7 @@ instance ( Carrier sig m
             a'' <- eval a'
             runElabC (k (In (f' Core.:$ a') (ann f' `vapp` a''), g1 <> pi ><< g2))
           _ -> throwError (IllegalApplication (ann f') (ann f))
-      _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
+      _ -> NoRuleToInfer <$> localVars <*> ask >>= throwError
 
     Check ty (In tm span) k -> withSpan span $ vforce ty >>= \ ty -> case (tm, ty) of
       (_, Value (Value.Pi tn Im pi t t')) -> do
@@ -121,16 +121,16 @@ instance ( Carrier sig m
         let used = Resources.lookup (Local tn) br
         sigma <- ask
         unless (sigma >< pi == More) . when (pi /= used) $
-          throwError (ResourceMismatch tn pi used span (uses tn (In tm span)))
+          ResourceMismatch tn pi used <$> ask <*> pure (uses tn (In tm span)) >>= throwError
         runElabC (k (In (Core.Lam tn b) ty, br))
       (R (Core.Lam n e), Value (Value.Pi _ Ex pi t _)) -> do
         (e', res) <- n ::: t |- runElabC (check (ty `vapp` vfree (Local n)) e)
         let used = Resources.lookup (Local n) res
         sigma <- ask
         unless (sigma >< pi == More) . when (pi /= used) $
-          throwError (ResourceMismatch n pi used span (uses n e))
+          ResourceMismatch n pi used <$> ask <*> pure (uses n e) >>= throwError
         runElabC (k (In (Core.Lam n e') ty, Resources.delete (Local n) res))
-      (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
+      (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
       (tm, ty) -> runElabC $ do
         (tm', res) <- infer (In tm span)
         unify span (ann tm' ::: type') (ty ::: type') $ \ unified -> k (tm' { ann = unified }, res)
