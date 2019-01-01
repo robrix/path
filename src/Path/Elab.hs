@@ -136,6 +136,7 @@ instance ( Carrier sig m
     Unify _    (Value Value.Type ::: Value Value.Type) (Value Value.Type ::: Value Value.Type) h k -> runElabC (h Value.type' >>= k)
     Unify span (Value (Value.Pi n1 p1 u1 t1 b1) ::: Value Value.Type) (Value (Value.Pi n2 p2 u2 t2 b2) ::: Value Value.Type) h k
       | n1 == n2, p1 == p2, u1 == u2 ->
+        -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         runElabC (unify span (t1 ::: type') (t2 ::: type') (\ t ->
           n1 ::: t |- unify span (b1 ::: t) (b2 ::: t) (\ b -> h (Value.piType n1 p1 u1 t b) >>= k)))
     Unify span (t1 ::: ty1) (t2 ::: ty2) h k -> do
