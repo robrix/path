@@ -281,7 +281,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
-  elab <- runReader Zero (runContext (runEnv (runElab (generalize ty >>= check Value.type'))))
+  elab <- runReader Zero (generalize ty >>= checkRoot Value.type')
   ty' <- runEnv (eval (fst elab))
   elab <$ modify (Context.insert (name ::: ty'))
   where generalize ty = do
@@ -302,7 +302,7 @@ elabDefine :: ( Carrier sig m
            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
   ty <- gets (Context.lookup name)
-  elab <- runReader One (runContext (runEnv (runElab (maybe infer check ty tm))))
+  elab <- runReader One (maybe inferRoot checkRoot ty tm)
   tm' <- runEnv (eval (fst elab))
   modify (Env.insert name tm')
   elab <$ maybe (modify (Context.insert (name ::: ann (fst elab)))) (const (pure ())) ty
