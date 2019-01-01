@@ -16,8 +16,8 @@ data Typed a = a ::: Type
 typedTerm :: Typed a -> a
 typedTerm (a ::: _) = a
 
-getType :: Typed a -> Type
-getType (_ ::: t) = t
+typedType :: Typed a -> Type
+typedType (_ ::: t) = t
 
 infix 6 :::
 
@@ -28,7 +28,7 @@ null :: Context -> Bool
 null = Prelude.null . unContext
 
 lookup :: QName -> Context -> Maybe Type
-lookup n = fmap getType . Back.find ((== n) . typedTerm) . unContext
+lookup n = fmap typedType . Back.find ((== n) . typedTerm) . unContext
 
 insert :: Typed QName -> Context -> Context
 insert t = Context . (:> t) . unContext
@@ -50,7 +50,7 @@ nub = Context . go mempty . unContext
           | otherwise                   = go (Set.insert (typedTerm last) v) init :> last
 
 instance Pretty Context where
-  pretty = tabulate2 (space <> colon <> space) . map (green . pretty . typedTerm &&& nest 2 . align . group . pretty . getType) . toList . unContext
+  pretty = tabulate2 (space <> colon <> space) . map (green . pretty . typedTerm &&& nest 2 . align . group . pretty . typedType) . toList . unContext
 
 instance PrettyPrec Context
 
