@@ -81,7 +81,7 @@ runElab :: ( Carrier sig m
         -> m a
 runElab = evalState Nil . evalState mempty . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (StateC Context (Eff (StateC (Back Solution) m))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -158,9 +158,9 @@ instance ( Carrier sig m
 
     Exists ty k -> do
       i <- fresh
-      let m = Meta (M i)
-      modify (Context.insert (Local m ::: ty))
-      runElabC (k m))
+      let m = M i
+      modify ((m ::: ty) :)
+      runElabC (k (Meta m)))
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
