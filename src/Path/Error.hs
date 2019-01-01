@@ -1,6 +1,7 @@
 {-# LANGUAGE LambdaCase #-}
 module Path.Error where
 
+import Data.Foldable (fold)
 import Data.Maybe (listToMaybe)
 import Path.Context
 import Path.Name
@@ -21,11 +22,11 @@ data ElabError
 instance Pretty ElabError where
   pretty = \case
     FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
-    TypeMismatch expected actual ctx span -> prettyErr span (vsep
+    TypeMismatch expected actual ctx span -> prettyErr span (fold (punctuate hardline
       [ pretty "type mismatch"
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
-      ]) (Just (prettyCtx ctx))
+      ])) (Just (prettyCtx ctx))
     NoRuleToInfer ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
     IllegalApplication ty span -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) Nothing
     ResourceMismatch n pi used span spans -> prettyErr span msg (vsep (map prettys spans) <$ listToMaybe spans)

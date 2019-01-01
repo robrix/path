@@ -27,11 +27,13 @@ module Path.Pretty
 , fillSep
 , green
 , group
+, hardline
 , hsep
 , line
 , magenta
 , nest
 , parens
+, punctuate
 , space
 , squotes
 , vsep
