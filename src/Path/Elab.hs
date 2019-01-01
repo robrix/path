@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
@@ -28,6 +28,12 @@ import Path.Unify
 import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
+
+data Elab (m :: * -> *) k
+  = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
+  | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
+  | Assume Type (Meta -> k)
+  deriving (Functor)
 
 infer :: ( Carrier sig m
          , Effect sig
