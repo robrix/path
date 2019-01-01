@@ -87,7 +87,7 @@ instance ( Carrier sig m
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
   eff = ElabC . handleSum (eff . Effect.R . Effect.R . handleCoercible) (\case
-    Infer (In out span) k -> case out of
+    Infer (In out span) k -> withSpan span $ case out of
       R Core.Type -> runElabC (k (In Core.Type Value.type', mempty))
       R (Core.Pi n i e t b) -> do
         (t', _) <- runElabC (check Value.type' t)
@@ -115,7 +115,7 @@ instance ( Carrier sig m
           _ -> throwError (IllegalApplication (ann f') (ann f))
       _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
 
-    Check ty (In tm span) k -> vforce ty >>= \ ty -> case (tm, ty) of
+    Check ty (In tm span) k -> withSpan span $ vforce ty >>= \ ty -> case (tm, ty) of
       (_, Value (Value.Pi tn Im pi t t')) -> do
         (b, br) <- tn ::: t |- runElabC (check t' (In tm span))
         let used = Resources.lookup (Local tn) br
