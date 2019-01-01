@@ -90,13 +90,13 @@ instance ( Carrier sig m
         res <- asks (Context.lookup n)
         sigma <- ask
         case res of
-          Just t -> (,) <$> elabImplicits (In (Core.Var n) t) <*> pure (Resources.singleton n sigma) >>= k
+          Just t -> elabImplicits (In (Core.Var n) t) (Resources.singleton n sigma) >>= k
           _      -> throwError (FreeVariable n span)
-        where elabImplicits tm
+        where elabImplicits tm res
                 | Value (Value.Pi _ Im _ t _) <- ann tm = do
                   n <- freshMeta
-                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n)))
-                | otherwise = pure tm
+                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n))) res
+                | otherwise = pure (tm, res)
       R (f :$ a) -> do
         (f', g1) <- runElabC (infer f)
         case ann f' of
