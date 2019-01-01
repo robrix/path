@@ -87,7 +87,7 @@ instance ( Carrier sig m
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
   eff = ElabC . handleSum (eff . Effect.R . Effect.R . handleCoercible) (\case
-    Infer (In out span) k -> withSpan span $ case out of
+    Infer tm k -> withSpan (ann tm) $ case out tm of
       R Core.Type -> runElabC (k (In Core.Type Value.type', mempty))
       R (Core.Pi n i e t b) -> do
         (t', _) <- runElabC (check Value.type' t)
