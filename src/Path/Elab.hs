@@ -285,7 +285,7 @@ elabDeclare name ty = do
   ty' <- runEnv (eval (fst elab))
   elab <$ modify (Context.insert (name ::: ty'))
   where generalize ty = do
-          ctx <- ask
+          ctx <- get
           pure (foldr bind ty (foldMap (\case { Local v -> Set.singleton v ; _ -> mempty }) (fvs ty Set.\\ Context.boundVars ctx)))
         bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
