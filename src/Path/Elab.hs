@@ -64,6 +64,7 @@ runElab :: ( Carrier sig m
 runElab = runElabC . interpret
 
 newtype ElabC m a = ElabC { runElabC :: m a }
+  deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
          , Effect sig
