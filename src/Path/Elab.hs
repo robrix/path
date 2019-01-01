@@ -34,8 +34,8 @@ import Text.Trifecta.Rendering (Span)
 data Elab m k
   = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | forall a . Unify Span Type Type (Type -> m a) (a -> k)
-  | forall a . Exists Type          (Name -> m a) (a -> k)
+  | forall a . Unify Span Type Type (Type -> m a) (a    -> k)
+  | Exists Type                                   (Name -> k)
 
 deriving instance Functor (Elab m)
 
@@ -43,13 +43,13 @@ instance HFunctor Elab where
   hmap _ (Infer      tm   k) = Infer      tm         k
   hmap _ (Check   ty tm   k) = Check   ty tm         k
   hmap f (Unify s t1 t2 h k) = Unify s t1 t2 (f . h) k
-  hmap f (Exists  ty    h k) = Exists  ty    (f . h) k
+  hmap _ (Exists  ty      k) = Exists  ty            k
 
 instance Effect Elab where
   handle state handler (Infer      tm   k) = Infer      tm                            (handler . (<$ state) . k)
   handle state handler (Check   ty tm   k) = Check   ty tm                            (handler . (<$ state) . k)
   handle state handler (Unify s t1 t2 h k) = Unify s t1 t2 (handler . (<$ state) . h) (handler . fmap k)
-  handle state handler (Exists  ty    h k) = Exists  ty    (handler . (<$ state) . h) (handler . fmap k)
+  handle state handler (Exists  ty      k) = Exists  ty                               (handler . (<$ state) . k)
 
 runElab :: ( Carrier sig m
            , Effect sig
@@ -93,9 +93,9 @@ instance ( Carrier sig m
           Just t -> elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
           _      -> throwError (FreeVariable n span)
         where elabImplicits tm res k
-                | Value (Value.Pi _ Im _ t _) <- ann tm =
-                  exists t $ \ n ->
-                    elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n))) (Resources.singleton (Local n) One <> res) k
+                | Value (Value.Pi _ Im _ t _) <- ann tm = do
+                  n <- exists t
+                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (ann tm `vapp` vfree (Local n))) (Resources.singleton (Local n) One <> res) k
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
         (f', g1) <- runElabC (infer f)
@@ -138,11 +138,11 @@ instance ( Carrier sig m
         TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
       runElabC (h t1 >>= k)
 
-    Exists ty h k -> do
+    Exists ty k -> do
       i <- fresh
       let m = Meta (M i)
       modify (Context.insert (Local m ::: ty))
-      runElabC (h m >>= k))
+      runElabC (k m))
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
@@ -166,9 +166,8 @@ unify span t1 t2 m = send (Unify span t1 t2 m ret)
 
 exists :: (Carrier sig m, Member Elab sig)
        => Type
-       -> (Name -> m a)
-       -> m a
-exists ty h = send (Exists ty h ret)
+       -> m Name
+exists ty = send (Exists ty ret)
 
 
 localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
