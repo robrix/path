@@ -178,7 +178,7 @@ exists ty = send (Exists ty ret)
 
 
 localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
-localVars = asks (Context.nub . Context.filter (isLocal . getTerm))
+localVars = asks (Context.nub . Context.filter (isLocal . typedTerm))
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
 n ::: t |- m = local (Context.insert (Local n ::: t)) m
@@ -254,7 +254,7 @@ importModule :: ( Carrier sig m
              -> m (Context, Env)
 importModule n = do
   (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
-  pure (Context.filter (p . getTerm) ctx, Env.filter (const . p) env)
+  pure (Context.filter (p . typedTerm) ctx, Env.filter (const . p) env)
   where p = inModule (importModuleName n)
 
 

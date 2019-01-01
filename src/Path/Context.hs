@@ -13,8 +13,8 @@ type Type = Value
 data Typed a = a ::: Type
   deriving (Eq, Ord, Show)
 
-getTerm :: Typed a -> a
-getTerm (a ::: _) = a
+typedTerm :: Typed a -> a
+typedTerm (a ::: _) = a
 
 getType :: Typed a -> Type
 getType (_ ::: t) = t
@@ -28,7 +28,7 @@ null :: Context -> Bool
 null = Prelude.null . unContext
 
 lookup :: QName -> Context -> Maybe Type
-lookup n = fmap getType . Back.find ((== n) . getTerm) . unContext
+lookup n = fmap getType . Back.find ((== n) . typedTerm) . unContext
 
 insert :: Typed QName -> Context -> Context
 insert t = Context . (:> t) . unContext
@@ -40,17 +40,17 @@ filter :: (Typed QName -> Bool) -> Context -> Context
 filter f = Context . Back.filter f . unContext
 
 boundVars :: Context -> Set.Set QName
-boundVars = foldMap (Set.singleton . getTerm) . unContext
+boundVars = foldMap (Set.singleton . typedTerm) . unContext
 
 nub :: Context -> Context
 nub = Context . go mempty . unContext
   where go _ Nil = Nil
         go v (init :> last)
-          | getTerm last `Set.member` v = go v init
-          | otherwise                   = go (Set.insert (getTerm last) v) init :> last
+          | typedTerm last `Set.member` v = go v init
+          | otherwise                   = go (Set.insert (typedTerm last) v) init :> last
 
 instance Pretty Context where
-  pretty = tabulate2 (space <> colon <> space) . map (green . pretty . getTerm &&& nest 2 . align . group . pretty . getType) . toList . unContext
+  pretty = tabulate2 (space <> colon <> space) . map (green . pretty . typedTerm &&& nest 2 . align . group . pretty . getType) . toList . unContext
 
 instance PrettyPrec Context
 
