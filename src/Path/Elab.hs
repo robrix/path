@@ -77,9 +77,9 @@ instance ( Carrier sig m
     Infer (In out span) k -> runElabC . k =<< case out of
       R Core.Type -> pure (In Core.Type Value.type', mempty)
       R (Core.Pi n i e t b) -> do
-        (t', _) <- check Value.type' t
+        (t', _) <- runElabC (check Value.type' t)
         t'' <- eval t'
-        (b', _) <- n ::: t'' |- check Value.type' b
+        (b', _) <- n ::: t'' |- runElabC (check Value.type' b)
         pure (In (Core.Pi n i e t' b') Value.type', mempty)
       R (Core.Var n) -> do
         res <- asks (Context.lookup n)
@@ -96,12 +96,32 @@ instance ( Carrier sig m
         (f', g1) <- runElabC (infer f)
         case ann f' of
           Value (Value.Pi _ _ pi t _) -> do
-            (a', g2) <- check t a
+            (a', g2) <- runElabC (check t a)
             a'' <- eval a'
             pure (In (f' Core.:$ a') (ann f' `vapp` a''), g1 <> pi ><< g2)
           _ -> throwError (IllegalApplication (ann f') (ann f))
       _ -> NoRuleToInfer <$> localVars <*> pure span >>= throwError
-    Check ty tm k -> check ty tm >>= runElabC . k
+    Check ty (In tm span) k -> vforce ty >>= \ ty -> runElabC . k =<< case (tm, ty) of
+      (_, Value (Value.Pi tn Im pi t t')) -> do
+        (b, br) <- tn ::: t |- runElabC (check t' (In tm span))
+        let used = Resources.lookup (Local tn) br
+        sigma <- ask
+        unless (sigma >< pi == More) . when (pi /= used) $
+          throwError (ResourceMismatch tn pi used span (uses tn (In tm span)))
+        pure (In (Core.Lam tn b) ty, br)
+      (R (Core.Lam n e), Value (Value.Pi _ _ pi t _)) -> do
+        (e', res) <- n ::: t |- runElabC (check (ty `vapp` vfree (Local n)) e)
+        let used = Resources.lookup (Local n) res
+        sigma <- ask
+        unless (sigma >< pi == More) . when (pi /= used) $
+          throwError (ResourceMismatch n pi used span (uses n e))
+        pure (In (Core.Lam n e') ty, Resources.delete (Local n) res)
+      (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
+      (tm, ty) -> do
+        v <- runElabC (infer (In tm span))
+        unless (ann (fst v) `aeq` ty) $
+          TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
+        pure v
     Assume _ k -> fresh >>= runElabC . k . M)
 
 infer :: (Carrier sig m, Member Elab sig)
@@ -109,40 +129,12 @@ infer :: (Carrier sig m, Member Elab sig)
       -> m (Term (Core Name QName) Type, Resources Usage)
 infer tm = send (Infer tm ret)
 
-check :: ( Carrier sig m
-         , Effect sig
-         , Member (Error ElabError) sig
-         , Member Fresh sig
-         , Member (Reader Context) sig
-         , Member (Reader Env) sig
-         , Member (Reader Usage) sig
-         , Member (State Constraint) sig
-         , Monad m
-         )
+check :: (Carrier sig m, Member Elab sig)
       => Type
       -> Term (Implicit QName :+: Core Name QName) Span
       -> m (Term (Core Name QName) Type, Resources Usage)
-check ty (In tm span) = vforce ty >>= \ ty -> case (tm, ty) of
-  (_, Value (Value.Pi tn Im pi t t')) -> do
-    (b, br) <- tn ::: t |- check t' (In tm span)
-    let used = Resources.lookup (Local tn) br
-    sigma <- ask
-    unless (sigma >< pi == More) . when (pi /= used) $
-      throwError (ResourceMismatch tn pi used span (uses tn (In tm span)))
-    pure (In (Core.Lam tn b) ty, br)
-  (R (Core.Lam n e), Value (Value.Pi _ _ pi t _)) -> do
-    (e', res) <- n ::: t |- check (ty `vapp` vfree (Local n)) e
-    let used = Resources.lookup (Local n) res
-    sigma <- ask
-    unless (sigma >< pi == More) . when (pi /= used) $
-      throwError (ResourceMismatch n pi used span (uses n e))
-    pure (In (Core.Lam n e') ty, Resources.delete (Local n) res)
-  (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
-  (tm, ty) -> do
-    v <- runElabC (infer (In tm span))
-    unless (ann (fst v) `aeq` ty) $
-      TypeMismatch (ann (fst v)) ty <$> localVars <*> pure span >>= throwError
-    pure v
+check ty tm = send (Check ty tm ret)
+
 
 localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
 localVars = asks (Context.nub . Context.filter (isLocal . getTerm))
