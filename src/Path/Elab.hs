@@ -34,22 +34,22 @@ import Text.Trifecta.Rendering (Span)
 data Elab m k
   = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | Unify Span Type Type k
-  | forall a . Exists Type (Name -> m a) (a -> k)
+  | forall a . Unify Span Type Type (Type -> m a) (a -> k)
+  | forall a . Exists Type          (Name -> m a) (a -> k)
 
 deriving instance Functor (Elab m)
 
 instance HFunctor Elab where
-  hmap _ (Infer      tm k) = Infer      tm      k
-  hmap _ (Check   ty tm k) = Check   ty tm      k
-  hmap _ (Unify s t1 t2 k) = Unify s t1 t2      k
-  hmap f (Exists  ty h  k) = Exists  ty (f . h) k
+  hmap _ (Infer      tm   k) = Infer      tm         k
+  hmap _ (Check   ty tm   k) = Check   ty tm         k
+  hmap f (Unify s t1 t2 h k) = Unify s t1 t2 (f . h) k
+  hmap f (Exists  ty    h k) = Exists  ty    (f . h) k
 
 instance Effect Elab where
-  handle state handler (Infer      tm k) = Infer      tm                         (handler . (<$ state) . k)
-  handle state handler (Check   ty tm k) = Check   ty tm                         (handler . (<$ state) . k)
-  handle state handler (Unify s t1 t2 k) = Unify s t1 t2                         (handler . (<$ state) $ k)
-  handle state handler (Exists  ty h  k) = Exists  ty (handler . (<$ state) . h) (handler . fmap k)
+  handle state handler (Infer      tm   k) = Infer      tm                            (handler . (<$ state) . k)
+  handle state handler (Check   ty tm   k) = Check   ty tm                            (handler . (<$ state) . k)
+  handle state handler (Unify s t1 t2 h k) = Unify s t1 t2 (handler . (<$ state) . h) (handler . fmap k)
+  handle state handler (Exists  ty    h k) = Exists  ty    (handler . (<$ state) . h) (handler . fmap k)
 
 runElab :: ( Carrier sig m
            , Effect sig
@@ -124,19 +124,19 @@ instance ( Carrier sig m
         runElabC (k (In (Core.Lam n e') ty, Resources.delete (Local n) res))
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> pure span >>= throwError
       (tm, ty) -> runElabC $ do
-        v <- infer (In tm span)
-        unify span (ann (fst v)) ty
-        k v
+        (tm', res) <- infer (In tm span)
+        unify span (ann tm') ty $ \ unified -> k (tm' { ann = unified }, res)
 
-    Unify _    (Value Value.Type) (Value Value.Type) k -> runElabC k
-    Unify span (Value (Value.Lam n1 b1)) (Value (Value.Lam n2 b2)) k | n1 == n2 -> do
-      runElabC (unify span b1 b2 >> k)
-    Unify span (Value (Value.Pi n1 p1 u1 t1 b1)) (Value (Value.Pi n2 p2 u2 t2 b2)) k
+    Unify _    (Value Value.Type) (Value Value.Type) h k -> runElabC (h Value.type' >>= k)
+    Unify span (Value (Value.Lam n1 b1)) (Value (Value.Lam n2 b2)) h k | n1 == n2 -> do
+      runElabC (unify span b1 b2 (\ b -> h (Value.lam n1 b) >>= k))
+    Unify span (Value (Value.Pi n1 p1 u1 t1 b1)) (Value (Value.Pi n2 p2 u2 t2 b2)) h k
       | n1 == n2, p1 == p2, u1 == u2 -> do
-    Unify span t1 t2 k -> do
+        runElabC (unify span t1 t2 (\ t -> unify span b1 b2 (\ b -> h (Value.piType n1 p1 u1 t b) >>= k)))
+    Unify span t1 t2 h k -> do
       unless (t1 `aeq` t2) $
         TypeMismatch t1 t2 <$> localVars <*> pure span >>= throwError
-      runElabC k
+      runElabC (h t1 >>= k)
 
     Exists ty h k -> do
       i <- fresh
@@ -160,8 +160,9 @@ unify :: (Carrier sig m, Member Elab sig)
       => Span
       -> Type
       -> Type
-      -> m ()
-unify span t1 t2 = send (Unify span t1 t2 (ret ()))
+      -> (Type -> m a)
+      -> m a
+unify span t1 t2 m = send (Unify span t1 t2 m ret)
 
 exists :: (Carrier sig m, Member Elab sig)
        => Type
