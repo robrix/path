@@ -2,13 +2,13 @@
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
-import qualified Control.Effect as Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
+import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
