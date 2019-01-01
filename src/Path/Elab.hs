@@ -15,7 +15,7 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 import Data.Traversable (for)
-import Path.Back
+import Path.Back as Back
 import Path.Context as Context
 import Path.Core as Core
 import Path.Env as Env
@@ -197,6 +197,12 @@ localVars = asks (Context.nub . Context.filter (isLocal . typedTerm))
 n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
 infix 5 |-
+
+lookupMeta :: (Carrier sig m, Member (State (Back Solution)) sig, Monad m) => Meta -> m (Maybe (Either (Typed Value) Type))
+lookupMeta m = do
+  soln <- gets (Back.find ((== m) . solMeta))
+  maybe (pure Nothing) (pure . Just . Left . solDefn) soln
+
 
 withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 withSpan = local . const
