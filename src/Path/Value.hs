@@ -63,6 +63,7 @@ quote i = \case
   where app a f = In (f Core.:$ quote i a) ()
 
 
+-- | Substitute occurrences of a 'QName' with a 'Value' within another 'Value'.
 subst :: QName -> Value -> Value -> Value
 subst q r = go
   where go = \case
