@@ -33,6 +33,7 @@ module Path.Pretty
 , magenta
 , nest
 , parens
+, plain
 , punctuate
 , space
 , squotes
