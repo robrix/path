@@ -361,10 +361,17 @@ elabDeclare name ty = do
   elab <- runReader Zero (generalize ty >>= checkRoot Value.Type)
   ty' <- runEnv (eval (fst elab))
   elab <$ modify (Context.insert (name ::: ty'))
-  where generalize ty = do
+
+generalize :: ( Carrier sig m
+              , Member (State Context) sig
+              , Monad m
+              )
+           => Term (Implicit QName :+: Core Name QName) Span
+           -> m (Term (Implicit QName :+: Core Name QName) Span)
+generalize ty = do
           ctx <- get
           pure (foldr bind ty (foldMap (\case { Local v -> Set.singleton v ; _ -> mempty }) (fvs ty Set.\\ Context.boundVars ctx)))
-        bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
+  where bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
 elabDefine :: ( Carrier sig m
               , Effect sig
