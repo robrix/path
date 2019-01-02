@@ -70,9 +70,8 @@ subst q r = go
           Lam b -> Lam (go . b)
           Pi p u t b -> Pi p u t (go . b)
           sp :& v
-            | q == v    -> foldl' app r sp
+            | q == v    -> vappSpine r (go <$> sp)
             | otherwise -> fmap go sp :& v
-            where app f a = f `vapp` go a
 
 
 -- $setup
