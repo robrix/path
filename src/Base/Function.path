@@ -9,11 +9,9 @@ const = \ a _ . a
 flip : (a -> b -> c) -> (b -> a -> c)
 flip = \ f b a . f a b
 
-fix :  ∀ a : Type
-    .  ∀ b : Type
-    .  ((a -> b) -> a -> b)
+fix :  ((a -> b) -> a -> b)
     -> (a -> b)
-fix = \ a b f . f (fix a b f)
+fix = \ f . f (fix f)
 
 compose :  (b -> c)
         -> (a -> b)
