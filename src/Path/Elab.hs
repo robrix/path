@@ -121,16 +121,12 @@ instance ( Carrier sig m
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
         (f', g1) <- runElabC (infer f)
-        let apply = \case
-              sp Value.:& (m :.: v) -> do
-                v' <- lookupDef (m :.: v)
-                apply (v' `vappSpine` sp)
-              Value.Pi _ pi t b -> do
-                (a', g2) <- runElabC (check t a)
-                a'' <- eval a'
-                runElabC (k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2))
-              _ -> throwError (IllegalApplication (ann f') (ann f))
-        apply (ann f')
+        case ann f' of
+          Value.Pi _ pi t b -> do
+            (a', g2) <- runElabC (check t a)
+            a'' <- eval a'
+            runElabC (k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2))
+          _ -> throwError (IllegalApplication (ann f') (ann f))
       _ -> NoRuleToInfer <$> localVars <*> ask >>= throwError
 
     Check ty tm k -> withSpan (ann tm) $ case (out tm, ty) of
@@ -150,9 +146,6 @@ instance ( Carrier sig m
           ResourceMismatch n pi used <$> ask <*> pure (uses n e) >>= throwError
         runElabC (k (In (Core.Lam n e') ty, Resources.delete (Local n) res))
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
-      (_, sp Value.:& (m :.: v)) -> runElabC $ do
-        v' <- lookupDef (m :.: v)
-        check (v' `vappSpine` sp) tm >>= k
       (_, ty) -> runElabC $ do
         (tm', res) <- infer tm
         unify (ann tm' ::: Value.Type) (ty ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
@@ -283,7 +276,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runContext . runEnv . runSpan (runElab . check ty)
+checkRoot ty tm = runContext (runEnv (vforce ty >>= \ ty -> runSpan (runElab . check ty) tm))
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
