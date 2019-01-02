@@ -34,6 +34,9 @@ newtype Scope = Scope { unScope :: Map.Map QName Entry }
 lookup :: QName -> Scope -> Maybe Entry
 lookup q = Map.lookup q . unScope
 
+null :: Scope -> Bool
+null = Map.null . unScope
+
 union :: Scope -> Scope -> Scope
 union = (<>)
 
