@@ -356,7 +356,6 @@ generalize :: Term (Implicit QName :+: Core Name QName) Span
            -> Term (Implicit QName :+: Core Name QName) Span
 generalize ty = foldr bind ty (localNames (fvs ty))
   where bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
-        localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
 
 elabDefine :: ( Carrier sig m
               , Effect sig
