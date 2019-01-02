@@ -166,9 +166,8 @@ instance ( Carrier sig m
     Unify (Nil :& Local (Meta m1) ::: _) (t2 ::: ty2) h k -> do
       found <- lookupMeta m1
       case found of
-        Nothing -> FreeVariable (Local (Meta m1)) <$> ask >>= throwError
-        Just (Left (v ::: t)) -> runElabC (unify (v ::: t) (t2 ::: ty2) h >>= k)
-        Just (Right t)
+        Left (v ::: t) -> runElabC (unify (v ::: t) (t2 ::: ty2) h >>= k)
+        Right t
           -- FIXME: this should only throw for strong rigid occurrences
           | Local (Meta m1) `Set.member` fvs t2 -> ask >>= throwError . InfiniteType (Local (Meta m1)) t2
           | otherwise -> do
@@ -232,10 +231,13 @@ n ::: t |- m = local (Context.insert (Local n ::: t)) m
 
 infix 5 |-
 
-lookupMeta :: (Carrier sig m, Member (State [Typed Meta]) sig, Member (State (Back Solution)) sig, Monad m) => Meta -> m (Maybe (Either (Typed Value) Type))
-lookupMeta m = do
-  soln <- gets (fmap (Left . solDefn) . Back.find ((== m) . solMeta))
-  maybe (gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))) (pure . Just) soln
+lookupMeta :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Span) sig, Member (State [Typed Meta]) sig, Member (State (Back Solution)) sig, Monad m) => Meta -> m (Either (Typed Value) Type)
+lookupMeta m =
+  foldr (\ m rest -> m >>= maybe rest pure)
+        (FreeVariable (Local (Meta m)) <$> ask >>= throwError)
+        [ gets (fmap (Left  . solDefn)   . Back.find     ((== m) . solMeta))
+        , gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))
+        ]
 
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
 lookupVar n = asks (Context.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
