@@ -31,7 +31,7 @@ newtype Meta = M Int
   deriving (Eq, Ord, Show)
 
 instance Pretty Meta where
-  pretty (M i) = pretty "__" <> prettyVar i
+  pretty (M i) = pretty "_meta_" <> prettyVar i
 
 instance PrettyPrec Meta
 
