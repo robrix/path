@@ -21,7 +21,7 @@ eval tm = asks (flip go tm)
           In Core.Type _ -> Value.Type
           In (Core.Pi n p u t b) _ -> Value.Pi p u (go env t) (\ v -> go (Env.insert (Local n) v env) b)
 
-vforce :: (Carrier sig m, Member (Reader Env) sig, Monad m) => Value -> m Value
+vforce :: (Carrier sig m, Functor m, Member (Reader Env) sig) => Value -> m Value
 vforce v = asks (flip go v)
   where go env = \case
           Value.Lam b      -> Value.Lam (go env . b)
