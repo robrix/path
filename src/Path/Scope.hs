@@ -1,6 +1,8 @@
 module Path.Scope where
 
+import qualified Data.Map as Map
 import Path.Context
+import Path.Name
 import Path.Pretty
 import Path.Value
 
@@ -13,3 +15,6 @@ instance Pretty Entry where
   pretty (Defn (v ::: ty)) = pretty "=" <+> pretty v <+> colon <+> pretty ty
 
 instance PrettyPrec Entry
+
+
+newtype Scope = Scope { unScope :: Map.Map QName Entry }
