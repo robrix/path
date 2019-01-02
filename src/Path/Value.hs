@@ -71,7 +71,7 @@ subst q r = go
   where go = \case
           Type -> Type
           Lam b -> Lam (go . b)
-          Pi p u t b -> Pi p u t (go . b)
+          Pi p u t b -> Pi p u (go t) (go . b)
           sp :& v
             | q == v    -> r $$* (go <$> sp)
             | otherwise -> fmap go sp :& v
