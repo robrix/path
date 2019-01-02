@@ -351,11 +351,8 @@ elabDeclare name ty = do
   elab <- runReader Zero (checkRoot Value.Type (generalize ty))
   ty' <- runEnv (eval (fst elab))
   elab <$ modify (Scope.insert name (Decl ty'))
-
-generalize :: Term (Implicit QName :+: Core Name QName) Span
-           -> Term (Implicit QName :+: Core Name QName) Span
-generalize ty = foldr bind ty (localNames (fvs ty))
-  where bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
+  where generalize ty = foldr bind ty (localNames (fvs ty))
+        bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
 elabDefine :: ( Carrier sig m
               , Effect sig
