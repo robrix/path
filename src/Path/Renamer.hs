@@ -103,9 +103,9 @@ data ResolveError
 
 instance Pretty ResolveError where
   pretty = \case
-    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
-    AmbiguousName name span sources -> prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) (Just (nest 2 (vsep
+    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) []
+    AmbiguousName name span sources -> prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep
       ( pretty "it could refer to"
-      : map prettyQName (toList sources)))))
+      : map prettyQName (toList sources)))]
 
 instance PrettyPrec ResolveError
