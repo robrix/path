@@ -133,7 +133,7 @@ instance ( Carrier sig m
             a'' <- eval a'
             k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2)
           _ -> throwError (IllegalApplication f'' (ann f))
-      _ -> NoRuleToInfer <$> localVars <*> ask >>= throwError
+      _ -> NoRuleToInfer <$> ask <*> ask >>= throwError
 
     Check ty tm k -> withSpan (ann tm) $ case (out tm, ty) of
       (_, Value.Pi Im pi t t') -> do
@@ -145,7 +145,7 @@ instance ( Carrier sig m
         (e', res) <- n ::: t |- check (b (vfree (Local n))) e
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
-      (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
+      (L (Core.Hole n), ty) -> TypedHole n ty <$> ask <*> ask >>= throwError
       (_, _ :& (_ :.: _)) -> do
         ty' <- whnf ty
         check ty' tm >>= k
@@ -194,7 +194,7 @@ instance ( Carrier sig m
           unifySpines ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
           where unifySpines _                  Nil         Nil         h = h Nil
                 unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
-                unifySpines _                  _           _           _ = TypeMismatch (sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) <$> ask <*> localVars <*> ask >>= throwError
+                unifySpines _                  _           _           _ = TypeMismatch (sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) <$> ask <*> ask <*> ask >>= throwError
     Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
       t1' <- whnf t1
       unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
@@ -203,9 +203,9 @@ instance ( Carrier sig m
       unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
       unless (ty1 == ty2) $
-        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> ask <*> localVars <*> ask >>= throwError
+        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> ask <*> ask <*> ask >>= throwError
       unless (t1 == t2) $
-        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> ask <*> localVars <*> ask >>= throwError
+        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> ask <*> ask <*> ask >>= throwError
       h t1 >>= k
 
     Exists ty k -> do
@@ -237,9 +237,6 @@ exists :: (Carrier sig m, Member Elab sig)
        -> m Name
 exists ty = send (Exists ty ret)
 
-
-localVars :: (Carrier sig m, Functor m, Member (Reader Context) sig) => m Context
-localVars = asks (Context.nub . Context.filter (isLocal . typedTerm))
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
 n ::: t |- m = local (Context.insert (Local n ::: t)) m
