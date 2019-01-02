@@ -183,7 +183,7 @@ instance ( Carrier sig m
             ElabC (modify (:> (m1 := t2 ::: t)))
             h t2 >>= k
     Unify (t1 :===: t2@(Nil :& Local (Meta _) ::: _)) h k -> unify (t2 :===: t1) h >>= k
-    Unify (t1@(sp1 :& v1 ::: _) :===: t2@(sp2 :& v2 ::: _)) h k
+    Unify (sp1 :& v1 ::: _ :===: sp2 :& v2 ::: _) h k
       -- FIXME: Allow twin variables in these positions.
       | v1 == v2, length sp1 == length sp2 -> do
         ty1 <- lookupVar v1
@@ -192,7 +192,7 @@ instance ( Carrier sig m
           unifySpines ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
           where unifySpines _                  Nil         Nil         h = h Nil
                 unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
-                unifySpines _                  _           _           _ = TypeMismatch (typedTerm t1) (typedTerm t2) <$> localVars <*> ask >>= throwError
+                unifySpines _                  _           _           _ = TypeMismatch (sp1 :& v1) (sp2 :& v2) <$> localVars <*> ask >>= throwError
     Unify (t1 ::: ty1 :===: t2 ::: ty2) h k -> do
       unless (ty1 == ty2) $
         TypeMismatch ty1 ty2 <$> localVars <*> ask >>= throwError
