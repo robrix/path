@@ -272,11 +272,12 @@ inferRoot :: ( Carrier sig m
              , Member (Reader Usage) sig
              , Member (State Context) sig
              , Member (State Env) sig
+             , Member (State Scope) sig
              , Monad m
              )
           => Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-inferRoot = runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . infer)
+inferRoot = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . infer)
 
 checkRoot :: ( Carrier sig m
              , Effect sig
@@ -285,12 +286,13 @@ checkRoot :: ( Carrier sig m
              , Member (Reader Usage) sig
              , Member (State Context) sig
              , Member (State Env) sig
+             , Member (State Scope) sig
              , Monad m
              )
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . check ty)
+checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . check ty)
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
@@ -303,6 +305,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Back ElabError)) sig
               , Member (State Context) sig
               , Member (State Env) sig
+              , Member (State Scope) sig
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
@@ -338,6 +341,7 @@ elabDecl :: ( Carrier sig m
             , Member Fresh sig
             , Member (State Context) sig
             , Member (State Env) sig
+            , Member (State Scope) sig
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
@@ -353,6 +357,7 @@ elabDeclare :: ( Carrier sig m
                , Member Fresh sig
                , Member (State Context) sig
                , Member (State Env) sig
+               , Member (State Scope) sig
                , Monad m
                )
             => QName
@@ -379,6 +384,7 @@ elabDefine :: ( Carrier sig m
               , Member Fresh sig
               , Member (State Context) sig
               , Member (State Env) sig
+              , Member (State Scope) sig
               , Monad m
               )
            => QName

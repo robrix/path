@@ -37,6 +37,7 @@ import Path.Pretty
 import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
+import Path.Scope (Scope)
 import Path.Term
 import Path.Usage
 import Prelude hiding (print)
@@ -131,10 +132,11 @@ repl packageSources = liftIO $ do
   runM (runControlIOC runM
        (runREPL command prefs settings
        (evalState (mempty :: ModuleTable)
+       (evalState (mempty :: Scope)
        (evalState (mempty :: Env)
        (evalState (mempty :: Context)
        (evalState (Resolution mempty)
-       (script packageSources)))))))
+       (script packageSources))))))))
 
 newtype Line = Line Int64
 
@@ -154,6 +156,7 @@ script :: ( Carrier sig m
           , Member (State Env) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
+          , Member (State Scope) sig
           )
        => [FilePath]
        -> m ()
