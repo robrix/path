@@ -160,15 +160,17 @@ instance ( Carrier sig m
     Unify (Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
       | p1 == p2, u1 == u2 -> do
         n <- freshName "_unify_"
+        let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (b1 (vfree (Local n)) ::: t :===: b2 (vfree (Local n)) ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
+          n ::: t |- unify (b1 vn ::: t :===: b2 vn ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
     Unify (f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
       | p1 == p2, u1 == u2 -> do
         n <- freshName "_unify_"
+        let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (f1 `vapp` vfree (Local n) ::: b1 (vfree (Local n)) :===: f2 `vapp` vfree (Local n) ::: b2 (vfree (Local n))) (k <=< h))
+          n ::: t |- unify (f1 `vapp` vn ::: b1 vn :===: f2 `vapp` vn ::: b2 vn) (k <=< h))
     Unify (Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> do
       found <- ElabC (lookupMeta m1)
       case found of
