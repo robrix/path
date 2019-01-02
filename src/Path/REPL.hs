@@ -173,7 +173,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             loop
           Eval tm -> do
             elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . inferRoot)
-            runEnv (eval (fst elab)) >>= print
+            runScope (runEnv (eval (fst elab) >>= whnf)) >>= print
             loop
           Show Bindings -> do
             scope <- get
