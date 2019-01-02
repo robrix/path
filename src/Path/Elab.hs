@@ -10,7 +10,7 @@ import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
-import Data.Foldable (for_)
+import Data.Foldable (foldl', for_)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
@@ -81,9 +81,11 @@ runElab :: ( Carrier sig m
            , Member (Reader Usage) sig
            , Monad m
            )
-        => Eff (ElabC m) a
-        -> m a
-runElab = evalState Nil . evalState mempty . runElabC . interpret
+        => Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
+        -> m (Term (Core Name QName) Type, Resources Usage)
+runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runElabC . interpret
+  where apply sols tm = foldl' compose id sols <$> tm
+        compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
 
 newtype ElabC m a = ElabC { runElabC :: Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))) a }
   deriving (Applicative, Functor, Monad)
