@@ -239,7 +239,7 @@ exists ty = send (Exists ty ret)
 
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
-n ::: t |- m = local (Context.insert (Local n ::: t)) m
+n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
 
@@ -253,7 +253,7 @@ lookupMeta m =
 
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
 lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> ask >>= throwError) (pure . entryType)
-lookupVar n = asks (Context.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
+lookupVar (Local n) = asks (Context.lookup n) >>= maybe (FreeVariable (Local n) <$> ask >>= throwError) pure
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => String -> m Name
 freshName s = Gensym s <$> fresh

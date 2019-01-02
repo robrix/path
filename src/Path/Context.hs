@@ -39,25 +39,25 @@ instance Pretty Equation where
 instance PrettyPrec Equation
 
 
-newtype Context = Context { unContext :: Back (Typed QName) }
+newtype Context = Context { unContext :: Back (Typed Name) }
   deriving (Eq, Ord, Show)
 
 null :: Context -> Bool
 null = Prelude.null . unContext
 
-lookup :: QName -> Context -> Maybe Type
+lookup :: Name -> Context -> Maybe Type
 lookup n = fmap typedType . Back.find ((== n) . typedTerm) . unContext
 
-insert :: Typed QName -> Context -> Context
+insert :: Typed Name -> Context -> Context
 insert t = Context . (:> t) . unContext
 
 union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (Typed QName -> Bool) -> Context -> Context
+filter :: (Typed Name -> Bool) -> Context -> Context
 filter f = Context . Back.filter f . unContext
 
-boundVars :: Context -> Set.Set QName
+boundVars :: Context -> Set.Set Name
 boundVars = foldMap (Set.singleton . typedTerm) . unContext
 
 nub :: Context -> Context
