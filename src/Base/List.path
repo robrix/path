@@ -16,15 +16,15 @@ consf = \ a b _ cons . cons a b
 List : Type -> Type
 List = \ a . Fix (ListF a)
 
-nil : ∀ a : Type . List a
-nil = \ a . in (ListF a) nilf
+nil : { a : Type } -> List a
+nil = in nilf
 
 cons : { a : Type } -> a -> List a -> List a
 cons = \ h t . in (consf h t)
 
 
-append : ∀ a : Type . List a -> List a -> List a
-append = \ a xs ys . xs (List a) (\ _ k f . f (List a) ys (\ x xs . cons a x (k xs)))
+append : { a : Type } -> List a -> List a -> List a
+append = \ xs ys . xs (\ _ k f . f ys (\ x xs . cons x (k xs)))
 
 
 map : Functor List
