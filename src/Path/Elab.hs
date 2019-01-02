@@ -145,7 +145,7 @@ instance ( Carrier sig m
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
       (_, ty) -> do
         (tm', res) <- infer tm
-        unify (ann tm' ::: Value.Type :===: ty ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
+        unify (ty ::: Value.Type :===: ann tm' ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
       where verifyResources n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- ask
