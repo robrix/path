@@ -46,6 +46,8 @@ vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
 
 -- | Quote a 'Value', producing an equivalent 'Term'.
+--
+--   prop> quote i Type == In Core.Type ()
 quote :: Int -> Value -> Term (Core.Core Name QName) ()
 quote i = \case
   Type -> In Core.Type ()
@@ -65,3 +67,8 @@ subst q r = go
             | q == v    -> foldl' app r sp
             | otherwise -> fmap go sp :& v
             where app f a = f `vapp` go a
+
+
+-- $setup
+--
+-- >>> import Test.QuickCheck
