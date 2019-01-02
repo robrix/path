@@ -123,12 +123,13 @@ instance ( Carrier sig m
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
         (f', g1) <- infer f
-        case ann f' of
+        f'' <- whnf (ann f')
+        case f'' of
           Value.Pi _ pi t b -> do
             (a', g2) <- check t a
             a'' <- eval a'
             k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2)
-          _ -> throwError (IllegalApplication (ann f') (ann f))
+          _ -> throwError (IllegalApplication f'' (ann f))
       _ -> NoRuleToInfer <$> localVars <*> ask >>= throwError
 
     Check ty tm k -> withSpan (ann tm) $ case (out tm, ty) of
