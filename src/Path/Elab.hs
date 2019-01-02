@@ -26,6 +26,7 @@ import Path.Module
 import Path.Name
 import Path.Plicity
 import Path.Resources as Resources
+import Path.Scope
 import Path.Semiring
 import Path.Term
 import Path.Usage
@@ -395,3 +396,6 @@ runContext m = get >>= flip runReader m
 
 runEnv :: (Carrier sig m, Member (State Env) sig, Monad m) => Eff (ReaderC Env m) a -> m a
 runEnv m = get >>= flip runReader m
+
+runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
+runScope m = get >>= flip runReader m
