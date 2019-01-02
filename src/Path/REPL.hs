@@ -215,7 +215,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runFresh (runState (mempty :: Scope.Scope) (evalState (mempty :: Context) (evalState (mempty :: Env) (resolveModule m >>= traverse desugar >>= elabModule))))))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runFresh (runState (mempty :: Scope.Scope) (resolveModule m >>= traverse desugar >>= elabModule))))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
