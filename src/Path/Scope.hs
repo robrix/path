@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Path.Scope where
 
 import qualified Data.Map as Map
@@ -19,4 +20,4 @@ instance PrettyPrec Entry
 
 
 newtype Scope = Scope { unScope :: Map.Map QName Entry }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Monoid, Ord, Semigroup, Show)
