@@ -42,7 +42,7 @@ vfree = (Nil :&)
 Lam b $$  v = b v
 Pi _ _ _ b $$ v = b v
 vs :& n $$ v = (vs :> v) :& n
-f $$ a = error ("illegal application of " <> show f <> " to " <> show a)
+f $$ a = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty a)))
 
 ($$*) :: Value -> Back Value -> Value
 v $$* sp = foldl' ($$) v sp
