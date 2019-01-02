@@ -167,6 +167,16 @@ instance ( Carrier sig m
             modify (:> (m1 := t2 ::: t))
             runElabC (h t2 >>= k)
     Unify t1 t2@(Value (Nil :& Local (Meta _)) ::: _) h k -> runElabC (unify t2 t1 h >>= k)
+    Unify t1@(Value (sp1 :& v1) ::: _) t2@(Value (sp2 :& v2) ::: _) h k
+      -- FIXME: Allow twin variables in these positions.
+      | v1 == v2, length sp1 == length sp2 -> do
+        ty1 <- lookupVar v1
+        ty2 <- lookupVar v2
+        runElabC (unify (ty1 ::: type') (ty2 ::: type') (\ ty ->
+          unifySpines ty sp1 sp2 (\ sp -> h (Value (sp :& v1)) >>= k)))
+          where unifySpines _                               Nil         Nil         h = h Nil
+                unifySpines ty@(Value (Value.Pi _ _ _ t _)) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t) (a2 ::: t) (\ a -> unifySpines (ty `vapp` a) as1 as2 (\ as -> h (as :> a)))
+                unifySpines _                               _           _           _ = TypeMismatch (typedTerm t1) (typedTerm t2) <$> localVars <*> ask >>= throwError
     Unify (t1 ::: ty1) (t2 ::: ty2) h k -> do
       unless (ty1 `aeq` ty2 && t1 `aeq` t2) $
         TypeMismatch t1 t2 <$> localVars <*> ask >>= throwError
