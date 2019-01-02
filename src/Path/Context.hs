@@ -33,6 +33,11 @@ data Equation
 
 infix 1 :===:
 
+instance Pretty Equation where
+  pretty (t1 :===: t2) = pretty t1 <+> pretty "≡" <+> pretty t2
+
+instance PrettyPrec Equation
+
 
 newtype Context = Context { unContext :: Back (Typed QName) }
   deriving (Eq, Ord, Show)
