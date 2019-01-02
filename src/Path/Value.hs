@@ -1,96 +1,66 @@
 {-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Value where
 
-import Data.Foldable (foldl', toList)
-import Data.Maybe (fromMaybe)
-import qualified Data.Set as Set
+import Data.Foldable (foldl')
+import Data.Function (on)
 import Path.Back as Back
+import qualified Path.Core as Core
 import Path.Name
 import Path.Plicity
 import Path.Pretty
+import Path.Term
 import Path.Usage
 
 data Value
-  = Type                               -- ^ @'Type' : 'Type'@.
-  | Lam Name                     Value -- ^ A lambda abstraction.
-  | Pi  Name Plicity Usage Value Value -- ^ A ∏ type, with a 'Usage' annotation.
-  | Back Value :& QName                -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
-  deriving (Eq, Ord, Show)
+  = Type                                    -- ^ @'Type' : 'Type'@.
+  | Lam                    (Value -> Value) -- ^ A lambda abstraction.
+  | Pi Plicity Usage Value (Value -> Value) -- ^ A ∏ type, with a 'Usage' annotation.
+  | Back Value :& QName                     -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
+
+instance Eq Value where
+  (==) = (==) `on` quote 0
+
+instance Ord Value where
+  compare = compare `on` quote 0
+
+instance Show Value where
+  showsPrec d = showsPrec d . quote 0
 
 instance PrettyPrec Value where
-  prettyPrec d = \case
-    Type -> yellow (pretty "Type")
-    Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
-      where go v b = var v b <> case b of
-              Lam v' b' -> space <> go v' b'
-              _                 -> line <> cyan dot <+> prettyPrec 0 b
-            var v b | Local v `Set.member` fvs b = pretty v
-                    | otherwise                  = pretty '_'
-    Nil :& f -> pretty f
-    as :& f -> prettyParens (d > 10) $ group (nest 2 (pretty f </> align (vsep (map (prettyPrec 11) (toList as)))))
-    Pi v ie pi t b
-      | Local v `Set.member` fvs b -> case pi of
-        Zero -> prettyParens (d > 1) $ align (group (cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 2 t <> line <> cyan dot <+> prettyPrec 1 b))
-        _    -> prettyParens (d > 1) $ withIe (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
-      | otherwise                  -> prettyParens (d > 1) $ withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
-      where withPi
-              | pi == More = id
-              | otherwise  = (pretty pi <+>)
-            withIe
-              | ie == Im  = prettyBraces True
-              | otherwise = prettyParens True
-            arrow = blue (pretty "->")
+  prettyPrec d = prettyPrec d . quote 0
 
 instance Pretty Value where
   pretty = prettyPrec 0
 
 instance FreeVariables QName Value where
-  fvs = \case
-    Type -> mempty
-    Lam v b -> Set.delete (Local v) (fvs b)
-    Pi v _ _ t b -> fvs t <> Set.delete (Local v) (fvs b)
-    a :& f -> foldMap fvs a <> Set.singleton f
+  fvs = fvs . quote 0
 
 vfree :: QName -> Value
 vfree = (Nil :&)
 
 vapp :: Value -> Value -> Value
-vapp (Lam n b) v = subst (Local n) v b
-vapp (Pi n _ _ _ b) v = subst (Local n) v b
+vapp (Lam b) v = b v
+vapp (Pi _ _ _ b) v = b v
 vapp (vs :& n) v = (vs :> v) :& n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
--- | Capture-avoiding substitution.
+
+quote :: Int -> Value -> Term (Core.Core Name QName) ()
+quote i = \case
+  Type -> In Core.Type ()
+  Lam b -> In (Core.Lam (Gensym i) (quote (succ i) (b (vfree (Local (Gensym i)))))) ()
+  Pi p u t b -> In (Core.Pi (Gensym i) p u (quote i t) (quote (succ i) (b (vfree (Local (Gensym i)))))) ()
+  sp :& v -> foldr app (In (Core.Var v) ()) sp
+  where app a f = In (f Core.:$ quote i a) ()
+
+
 subst :: QName -> Value -> Value -> Value
-subst for rep = go 0
-  where fvsRep = fvs rep
-        go i = \case
+subst q r = go
+  where go = \case
           Type -> Type
-          Lam v b
-            | for == Local v -> Lam v b
-            | Local v `Set.member` fvsRep
-            , let new = gensym i (fvs b)
-            -> Lam new (go (succ i) (subst (Local v) (vfree (Local new)) b))
-            | otherwise      -> Lam v (go i b)
-          Pi v p u t b
-            | for == Local v -> Pi v p u (go i t) b
-            | Local v `Set.member` fvsRep
-            , let new = gensym i (fvs b)
-            -> Pi new p u (go i t) (go (succ i) (subst (Local v) (vfree (Local new)) b))
-            | otherwise -> Pi v p u (go i t) (go i b)
-          a :& v
-            | for == v  -> foldl' app rep a
-            | otherwise -> fmap (go i) a :& v
-            where app f a = f `vapp` go i a
-        locals = foldMap (\case { Local (Gensym i) -> Set.singleton i ; _ -> mempty })
-        gensym i names = Gensym (maybe i (succ . fst) (Set.maxView (locals (names <> fvsRep))))
-
-
-aeq :: Value -> Value -> Bool
-aeq = go (0 :: Int) [] []
-  where go i env1 env2 v1 v2 = case (v1, v2) of
-          (Type,              Type)              -> True
-          (Lam n1 b1,         Lam n2 b2)         -> go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
-          (Pi n1 p1 e1 t1 b1, Pi n2 p2 e2 t2 b2) -> p1 == p2 && e1 == e2 && go i env1 env2 t1 t2 && go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
-          (as1 :& n1,         as2 :& n2)         -> fromMaybe (n1 == n2) ((==) <$> Prelude.lookup n1 env1 <*> Prelude.lookup n2 env2) && length as1 == length as2 && and (Back.zipWith (go i env1 env2) as1 as2)
-          _                                                      -> False
+          Lam b -> Lam (go . b)
+          Pi p u t b -> Pi p u t (go . b)
+          sp :& v
+            | q == v    -> foldl' app r sp
+            | otherwise -> fmap go sp :& v
+            where app f a = f `vapp` go a
