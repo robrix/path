@@ -13,7 +13,7 @@ import Path.Usage
 import Text.Trifecta
 import Text.Parser.Token.Highlight
 
-type', var, hole, term, application, piType, functionType, forAll, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
+type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
 
 term = functionType
 
@@ -30,11 +30,6 @@ application = atom `chainl1` pure (Surface.$$) <?> "function application"
 
 type' = ann (Surface.type' <$ keyword "Type")
 
-forAll = reann (do
-  (v, ty) <- op "∀" *> binding <* dot
-  Surface.forAll (v, ty) <$> functionType) <?> "universally quantified type"
-  where binding = (,) . Just <$> name <* colon <*> term
-
 piType = reann (do
   (p, (v, mult, ty)) <- plicity ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
   (Surface.piType (v, p, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
@@ -44,7 +39,6 @@ piType = reann (do
 functionType = (,) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
-                <|> forAll
           where arrow t' t = (More, t) Surface.--> t'
 
 var = ann (Surface.var <$> name <?> "variable")
