@@ -45,6 +45,7 @@ vapp (vs :& n) v = (vs :> v) :& n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
 
+-- | Quote a 'Value', producing an equivalent 'Term'.
 quote :: Int -> Value -> Term (Core.Core Name QName) ()
 quote i = \case
   Type -> In Core.Type ()
