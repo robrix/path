@@ -109,11 +109,9 @@ instance ( Carrier sig m
         (b', _) <- n ::: t'' |- runElabC (check Value.type' b)
         runElabC (k (In (Core.Pi n i e t' b') Value.type', mempty))
       R (Core.Var n) -> runElabC $ do
-        res <- asks (Context.lookup n)
+        t <- lookupVar n
         sigma <- ask
-        case res of
-          Just t -> elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
-          _      -> FreeVariable n <$> ask >>= throwError
+        elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
         where elabImplicits tm res k
                 | Value (Value.Pi _ Im _ t _) <- ann tm = do
                   n <- exists t
