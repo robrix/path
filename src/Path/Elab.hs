@@ -164,6 +164,7 @@ instance ( Carrier sig m
           modify (List.delete (m1 ::: t))
           modify (:> (m1 := t2 ::: t))
           runElabC (h t2 >>= k)
+    Unify t1 t2@(Value (Nil :& Local (Meta _)) ::: _) h k -> runElabC (unify t2 t1 h >>= k)
     Unify (t1 ::: ty1) (t2 ::: ty2) h k -> do
       unless (ty1 `aeq` ty2 && t1 `aeq` t2) $
         TypeMismatch t1 t2 <$> localVars <*> ask >>= throwError
