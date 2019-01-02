@@ -273,8 +273,6 @@ inferRoot :: ( Carrier sig m
              , Member (Error ElabError) sig
              , Member Fresh sig
              , Member (Reader Usage) sig
-             , Member (State Context) sig
-             , Member (State Env) sig
              , Member (State Scope) sig
              , Monad m
              )
@@ -287,8 +285,6 @@ checkRoot :: ( Carrier sig m
              , Member (Error ElabError) sig
              , Member Fresh sig
              , Member (Reader Usage) sig
-             , Member (State Context) sig
-             , Member (State Env) sig
              , Member (State Scope) sig
              , Monad m
              )
@@ -306,8 +302,6 @@ elabModule :: ( Carrier sig m
               , Member Fresh sig
               , Member (Reader ModuleTable) sig
               , Member (State (Back ElabError)) sig
-              , Member (State Context) sig
-              , Member (State Env) sig
               , Member (State Scope) sig
               , Monad m
               )
@@ -336,8 +330,6 @@ elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error ElabError) sig
             , Member Fresh sig
-            , Member (State Context) sig
-            , Member (State Env) sig
             , Member (State Scope) sig
             , Monad m
             )
@@ -352,8 +344,6 @@ elabDeclare :: ( Carrier sig m
                , Effect sig
                , Member (Error ElabError) sig
                , Member Fresh sig
-               , Member (State Context) sig
-               , Member (State Env) sig
                , Member (State Scope) sig
                , Monad m
                )
@@ -363,8 +353,7 @@ elabDeclare :: ( Carrier sig m
 elabDeclare name ty = do
   elab <- runReader Zero (checkRoot Value.Type (generalize ty))
   ty' <- runEnv (eval (fst elab))
-  modify (Scope.insert name (Decl ty'))
-  elab <$ modify (Context.insert (name ::: ty'))
+  elab <$ modify (Scope.insert name (Decl ty'))
 
 generalize :: Term (Implicit QName :+: Core Name QName) Span
            -> Term (Implicit QName :+: Core Name QName) Span
@@ -376,8 +365,6 @@ elabDefine :: ( Carrier sig m
               , Effect sig
               , Member (Error ElabError) sig
               , Member Fresh sig
-              , Member (State Context) sig
-              , Member (State Env) sig
               , Member (State Scope) sig
               , Monad m
               )
@@ -385,18 +372,16 @@ elabDefine :: ( Carrier sig m
            -> Term (Implicit QName :+: Core Name QName) Span
            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
-  ty <- gets (Context.lookup name)
+  ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runReader One (maybe inferRoot checkRoot ty tm)
   tm' <- runEnv (eval (fst elab))
-  modify (Scope.insert name (Defn (tm' ::: ann (fst elab))))
-  modify (Env.insert name tm')
-  elab <$ maybe (modify (Context.insert (name ::: ann (fst elab)))) (const (pure ())) ty
+  elab <$ modify (Scope.insert name (Defn (tm' ::: ann (fst elab))))
 
-runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
-runContext m = get >>= flip runReader m
+runContext :: (Carrier sig m, Monad m) => Eff (ReaderC Context m) a -> m a
+runContext = runReader mempty
 
-runEnv :: (Carrier sig m, Member (State Env) sig, Monad m) => Eff (ReaderC Env m) a -> m a
-runEnv m = get >>= flip runReader m
+runEnv :: (Carrier sig m, Monad m) => Eff (ReaderC Env m) a -> m a
+runEnv = runReader mempty
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
 runScope m = get >>= flip runReader m
