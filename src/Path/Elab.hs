@@ -357,15 +357,6 @@ generalize :: Term (Implicit QName :+: Core Name QName) Span
 generalize ty = foldr bind ty (localNames (fvs ty))
   where bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
-generalizeType :: Type -> Type
-generalizeType ty = foldr bind ty (localNames (fvs ty))
-  where bind n b = Value.Pi Im Zero Value.Type (flip (Value.subst (Local n)) b)
-
-generalizeValue :: Type -> Value -> Value
-generalizeValue = go 0
-  where go i (Value.Pi Im _ _ b) v = Value.Lam (const (go (succ i) (b (vfree (Local (Gensym "" i)))) v))
-        go _ _                   v = v
-
 elabDefine :: ( Carrier sig m
               , Effect sig
               , Member (Error ElabError) sig

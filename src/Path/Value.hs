@@ -76,6 +76,15 @@ subst q r = go
             | q == v    -> r $$* (go <$> sp)
             | otherwise -> fmap go sp :& v
 
+generalizeType :: Value -> Value
+generalizeType ty = foldr bind ty (localNames (fvs ty))
+  where bind n b = Pi Im Zero Type (flip (subst (Local n)) b)
+
+generalizeValue :: Value -> Value -> Value
+generalizeValue = go 0
+  where go i (Pi Im _ _ b) v = Lam (const (go (succ i) (b (vfree (Local (Gensym "" i)))) v))
+        go _ _             v = v
+
 
 -- $setup
 --

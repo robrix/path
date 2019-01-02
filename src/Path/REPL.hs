@@ -39,6 +39,7 @@ import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
 import Path.Term
 import Path.Usage
+import Path.Value
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
