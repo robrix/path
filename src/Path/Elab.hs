@@ -79,6 +79,7 @@ runElab :: ( Carrier sig m
            , Member (Reader [Equation]) sig
            , Member (Reader Context) sig
            , Member (Reader Env) sig
+           , Member (Reader Scope) sig
            , Member (Reader Span) sig
            , Member (Reader Usage) sig
            , Monad m
@@ -99,6 +100,7 @@ instance ( Carrier sig m
          , Member (Reader [Equation]) sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
+         , Member (Reader Scope) sig
          , Member (Reader Span) sig
          , Member (Reader Usage) sig
          , Monad m
