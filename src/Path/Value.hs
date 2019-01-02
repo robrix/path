@@ -48,6 +48,7 @@ vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 -- | Quote a 'Value', producing an equivalent 'Term'.
 --
 --   prop> quote i Type == In Core.Type ()
+--   prop> quote i (Lam id) == In (Core.Lam (Gensym "" i) (In (Core.Var i) ())) ()
 quote :: Int -> Value -> Term (Core.Core Name QName) ()
 quote i = \case
   Type -> In Core.Type ()
