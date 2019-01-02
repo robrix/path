@@ -166,7 +166,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Help -> print helpDoc *> loop
           TypeOf tm -> do
             elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . inferRoot)
-            print (ann (fst elab))
+            print (generalizeType (ann (fst elab)))
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
