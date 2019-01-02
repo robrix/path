@@ -143,6 +143,9 @@ instance ( Carrier sig m
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
+      (_, _ :& (_ :.: _)) -> do
+        ty' <- whnf ty
+        check ty' tm >>= k
       (_, ty) -> do
         (tm', res) <- infer tm
         unify (ty ::: Value.Type :===: ann tm' ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
