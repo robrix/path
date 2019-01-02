@@ -20,11 +20,10 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back
-import Path.Context as Context
+import Path.Context
 import Path.Core hiding ((:+:))
 import Path.Desugar
 import Path.Elab
-import Path.Env as Env
 import Path.Error
 import Path.Eval
 import Path.Module as Module
@@ -133,10 +132,8 @@ repl packageSources = liftIO $ do
        (runREPL command prefs settings
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Scope.Scope)
-       (evalState (mempty :: Env)
-       (evalState (mempty :: Context)
        (evalState (Resolution mempty)
-       (script packageSources))))))))
+       (script packageSources))))))
 
 newtype Line = Line Int64
 
@@ -152,8 +149,6 @@ script :: ( Carrier sig m
           , Member (Lift IO) sig
           , Member Print sig
           , Member (Prompt Command) sig
-          , Member (State Context) sig
-          , Member (State Env) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           , Member (State Scope.Scope) sig
