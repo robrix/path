@@ -238,6 +238,9 @@ lookupMeta m = do
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
 lookupVar n = asks (Context.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
 
+lookupDef :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
+lookupDef n = asks (Env.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
+
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => String -> m Name
 freshName s = Gensym s <$> fresh
 
