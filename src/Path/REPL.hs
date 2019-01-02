@@ -37,7 +37,7 @@ import Path.Pretty
 import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
-import Path.Scope (Scope)
+import qualified Path.Scope as Scope
 import Path.Term
 import Path.Usage
 import Prelude hiding (print)
@@ -132,7 +132,7 @@ repl packageSources = liftIO $ do
   runM (runControlIOC runM
        (runREPL command prefs settings
        (evalState (mempty :: ModuleTable)
-       (evalState (mempty :: Scope)
+       (evalState (mempty :: Scope.Scope)
        (evalState (mempty :: Env)
        (evalState (mempty :: Context)
        (evalState (Resolution mempty)
@@ -156,7 +156,7 @@ script :: ( Carrier sig m
           , Member (State Env) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
-          , Member (State Scope) sig
+          , Member (State Scope.Scope) sig
           )
        => [FilePath]
        -> m ()
@@ -194,9 +194,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Reload -> reload *> loop
           Command.Import i -> do
             table <- get
-            (ctx, env) <- runReader (table :: ModuleTable) (importModule i)
-            modify (Context.union ctx)
-            modify (Env.union env)
+            runReader (table :: ModuleTable) (importModule i) >>= modify . Scope.union
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
@@ -217,9 +215,9 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (ctx, (env, res))) <- runState Nil (runReader (table :: ModuleTable) (runFresh (runState (mempty :: Context) (runState (mempty :: Env) (resolveModule m >>= traverse desugar >>= elabModule)))))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runFresh (runState (mempty :: Scope.Scope) (evalState (mempty :: Context) (evalState (mempty :: Env) (resolveModule m >>= traverse desugar >>= elabModule))))))
             if Prelude.null errs then
-              modify (Map.insert name (ctx, env))
+              modify (Map.insert name scope)
             else do
               for_ errs printElabError
               modify (name:)

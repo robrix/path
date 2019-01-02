@@ -298,7 +298,7 @@ checkRoot :: ( Carrier sig m
 checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . check ty)
 
 
-type ModuleTable = Map.Map ModuleName (Context, Env)
+type ModuleTable = Map.Map ModuleName Scope
 
 elabModule :: ( Carrier sig m
               , Effect sig
@@ -314,10 +314,7 @@ elabModule :: ( Carrier sig m
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
            -> m (Module QName (Term (Core Name QName) Type, Resources Usage))
 elabModule m = do
-  for_ (moduleImports m) $ \ i -> do
-    (ctx, env) <- importModule i
-    modify (Context.union ctx)
-    modify (Env.union env)
+  for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
   decls <- for (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
@@ -331,11 +328,8 @@ importModule :: ( Carrier sig m
                 , Monad m
                 )
              => Import
-             -> m (Context, Env)
-importModule n = do
-  (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
-  pure (Context.filter (p . typedTerm) ctx, Env.filter (const . p) env)
-  where p = inModule (importModuleName n)
+             -> m Scope
+importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) (pure . Scope.filter (const . inModule (importModuleName n)))
 
 
 elabDecl :: ( Carrier sig m
