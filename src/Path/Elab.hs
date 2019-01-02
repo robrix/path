@@ -102,15 +102,15 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = ElabC . handleSum (eff . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> withSpan (ann tm) $ case out tm of
-      R Core.Type -> runElabC (k (In Core.Type Value.Type, mempty))
+      R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
-        (t', _) <- runElabC (check Value.Type t)
+        (t', _) <- check Value.Type t
         t'' <- eval t'
-        (b', _) <- n ::: t'' |- runElabC (check Value.Type b)
-        runElabC (k (In (Core.Pi n i e t' b') Value.Type, mempty))
-      R (Core.Var n) -> runElabC $ do
+        (b', _) <- n ::: t'' |- check Value.Type b
+        k (In (Core.Pi n i e t' b') Value.Type, mempty)
+      R (Core.Var n) -> do
         t <- lookupVar n
         sigma <- ask
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
@@ -120,68 +120,68 @@ instance ( Carrier sig m
                   elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n)))) (Resources.singleton (Local n) One <> res) k
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
-        (f', g1) <- runElabC (infer f)
+        (f', g1) <- infer f
         case ann f' of
           Value.Pi _ pi t b -> do
-            (a', g2) <- runElabC (check t a)
+            (a', g2) <- check t a
             a'' <- eval a'
-            runElabC (k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2))
+            k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2)
           _ -> throwError (IllegalApplication (ann f') (ann f))
       _ -> NoRuleToInfer <$> localVars <*> ask >>= throwError
 
     Check ty tm k -> withSpan (ann tm) $ case (out tm, ty) of
       (_, Value.Pi Im pi t t') -> do
         tn <- freshName "_implicit_"
-        (b, br) <- tn ::: t |- runElabC (check (t' (vfree (Local tn))) tm)
+        (b, br) <- tn ::: t |- check (t' (vfree (Local tn))) tm
         let used = Resources.lookup (Local tn) br
         sigma <- ask
         unless (sigma >< pi == More) . when (pi /= used) $
           ResourceMismatch tn pi used <$> ask <*> pure (uses tn tm) >>= throwError
-        runElabC (k (In (Core.Lam tn b) ty, br))
+        k (In (Core.Lam tn b) ty, br)
       (R (Core.Lam n e), Value.Pi Ex pi t b) -> do
-        (e', res) <- n ::: t |- runElabC (check (b (vfree (Local n))) e)
+        (e', res) <- n ::: t |- check (b (vfree (Local n))) e
         let used = Resources.lookup (Local n) res
         sigma <- ask
         unless (sigma >< pi == More) . when (pi /= used) $
           ResourceMismatch n pi used <$> ask <*> pure (uses n e) >>= throwError
-        runElabC (k (In (Core.Lam n e') ty, Resources.delete (Local n) res))
+        k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
-      (_, ty) -> runElabC $ do
+      (_, ty) -> do
         (tm', res) <- infer tm
         unify (ann tm' ::: Value.Type) (ty ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
 
-    Unify (Value.Type ::: Value.Type) (Value.Type ::: Value.Type) h k -> runElabC (h Value.Type >>= k)
+    Unify (Value.Type ::: Value.Type) (Value.Type ::: Value.Type) h k -> h Value.Type >>= k
     Unify (Value.Pi p1 u1 t1 b1 ::: Value.Type) (Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
       | p1 == p2, u1 == u2 -> do
         n <- freshName "_unify_"
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
-        runElabC (unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (b1 (vfree (Local n)) ::: t) (b2 (vfree (Local n)) ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k)))
+        unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
+          n ::: t |- unify (b1 (vfree (Local n)) ::: t) (b2 (vfree (Local n)) ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
     Unify (f1 ::: Value.Pi p1 u1 t1 b1) (f2 ::: Value.Pi p2 u2 t2 b2) h k
       | p1 == p2, u1 == u2 -> do
         n <- freshName "_unify_"
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
-        runElabC (unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify ((f1 `vapp` vfree (Local n)) ::: b1 (vfree (Local n))) (f2 `vapp` vfree (Local n) ::: b2 (vfree (Local n))) (k <=< h)))
+        unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
+          n ::: t |- unify ((f1 `vapp` vfree (Local n)) ::: b1 (vfree (Local n))) (f2 `vapp` vfree (Local n) ::: b2 (vfree (Local n))) (k <=< h))
     Unify (Nil :& Local (Meta m1) ::: _) (t2 ::: ty2) h k -> do
-      found <- lookupMeta m1
+      found <- ElabC (lookupMeta m1)
       case found of
-        Left (v ::: t) -> runElabC (unify (v ::: t) (t2 ::: ty2) h >>= k)
+        Left (v ::: t) -> unify (v ::: t) (t2 ::: ty2) h >>= k
         Right t
           -- FIXME: this should only throw for strong rigid occurrences
           | Local (Meta m1) `Set.member` fvs t2 -> ask >>= throwError . InfiniteType (Local (Meta m1)) t2
           | otherwise -> do
-            modify (List.delete (m1 ::: t))
-            modify (:> (m1 := t2 ::: t))
-            runElabC (h t2 >>= k)
-    Unify t1 t2@(Nil :& Local (Meta _) ::: _) h k -> runElabC (unify t2 t1 h >>= k)
+            ElabC (modify (List.delete (m1 ::: t)))
+            ElabC (modify (:> (m1 := t2 ::: t)))
+            h t2 >>= k
+    Unify t1 t2@(Nil :& Local (Meta _) ::: _) h k -> unify t2 t1 h >>= k
     Unify t1@(sp1 :& v1 ::: _) t2@(sp2 :& v2 ::: _) h k
       -- FIXME: Allow twin variables in these positions.
       | v1 == v2, length sp1 == length sp2 -> do
         ty1 <- lookupVar v1
         ty2 <- lookupVar v2
-        runElabC (unify (ty1 ::: Value.Type) (ty2 ::: Value.Type) (\ ty ->
-          unifySpines ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k)))
+        unify (ty1 ::: Value.Type) (ty2 ::: Value.Type) (\ ty ->
+          unifySpines ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
           where unifySpines _                  Nil         Nil         h = h Nil
                 unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t) (a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
                 unifySpines _                  _           _           _ = TypeMismatch (typedTerm t1) (typedTerm t2) <$> localVars <*> ask >>= throwError
@@ -190,13 +190,13 @@ instance ( Carrier sig m
         TypeMismatch ty1 ty2 <$> localVars <*> ask >>= throwError
       unless (t1 == t2) $
         TypeMismatch t1 t2 <$> localVars <*> ask >>= throwError
-      runElabC (h t1 >>= k)
+      h t1 >>= k
 
     Exists ty k -> do
       i <- fresh
       let m = M i
-      modify ((m ::: ty) :)
-      runElabC (k (Meta m)))
+      ElabC (modify ((m ::: ty) :))
+      k (Meta m))
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
