@@ -24,9 +24,6 @@ piType :: Semigroup ann => (Maybe Name, Plicity, Usage, Term (Surface (Maybe Nam
 
 infixr 0 `piType`
 
-forAll :: Semigroup ann => (Maybe Name, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-forAll (n, a) b = In (L (ForAll n a b)) (ann a <> ann b)
-
 lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
 lam (n, a) b = In (R (R (Lam n b))) (a <> ann b)
 
