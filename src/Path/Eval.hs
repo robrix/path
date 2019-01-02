@@ -2,13 +2,17 @@
 module Path.Eval where
 
 import Control.Effect
+import Control.Effect.Error
 import Control.Effect.Reader hiding (Reader(Local))
 import Data.Maybe (fromMaybe)
 import Path.Core as Core
+import Path.Context
 import Path.Env as Env
+import Path.Error
 import Path.Name
 import Path.Term
 import Path.Value as Value
+import Text.Trifecta.Rendering (Span)
 
 eval :: (Carrier sig m, Functor m, Member (Reader Env) sig) => Term (Core Name QName) a -> m Value
 eval tm = asks (flip go tm)
@@ -28,3 +32,6 @@ vforce v = asks (flip go v)
           Value.Type       -> Value.Type
           Value.Pi p u t b -> Value.Pi p u (go env t) (go env . b)
           vs :& n          -> maybe (vfree n) (go env) (Env.lookup n env) $$* (go env <$> vs)
+
+lookupDef :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
+lookupDef n = asks (Env.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
