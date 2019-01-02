@@ -217,6 +217,9 @@ lookupMeta m = do
   soln <- gets (fmap (Left . solDefn) . Back.find ((== m) . solMeta))
   maybe (gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))) (pure . Just) soln
 
+lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
+lookupVar n = asks (Context.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
+
 
 withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 withSpan = local . const
