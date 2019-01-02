@@ -21,6 +21,11 @@ typedType (_ ::: t) = t
 
 infix 6 :::
 
+instance Pretty a => Pretty (Typed a) where
+  pretty (a ::: t) = pretty a <+> colon <+> pretty t
+
+instance Pretty a => PrettyPrec (Typed a)
+
 
 data Equation
   = Typed Value :===: Typed Value

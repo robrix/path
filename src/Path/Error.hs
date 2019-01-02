@@ -11,7 +11,7 @@ import Text.Trifecta.Rendering (Span)
 
 data ElabError
   = FreeVariable QName Span
-  | TypeMismatch Type Type Context Span
+  | TypeMismatch Equation Context Span
   | NoRuleToInfer Context Span
   | IllegalApplication Type Span
   | ResourceMismatch Name Usage Usage Span [Span]
@@ -22,7 +22,7 @@ data ElabError
 instance Pretty ElabError where
   pretty = \case
     FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
-    TypeMismatch expected actual ctx span -> prettyErr span (fold (punctuate hardline
+    TypeMismatch (expected :===: actual) ctx span -> prettyErr span (fold (punctuate hardline
       [ pretty "type mismatch"
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
