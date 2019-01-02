@@ -175,7 +175,7 @@ instance ( Carrier sig m
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
             h t2 >>= k
-    Unify (t1 :===: t2@(Nil :& Local (Meta _) ::: _)) h k -> unify (t2 :===: t1) h >>= k
+    Unify (t1 :===: t2@(Nil :& Local (Meta _) ::: _)) h k -> unify (t2 :===: t1) (k <=< h)
     Unify (sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) h k
       -- FIXME: Allow twin variables in these positions.
       | v1 == v2, length sp1 == length sp2 -> do
