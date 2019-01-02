@@ -129,7 +129,7 @@ instance ( Carrier sig m
           _ -> throwError (IllegalApplication (ann f') (ann f))
       _ -> NoRuleToInfer <$> localVars <*> ask >>= throwError
 
-    Check ty tm k -> withSpan (ann tm) $ vforce ty >>= \ ty -> case (out tm, ty) of
+    Check ty tm k -> withSpan (ann tm) $ case (out tm, ty) of
       (_, Value.Pi Im pi t t') -> do
         tn <- freshName "_implicit_"
         (b, br) <- tn ::: t |- runElabC (check (t' (vfree (Local tn))) tm)
@@ -273,7 +273,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runContext . runEnv . runSpan (runElab . check ty)
+checkRoot ty tm = runContext (runEnv (vforce ty >>= \ ty -> runSpan (runElab . check ty) tm))
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
