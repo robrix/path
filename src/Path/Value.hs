@@ -44,8 +44,8 @@ Pi _ _ _ b $$ v = b v
 vs :& n $$ v = (vs :> v) :& n
 f $$ a = error ("illegal application of " <> show f <> " to " <> show a)
 
-vappSpine :: Value -> Back Value -> Value
-vappSpine v = foldl' ($$) v
+($$*) :: Value -> Back Value -> Value
+v $$* sp = foldl' ($$) v sp
 
 
 -- | Quote a 'Value', producing an equivalent 'Term'.
@@ -70,7 +70,7 @@ subst q r = go
           Lam b -> Lam (go . b)
           Pi p u t b -> Pi p u t (go . b)
           sp :& v
-            | q == v    -> vappSpine r (go <$> sp)
+            | q == v    -> r $$* (go <$> sp)
             | otherwise -> fmap go sp :& v
 
 

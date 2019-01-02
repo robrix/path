@@ -27,4 +27,4 @@ vforce v = asks (flip go v)
           Value.Lam b      -> Value.Lam (go env . b)
           Value.Type       -> Value.Type
           Value.Pi p u t b -> Value.Pi p u (go env t) (go env . b)
-          vs :& n          -> vappSpine (maybe (vfree n) (go env) (Env.lookup n env)) (go env <$> vs)
+          vs :& n          -> maybe (vfree n) (go env) (Env.lookup n env) $$* (go env <$> vs)
