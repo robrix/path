@@ -26,7 +26,7 @@ import Path.Module
 import Path.Name
 import Path.Plicity
 import Path.Resources as Resources
-import Path.Scope
+import Path.Scope as Scope
 import Path.Semiring
 import Path.Term
 import Path.Usage
@@ -366,6 +366,7 @@ elabDeclare :: ( Carrier sig m
 elabDeclare name ty = do
   elab <- runReader Zero (generalize ty >>= checkRoot Value.Type)
   ty' <- runEnv (eval (fst elab))
+  modify (Scope.insert name (Decl ty'))
   elab <$ modify (Context.insert (name ::: ty'))
 
 generalize :: ( Carrier sig m
@@ -394,6 +395,7 @@ elabDefine name tm = do
   ty <- gets (Context.lookup name)
   elab <- runReader One (maybe inferRoot checkRoot ty tm)
   tm' <- runEnv (eval (fst elab))
+  modify (Scope.insert name (Defn (tm' ::: ann (fst elab))))
   modify (Env.insert name tm')
   elab <$ maybe (modify (Context.insert (name ::: ann (fst elab)))) (const (pure ())) ty
 
