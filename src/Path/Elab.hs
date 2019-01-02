@@ -254,7 +254,8 @@ lookupMeta m =
         , gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))
         ]
 
-lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
+lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
+lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> ask >>= throwError) (pure . entryType)
 lookupVar n = asks (Context.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => String -> m Name
