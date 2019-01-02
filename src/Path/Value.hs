@@ -44,6 +44,9 @@ vapp (Pi _ _ _ b) v = b v
 vapp (vs :& n) v = (vs :> v) :& n
 vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 
+vappSpine :: Value -> Back Value -> Value
+vappSpine v = foldl' vapp v
+
 
 -- | Quote a 'Value', producing an equivalent 'Term'.
 --
