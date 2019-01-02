@@ -37,6 +37,7 @@ library
                      , Path.REPL
                      , Path.REPL.Command
                      , Path.Resources
+                     , Path.Scope
                      , Path.Semiring
                      , Path.Surface
                      , Path.Term
