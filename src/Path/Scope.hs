@@ -31,6 +31,9 @@ instance PrettyPrec Entry
 newtype Scope = Scope { unScope :: Map.Map QName Entry }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
+lookup :: QName -> Scope -> Maybe Entry
+lookup q = Map.lookup q . unScope
+
 union :: Scope -> Scope -> Scope
 union = (<>)
 
