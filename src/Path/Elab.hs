@@ -113,7 +113,7 @@ instance ( Carrier sig m
         (b', _) <- n ::: t'' |- check Value.Type b
         k (In (Core.Pi n i e t' b') Value.Type, mempty)
       R (Core.Var n) -> do
-        t <- lookupVar n
+        t <- lookupVar n >>= whnf
         sigma <- ask
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
         where elabImplicits tm res k
