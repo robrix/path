@@ -181,10 +181,8 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
             runEnv (eval (fst elab)) >>= print
             loop
           Show Bindings -> do
-            ctx <- get
-            unless (Context.null ctx) $ print (ctx :: Context)
-            env <- get
-            unless (Env.null env) $ print (env :: Env)
+            scope <- get
+            unless (Scope.null scope) $ print (scope :: Scope.Scope)
             loop
           Show Modules -> do
             graph <- get
