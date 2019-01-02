@@ -24,3 +24,6 @@ newtype Scope = Scope { unScope :: Map.Map QName Entry }
 
 union :: Scope -> Scope -> Scope
 union = (<>)
+
+filter :: (QName -> Entry -> Bool) -> Scope -> Scope
+filter f = Scope . Map.filterWithKey f . unScope
