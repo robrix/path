@@ -42,9 +42,7 @@ instance PrettyPrec a => PrettyPrec (Core Name QName (Term (Core Name QName) a))
               _               -> prettyPrec 10 f </> prettyPrec 11 a
     Type -> yellow (pretty "Type")
     Pi v ie pi t b
-      | Local v `Set.member` fvs b -> case pi of
-        Zero -> prettyParens (d > 1) $ align (group (cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 2 t <> line <> cyan dot <+> prettyPrec 1 b))
-        _    -> prettyParens (d > 1) $ withIe (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
+      | Local v `Set.member` fvs b -> prettyParens (d > 1) $ withIe (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
       | otherwise                  -> prettyParens (d > 1) $ withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
       where withPi
               | pi == More = id
