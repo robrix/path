@@ -189,7 +189,7 @@ instance ( Carrier sig m
       unless (ty1 == ty2) $
         TypeMismatch ty1 ty2 <$> localVars <*> ask >>= throwError
       unless (t1 == t2) $
-        TypeMismatch t1 t2 <$> localVars <*> ask >>= throwError
+        TypeMismatch t1  t2  <$> localVars <*> ask >>= throwError
       h t1 >>= k
 
     Exists ty k -> do
