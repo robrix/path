@@ -165,15 +165,15 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . inferRoot)
-            print (generalizeType (ann (fst elab)))
+            (elab, _) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . inferRoot)
+            print (generalizeType (ann elab))
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
             loop
           Eval tm -> do
-            elab <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . inferRoot)
-            runScope (runEnv (eval (fst elab) >>= whnf)) >>= print
+            (elab, _) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . inferRoot)
+            runScope (runEnv (eval elab >>= whnf)) >>= print
             loop
           Show Bindings -> do
             scope <- get
