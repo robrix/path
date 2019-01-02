@@ -3,7 +3,6 @@ module Path.Eval where
 
 import Control.Effect
 import Control.Effect.Reader hiding (Reader(Local))
-import Data.Foldable (foldl')
 import Data.Maybe (fromMaybe)
 import Path.Core as Core
 import Path.Env as Env
@@ -28,5 +27,4 @@ vforce v = asks (flip go v)
           Value.Lam b      -> Value.Lam (go env . b)
           Value.Type       -> Value.Type
           Value.Pi p u t b -> Value.Pi p u (go env t) (go env . b)
-          vs :& n          -> foldl' app (maybe (vfree n) (go env) (Env.lookup n env)) vs
-          where app f a = vapp f (go env a)
+          vs :& n          -> vappSpine (maybe (vfree n) (go env) (Env.lookup n env)) (go env <$> vs)
