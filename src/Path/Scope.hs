@@ -27,7 +27,7 @@ union :: Scope -> Scope -> Scope
 union = (<>)
 
 filter :: (QName -> Entry -> Bool) -> Scope -> Scope
-filter f = Scope . Map.filterWithKey f . unScope
+filter = under . Map.filterWithKey
 
 under :: (Map.Map QName Entry -> Map.Map QName Entry) -> Scope -> Scope
 under = coerce
