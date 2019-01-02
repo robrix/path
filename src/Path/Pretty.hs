@@ -20,6 +20,7 @@ module Path.Pretty
 , align
 , backslash
 , blue
+, bold
 , brackets
 , colon
 , cyan

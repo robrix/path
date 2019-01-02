@@ -37,6 +37,6 @@ instance Pretty ElabError where
             [ pretty "Local bindings:"
             , pretty ctx
             ]
-          prettyEqn eqn = nest 2 $ vsep [pretty "which arose while solving", pretty eqn]
+          prettyEqn eqn = magenta (bold (pretty "via")) <+> align (pretty eqn)
 
 instance PrettyPrec ElabError
