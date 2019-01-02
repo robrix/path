@@ -133,22 +133,21 @@ instance ( Carrier sig m
       (_, Value.Pi Im pi t t') -> do
         tn <- freshName "_implicit_"
         (b, br) <- tn ::: t |- check (t' (vfree (Local tn))) tm
-        let used = Resources.lookup (Local tn) br
-        sigma <- ask
-        unless (sigma >< pi == More) . when (pi /= used) $
-          ResourceMismatch tn pi used <$> ask <*> pure (uses tn tm) >>= throwError
+        verifyResources tn pi br
         k (In (Core.Lam tn b) ty, br)
       (R (Core.Lam n e), Value.Pi Ex pi t b) -> do
         (e', res) <- n ::: t |- check (b (vfree (Local n))) e
-        let used = Resources.lookup (Local n) res
-        sigma <- ask
-        unless (sigma >< pi == More) . when (pi /= used) $
-          ResourceMismatch n pi used <$> ask <*> pure (uses n e) >>= throwError
+        verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
       (_, ty) -> do
         (tm', res) <- infer tm
         unify (ann tm' ::: Value.Type) (ty ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
+      where verifyResources n pi br = do
+              let used = Resources.lookup (Local n) br
+              sigma <- ask
+              unless (sigma >< pi == More) . when (pi /= used) $
+                ResourceMismatch n pi used <$> ask <*> pure (uses n tm) >>= throwError
 
     Unify (Value.Type ::: Value.Type) (Value.Type ::: Value.Type) h k -> h Value.Type >>= k
     Unify (Value.Pi p1 u1 t1 b1 ::: Value.Type) (Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
