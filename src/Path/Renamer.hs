@@ -93,7 +93,7 @@ unambiguous _ _ (q:|[]) = pure q
 unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 
 freshen :: (Applicative m, Carrier sig m, Member Fresh sig) => Maybe Name -> m Name
-freshen Nothing  = Gensym <$> fresh
+freshen Nothing  = Gensym "_" <$> fresh
 freshen (Just n) = pure n
 
 

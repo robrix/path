@@ -48,8 +48,8 @@ vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 quote :: Int -> Value -> Term (Core.Core Name QName) ()
 quote i = \case
   Type -> In Core.Type ()
-  Lam b -> In (Core.Lam (Gensym i) (quote (succ i) (b (vfree (Local (Gensym i)))))) ()
-  Pi p u t b -> In (Core.Pi (Gensym i) p u (quote i t) (quote (succ i) (b (vfree (Local (Gensym i)))))) ()
+  Lam b -> In (Core.Lam (Gensym "" i) (quote (succ i) (b (vfree (Local (Gensym "" i)))))) ()
+  Pi p u t b -> In (Core.Pi (Gensym "" i) p u (quote i t) (quote (succ i) (b (vfree (Local (Gensym "" i)))))) ()
   sp :& v -> foldr app (In (Core.Var v) ()) sp
   where app a f = In (f Core.:$ quote i a) ()
 

@@ -129,7 +129,7 @@ instance ( Carrier sig m
 
     Check ty tm k -> withSpan (ann tm) $ vforce ty >>= \ ty -> case (out tm, ty) of
       (_, Value.Pi Im pi t t') -> do
-        tn <- freshName
+        tn <- freshName "_implicit_"
         (b, br) <- tn ::: t |- runElabC (check (t' (vfree (Local tn))) tm)
         let used = Resources.lookup (Local tn) br
         sigma <- ask
@@ -151,7 +151,7 @@ instance ( Carrier sig m
     Unify (Value.Type ::: Value.Type) (Value.Type ::: Value.Type) h k -> runElabC (h Value.Type >>= k)
     Unify (Value.Pi p1 u1 t1 b1 ::: Value.Type) (Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
       | p1 == p2, u1 == u2 -> do
-        n <- freshName
+        n <- freshName "_unify_"
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         runElabC (unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (b1 (vfree (Local n)) ::: t) (b2 (vfree (Local n)) ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k)))
@@ -230,8 +230,8 @@ lookupMeta m = do
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
 lookupVar n = asks (Context.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
 
-freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
-freshName = Gensym <$> fresh
+freshName :: (Carrier sig m, Functor m, Member Fresh sig) => String -> m Name
+freshName s = Gensym s <$> fresh
 
 
 withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a

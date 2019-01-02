@@ -19,4 +19,4 @@ desugar (In out span) = flip In span <$> case out of
   R rest -> traverse desugar rest
 
 freshName :: (Carrier sig m, Functor m, Member Fresh sig) => m Name
-freshName = Gensym <$> fresh
+freshName = Gensym "_" <$> fresh

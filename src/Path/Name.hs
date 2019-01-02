@@ -10,7 +10,7 @@ import Text.Trifecta.Rendering (Span)
 
 data Name
   = Name String
-  | Gensym Int
+  | Gensym String Int
   | Meta Meta
   | V Name Twin
   | Op Operator
@@ -19,7 +19,7 @@ data Name
 instance Pretty Name where
   pretty = \case
     Name s -> pretty s
-    Gensym i -> pretty '_' <> prettyVar i
+    Gensym s i -> pretty s <> prettyVar i
     Meta m -> pretty m
     V v t -> pretty v <> pretty t
     Op op -> pretty op
