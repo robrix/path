@@ -35,21 +35,21 @@ import Text.Trifecta.Rendering (Span)
 data Elab m k
   = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | forall a . Unify (Typed Value) (Typed Value) (Type -> m a) (a    -> k)
-  | Exists Type                                                (Name -> k)
+  | forall a . Unify Equation (Type -> m a) (a    -> k)
+  | Exists Type                             (Name -> k)
 
 deriving instance Functor (Elab m)
 
 instance HFunctor Elab where
   hmap _ (Infer     tm   k) = Infer     tm         k
   hmap _ (Check  ty tm   k) = Check  ty tm         k
-  hmap f (Unify  t1 t2 h k) = Unify  t1 t2 (f . h) k
+  hmap f (Unify  eq    h k) = Unify  eq    (f . h) k
   hmap _ (Exists ty      k) = Exists ty            k
 
 instance Effect Elab where
   handle state handler (Infer     tm   k) = Infer     tm                            (handler . (<$ state) . k)
   handle state handler (Check  ty tm   k) = Check  ty tm                            (handler . (<$ state) . k)
-  handle state handler (Unify  t1 t2 h k) = Unify  t1 t2 (handler . (<$ state) . h) (handler . fmap k)
+  handle state handler (Unify  eq    h k) = Unify  eq    (handler . (<$ state) . h) (handler . fmap k)
   handle state handler (Exists ty      k) = Exists ty                               (handler . (<$ state) . k)
 
 data Solution
@@ -149,30 +149,30 @@ instance ( Carrier sig m
       (L (Core.Hole n), ty) -> TypedHole n ty <$> localVars <*> ask >>= throwError
       (_, ty) -> do
         (tm', res) <- infer tm
-        unify (ann tm' ::: Value.Type) (ty ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
+        unify (ann tm' ::: Value.Type :===: ty ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
       where verifyResources n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- ask
               unless (sigma >< pi == More) . when (pi /= used) $
                 ResourceMismatch n pi used <$> ask <*> pure (uses n tm) >>= throwError
 
-    Unify (Value.Type ::: Value.Type) (Value.Type ::: Value.Type) h k -> h Value.Type >>= k
-    Unify (Value.Pi p1 u1 t1 b1 ::: Value.Type) (Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
+    Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
+    Unify (Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
       | p1 == p2, u1 == u2 -> do
         n <- freshName "_unify_"
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
-        unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (b1 (vfree (Local n)) ::: t) (b2 (vfree (Local n)) ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
-    Unify (f1 ::: Value.Pi p1 u1 t1 b1) (f2 ::: Value.Pi p2 u2 t2 b2) h k
+        unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
+          n ::: t |- unify (b1 (vfree (Local n)) ::: t :===: b2 (vfree (Local n)) ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
+    Unify (f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
       | p1 == p2, u1 == u2 -> do
         n <- freshName "_unify_"
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
-        unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify ((f1 `vapp` vfree (Local n)) ::: b1 (vfree (Local n))) (f2 `vapp` vfree (Local n) ::: b2 (vfree (Local n))) (k <=< h))
-    Unify (Nil :& Local (Meta m1) ::: _) (t2 ::: ty2) h k -> do
+        unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
+          n ::: t |- unify (f1 `vapp` vfree (Local n) ::: b1 (vfree (Local n)) :===: f2 `vapp` vfree (Local n) ::: b2 (vfree (Local n))) (k <=< h))
+    Unify (Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> do
       found <- ElabC (lookupMeta m1)
       case found of
-        Left (v ::: t) -> unify (v ::: t) (t2 ::: ty2) h >>= k
+        Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
         Right t
           -- FIXME: this should only throw for strong rigid occurrences
           | Local (Meta m1) `Set.member` fvs t2 -> ask >>= throwError . InfiniteType (Local (Meta m1)) t2
@@ -180,18 +180,18 @@ instance ( Carrier sig m
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
             h t2 >>= k
-    Unify t1 t2@(Nil :& Local (Meta _) ::: _) h k -> unify t2 t1 h >>= k
-    Unify t1@(sp1 :& v1 ::: _) t2@(sp2 :& v2 ::: _) h k
+    Unify (t1 :===: t2@(Nil :& Local (Meta _) ::: _)) h k -> unify (t2 :===: t1) h >>= k
+    Unify (t1@(sp1 :& v1 ::: _) :===: t2@(sp2 :& v2 ::: _)) h k
       -- FIXME: Allow twin variables in these positions.
       | v1 == v2, length sp1 == length sp2 -> do
         ty1 <- lookupVar v1
         ty2 <- lookupVar v2
-        unify (ty1 ::: Value.Type) (ty2 ::: Value.Type) (\ ty ->
+        unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
           where unifySpines _                  Nil         Nil         h = h Nil
-                unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t) (a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
+                unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
                 unifySpines _                  _           _           _ = TypeMismatch (typedTerm t1) (typedTerm t2) <$> localVars <*> ask >>= throwError
-    Unify (t1 ::: ty1) (t2 ::: ty2) h k -> do
+    Unify (t1 ::: ty1 :===: t2 ::: ty2) h k -> do
       unless (ty1 == ty2) $
         TypeMismatch ty1 ty2 <$> localVars <*> ask >>= throwError
       unless (t1 == t2) $
@@ -217,11 +217,10 @@ check ty tm = send (Check ty tm ret)
 
 
 unify :: (Carrier sig m, Member Elab sig)
-      => Typed Value
-      -> Typed Value
+      => Equation
       -> (Type -> m a)
       -> m a
-unify t1 t2 m = send (Unify t1 t2 m ret)
+unify eq m = send (Unify eq m ret)
 
 exists :: (Carrier sig m, Member Elab sig)
        => Type
