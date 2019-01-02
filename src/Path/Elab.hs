@@ -266,7 +266,7 @@ inferRoot :: ( Carrier sig m
              )
           => Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-inferRoot = runContext . runEnv . runSpan (runElab . infer)
+inferRoot = runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . infer)
 
 checkRoot :: ( Carrier sig m
              , Effect sig
@@ -280,7 +280,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty tm = runContext (runEnv (vforce ty >>= \ ty -> runSpan (runElab . check ty) tm))
+checkRoot ty tm = runContext (runEnv (runReader ([] :: [Equation]) (vforce ty >>= \ ty -> runSpan (runElab . check ty) tm)))
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
