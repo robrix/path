@@ -300,9 +300,9 @@ elabModule :: ( Carrier sig m
               , Member (Error ModuleError) sig
               , Member Fresh sig
               , Member (Reader ModuleTable) sig
+              , Member (State (Back ElabError)) sig
               , Member (State Context) sig
               , Member (State Env) sig
-              , Member (State (Back ElabError)) sig
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
