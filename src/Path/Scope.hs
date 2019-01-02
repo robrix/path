@@ -13,6 +13,10 @@ data Entry
   | Defn (Typed Value)
   deriving (Eq, Ord, Show)
 
+entryType :: Entry -> Type
+entryType (Decl        ty)  = ty
+entryType (Defn (_ ::: ty)) = ty
+
 instance Pretty Entry where
   pretty (Decl        ty)  =                             colon <+> pretty ty
   pretty (Defn (v ::: ty)) = pretty "=" <+> pretty v <+> colon <+> pretty ty
