@@ -11,7 +11,7 @@ import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
 import Data.Foldable (for_)
-import Data.List as List (find)
+import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
@@ -155,6 +155,15 @@ instance ( Carrier sig m
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         runElabC (unify (t1 ::: type') (t2 ::: type') (\ t ->
           n1 ::: t |- unify (b1 ::: t) (b2 ::: t) (\ b -> h (Value.piType n1 p1 u1 t b) >>= k)))
+    Unify (Value (Nil :& Local (Meta m1)) ::: _) (t2 ::: ty2) h k -> do
+      found <- lookupMeta m1
+      case found of
+        Nothing -> FreeVariable (Local (Meta m1)) <$> ask >>= throwError
+        Just (Left (v ::: t)) -> runElabC (unify (v ::: t) (t2 ::: ty2) h >>= k)
+        Just (Right t) -> do
+          modify (List.delete (m1 ::: t))
+          modify (:> (m1 := t2 ::: t))
+          runElabC (h t2 >>= k)
     Unify (t1 ::: ty1) (t2 ::: ty2) h k -> do
       unless (ty1 `aeq` ty2 && t1 `aeq` t2) $
         TypeMismatch t1 t2 <$> localVars <*> ask >>= throwError
