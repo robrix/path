@@ -75,6 +75,7 @@ runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
            , Member Fresh sig
+           , Member (Reader [Equation]) sig
            , Member (Reader Context) sig
            , Member (Reader Env) sig
            , Member (Reader Span) sig
@@ -94,6 +95,7 @@ instance ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
          , Member Fresh sig
+         , Member (Reader [Equation]) sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Span) sig
@@ -150,21 +152,21 @@ instance ( Carrier sig m
                 ResourceMismatch n pi used <$> ask <*> pure (uses n tm) >>= throwError
 
     Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
-    Unify (Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
-      | p1 == p2, u1 == u2 -> do
+    Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
+      | p1 == p2, u1 == u2 -> local (q:) $ do
         n <- freshName "_unify_"
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (b1 vn ::: t :===: b2 vn ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
-    Unify (f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
-      | p1 == p2, u1 == u2 -> do
+    Unify q@(f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
+      | p1 == p2, u1 == u2 -> local (q:) $ do
         n <- freshName "_unify_"
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn) (k <=< h))
-    Unify (Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> do
+    Unify q@(Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> local (q:) $ do
       found <- ElabC (lookupMeta m1)
       case found of
         Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
@@ -175,22 +177,22 @@ instance ( Carrier sig m
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
             h t2 >>= k
-    Unify (t1 :===: t2@(Nil :& Local (Meta _) ::: _)) h k -> unify (t2 :===: t1) (k <=< h)
-    Unify (sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) h k
+    Unify q@(t1 :===: t2@(Nil :& Local (Meta _) ::: _)) h k -> local (q:) $ unify (t2 :===: t1) (k <=< h)
+    Unify q@(sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) h k
       -- FIXME: Allow twin variables in these positions.
-      | v1 == v2, length sp1 == length sp2 -> do
+      | v1 == v2, length sp1 == length sp2 -> local (q:) $ do
         ty1 <- lookupVar v1
         ty2 <- lookupVar v2
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
           where unifySpines _                  Nil         Nil         h = h Nil
                 unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
-                unifySpines _                  _           _           _ = TypeMismatch (sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) <$> localVars <*> ask >>= throwError
-    Unify (t1 ::: ty1 :===: t2 ::: ty2) h k -> do
+                unifySpines _                  _           _           _ = TypeMismatch (sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) <$> ask <*> localVars <*> ask >>= throwError
+    Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
       unless (ty1 == ty2) $
-        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> localVars <*> ask >>= throwError
+        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> ask <*> localVars <*> ask >>= throwError
       unless (t1 == t2) $
-        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> localVars <*> ask >>= throwError
+        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> ask <*> localVars <*> ask >>= throwError
       h t1 >>= k
 
     Exists ty k -> do
