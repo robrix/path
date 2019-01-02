@@ -21,6 +21,14 @@ typedType (_ ::: t) = t
 
 infix 6 :::
 
+
+data Equation
+  = Typed Value :===: Typed Value
+  deriving (Eq, Ord, Show)
+
+infix 1 :===:
+
+
 newtype Context = Context { unContext :: Back (Typed QName) }
   deriving (Eq, Ord, Show)
 

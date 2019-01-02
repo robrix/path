@@ -71,13 +71,6 @@ solType :: Solution -> Type
 solType = typedType . solDefn
 
 
-data Equation
-  = Typed Value :===: Typed Value
-  deriving (Eq, Ord, Show)
-
-infix 1 :===:
-
-
 runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
