@@ -187,7 +187,9 @@ instance ( Carrier sig m
                 unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t) (a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
                 unifySpines _                  _           _           _ = TypeMismatch (typedTerm t1) (typedTerm t2) <$> localVars <*> ask >>= throwError
     Unify (t1 ::: ty1) (t2 ::: ty2) h k -> do
-      unless (ty1 == ty2 && t1 == t2) $
+      unless (ty1 == ty2) $
+        TypeMismatch ty1 ty2 <$> localVars <*> ask >>= throwError
+      unless (t1 == t2) $
         TypeMismatch t1 t2 <$> localVars <*> ask >>= throwError
       runElabC (h t1 >>= k)
 
