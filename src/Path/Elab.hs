@@ -361,18 +361,14 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
-  elab <- runReader Zero (generalize ty >>= checkRoot Value.Type)
+  elab <- runReader Zero (checkRoot Value.Type (generalize ty))
   ty' <- runEnv (eval (fst elab))
   modify (Scope.insert name (Decl ty'))
   elab <$ modify (Context.insert (name ::: ty'))
 
-generalize :: ( Carrier sig m
-              , Functor m
-              , Member (State Context) sig
-              )
-           => Term (Implicit QName :+: Core Name QName) Span
-           -> m (Term (Implicit QName :+: Core Name QName) Span)
-generalize ty = gets (foldr bind ty . localNames . (fvs ty Set.\\) . Context.boundVars)
+generalize :: Term (Implicit QName :+: Core Name QName) Span
+           -> Term (Implicit QName :+: Core Name QName) Span
+generalize ty = foldr bind ty (localNames (fvs ty))
   where bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
         localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
 
