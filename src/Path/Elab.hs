@@ -162,7 +162,7 @@ instance ( Carrier sig m
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (b1 vn ::: t :===: b2 vn ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
+          n ::: t |- unify (b1 vn ::: Value.Type :===: b2 vn ::: Value.Type) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
     Unify q@(f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
       | p1 == p2, u1 == u2 -> local (q:) $ do
         n <- freshName "_unify_"
