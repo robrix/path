@@ -162,7 +162,7 @@ instance ( Carrier sig m
         Just (Left (v ::: t)) -> runElabC (unify (v ::: t) (t2 ::: ty2) h >>= k)
         Just (Right t)
           -- FIXME: this should only throw for strong rigid occurrences
-          | Local (Meta m1) `Set.notMember` fvs t2 -> ask >>= throwError . InfiniteType (Local (Meta m1)) t2
+          | Local (Meta m1) `Set.member` fvs t2 -> ask >>= throwError . InfiniteType (Local (Meta m1)) t2
           | otherwise -> do
             modify (List.delete (m1 ::: t))
             modify (:> (m1 := t2 ::: t))
