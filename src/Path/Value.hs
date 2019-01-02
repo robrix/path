@@ -38,14 +38,14 @@ instance FreeVariables QName Value where
 vfree :: QName -> Value
 vfree = (Nil :&)
 
-vapp :: Value -> Value -> Value
-vapp (Lam b) v = b v
-vapp (Pi _ _ _ b) v = b v
-vapp (vs :& n) v = (vs :> v) :& n
-vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
+($$) :: Value -> Value -> Value
+Lam b $$  v = b v
+Pi _ _ _ b $$ v = b v
+vs :& n $$ v = (vs :> v) :& n
+f $$ a = error ("illegal application of " <> show f <> " to " <> show a)
 
 vappSpine :: Value -> Back Value -> Value
-vappSpine v = foldl' vapp v
+vappSpine v = foldl' ($$) v
 
 
 -- | Quote a 'Value', producing an equivalent 'Term'.

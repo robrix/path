@@ -170,7 +170,7 @@ instance ( Carrier sig m
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (f1 `vapp` vn ::: b1 vn :===: f2 `vapp` vn ::: b2 vn) (k <=< h))
+          n ::: t |- unify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn) (k <=< h))
     Unify (Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> do
       found <- ElabC (lookupMeta m1)
       case found of

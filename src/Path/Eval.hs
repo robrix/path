@@ -17,7 +17,7 @@ eval tm = asks (flip go tm)
             | isLocal n -> fromMaybe (vfree n) (Env.lookup n env)
             | otherwise -> vfree n
           In (Core.Lam n b) _ -> Value.Lam (\ v -> go (Env.insert (Local n) v env) b)
-          In (f :$ a) _ -> vapp (go env f) (go env a)
+          In (f :$ a) _ -> go env f $$ go env a
           In Core.Type _ -> Value.Type
           In (Core.Pi n p u t b) _ -> Value.Pi p u (go env t) (\ v -> go (Env.insert (Local n) v env) b)
 
