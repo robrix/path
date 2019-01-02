@@ -6,3 +6,4 @@ import Path.Value
 
 data Entry
   = QName := Typed Value
+  | QName :? Type
