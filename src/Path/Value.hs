@@ -49,6 +49,7 @@ vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
 --
 --   prop> quote i Type == In Core.Type ()
 --   prop> quote i (Lam id) == In (Core.Lam (Gensym "" i) (In (Core.Var i) ())) ()
+--   prop> quote i (Pi Im Zero Type id) == In (Core.Pi Im Zero Type (Gensym "" i) (In (Core.Var i) ())) ()
 quote :: Int -> Value -> Term (Core.Core Name QName) ()
 quote i = \case
   Type -> In Core.Type ()
