@@ -81,7 +81,7 @@ prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
 
 prettyVar :: Int -> Doc
-prettyVar i = pretty (alphabet !! r : show q)
+prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")
     where (q, r) = i `divMod` 26
           alphabet = ['a'..'z']
 
