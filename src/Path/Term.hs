@@ -28,5 +28,5 @@ cata alg = go where go = alg . fmap go . out <*> ann
 hoist :: Functor f => (forall x . f x -> g x) -> Term f a -> Term g a
 hoist f = cata (In . f)
 
-instance (FreeVariables1 v f, FreeVariables v a) => FreeVariables v (Term f a) where
-  fvs (In out ann) = liftFvs fvs out <> fvs ann
+instance FreeVariables1 v f => FreeVariables v (Term f a) where
+  fvs (In out _) = liftFvs fvs out

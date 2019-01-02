@@ -27,7 +27,7 @@ data Implicit v a
   = Hole v
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance (FreeVariables QName a, PrettyPrec a) => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
+instance PrettyPrec a => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
   prettyPrec d = \case
     Var n -> pretty n
     Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
