@@ -192,6 +192,12 @@ instance ( Carrier sig m
           where unifySpines _                  Nil         Nil         h = h Nil
                 unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
                 unifySpines _                  _           _           _ = TypeMismatch (sp1 :& v1 ::: ty1 :===: sp2 :& v2 ::: ty2) <$> ask <*> localVars <*> ask >>= throwError
+    Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
+      t1' <- whnf t1
+      unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
+    Unify q@(t1 ::: ty1 :===: t2@(_ :& (_ :.: _)) ::: ty2) h k -> local (q:) $ do
+      t2' <- whnf t2
+      unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
       unless (ty1 == ty2) $
         TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> ask <*> localVars <*> ask >>= throwError
