@@ -17,6 +17,10 @@ entryType :: Entry -> Type
 entryType (Decl        ty)  = ty
 entryType (Defn (_ ::: ty)) = ty
 
+entryValue :: Entry -> Maybe Value
+entryValue (Defn (v ::: _)) = Just v
+entryValue _                = Nothing
+
 instance Pretty Entry where
   pretty (Decl        ty)  =                             colon <+> pretty ty
   pretty (Defn (v ::: ty)) = pretty "=" <+> pretty v <+> colon <+> pretty ty
