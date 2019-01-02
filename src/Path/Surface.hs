@@ -10,8 +10,7 @@ import Path.Usage
 type Surface b v = Sugar b :+: Implicit v :+: Core b v
 
 data Sugar b a
-  = ForAll b a a
-  | (Usage, a) :-> a
+  = (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 (-->) :: Semigroup ann => (Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann

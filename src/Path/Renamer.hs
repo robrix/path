@@ -28,8 +28,6 @@ resolveTerm (In syn ann) = case syn of
   R (R Type) -> pure (in' (R (R Type)))
   R (R (Pi v ie pi t b)) ->
     in' . R . R <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  L (ForAll v t b) ->
-    in' . L <$> (ForAll <$> freshen v <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   L ((u, a) :-> b) ->
     in' . L <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
   R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
