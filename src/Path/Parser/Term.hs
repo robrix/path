@@ -32,7 +32,7 @@ type' = ann (Surface.type' <$ keyword "Type")
 
 piType = reann (do
   (p, (v, mult, ty)) <- plicity ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  (Surface.piType (v, p, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
+  (Surface.piType (v, p, fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult, ty)) <$> functionType) <?> "dependent function type"
   where plicity m = (,) Im <$> braces m
                 <|> (,) Ex <$> parens m
 
