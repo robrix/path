@@ -138,8 +138,8 @@ instance ( Carrier sig m
         unless (sigma >< pi == More) . when (pi /= used) $
           ResourceMismatch tn pi used <$> ask <*> pure (uses tn tm) >>= throwError
         runElabC (k (In (Core.Lam tn b) ty, br))
-      (R (Core.Lam n e), Value.Pi Ex pi t _) -> do
-        (e', res) <- n ::: t |- runElabC (check (ty `vapp` vfree (Local n)) e)
+      (R (Core.Lam n e), Value.Pi Ex pi t b) -> do
+        (e', res) <- n ::: t |- runElabC (check (b (vfree (Local n))) e)
         let used = Resources.lookup (Local n) res
         sigma <- ask
         unless (sigma >< pi == More) . when (pi /= used) $
