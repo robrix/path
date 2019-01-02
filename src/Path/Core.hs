@@ -45,7 +45,8 @@ instance PrettyPrec a => PrettyPrec (Core Name QName (Term (Core Name QName) a))
       | Local v `Set.member` fvs b -> prettyParens (d > 1) $ withIe (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
       | otherwise                  -> prettyParens (d > 1) $ withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
       where withPi
-              | pi == More = id
+              | ie == Ex, pi == More = id
+              | ie == Im, pi == Zero = id
               | otherwise  = (pretty pi <+>)
             withIe
               | ie == Im  = prettyBraces True
