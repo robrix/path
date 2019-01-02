@@ -64,6 +64,8 @@ quote i = \case
 
 
 -- | Substitute occurrences of a 'QName' with a 'Value' within another 'Value'.
+--
+--   prop> subst (Local (Name a)) (vfree (Local (Name b))) (Lam ($$ vfree (Local (Name a)))) == Lam ($$ vfree (Local (Name b)))
 subst :: QName -> Value -> Value -> Value
 subst q r = go
   where go = \case
