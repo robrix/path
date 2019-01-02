@@ -289,7 +289,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty tm = runContext (runEnv (runReader ([] :: [Equation]) (vforce ty >>= \ ty -> runSpan (runElab . check ty) tm)))
+checkRoot ty = runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . check ty)
 
 
 type ModuleTable = Map.Map ModuleName (Context, Env)
