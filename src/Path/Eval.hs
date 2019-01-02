@@ -36,6 +36,9 @@ vforce v = asks (flip go v)
 lookupDef :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
 lookupDef n = asks (Env.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwError) pure
 
+-- | Evaluate a 'Value' to weak head normal form.
+--
+--   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
 whnf :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Env) sig, Member (Reader Span) sig, Monad m) => Value -> m Value
 whnf (sp :& n) = ($$* sp) <$> lookupDef n
 whnf v         = pure v
