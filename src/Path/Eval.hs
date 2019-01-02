@@ -39,6 +39,6 @@ lookupDef n = asks (Env.lookup n) >>= maybe (FreeVariable n <$> ask >>= throwErr
 -- | Evaluate a 'Value' to weak head normal form.
 --
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
-whnf :: (Applicative m, Carrier sig m, Member (Reader Env) sig) => Value -> m Value
-whnf (sp :& n) = asks (maybe (sp :& n) ($$* sp) . Env.lookup n)
+whnf :: (Carrier sig m, Member (Reader Env) sig, Monad m) => Value -> m Value
+whnf (sp :& n) = asks (Env.lookup n) >>= maybe (pure (sp :& n)) (whnf . ($$* sp))
 whnf v         = pure v
