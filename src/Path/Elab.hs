@@ -155,6 +155,12 @@ instance ( Carrier sig m
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         runElabC (unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (b1 (vfree (Local n)) ::: t) (b2 (vfree (Local n)) ::: t) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k)))
+    Unify (f1 ::: Value.Pi p1 u1 t1 b1) (f2 ::: Value.Pi p2 u2 t2 b2) h k
+      | p1 == p2, u1 == u2 -> do
+        n <- freshName "_unify_"
+        -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
+        runElabC (unify (t1 ::: Value.Type) (t2 ::: Value.Type) (\ t ->
+          n ::: t |- unify ((f1 `vapp` vfree (Local n)) ::: b1 (vfree (Local n))) (f2 `vapp` vfree (Local n) ::: b2 (vfree (Local n))) (k <=< h)))
     Unify (Nil :& Local (Meta m1) ::: _) (t2 ::: ty2) h k -> do
       found <- lookupMeta m1
       case found of
