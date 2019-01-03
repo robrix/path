@@ -136,13 +136,15 @@ instance ( Carrier sig m
           _ -> throwError (IllegalApplication f'' (ann f))
       _ -> NoRuleToInfer <$> ask <*> ask >>= throwError
 
-    Check (tm ::: ty) k -> withSpan (ann tm) $ case out tm ::: ty of
-      R (Core.Lam n e) ::: Value.Pi _ pi t b -> do
+    Check (tm ::: ty) k -> withSpan (ann tm) $ case (out tm ::: ty) of
+      (_ ::: Value.Pi Im pi t t') -> do
+        tn <- freshName "_implicit_"
+        (b, br) <- tn ::: t |- check (tm ::: t' (vfree (Local tn)))
+        verifyResources tn pi br
+        k (In (Core.Lam tn b) ty, br)
+      (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> do
         (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
-        let used = Resources.lookup (Local n) res
-        sigma <- ask
-        unless (sigma >< pi == More) . when (pi /= used) $
-          ResourceMismatch n pi used <$> ask <*> pure (uses n tm) >>= throwError
+        verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       L (Core.Hole n) ::: ty -> TypedHole n ty <$> ask <*> ask >>= throwError
       _ ::: _ :& (_ :.: _) -> do
@@ -151,6 +153,11 @@ instance ( Carrier sig m
       _ ::: ty -> do
         (tm', res) <- infer tm
         unify (ty ::: Value.Type :===: ann tm' ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
+      where verifyResources n pi br = do
+              let used = Resources.lookup (Local n) br
+              sigma <- ask
+              unless (sigma >< pi == More) . when (pi /= used) $
+                ResourceMismatch n pi used <$> ask <*> pure (uses n tm) >>= throwError
 
     Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
     Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
@@ -363,14 +370,9 @@ elabDefine :: ( Carrier sig m
            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- runReader One (maybe (pure tm) (generalize tm <=< runScope . runEnv . whnf) ty >>= maybe inferRoot checkRoot ty)
+  elab <- runReader One (maybe inferRoot checkRoot ty tm)
   tm' <- runEnv (eval (fst elab))
   elab <$ modify (Scope.insert name (Defn (tm' ::: ann (fst elab))))
-  where generalize tm (Value.Pi Im _ _ b) = do
-          n <- freshName "_implicit_"
-          bind n <$> generalize tm (b (vfree (Local n)))
-        generalize tm _                   = pure tm
-        bind n tm = In (R (Core.Lam n tm)) (ann tm)
 
 runContext :: (Carrier sig m, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext = runReader mempty
