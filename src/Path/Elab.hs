@@ -35,7 +35,7 @@ import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
 data Elab m k
-  = Infer        (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
+  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | forall a . Unify Equation (Type -> m a) (a    -> k)
   | Exists Type                             (Name -> k)
