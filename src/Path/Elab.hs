@@ -20,7 +20,7 @@ import Path.Back as Back
 import Path.Context as Context
 import Path.Core as Core
 import Path.Error
-import Path.Eval
+import Path.Eval as Eval
 import Path.Module
 import Path.Name
 import Path.Plicity
@@ -103,7 +103,7 @@ instance ( Carrier sig m
         (b', _) <- n ::: eval mempty t' |- check (b ::: Value.Type)
         k (In (Core.Pi n i e t' b') Value.Type, mempty)
       R (Core.Var n) -> do
-        t <- ElabC (lookupVar n >>= whnf)
+        t <- ElabC (lookupVar n) >>= whnf
         sigma <- ask
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
         where elabImplicits tm res k
@@ -113,7 +113,7 @@ instance ( Carrier sig m
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
         (f', g1) <- infer f
-        f'' <- ElabC (whnf (ann f'))
+        f'' <- whnf (ann f')
         case f'' of
           Value.Pi _ pi t b -> do
             (a', g2) <- check (a ::: t)
@@ -133,7 +133,7 @@ instance ( Carrier sig m
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       L (Core.Hole n) ::: ty -> TypedHole n ty <$> askContext <*> askSpan >>= throwError
       _ ::: _ :& (_ :.: _) -> do
-        ty' <- ElabC (whnf ty)
+        ty' <- whnf ty
         check (tm ::: ty') >>= k
       _ ::: ty -> do
         (tm', res) <- infer tm
@@ -188,10 +188,10 @@ instance ( Carrier sig m
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines q ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
     Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
-      t1' <- ElabC (whnf t1)
+      t1' <- whnf t1
       unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2@(_ :& (_ :.: _)) ::: ty2) h k -> step (U q) $ do
-      t2' <- ElabC (whnf t2)
+      t2' <- whnf t2
       unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
       unless (ty1 == ty2) $
@@ -218,6 +218,8 @@ instance ( Carrier sig m
             i <- fresh
             let m = M i
             Meta m <$ modify ((m ::: ty) :)
+
+          whnf = ElabC . Eval.whnf
 
 
 infer :: (Carrier sig m, Member Elab sig)
