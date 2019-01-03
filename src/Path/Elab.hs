@@ -137,11 +137,11 @@ instance ( Carrier sig m
       _ -> NoRuleToInfer <$> ask <*> ask >>= throwError
 
     Check (tm ::: ty) k -> withSpan (ann tm) $ case (out tm ::: ty) of
-      (_ ::: Value.Pi Im pi t t') -> do
-        tn <- freshName "_implicit_"
-        (b, br) <- tn ::: t |- check (tm ::: t' (vfree (Local tn)))
-        verifyResources tn pi br
-        k (In (Core.Lam tn b) ty, br)
+      (_ ::: Value.Pi Im pi t b) -> do
+        n <- freshName "_implicit_"
+        (e', res) <- n ::: t |- check (tm ::: b (vfree (Local n)))
+        verifyResources n pi res
+        k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> do
         (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
         verifyResources n pi res
