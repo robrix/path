@@ -12,8 +12,8 @@ import Path.Scope as Scope
 import Path.Term
 import Path.Value as Value
 
-eval :: Term (Core Name QName) a -> Value
-eval = go mempty
+eval :: Env -> Term (Core Name QName) a -> Value
+eval = go
   where go env = \case
           In (Core.Var (Local n)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
           In (Core.Var (m :.: n)) _ -> vfree (m :.: n)

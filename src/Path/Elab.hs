@@ -102,7 +102,7 @@ instance ( Carrier sig m
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
         (t', _) <- check (t ::: Value.Type)
-        (b', _) <- n ::: eval t' |- check (b ::: Value.Type)
+        (b', _) <- n ::: eval mempty t' |- check (b ::: Value.Type)
         k (In (Core.Pi n i e t' b') Value.Type, mempty)
       R (Core.Var n) -> do
         t <- ElabC (lookupVar n >>= whnf)
@@ -119,7 +119,7 @@ instance ( Carrier sig m
         case f'' of
           Value.Pi _ pi t b -> do
             (a', g2) <- check (a ::: t)
-            k (In (f' Core.:$ a') (b (eval a')), g1 <> pi ><< g2)
+            k (In (f' Core.:$ a') (b (eval mempty a')), g1 <> pi ><< g2)
           _ -> IllegalApplication f'' <$> askContext <*> ask >>= throwError
       _ -> NoRuleToInfer <$> askContext <*> ask >>= throwError
 
@@ -342,7 +342,7 @@ elabDeclare :: ( Carrier sig m
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
   elab <- runReader Zero (checkRoot Value.Type (generalize ty))
-  elab <$ modify (Scope.insert name (Decl (eval (fst elab))))
+  elab <$ modify (Scope.insert name (Decl (eval mempty (fst elab))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
         bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
@@ -358,7 +358,7 @@ elabDefine :: ( Carrier sig m
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runReader One (maybe inferRoot checkRoot ty tm)
-  elab <$ modify (Scope.insert name (Defn (eval (fst elab) ::: ann (fst elab))))
+  elab <$ modify (Scope.insert name (Defn (eval mempty (fst elab) ::: ann (fst elab))))
 
 runContext :: (Carrier sig m, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext = runReader mempty
