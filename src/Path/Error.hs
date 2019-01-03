@@ -17,7 +17,7 @@ data Step
 
 instance Pretty Step where
   pretty (U eqn)          = pretty eqn
-  pretty (C (span ::: t)) = prettyInfo span (pretty "checking" <+> pretty t) []
+  pretty (C (span ::: t)) = prettyInfo span (pretty "checking against" <+> pretty t) []
   pretty (I span)         = prettyInfo span (pretty "infering") []
 
 instance PrettyPrec Step
