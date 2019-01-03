@@ -84,8 +84,3 @@ generalizeValue :: Value -> Value -> Value
 generalizeValue = go 0
   where go i (Pi Im _ _ b) v = Lam (const (go (succ i) (b (vfree (Local (Gensym "" i)))) v))
         go _ _             v = v
-
-
--- $setup
---
--- >>> import Test.QuickCheck
