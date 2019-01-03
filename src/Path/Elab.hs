@@ -73,7 +73,6 @@ solType = typedType . solDefn
 runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
-           , Member Fresh sig
            , Member (Reader [Step]) sig
            , Member (Reader Context) sig
            , Member (Reader Env) sig
@@ -84,17 +83,16 @@ runElab :: ( Carrier sig m
            )
         => Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runElabC . interpret
+runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runElabC . interpret
   where apply sols tm = foldl' compose id sols <$> tm
         compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
 
-newtype ElabC m a = ElabC { runElabC :: Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
-         , Member Fresh sig
          , Member (Reader [Step]) sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
@@ -105,7 +103,7 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> withSpan (ann tm) . local (I (ann tm):) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
@@ -135,7 +133,7 @@ instance ( Carrier sig m
 
     Check (tm ::: ty) k -> withSpan (ann tm) . local (C (ann tm ::: ty):) $ case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
-        n <- freshName "_implicit_"
+        n <- ElabC (freshName "_implicit_")
         (e', res) <- n ::: t |- check (tm ::: b (vfree (Local n)))
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
@@ -159,7 +157,7 @@ instance ( Carrier sig m
     Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
     Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
       | p1 == p2, u1 == u2 -> local (U q:) $ do
-        n <- freshName "_unify_"
+        n <- ElabC (freshName "_unify_")
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
@@ -171,7 +169,7 @@ instance ( Carrier sig m
       unify (sym q) (k <=< h)
     Unify q@(f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
       | p1 == p2, u1 == u2 -> local (U q:) $ do
-        n <- freshName "_unify_"
+        n <- ElabC (freshName "_unify_")
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
@@ -279,7 +277,7 @@ inferRoot :: ( Carrier sig m
              )
           => Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-inferRoot = runScope . runContext . runEnv . runReader ([] :: [Step]) . runFresh . runSpan (runElab . infer)
+inferRoot = runScope . runContext . runEnv . runReader ([] :: [Step]) . runSpan (runElab . infer)
 
 checkRoot :: ( Carrier sig m
              , Effect sig
@@ -291,7 +289,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Step]) . runFresh . runSpan (runElab . check . (::: ty))
+checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Step]) . runSpan (runElab . check . (::: ty))
 
 
 type ModuleTable = Map.Map ModuleName Scope
