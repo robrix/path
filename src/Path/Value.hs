@@ -51,9 +51,9 @@ v $$* sp = foldl' ($$) v sp
 -- | Quote a 'Value', producing an equivalent 'Term'.
 --
 --   prop> quote i Type == In Core.Type ()
---   prop> quote i (Lam id) == In (Core.Lam (Gensym "" i) (In (Core.Var i) ())) ()
---   prop> quote i (Pi Im Zero Type id) == In (Core.Pi Im Zero Type (Gensym "" i) (In (Core.Var i) ())) ()
---   prop> quote i ((vfree (Local (Name s)) $$ vfree (Local (Name t))) $$ vfree (Local (Name u))) == In (In (In (Core.Var (Local (Name s))) () Core.:$ In (Core.Var (Local (Name t))) ()) () :$ In (Core.Var (Local (Name u))) ()) ()
+--   prop> quote i (Lam id) == In (Core.Lam (Gensym "" i) (In (Core.Var (Local (Gensym "" i))) ())) ()
+--   prop> quote i (Pi Im Zero Type id) == In (Core.Pi (Gensym "" i) Im Zero (In Core.Type ()) (In (Core.Var (Local (Gensym "" i))) ())) ()
+--   prop> quote i ((vfree (Local (Name s)) $$ vfree (Local (Name t))) $$ vfree (Local (Name u))) == In (In (In (Core.Var (Local (Name s))) () Core.:$ In (Core.Var (Local (Name t))) ()) () Core.:$ In (Core.Var (Local (Name u))) ()) ()
 quote :: Int -> Value -> Term (Core.Core Name QName) ()
 quote i = \case
   Type -> In Core.Type ()
