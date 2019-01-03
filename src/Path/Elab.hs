@@ -73,29 +73,28 @@ runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
            , Member (Reader Scope) sig
-           , Member (Reader Usage) sig
            , Monad m
            )
-        => Span
+        => Usage
+        -> Span
         -> Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab span = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runReader mempty . runReader [] . runReader span . runElabC . interpret
+runElab sigma span = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runReader mempty . runReader [] . runReader span . runReader sigma . runElabC . interpret
   where apply sols tm = foldl' compose id sols <$> tm
         compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Span (Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Span (Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
          , Member (Reader Scope) sig
-         , Member (Reader Usage) sig
          , Monad m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> withSpan (ann tm) . step (I (ann tm)) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
@@ -104,7 +103,7 @@ instance ( Carrier sig m
         k (In (Core.Pi n i e t' b') Value.Type, mempty)
       R (Core.Var n) -> do
         t <- lookupVar n >>= whnf
-        sigma <- ask
+        sigma <- askSigma
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
         where elabImplicits tm res k
                 | Value.Pi Im _ t b <- ann tm = do
@@ -140,7 +139,7 @@ instance ( Carrier sig m
         unify (ty ::: Value.Type :===: ann tm' ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
       where verifyResources n pi br = do
               let used = Resources.lookup (Local n) br
-              sigma <- ask
+              sigma <- askSigma
               unless (sigma >< pi == More) . when (pi /= used) $
                 ResourceMismatch n pi used <$> askSpan <*> pure (uses n tm) >>= throwError
 
@@ -211,6 +210,7 @@ instance ( Carrier sig m
           askSteps = ElabC ask
           askContext = ElabC ask
           askSpan = ElabC ask
+          askSigma = ElabC ask
           withSpan span (ElabC m) = ElabC (local (const span) m)
 
           freshName s = Gensym s <$> ElabC fresh
@@ -303,7 +303,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
-  elab <- runReader Zero (runScope (runElab (ann ty) (check (generalize ty ::: Value.Type))))
+  elab <- runScope (runElab Zero (ann ty) (check (generalize ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (eval mempty (fst elab))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
         bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
@@ -319,7 +319,7 @@ elabDefine :: ( Carrier sig m
            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- runReader One (runScope (runElab (ann tm) (maybe (infer tm) (check . (tm :::)) ty)))
+  elab <- runScope (runElab One (ann tm) (maybe (infer tm) (check . (tm :::)) ty))
   elab <$ modify (Scope.insert name (Defn (eval mempty (fst elab) ::: ann (fst elab))))
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
