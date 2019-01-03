@@ -59,8 +59,8 @@ quote i = \case
   Type -> In Core.Type ()
   Lam b -> In (Core.Lam (Gensym "" i) (quote (succ i) (b (vfree (Local (Gensym "" i)))))) ()
   Pi p u t b -> In (Core.Pi (Gensym "" i) p u (quote i t) (quote (succ i) (b (vfree (Local (Gensym "" i)))))) ()
-  sp :& v -> foldr app (In (Core.Var v) ()) sp
-  where app a f = In (f Core.:$ quote i a) ()
+  sp :& v -> foldl' app (In (Core.Var v) ()) sp
+  where app f a = In (f Core.:$ quote i a) ()
 
 
 -- | Substitute occurrences of a 'QName' with a 'Value' within another 'Value'.
