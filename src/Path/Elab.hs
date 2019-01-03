@@ -213,6 +213,12 @@ instance ( Carrier sig m
           askSpan = ElabC ask
           withSpan span (ElabC m) = ElabC (local (const span) m)
 
+          freshName s = Gensym s <$> fresh
+          exists ty = do
+            i <- fresh
+            let m = M i
+            Meta m <$ modify ((m ::: ty) :)
+
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
@@ -232,15 +238,6 @@ unify :: (Carrier sig m, Member Elab sig)
 unify eq m = send (Unify eq m ret)
 
 
-exists :: (Carrier sig m, Member Fresh sig, Member (State [Typed Meta]) sig, Monad m)
-       => Type
-       -> m Name
-exists ty = do
-  i <- fresh
-  let m = M i
-  Meta m <$ modify ((m ::: ty) :)
-
-
 lookupMeta :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Span) sig, Member (State [Typed Meta]) sig, Member (State (Back Solution)) sig, Monad m) => Meta -> m (Either (Typed Value) Type)
 lookupMeta m =
   foldr (\ m rest -> m >>= maybe rest pure)
@@ -252,9 +249,6 @@ lookupMeta m =
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
 lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> ask >>= throwError) (pure . entryType)
 lookupVar (Local n) = asks (Context.lookup n) >>= maybe (FreeVariable (Local n) <$> ask >>= throwError) pure
-
-freshName :: (Carrier sig m, Functor m, Member Fresh sig) => String -> m Name
-freshName s = Gensym s <$> fresh
 
 
 type ModuleTable = Map.Map ModuleName Scope
