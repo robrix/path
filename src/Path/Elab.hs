@@ -79,7 +79,7 @@ runElab :: ( Carrier sig m
            )
         => Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runContext . runReader [] . runElabC . interpret
+runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runReader mempty . runReader [] . runElabC . interpret
   where apply sols tm = foldl' compose id sols <$> tm
         compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
 
@@ -358,9 +358,6 @@ elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runReader One (maybe inferRoot checkRoot ty tm)
   elab <$ modify (Scope.insert name (Defn (eval mempty (fst elab) ::: ann (fst elab))))
-
-runContext :: (Carrier sig m, Monad m) => Eff (ReaderC Context m) a -> m a
-runContext = runReader mempty
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
 runScope m = get >>= flip runReader m
