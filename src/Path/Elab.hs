@@ -122,8 +122,8 @@ instance ( Carrier sig m
             (a', g2) <- check (a ::: t)
             a'' <- ElabC (eval a')
             k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2)
-          _ -> IllegalApplication f'' <$> ElabC ask <*> ask >>= throwError
-      _ -> NoRuleToInfer <$> ElabC ask <*> ask >>= throwError
+          _ -> IllegalApplication f'' <$> askContext <*> ask >>= throwError
+      _ -> NoRuleToInfer <$> askContext <*> ask >>= throwError
 
     Check (tm ::: ty) k -> withSpan (ann tm) . step (C (ann tm ::: ty)) $ case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
@@ -135,7 +135,7 @@ instance ( Carrier sig m
         (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
-      L (Core.Hole n) ::: ty -> TypedHole n ty <$> ElabC ask <*> ask >>= throwError
+      L (Core.Hole n) ::: ty -> TypedHole n ty <$> askContext <*> ask >>= throwError
       _ ::: _ :& (_ :.: _) -> do
         ty' <- ElabC (whnf ty)
         check (tm ::: ty') >>= k
@@ -178,7 +178,7 @@ instance ( Carrier sig m
         Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
         Right t
           -- FIXME: this should only throw for strong rigid occurrences
-          | Local (Meta m1) `Set.member` fvs t2 -> ElabC ask >>= throwError . InfiniteType (Local (Meta m1)) t2
+          | Local (Meta m1) `Set.member` fvs t2 -> ask >>= throwError . InfiniteType (Local (Meta m1)) t2
           | otherwise -> do
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
@@ -199,18 +199,21 @@ instance ( Carrier sig m
       unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
       unless (ty1 == ty2) $
-        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> ElabC ask <*> ElabC ask <*> ask >>= throwError
+        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> askSteps <*> askContext <*> ask >>= throwError
       unless (t1 == t2) $
-        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> ElabC ask <*> ElabC ask <*> ask >>= throwError
+        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> askSteps <*> askContext <*> ask >>= throwError
       h t1 >>= k)
     where unifySpines _ _                  Nil         Nil         h = h Nil
           unifySpines q (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines q (b a) as1 as2 (\ as -> h (as :> a)))
-          unifySpines q _                  _           _           _ = TypeMismatch q <$> ElabC ask <*> ElabC ask <*> ask >>= throwError
+          unifySpines q _                  _           _           _ = TypeMismatch q <$> askSteps <*> askContext <*> ask >>= throwError
 
           n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
 
           step s (ElabC m) = ElabC (local (s:) m)
+
+          askSteps = ElabC ask
+          askContext = ElabC ask
 
 
 infer :: (Carrier sig m, Member Elab sig)
