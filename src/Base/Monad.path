@@ -4,4 +4,4 @@ import Base.Applicative
 import Base.Functor
 
 Bind : (m : Type -> Type) -> (functor : Functor m) -> Apply m functor -> Type
-Bind = \ m _ . { a : Type } -> { b : Type } -> m a -> (a -> m b) -> m b
+Bind = \ m _ _ . { a : Type } -> { b : Type } -> m a -> (a -> m b) -> m b
