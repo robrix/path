@@ -15,6 +15,13 @@ data Step
   | I Span
   deriving (Eq, Ord, Show)
 
+instance Pretty Step where
+  pretty (U eqn)          = pretty eqn
+  pretty (C (span ::: t)) = prettyInfo span (pretty "checking" <+> pretty t) []
+  pretty (I span)         = prettyInfo span (pretty "infering") []
+
+instance PrettyPrec Step
+
 
 data ElabError
   = FreeVariable QName Span
