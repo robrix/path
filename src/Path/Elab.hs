@@ -74,7 +74,7 @@ runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
            , Member Fresh sig
-           , Member (Reader [Equation]) sig
+           , Member (Reader [Step]) sig
            , Member (Reader Context) sig
            , Member (Reader Env) sig
            , Member (Reader Scope) sig
@@ -95,7 +95,7 @@ instance ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
          , Member Fresh sig
-         , Member (Reader [Equation]) sig
+         , Member (Reader [Step]) sig
          , Member (Reader Context) sig
          , Member (Reader Env) sig
          , Member (Reader Scope) sig
@@ -158,29 +158,29 @@ instance ( Carrier sig m
 
     Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
     Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
-      | p1 == p2, u1 == u2 -> local (q:) $ do
+      | p1 == p2, u1 == u2 -> local (U q:) $ do
         n <- freshName "_unify_"
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (b1 vn ::: Value.Type :===: b2 vn ::: Value.Type) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
-    Unify q@(Value.Pi Im _ ty1 b1 ::: Value.Type :===: t2 ::: Value.Type) h k -> local (q:) $ do
+    Unify q@(Value.Pi Im _ ty1 b1 ::: Value.Type :===: t2 ::: Value.Type) h k -> local (U q:) $ do
       n <- ElabC (exists ty1)
       n ::: ty1 |- unify (b1 (vfree (Local n)) ::: Value.Type :===: t2 ::: Value.Type) (k <=< h)
-    Unify q@(_ ::: Value.Type :===: Value.Pi Im _ _ _ ::: Value.Type) h k -> local (q:) $
+    Unify q@(_ ::: Value.Type :===: Value.Pi Im _ _ _ ::: Value.Type) h k -> local (U q:) $
       unify (sym q) (k <=< h)
     Unify q@(f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
-      | p1 == p2, u1 == u2 -> local (q:) $ do
+      | p1 == p2, u1 == u2 -> local (U q:) $ do
         n <- freshName "_unify_"
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn) (k <=< h))
     Unify q@(sp1 :& Local (Meta m1) ::: ty1 :===: sp2 :& Local (Meta m2) ::: ty2) h k
-      | m1 == m2 -> local (q:) $
+      | m1 == m2 -> local (U q:) $
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines q ty sp1 sp2 (\ sp -> h (sp :& Local (Meta m1)) >>= k))
-    Unify q@(Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> local (q:) $ do
+    Unify q@(Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> local (U q:) $ do
       found <- ElabC (lookupMeta m1)
       case found of
         Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
@@ -191,21 +191,21 @@ instance ( Carrier sig m
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
             h t2 >>= k
-    Unify q@(_ :===: Nil :& Local (Meta _) ::: _) h k -> local (q:) $ unify (sym q) (k <=< h)
+    Unify q@(_ :===: Nil :& Local (Meta _) ::: _) h k -> local (U q:) $ unify (sym q) (k <=< h)
     Unify q@(sp1 :& v1 ::: _ :===: sp2 :& v2 ::: _) h k
       -- FIXME: Allow twin variables in these positions.
-      | v1 == v2, length sp1 == length sp2 -> local (q:) $ do
+      | v1 == v2, length sp1 == length sp2 -> local (U q:) $ do
         ty1 <- lookupVar v1
         ty2 <- lookupVar v2
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines q ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
-    Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
+    Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> local (U q:) $ do
       t1' <- whnf t1
       unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
-    Unify q@(t1 ::: ty1 :===: t2@(_ :& (_ :.: _)) ::: ty2) h k -> local (q:) $ do
+    Unify q@(t1 ::: ty1 :===: t2@(_ :& (_ :.: _)) ::: ty2) h k -> local (U q:) $ do
       t2' <- whnf t2
       unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
-    Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
+    Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> local (U q:) $ do
       unless (ty1 == ty2) $
         TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> ask <*> ask <*> ask >>= throwError
       unless (t1 == t2) $
@@ -279,7 +279,7 @@ inferRoot :: ( Carrier sig m
              )
           => Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-inferRoot = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runFresh . runSpan (runElab . infer)
+inferRoot = runScope . runContext . runEnv . runReader ([] :: [Step]) . runFresh . runSpan (runElab . infer)
 
 checkRoot :: ( Carrier sig m
              , Effect sig
@@ -291,7 +291,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runFresh . runSpan (runElab . check . (::: ty))
+checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Step]) . runFresh . runSpan (runElab . check . (::: ty))
 
 
 type ModuleTable = Map.Map ModuleName Scope
