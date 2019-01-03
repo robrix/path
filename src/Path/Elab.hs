@@ -106,7 +106,7 @@ instance ( Carrier sig m
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
   eff = handleSum (ElabC . eff . Effect.R . Effect.R . handleCoercible) (\case
-    Infer tm k -> withSpan (ann tm) $ case out tm of
+    Infer tm k -> withSpan (ann tm) . local (I (ann tm):) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
         (t', _) <- check (t ::: Value.Type)
@@ -133,7 +133,7 @@ instance ( Carrier sig m
           _ -> throwError (IllegalApplication f'' (ann f))
       _ -> NoRuleToInfer <$> ask <*> ask >>= throwError
 
-    Check (tm ::: ty) k -> withSpan (ann tm) $ case (out tm ::: ty) of
+    Check (tm ::: ty) k -> withSpan (ann tm) . local (C (ann tm ::: ty):) $ case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
         n <- freshName "_implicit_"
         (e', res) <- n ::: t |- check (tm ::: b (vfree (Local n)))
