@@ -9,6 +9,13 @@ import Path.Type
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
+data Step
+  = U Equation
+  | C (Typed Span)
+  | I Span
+  deriving (Eq, Ord, Show)
+
+
 data ElabError
   = FreeVariable QName Span
   | TypeMismatch Equation [Equation] Context Span
