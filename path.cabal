@@ -41,6 +41,7 @@ library
                      , Path.Semiring
                      , Path.Surface
                      , Path.Term
+                     , Path.Type
                      , Path.Usage
                      , Path.Value
   other-modules:       Paths_path
