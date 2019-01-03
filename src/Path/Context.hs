@@ -34,7 +34,7 @@ data Equation
 infix 1 :===:
 
 instance Pretty Equation where
-  pretty (t1 :===: t2) = pretty t1 <+> pretty "≡" <+> pretty t2
+  pretty (t1 :===: t2) = flatAlt (align (space <+> pretty t1 </> pretty "≡" <+> pretty t2)) (pretty t1 <+> pretty "≡" <+> pretty t2)
 
 instance PrettyPrec Equation
 
