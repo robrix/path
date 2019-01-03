@@ -169,7 +169,7 @@ instance ( Carrier sig m
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines q ty sp1 sp2 (\ sp -> h (sp :& Local (Meta m1)) >>= k))
     Unify q@(Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> step (U q) $ do
-      found <- ElabC (lookupMeta m1)
+      found <- lookupMeta m1
       case found of
         Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
         Right t
@@ -224,6 +224,12 @@ instance ( Carrier sig m
           lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> askSpan >>= throwError) (pure . entryType)
           lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (FreeVariable (Local n) <$> askSpan >>= throwError) pure
 
+          lookupMeta m = foldr (\ m rest -> ElabC m >>= maybe rest pure)
+            (FreeVariable (Local (Meta m)) <$> askSpan >>= throwError)
+            [ gets (fmap (Left  . solDefn)   . Back.find     ((== m) . solMeta))
+            , gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))
+            ]
+
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
@@ -241,15 +247,6 @@ unify :: (Carrier sig m, Member Elab sig)
       -> (Type -> m a)
       -> m a
 unify eq m = send (Unify eq m ret)
-
-
-lookupMeta :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Span) sig, Member (State [Typed Meta]) sig, Member (State (Back Solution)) sig, Monad m) => Meta -> m (Either (Typed Value) Type)
-lookupMeta m =
-  foldr (\ m rest -> m >>= maybe rest pure)
-        (FreeVariable (Local (Meta m)) <$> ask >>= throwError)
-        [ gets (fmap (Left  . solDefn)   . Back.find     ((== m) . solMeta))
-        , gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))
-        ]
 
 
 type ModuleTable = Map.Map ModuleName Scope
