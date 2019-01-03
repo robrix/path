@@ -261,24 +261,24 @@ inferRoot :: ( Carrier sig m
              , Effect sig
              , Member (Error ElabError) sig
              , Member (Reader Usage) sig
-             , Member (State Scope) sig
+             , Member (Reader Scope) sig
              , Monad m
              )
           => Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-inferRoot = runScope . (runElab . ann <*> infer)
+inferRoot = runElab . ann <*> infer
 
 checkRoot :: ( Carrier sig m
              , Effect sig
              , Member (Error ElabError) sig
              , Member (Reader Usage) sig
-             , Member (State Scope) sig
+             , Member (Reader Scope) sig
              , Monad m
              )
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runScope . (runElab . ann <*> check . (::: ty))
+checkRoot ty = runElab . ann <*> check . (::: ty)
 
 
 type ModuleTable = Map.Map ModuleName Scope
@@ -335,7 +335,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
-  elab <- runReader Zero (checkRoot Value.Type (generalize ty))
+  elab <- runReader Zero (runScope (checkRoot Value.Type (generalize ty)))
   elab <$ modify (Scope.insert name (Decl (eval mempty (fst elab))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
         bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
@@ -351,7 +351,7 @@ elabDefine :: ( Carrier sig m
            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- runReader One (maybe inferRoot checkRoot ty tm)
+  elab <- runReader One (runScope (maybe inferRoot checkRoot ty tm))
   elab <$ modify (Scope.insert name (Defn (eval mempty (fst elab) ::: ann (fst elab))))
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
