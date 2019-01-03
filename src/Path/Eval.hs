@@ -13,14 +13,13 @@ import Path.Term
 import Path.Value as Value
 
 eval :: Env -> Term (Core Name QName) a -> Value
-eval = go
-  where go env = \case
-          In (Core.Var (Local n)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
-          In (Core.Var (m :.: n)) _ -> vfree (m :.: n)
-          In (Core.Lam n b) _ -> Value.Lam (\ v -> go (Env.insert n v env) b)
-          In (f :$ a) _ -> go env f $$ go env a
-          In Core.Type _ -> Value.Type
-          In (Core.Pi n p u t b) _ -> Value.Pi p u (go env t) (\ v -> go (Env.insert n v env) b)
+eval env = \case
+  In (Core.Var (Local n)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
+  In (Core.Var (m :.: n)) _ -> vfree (m :.: n)
+  In (Core.Lam n b) _ -> Value.Lam (\ v -> eval (Env.insert n v env) b)
+  In (f :$ a) _ -> eval env f $$ eval env a
+  In Core.Type _ -> Value.Type
+  In (Core.Pi n p u t b) _ -> Value.Pi p u (eval env t) (\ v -> eval (Env.insert n v env) b)
 
 -- | Evaluate a 'Value' to weak head normal form.
 --
