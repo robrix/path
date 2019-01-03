@@ -19,7 +19,6 @@ import Data.Traversable (for)
 import Path.Back as Back
 import Path.Context as Context
 import Path.Core as Core
-import Path.Env as Env
 import Path.Error
 import Path.Eval
 import Path.Module
@@ -362,9 +361,6 @@ elabDefine name tm = do
 
 runContext :: (Carrier sig m, Monad m) => Eff (ReaderC Context m) a -> m a
 runContext = runReader mempty
-
-runEnv :: (Carrier sig m, Monad m) => Eff (ReaderC Env m) a -> m a
-runEnv = runReader mempty
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
 runScope m = get >>= flip runReader m
