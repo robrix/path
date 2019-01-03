@@ -27,7 +27,7 @@ data ElabError
   = FreeVariable QName Span
   | TypeMismatch Equation [Step] Context Span
   | NoRuleToInfer Context Span
-  | IllegalApplication Type Span
+  | IllegalApplication Type Context Span
   | ResourceMismatch Name Usage Usage Span [Span]
   | TypedHole QName Type Context Span
   | InfiniteType QName Type Span
@@ -42,7 +42,7 @@ instance Pretty ElabError where
       , pretty "  actual:" <+> pretty actual
       ])) (prettyCtx ctx : map prettyStep steps)
     NoRuleToInfer ctx span -> prettyErr span (pretty "no rule to infer type of term") [prettyCtx ctx]
-    IllegalApplication ty span -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) []
+    IllegalApplication ty ctx span -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) [prettyCtx ctx]
     ResourceMismatch n pi used span spans -> prettyErr span msg (map prettys spans)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
     TypedHole n ty ctx span -> prettyErr span msg [prettyCtx ctx]
