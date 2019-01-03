@@ -130,7 +130,7 @@ instance ( Carrier sig m
             (a', g2) <- check (a ::: t)
             a'' <- eval a'
             k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2)
-          _ -> throwError (IllegalApplication f'' (ann f))
+          _ -> IllegalApplication f'' <$> ask >>= throwError
       _ -> NoRuleToInfer <$> ask <*> ask >>= throwError
 
     Check (tm ::: ty) k -> withSpan (ann tm) . local (C (ann tm ::: ty):) $ case (out tm ::: ty) of
