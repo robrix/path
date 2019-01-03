@@ -178,6 +178,10 @@ instance ( Carrier sig m
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn) (k <=< h))
+    Unify q@(sp1 :& Local (Meta m1) ::: ty1 :===: sp2 :& Local (Meta m2) ::: ty2) h k
+      | m1 == m2 -> local (q:) $
+        unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
+          unifySpines q ty sp1 sp2 (\ sp -> h (sp :& Local (Meta m1)) >>= k))
     Unify q@(Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> local (q:) $ do
       found <- ElabC (lookupMeta m1)
       case found of
