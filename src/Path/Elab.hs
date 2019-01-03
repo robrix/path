@@ -73,30 +73,29 @@ runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
            , Member (Reader Scope) sig
-           , Member (Reader Span) sig
            , Member (Reader Usage) sig
            , Monad m
            )
-        => Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
+        => Span
+        -> Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runReader mempty . runReader [] . runElabC . interpret
+runElab span = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runReader mempty . runReader [] . runReader span . runElabC . interpret
   where apply sols tm = foldl' compose id sols <$> tm
         compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Span (Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
          , Member (Reader Scope) sig
-         , Member (Reader Span) sig
          , Member (Reader Usage) sig
          , Monad m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> withSpan (ann tm) . step (I (ann tm)) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
@@ -119,8 +118,8 @@ instance ( Carrier sig m
           Value.Pi _ pi t b -> do
             (a', g2) <- check (a ::: t)
             k (In (f' Core.:$ a') (b (eval mempty a')), g1 <> pi ><< g2)
-          _ -> IllegalApplication f'' <$> askContext <*> ask >>= throwError
-      _ -> NoRuleToInfer <$> askContext <*> ask >>= throwError
+          _ -> IllegalApplication f'' <$> askContext <*> askSpan >>= throwError
+      _ -> NoRuleToInfer <$> askContext <*> askSpan >>= throwError
 
     Check (tm ::: ty) k -> withSpan (ann tm) . step (C (ann tm ::: ty)) $ case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
@@ -132,7 +131,7 @@ instance ( Carrier sig m
         (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
-      L (Core.Hole n) ::: ty -> TypedHole n ty <$> askContext <*> ask >>= throwError
+      L (Core.Hole n) ::: ty -> TypedHole n ty <$> askContext <*> askSpan >>= throwError
       _ ::: _ :& (_ :.: _) -> do
         ty' <- ElabC (whnf ty)
         check (tm ::: ty') >>= k
@@ -143,7 +142,7 @@ instance ( Carrier sig m
               let used = Resources.lookup (Local n) br
               sigma <- ask
               unless (sigma >< pi == More) . when (pi /= used) $
-                ResourceMismatch n pi used <$> ask <*> pure (uses n tm) >>= throwError
+                ResourceMismatch n pi used <$> askSpan <*> pure (uses n tm) >>= throwError
 
     Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
     Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
@@ -175,7 +174,7 @@ instance ( Carrier sig m
         Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
         Right t
           -- FIXME: this should only throw for strong rigid occurrences
-          | Local (Meta m1) `Set.member` fvs t2 -> ask >>= throwError . InfiniteType (Local (Meta m1)) t2
+          | Local (Meta m1) `Set.member` fvs t2 -> askSpan >>= throwError . InfiniteType (Local (Meta m1)) t2
           | otherwise -> do
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
@@ -196,13 +195,13 @@ instance ( Carrier sig m
       unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
       unless (ty1 == ty2) $
-        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> askSteps <*> askContext <*> ask >>= throwError
+        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> askSteps <*> askContext <*> askSpan >>= throwError
       unless (t1 == t2) $
-        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> askSteps <*> askContext <*> ask >>= throwError
+        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> askSteps <*> askContext <*> askSpan >>= throwError
       h t1 >>= k)
     where unifySpines _ _                  Nil         Nil         h = h Nil
           unifySpines q (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines q (b a) as1 as2 (\ as -> h (as :> a)))
-          unifySpines q _                  _           _           _ = TypeMismatch q <$> askSteps <*> askContext <*> ask >>= throwError
+          unifySpines q _                  _           _           _ = TypeMismatch q <$> askSteps <*> askContext <*> askSpan >>= throwError
 
           n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
@@ -211,6 +210,8 @@ instance ( Carrier sig m
 
           askSteps = ElabC ask
           askContext = ElabC ask
+          askSpan = ElabC ask
+          withSpan span (ElabC m) = ElabC (local (const span) m)
 
 
 infer :: (Carrier sig m, Member Elab sig)
@@ -256,12 +257,6 @@ freshName :: (Carrier sig m, Functor m, Member Fresh sig) => String -> m Name
 freshName s = Gensym s <$> fresh
 
 
-withSpan :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
-withSpan = local . const
-
-runSpan :: (Carrier sig m, Monad m) => (Term f Span -> Eff (ReaderC Span m) a) -> Term f Span -> m a
-runSpan f = runReader . ann <*> f
-
 inferRoot :: ( Carrier sig m
              , Effect sig
              , Member (Error ElabError) sig
@@ -271,7 +266,7 @@ inferRoot :: ( Carrier sig m
              )
           => Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-inferRoot = runScope . runSpan (runElab . infer)
+inferRoot = runScope . (runElab . ann <*> infer)
 
 checkRoot :: ( Carrier sig m
              , Effect sig
@@ -283,7 +278,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runScope . runSpan (runElab . check . (::: ty))
+checkRoot ty = runScope . (runElab . ann <*> check . (::: ty))
 
 
 type ModuleTable = Map.Map ModuleName Scope
