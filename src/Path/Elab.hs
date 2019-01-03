@@ -272,19 +272,17 @@ runSpan f = runReader . ann <*> f
 inferRoot :: ( Carrier sig m
              , Effect sig
              , Member (Error ElabError) sig
-             , Member Fresh sig
              , Member (Reader Usage) sig
              , Member (State Scope) sig
              , Monad m
              )
           => Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-inferRoot = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . infer)
+inferRoot = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runFresh . runSpan (runElab . infer)
 
 checkRoot :: ( Carrier sig m
              , Effect sig
              , Member (Error ElabError) sig
-             , Member Fresh sig
              , Member (Reader Usage) sig
              , Member (State Scope) sig
              , Monad m
@@ -292,7 +290,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . check . (::: ty))
+checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runFresh . runSpan (runElab . check . (::: ty))
 
 
 type ModuleTable = Map.Map ModuleName Scope
@@ -300,7 +298,6 @@ type ModuleTable = Map.Map ModuleName Scope
 elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error ModuleError) sig
-              , Member Fresh sig
               , Member (Reader ModuleTable) sig
               , Member (State (Back ElabError)) sig
               , Member (State Scope) sig
@@ -330,7 +327,6 @@ importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (U
 elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error ElabError) sig
-            , Member Fresh sig
             , Member (State Scope) sig
             , Monad m
             )
@@ -344,7 +340,6 @@ elabDecl = \case
 elabDeclare :: ( Carrier sig m
                , Effect sig
                , Member (Error ElabError) sig
-               , Member Fresh sig
                , Member (State Scope) sig
                , Monad m
                )
@@ -361,7 +356,6 @@ elabDeclare name ty = do
 elabDefine :: ( Carrier sig m
               , Effect sig
               , Member (Error ElabError) sig
-              , Member Fresh sig
               , Member (State Scope) sig
               , Monad m
               )
