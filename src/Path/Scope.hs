@@ -4,9 +4,9 @@ module Path.Scope where
 import Control.Arrow ((***))
 import Data.Coerce
 import qualified Data.Map as Map
-import Path.Context
 import Path.Name
 import Path.Pretty
+import Path.Type
 import Path.Value
 
 data Entry

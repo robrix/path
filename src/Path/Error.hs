@@ -5,6 +5,7 @@ import Data.Foldable (fold)
 import Path.Context
 import Path.Name
 import Path.Pretty
+import Path.Type
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
 

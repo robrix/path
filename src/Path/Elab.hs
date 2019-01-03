@@ -29,6 +29,7 @@ import Path.Resources as Resources
 import Path.Scope as Scope
 import Path.Semiring
 import Path.Term
+import Path.Type
 import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)

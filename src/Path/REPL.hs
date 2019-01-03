@@ -20,7 +20,6 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back
-import Path.Context
 import Path.Core hiding ((:+:))
 import Path.Desugar
 import Path.Elab
@@ -38,6 +37,7 @@ import Path.Resources
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
 import Path.Term
+import Path.Type
 import Path.Usage
 import Path.Value
 import Prelude hiding (print)
