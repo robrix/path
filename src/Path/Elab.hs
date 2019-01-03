@@ -313,7 +313,7 @@ importModule :: ( Carrier sig m
                 )
              => Import
              -> m Scope
-importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) (pure . Scope.filter (const . inModule (importModuleName n)))
+importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
 
 
 elabDecl :: ( Carrier sig m
