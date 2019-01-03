@@ -196,10 +196,7 @@ instance ( Carrier sig m
         ty1 <- lookupVar v1
         ty2 <- lookupVar v2
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
-          unifySpines ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
-          where unifySpines _                  Nil         Nil         h = h Nil
-                unifySpines (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines (b a) as1 as2 (\ as -> h (as :> a)))
-                unifySpines _                  _           _           _ = TypeMismatch q <$> ask <*> ask <*> ask >>= throwError
+          unifySpines q ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
     Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> local (q:) $ do
       t1' <- whnf t1
       unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
@@ -218,6 +215,10 @@ instance ( Carrier sig m
       let m = M i
       ElabC (modify ((m ::: ty) :))
       k (Meta m))
+    where unifySpines _ _                  Nil         Nil         h = h Nil
+          unifySpines q (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines q (b a) as1 as2 (\ as -> h (as :> a)))
+          unifySpines q _                  _           _           _ = TypeMismatch q <$> ask <*> ask <*> ask >>= throwError
+
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
