@@ -80,11 +80,11 @@ runElab :: ( Carrier sig m
            )
         => Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runEnv . runContext . runReader [] . runElabC . interpret
+runElab = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runContext . runReader [] . runElabC . interpret
   where apply sols tm = foldl' compose id sols <$> tm
         compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (ReaderC Env (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -97,7 +97,7 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> withSpan (ann tm) . step (I (ann tm)) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
