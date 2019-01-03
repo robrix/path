@@ -103,7 +103,7 @@ instance ( Carrier sig m
         (b', _) <- n ::: eval mempty t' |- check (b ::: Value.Type)
         k (In (Core.Pi n i e t' b') Value.Type, mempty)
       R (Core.Var n) -> do
-        t <- ElabC (lookupVar n) >>= whnf
+        t <- lookupVar n >>= whnf
         sigma <- ask
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
         where elabImplicits tm res k
@@ -183,8 +183,8 @@ instance ( Carrier sig m
     Unify q@(sp1 :& v1 ::: _ :===: sp2 :& v2 ::: _) h k
       -- FIXME: Allow twin variables in these positions.
       | v1 == v2, length sp1 == length sp2 -> step (U q) $ do
-        ty1 <- ElabC (lookupVar v1)
-        ty2 <- ElabC (lookupVar v2)
+        ty1 <- lookupVar v1
+        ty2 <- lookupVar v2
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines q ty sp1 sp2 (\ sp -> h (sp :& v1) >>= k))
     Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
@@ -221,6 +221,9 @@ instance ( Carrier sig m
 
           whnf = ElabC . Eval.whnf
 
+          lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> askSpan >>= throwError) (pure . entryType)
+          lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (FreeVariable (Local n) <$> askSpan >>= throwError) pure
+
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
@@ -247,10 +250,6 @@ lookupMeta m =
         [ gets (fmap (Left  . solDefn)   . Back.find     ((== m) . solMeta))
         , gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))
         ]
-
-lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Monad m) => QName -> m Type
-lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> ask >>= throwError) (pure . entryType)
-lookupVar (Local n) = asks (Context.lookup n) >>= maybe (FreeVariable (Local n) <$> ask >>= throwError) pure
 
 
 type ModuleTable = Map.Map ModuleName Scope
