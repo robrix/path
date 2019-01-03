@@ -12,8 +12,8 @@ import Path.Scope as Scope
 import Path.Term
 import Path.Value as Value
 
-eval :: (Carrier sig m, Functor m, Member (Reader Env) sig) => Term (Core Name QName) a -> m Value
-eval tm = asks (flip go tm)
+eval :: Term (Core Name QName) a -> Value
+eval = go mempty
   where go env = \case
           In (Core.Var (Local n)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
           In (Core.Var (m :.: n)) _ -> vfree (m :.: n)
