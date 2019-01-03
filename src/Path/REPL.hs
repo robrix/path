@@ -166,14 +166,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (elab, _) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader Zero . inferRoot)
+            (elab, _) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runReader Zero . inferRoot
             print (generalizeType (ann elab))
             loop
           Command.Decl decl -> do
-            _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
+            _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar) >>= elabDecl
             loop
           Eval tm -> do
-            (elab, _) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar >>= runReader One . inferRoot)
+            (elab, _) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runReader One . inferRoot
             runScope (runEnv (eval elab >>= whnf)) >>= print . generalizeValue (generalizeType (ann elab))
             loop
           Show Bindings -> do
@@ -209,7 +209,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runFresh (runState (mempty :: Scope.Scope) (resolveModule m >>= traverse desugar >>= elabModule))))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (resolveModule m >>= traverse desugar) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
