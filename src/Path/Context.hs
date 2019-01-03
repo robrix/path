@@ -38,6 +38,9 @@ instance Pretty Equation where
 
 instance PrettyPrec Equation
 
+sym :: Equation -> Equation
+sym (t1 :===: t2) = t2 :===: t1
+
 
 newtype Context = Context { unContext :: Back (Typed Name) }
   deriving (Eq, Ord, Show)
