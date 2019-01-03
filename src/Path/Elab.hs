@@ -108,7 +108,7 @@ instance ( Carrier sig m
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
         where elabImplicits tm res k
                 | Value.Pi Im _ t b <- ann tm = do
-                  n <- ElabC (exists t)
+                  n <- exists t
                   elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n)))) (Resources.singleton (Local n) One <> res) k
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
@@ -123,7 +123,7 @@ instance ( Carrier sig m
 
     Check (tm ::: ty) k -> withSpan (ann tm) . step (C (ann tm ::: ty)) $ case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
-        n <- ElabC (freshName "_implicit_")
+        n <- freshName "_implicit_"
         (e', res) <- n ::: t |- check (tm ::: b (vfree (Local n)))
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
@@ -147,19 +147,19 @@ instance ( Carrier sig m
     Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
     Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
       | p1 == p2, u1 == u2 -> step (U q) $ do
-        n <- ElabC (freshName "_unify_")
+        n <- freshName "_unify_"
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (b1 vn ::: Value.Type :===: b2 vn ::: Value.Type) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
     Unify q@(Value.Pi Im _ ty1 b1 ::: Value.Type :===: t2 ::: Value.Type) h k -> step (U q) $ do
-      n <- ElabC (exists ty1)
+      n <- exists ty1
       n ::: ty1 |- unify (b1 (vfree (Local n)) ::: Value.Type :===: t2 ::: Value.Type) (k <=< h)
     Unify q@(_ ::: Value.Type :===: Value.Pi Im _ _ _ ::: Value.Type) h k -> step (U q) $
       unify (sym q) (k <=< h)
     Unify q@(f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
       | p1 == p2, u1 == u2 -> step (U q) $ do
-        n <- ElabC (freshName "_unify_")
+        n <- freshName "_unify_"
         let vn = vfree (Local n)
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
@@ -213,8 +213,8 @@ instance ( Carrier sig m
           askSpan = ElabC ask
           withSpan span (ElabC m) = ElabC (local (const span) m)
 
-          freshName s = Gensym s <$> fresh
-          exists ty = do
+          freshName s = Gensym s <$> ElabC fresh
+          exists ty = ElabC $ do
             i <- fresh
             let m = M i
             Meta m <$ modify ((m ::: ty) :)
