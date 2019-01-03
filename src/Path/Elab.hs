@@ -159,6 +159,10 @@ instance ( Carrier sig m
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (b1 vn ::: Value.Type :===: b2 vn ::: Value.Type) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
+    Unify q@(t1@(Value.Pi Im u1 ty1 _) ::: Value.Type :===: t2 ::: Value.Type) h k -> local (q:) $
+      unify (t1 ::: Value.Type :===: Value.Pi Im u1 ty1 (const t2) ::: Value.Type) (k <=< h)
+    Unify q@(_ ::: Value.Type :===: Value.Pi Im _ _ _ ::: Value.Type) h k -> local (q:) $
+      unify (sym q) (k <=< h)
     Unify q@(f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
       | p1 == p2, u1 == u2 -> local (q:) $ do
         n <- freshName "_unify_"
