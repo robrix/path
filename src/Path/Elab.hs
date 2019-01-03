@@ -35,24 +35,24 @@ import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
 data Elab m k
-  = Infer      (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | Check Type (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
+  = Infer        (Term (Implicit QName :+: Core Name QName) Span) ((Term (Core Name QName) Type, Resources Usage) -> k)
+  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | forall a . Unify Equation (Type -> m a) (a    -> k)
   | Exists Type                             (Name -> k)
 
 deriving instance Functor (Elab m)
 
 instance HFunctor Elab where
-  hmap _ (Infer     tm   k) = Infer     tm         k
-  hmap _ (Check  ty tm   k) = Check  ty tm         k
-  hmap f (Unify  eq    h k) = Unify  eq    (f . h) k
-  hmap _ (Exists ty      k) = Exists ty            k
+  hmap _ (Infer  tm   k) = Infer  tm         k
+  hmap _ (Check  tm   k) = Check  tm         k
+  hmap f (Unify  eq h k) = Unify  eq (f . h) k
+  hmap _ (Exists ty   k) = Exists ty         k
 
 instance Effect Elab where
-  handle state handler (Infer     tm   k) = Infer     tm                            (handler . (<$ state) . k)
-  handle state handler (Check  ty tm   k) = Check  ty tm                            (handler . (<$ state) . k)
-  handle state handler (Unify  eq    h k) = Unify  eq    (handler . (<$ state) . h) (handler . fmap k)
-  handle state handler (Exists ty      k) = Exists ty                               (handler . (<$ state) . k)
+  handle state handler (Infer  tm   k) = Infer  tm                            (handler . (<$ state) . k)
+  handle state handler (Check  tm   k) = Check  tm                            (handler . (<$ state) . k)
+  handle state handler (Unify  eq h k) = Unify  eq (handler . (<$ state) . h) (handler . fmap k)
+  handle state handler (Exists ty   k) = Exists ty                            (handler . (<$ state) . k)
 
 data Solution
   = Meta := Typed Value
@@ -112,9 +112,9 @@ instance ( Carrier sig m
     Infer tm k -> withSpan (ann tm) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
-        (t', _) <- check Value.Type t
+        (t', _) <- check (t ::: Value.Type)
         t'' <- eval t'
-        (b', _) <- n ::: t'' |- check Value.Type b
+        (b', _) <- n ::: t'' |- check (b ::: Value.Type)
         k (In (Core.Pi n i e t' b') Value.Type, mempty)
       R (Core.Var n) -> do
         t <- lookupVar n >>= whnf
@@ -130,25 +130,25 @@ instance ( Carrier sig m
         f'' <- whnf (ann f')
         case f'' of
           Value.Pi _ pi t b -> do
-            (a', g2) <- check t a
+            (a', g2) <- check (a ::: t)
             a'' <- eval a'
             k (In (f' Core.:$ a') (b a''), g1 <> pi ><< g2)
           _ -> throwError (IllegalApplication f'' (ann f))
       _ -> NoRuleToInfer <$> ask <*> ask >>= throwError
 
-    Check ty tm k -> withSpan (ann tm) $ case (out tm, ty) of
-      (R (Core.Lam n e), Value.Pi _ pi t b) -> do
-        (e', res) <- n ::: t |- check (b (vfree (Local n))) e
+    Check (tm ::: ty) k -> withSpan (ann tm) $ case out tm ::: ty of
+      R (Core.Lam n e) ::: Value.Pi _ pi t b -> do
+        (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
         let used = Resources.lookup (Local n) res
         sigma <- ask
         unless (sigma >< pi == More) . when (pi /= used) $
           ResourceMismatch n pi used <$> ask <*> pure (uses n tm) >>= throwError
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
-      (L (Core.Hole n), ty) -> TypedHole n ty <$> ask <*> ask >>= throwError
-      (_, _ :& (_ :.: _)) -> do
+      L (Core.Hole n) ::: ty -> TypedHole n ty <$> ask <*> ask >>= throwError
+      _ ::: _ :& (_ :.: _) -> do
         ty' <- whnf ty
-        check ty' tm >>= k
-      (_, ty) -> do
+        check (tm ::: ty') >>= k
+      _ ::: ty -> do
         (tm', res) <- infer tm
         unify (ty ::: Value.Type :===: ann tm' ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
 
@@ -218,10 +218,9 @@ infer :: (Carrier sig m, Member Elab sig)
 infer tm = send (Infer tm ret)
 
 check :: (Carrier sig m, Member Elab sig)
-      => Type
-      -> Term (Implicit QName :+: Core Name QName) Span
+      => Typed (Term (Implicit QName :+: Core Name QName) Span)
       -> m (Term (Core Name QName) Type, Resources Usage)
-check ty tm = send (Check ty tm ret)
+check tm = send (Check tm ret)
 
 
 unify :: (Carrier sig m, Member Elab sig)
@@ -286,7 +285,7 @@ checkRoot :: ( Carrier sig m
           => Type
           -> Term (Implicit QName :+: Core Name QName) Span
           -> m (Term (Core Name QName) Type, Resources Usage)
-checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . check ty)
+checkRoot ty = runScope . runContext . runEnv . runReader ([] :: [Equation]) . runSpan (runElab . check . (::: ty))
 
 
 type ModuleTable = Map.Map ModuleName Scope
