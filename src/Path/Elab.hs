@@ -38,7 +38,6 @@ data Elab m k
   = Infer        (Term (Implicit QName :+: Core Name QName) Span)  ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) ((Term (Core Name QName) Type, Resources Usage) -> k)
   | forall a . Unify Equation (Type -> m a) (a    -> k)
-  | Exists Type                             (Name -> k)
 
 deriving instance Functor (Elab m)
 
@@ -46,13 +45,11 @@ instance HFunctor Elab where
   hmap _ (Infer  tm   k) = Infer  tm         k
   hmap _ (Check  tm   k) = Check  tm         k
   hmap f (Unify  eq h k) = Unify  eq (f . h) k
-  hmap _ (Exists ty   k) = Exists ty         k
 
 instance Effect Elab where
   handle state handler (Infer  tm   k) = Infer  tm                            (handler . (<$ state) . k)
   handle state handler (Check  tm   k) = Check  tm                            (handler . (<$ state) . k)
   handle state handler (Unify  eq h k) = Unify  eq (handler . (<$ state) . h) (handler . fmap k)
-  handle state handler (Exists ty   k) = Exists ty                            (handler . (<$ state) . k)
 
 data Solution
   = Meta := Typed Value
@@ -122,7 +119,7 @@ instance ( Carrier sig m
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
         where elabImplicits tm res k
                 | Value.Pi Im _ t b <- ann tm = do
-                  n <- exists t
+                  n <- ElabC (exists t)
                   elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n)))) (Resources.singleton (Local n) One <> res) k
                 | otherwise = k (tm, res)
       R (f :$ a) -> do
@@ -168,7 +165,7 @@ instance ( Carrier sig m
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (b1 vn ::: Value.Type :===: b2 vn ::: Value.Type) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
     Unify q@(Value.Pi Im _ ty1 b1 ::: Value.Type :===: t2 ::: Value.Type) h k -> local (q:) $ do
-      n <- exists ty1
+      n <- ElabC (exists ty1)
       n ::: ty1 |- unify (b1 (vfree (Local n)) ::: Value.Type :===: t2 ::: Value.Type) (k <=< h)
     Unify q@(_ ::: Value.Type :===: Value.Pi Im _ _ _ ::: Value.Type) h k -> local (q:) $
       unify (sym q) (k <=< h)
@@ -213,13 +210,7 @@ instance ( Carrier sig m
         TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> ask <*> ask <*> ask >>= throwError
       unless (t1 == t2) $
         TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> ask <*> ask <*> ask >>= throwError
-      h t1 >>= k
-
-    Exists ty k -> do
-      i <- fresh
-      let m = M i
-      ElabC (modify ((m ::: ty) :))
-      k (Meta m))
+      h t1 >>= k)
     where unifySpines _ _                  Nil         Nil         h = h Nil
           unifySpines q (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines q (b a) as1 as2 (\ as -> h (as :> a)))
           unifySpines q _                  _           _           _ = TypeMismatch q <$> ask <*> ask <*> ask >>= throwError
@@ -242,10 +233,14 @@ unify :: (Carrier sig m, Member Elab sig)
       -> m a
 unify eq m = send (Unify eq m ret)
 
-exists :: (Carrier sig m, Member Elab sig)
+
+exists :: (Carrier sig m, Member Fresh sig, Member (State [Typed Meta]) sig, Monad m)
        => Type
        -> m Name
-exists ty = send (Exists ty ret)
+exists ty = do
+  i <- fresh
+  let m = M i
+  Meta m <$ modify ((m ::: ty) :)
 
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Typed Name -> m a -> m a
