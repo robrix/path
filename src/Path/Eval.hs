@@ -25,7 +25,6 @@ eval = go mempty
 -- | Evaluate a 'Value' to weak head normal form.
 --
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
-whnf :: (Carrier sig m, Member (Reader Env) sig, Member (Reader Scope) sig, Monad m) => Value -> m Value
+whnf :: (Carrier sig m, Member (Reader Scope) sig, Monad m) => Value -> m Value
 whnf (sp :& (m :.: n)) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure (sp :& (m :.: n))) (whnf . ($$* sp))
-whnf (sp :& (Local n)) = asks (Env.lookup n) >>= maybe (pure (sp :& Local n)) (whnf . ($$* sp))
 whnf v                 = pure v
