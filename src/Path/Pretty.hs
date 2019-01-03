@@ -13,33 +13,7 @@ module Path.Pretty
 , prettyParens
 , prettyBraces
 , tabulate2
-, Pretty(..)
-, Doc
-, (<+>)
-, (</>)
-, align
-, backslash
-, blue
-, bold
-, brackets
-, colon
-, cyan
-, dot
-, fillSep
-, green
-, group
-, hardline
-, hsep
-, line
-, magenta
-, nest
-, parens
-, plain
-, punctuate
-, space
-, squotes
-, vsep
-, yellow
+, module PP
 ) where
 
 import Control.Arrow ((***))
@@ -47,7 +21,7 @@ import Control.Monad.IO.Class
 import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), column, putDoc)
+import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, putDoc)
 import Text.Trifecta.Rendering (Rendering(..), Span(..), render)
 import Text.Trifecta.Result (ErrInfo(..))
 
