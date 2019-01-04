@@ -167,6 +167,21 @@ instance ( Carrier sig m
       | m1 == m2 -> step (U q) $
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
           unifySpines q ty sp1 sp2 (\ sp -> h (sp :& Local (Meta m1)) >>= k))
+    Unify q@(sp1 :& Local (Meta m1) ::: _ :===: sp2 :& v2 ::: ty2) h k
+      | length sp1 == length sp2 -> step (U q) $ do
+        found <- lookupMeta m1
+        case found of
+          Left (v ::: t) -> unify (v $$* sp1 ::: t :===: sp2 :& v2 ::: ty2) h >>= k
+          Right t
+            -- FIXME: this should only throw for strong rigid occurrences
+            | Local (Meta m1) `Set.member` fvs (sp2 :& v2) -> askSpan >>= throwError . InfiniteType (Local (Meta m1)) (sp2 :& v2)
+            | otherwise -> do
+              ty2 <- lookupVar v2
+              unify (t ::: Value.Type :===: ty2 ::: Value.Type) (\ t -> do
+                ElabC (modify (List.delete (m1 ::: t)))
+                ElabC (modify (:> (m1 := Nil :& v2 ::: t)))
+                unifySpines q t sp1 sp2 (\ sp -> h (vfree v2 $$* sp) >>= k))
+    Unify q@(sp1 :& _ ::: _ :===: sp2 :& Local (Meta _) ::: _) h k | length sp1 == length sp2 -> unify (sym q) (k <=< h)
     Unify q@(Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> step (U q) $ do
       found <- lookupMeta m1
       case found of
