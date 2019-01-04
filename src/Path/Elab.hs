@@ -222,6 +222,7 @@ instance ( Carrier sig m
           whnf = ElabC . Eval.whnf
 
           lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> askSpan >>= throwError) (pure . entryType)
+          lookupVar (Local (Meta m)) = either typedType id <$> lookupMeta m
           lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (FreeVariable (Local n) <$> askSpan >>= throwError) pure
 
           lookupMeta m = foldr (\ m rest -> ElabC m >>= maybe rest pure)
