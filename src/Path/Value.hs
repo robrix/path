@@ -84,3 +84,7 @@ generalizeValue :: Value -> Value -> Value
 generalizeValue = go 0
   where go i (Pi Im _ _ b) v = Lam (const (go (succ i) (b (vfree (Local (Gensym "" i)))) v))
         go _ _             v = v
+
+split :: Value -> (Value, Back Value)
+split (v :$ vs) = (vfree v, vs)
+split v         = (v, Nil)
