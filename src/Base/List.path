@@ -16,14 +16,14 @@ consf = \ a b _ cons . cons a b
 List : Type -> Type
 List = \ a . Fix (ListF a)
 
-nil : { a : Type } -> List a
+nil : List a
 nil = in nilf
 
-cons : { a : Type } -> a -> List a -> List a
+cons : a -> List a -> List a
 cons = \ h t . in (consf h t)
 
 
-append : { a : Type } -> List a -> List a -> List a
+append : List a -> List a -> List a
 append = \ xs ys . xs (\ k f . f ys (\ x xs . cons x (k xs)))
 
 
