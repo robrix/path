@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase #-}
 module Path.Back where
 
+import Data.Foldable (foldl')
 import Prelude hiding (filter, lookup)
 
 data Back a = Nil | Back a :> a
@@ -17,6 +18,9 @@ instance Monoid (Back a) where
   mempty = Nil
   mappend = (<>)
 
+
+fromList :: [a] -> Back a
+fromList = foldl' (:>) Nil
 
 find :: (a -> Bool) -> Back a -> Maybe a
 find p = \case
