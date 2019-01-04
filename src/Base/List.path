@@ -24,8 +24,8 @@ cons = \ h t . in (consf h t)
 
 
 append : { a : Type } -> List a -> List a -> List a
-append = \ xs ys . xs (\ _ k f . f ys (\ x xs . cons x (k xs)))
+append = \ xs ys . xs (\ k f . f ys (\ x xs . cons x (k xs)))
 
 
 map : Functor List
-map = \ _ b f l . l (List b) (\ _ k g . g (List b) (nil b) (\ a as . cons b (f a) (k as)))
+map = \ f l . l (\ k g . g nil (\ a as . cons (f a) (k as)))
