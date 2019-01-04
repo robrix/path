@@ -143,7 +143,7 @@ instance ( Carrier sig m
               unless (sigma >< pi == More) . when (pi /= used) $
                 ResourceMismatch n pi used <$> askSpan <*> pure (uses n tm) >>= throwError
 
-    Unify (Value.Type ::: Value.Type :===: Value.Type ::: Value.Type) h k -> h Value.Type >>= k
+    Unify (t1 ::: k1 :===: t2 ::: k2) h k | k1 == k2, t1 == t2 -> h t1 >>= k
     Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
       | p1 == p2, u1 == u2 -> step (U q) $ do
         n <- freshName "_unify_"
