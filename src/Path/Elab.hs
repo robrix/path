@@ -145,33 +145,45 @@ instance ( Carrier sig m
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn) (k <=< h))
-    Unify q@(Local (Meta m1) Value.:$ sp1 ::: _ :===: v2 Value.:$ sp2 ::: ty2) h k
-      | length sp1 == length sp2 -> step (U q) $ do
-        found <- lookupMeta m1
-        case found of
-          Left (v ::: t) -> unify (v $$* sp1 ::: t :===: v2 Value.:$ sp2 ::: ty2) h >>= k
-          Right t
-            -- FIXME: this should only throw for strong rigid occurrences
-            | Local (Meta m1) `Set.member` fvs (v2 Value.:$ sp2) -> throwElabError (InfiniteType (Local (Meta m1)) (v2 Value.:$ sp2))
-            | otherwise -> do
-              ty2 <- lookupVar v2
-              unify (t ::: Value.Type :===: ty2 ::: Value.Type) (\ t -> do
-                ElabC (modify (List.delete (m1 ::: t)))
-                ElabC (modify (:> (m1 := vfree v2 ::: t)))
-                unifySpines q t (toList sp1) (toList sp2) >>= h . (vfree v2 $$*) >>= k)
-    Unify q@(_ Value.:$ sp1 ::: _ :===: Local (Meta _) Value.:$ sp2 ::: _) h k | length sp1 == length sp2 -> unify (sym q) (k <=< h)
-    Unify q@(Local (Meta m1) Value.:$ Nil ::: _ :===: t2 ::: ty2) h k -> step (U q) $ do
+    Unify q@(Local (Meta m1) Value.:$ sp1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
       found <- lookupMeta m1
       case found of
-        Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
+        Left (v ::: t) -> unify (v $$* sp1 ::: t :===: t2 ::: ty2) (k <=< h)
         Right t
           -- FIXME: this should only throw for strong rigid occurrences
           | Local (Meta m1) `Set.member` fvs t2 -> throwElabError (InfiniteType (Local (Meta m1)) t2)
           | otherwise -> do
-            ElabC (modify (List.delete (m1 ::: t)))
-            ElabC (modify (:> (m1 := t2 ::: t)))
-            h t2 >>= k
-    Unify q@(_ :===: Local (Meta _) Value.:$ _ ::: _) h k -> step (U q) $ unify (sym q) (k <=< h)
+            let (t2', sp2) = split t2
+                (rest, common) = Back.alignWith (,) sp1 sp2
+                lookupTy (v Value.:$ _) _  = lookupVar v
+                lookupTy _              ty = pure ty
+                unifySpines _                  []              = pure []
+                unifySpines (Value.Pi _ _ t b) ((a1, a2) : as) = unify (a1 ::: t :===: a2 ::: t) (\ a -> (a:) <$> unifySpines (b a) as)
+                unifySpines _                  _               = askSteps >>= throwElabError . TypeMismatch q
+                apply []     ty                 = pure ty
+                apply (a:as) (Value.Pi _ _ _ b) = apply as (b a)
+                apply _      _                  = askSteps >>= throwElabError . TypeMismatch q
+            case rest of
+              Nothing -> do -- spines are equal in length
+                -- solve m1 with t2' and zip the common spines
+                ty2' <- lookupTy t2' ty2
+                unify (t ::: Value.Type :===: ty2' ::: Value.Type) (\ ty -> do
+                  ElabC (modify (List.delete (m1 ::: t)))
+                  ElabC (modify (:> (m1 := t2' ::: ty)))
+                  unifySpines ty (toList common) >>= h . (t2' $$*) >>= k)
+              Just (Left  _) -> do -- lhs has a longer spine
+                -- eval t2' to whnf and try again
+                t2' <- whnf t2
+                unify (Local (Meta m1) Value.:$ sp1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
+              Just (Right sp2') -> do -- rhs has a longer spine
+                -- solve m1 with (t2' $$* sp2') and zip the common spines    _
+                ty2' <- lookupTy t2' ty2 >>= apply (toList sp2')
+                let t2'' = t2' $$* sp2'
+                unify (t ::: Value.Type :===: ty2' ::: Value.Type) (\ ty -> do
+                  ElabC (modify (List.delete (m1 ::: t)))
+                  ElabC (modify (:> (m1 := t2'' ::: ty)))
+                  unifySpines ty (toList common) >>= h . (t2'' $$*) >>= k)
+    Unify q@(_ :===: Local (Meta _) Value.:$ _ ::: _) h k -> unify (sym q) (k <=< h)
     Unify q@(v1 Value.:$ sp1 ::: _ :===: v2 Value.:$ sp2 ::: _) h k
       -- FIXME: Allow twin variables in these positions.
       | v1 == v2, length sp1 == length sp2 -> step (U q) $ do
