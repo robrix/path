@@ -10,7 +10,7 @@ import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
-import Data.Foldable (foldl', for_)
+import Data.Foldable (fold, foldl', for_)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
@@ -222,7 +222,9 @@ instance ( Carrier sig m
           step s (ElabC m) = ElabC (local (s:) m)
 
           askSteps = ElabC ask
-          askContext = ElabC ask
+          askContext = Context.nub . fold <$> sequenceA [metaContext, existentialContext, ElabC ask]
+          metaContext = ElabC (Context . fmap solBinding <$> get)
+          existentialContext = ElabC (Context . Back.fromList . map (fmap Meta) <$> get)
           askSpan = ElabC ask
           askSigma = ElabC ask
           withSpan span (ElabC m) = ElabC (local (const span) m)
