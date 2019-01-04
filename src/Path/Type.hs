@@ -59,3 +59,8 @@ solType = typedType . solDefn
 
 solBinding :: Solution -> Typed Name
 solBinding (m := _ ::: t) = Meta m ::: t
+
+instance Pretty Solution where
+  pretty (m := v ::: t) = green (pretty m) <+> align (pretty "=" <+> pretty v </> colon <+> pretty t)
+
+instance PrettyPrec Solution
