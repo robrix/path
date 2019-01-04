@@ -68,6 +68,9 @@ solValue = typedTerm . solDefn
 solType :: Solution -> Type
 solType = typedType . solDefn
 
+solBinding :: Solution -> Typed Name
+solBinding (m := _ ::: t) = Meta m ::: t
+
 
 runElab :: ( Carrier sig m
            , Effect sig
