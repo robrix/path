@@ -39,10 +39,10 @@ vfree :: QName -> Value
 vfree = (:$ Nil)
 
 ($$) :: Value -> Value -> Value
-Lam b $$  v = b v
+Lam b      $$ v = b v
 Pi _ _ _ b $$ v = b v
-n :$ vs $$ v = n :$ (vs :> v)
-f $$ a = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty a)))
+n :$ vs    $$ v = n :$ (vs :> v)
+f          $$ v = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty v)))
 
 ($$*) :: Foldable t => Value -> t Value -> Value
 v $$* sp = foldl' ($$) v sp
