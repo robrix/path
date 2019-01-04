@@ -80,7 +80,7 @@ runElab :: ( Carrier sig m
         -> Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
 runElab sigma span = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runReader mempty . runReader [] . runReader span . runReader sigma . runElabC . interpret
-  where apply sols tm = foldl' compose id sols <$> tm
+  where apply sols tm = eval mempty . quote 0 . foldl' compose id sols <$> tm
         compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
 
 newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Span (Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))))))) a }
