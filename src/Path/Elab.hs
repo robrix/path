@@ -50,27 +50,6 @@ instance Effect Elab where
   handle state handler (Check  tm   k) = Check  tm                            (handler . (<$ state) . k)
   handle state handler (Unify  eq h k) = Unify  eq (handler . (<$ state) . h) (handler . fmap k)
 
-data Solution
-  = Meta := Typed Value
-  deriving (Eq, Ord, Show)
-
-infix 5 :=
-
-solMeta :: Solution -> Meta
-solMeta (m := _) = m
-
-solDefn :: Solution -> Typed Value
-solDefn (_ := d) = d
-
-solValue :: Solution -> Value
-solValue = typedTerm . solDefn
-
-solType :: Solution -> Type
-solType = typedType . solDefn
-
-solBinding :: Solution -> Typed Name
-solBinding (m := _ ::: t) = Meta m ::: t
-
 
 runElab :: ( Carrier sig m
            , Effect sig

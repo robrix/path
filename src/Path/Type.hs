@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 module Path.Type where
 
+import Path.Name
 import Path.Pretty
 import Path.Value
 
@@ -36,3 +37,25 @@ instance PrettyPrec Equation
 
 sym :: Equation -> Equation
 sym (t1 :===: t2) = t2 :===: t1
+
+
+data Solution
+  = Meta := Typed Value
+  deriving (Eq, Ord, Show)
+
+infix 5 :=
+
+solMeta :: Solution -> Meta
+solMeta (m := _) = m
+
+solDefn :: Solution -> Typed Value
+solDefn (_ := d) = d
+
+solValue :: Solution -> Value
+solValue = typedTerm . solDefn
+
+solType :: Solution -> Type
+solType = typedType . solDefn
+
+solBinding :: Solution -> Typed Name
+solBinding (m := _ ::: t) = Meta m ::: t
