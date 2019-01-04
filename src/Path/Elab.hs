@@ -104,12 +104,12 @@ instance ( Carrier sig m
       R (Core.Var n) -> do
         t <- lookupVar n >>= whnf
         sigma <- askSigma
-        elabImplicits (In (Core.Var n) t) (Resources.singleton n One) (k . fmap (sigma ><<))
-        where elabImplicits tm res k
+        elabImplicits (In (Core.Var n) t) (Resources.singleton n One) >>= k . fmap (sigma ><<)
+        where elabImplicits tm res
                 | Value.Pi Im _ t b <- ann tm = do
                   n <- exists t
-                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n)))) (Resources.singleton (Local n) One <> res) k
-                | otherwise = k (tm, res)
+                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n)))) (Resources.singleton (Local n) One <> res)
+                | otherwise = pure (tm, res)
       R (f :$ a) -> do
         (f', g1) <- infer f
         f'' <- whnf (ann f')
