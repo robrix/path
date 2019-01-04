@@ -92,7 +92,7 @@ instance ( Carrier sig m
                   n <- exists t
                   elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n)))) (Resources.singleton (Local n) One <> res)
                 | otherwise = pure (tm, res)
-      R (f :$ a) -> do
+      R (f Core.:$ a) -> do
         (f', g1) <- infer f
         f'' <- whnf (ann f')
         case f'' of
@@ -113,7 +113,7 @@ instance ( Carrier sig m
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       L (Core.Hole n) ::: ty -> throwElabError (TypedHole n ty)
-      _ ::: _ :& (_ :.: _) -> do
+      _ ::: (_ :.: _) Value.:$ _ -> do
         ty' <- whnf ty
         check (tm ::: ty') >>= k
       _ ::: ty -> do
@@ -145,22 +145,22 @@ instance ( Carrier sig m
         -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
         unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
           n ::: t |- unify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn) (k <=< h))
-    Unify q@(sp1 :& Local (Meta m1) ::: _ :===: sp2 :& v2 ::: ty2) h k
+    Unify q@(Local (Meta m1) Value.:$ sp1 ::: _ :===: v2 Value.:$ sp2 ::: ty2) h k
       | length sp1 == length sp2 -> step (U q) $ do
         found <- lookupMeta m1
         case found of
-          Left (v ::: t) -> unify (v $$* sp1 ::: t :===: sp2 :& v2 ::: ty2) h >>= k
+          Left (v ::: t) -> unify (v $$* sp1 ::: t :===: v2 Value.:$ sp2 ::: ty2) h >>= k
           Right t
             -- FIXME: this should only throw for strong rigid occurrences
-            | Local (Meta m1) `Set.member` fvs (sp2 :& v2) -> throwElabError (InfiniteType (Local (Meta m1)) (sp2 :& v2))
+            | Local (Meta m1) `Set.member` fvs (v2 Value.:$ sp2) -> throwElabError (InfiniteType (Local (Meta m1)) (v2 Value.:$ sp2))
             | otherwise -> do
               ty2 <- lookupVar v2
               unify (t ::: Value.Type :===: ty2 ::: Value.Type) (\ t -> do
                 ElabC (modify (List.delete (m1 ::: t)))
-                ElabC (modify (:> (m1 := Nil :& v2 ::: t)))
+                ElabC (modify (:> (m1 := vfree v2 ::: t)))
                 unifySpines q t sp1 sp2 >>= h . (vfree v2 $$*) >>= k)
-    Unify q@(sp1 :& _ ::: _ :===: sp2 :& Local (Meta _) ::: _) h k | length sp1 == length sp2 -> unify (sym q) (k <=< h)
-    Unify q@(Nil :& Local (Meta m1) ::: _ :===: t2 ::: ty2) h k -> step (U q) $ do
+    Unify q@(_ Value.:$ sp1 ::: _ :===: Local (Meta _) Value.:$ sp2 ::: _) h k | length sp1 == length sp2 -> unify (sym q) (k <=< h)
+    Unify q@(Local (Meta m1) Value.:$ Nil ::: _ :===: t2 ::: ty2) h k -> step (U q) $ do
       found <- lookupMeta m1
       case found of
         Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
@@ -171,18 +171,18 @@ instance ( Carrier sig m
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
             h t2 >>= k
-    Unify q@(_ :===: Nil :& Local (Meta _) ::: _) h k -> step (U q) $ unify (sym q) (k <=< h)
-    Unify q@(sp1 :& v1 ::: _ :===: sp2 :& v2 ::: _) h k
+    Unify q@(_ :===: Local (Meta _) Value.:$ _ ::: _) h k -> step (U q) $ unify (sym q) (k <=< h)
+    Unify q@(v1 Value.:$ sp1 ::: _ :===: v2 Value.:$ sp2 ::: _) h k
       -- FIXME: Allow twin variables in these positions.
       | v1 == v2, length sp1 == length sp2 -> step (U q) $ do
         ty1 <- lookupVar v1
         ty2 <- lookupVar v2
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
-          unifySpines q ty sp1 sp2 >>= h . (:& v1) >>= k)
-    Unify q@(t1@(_ :& (_ :.: _)) ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
+          unifySpines q ty sp1 sp2 >>= h . (v1 Value.:$) >>= k)
+    Unify q@(t1@((_ :.: _) Value.:$ _) ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
       t1' <- whnf t1
       unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
-    Unify q@(t1 ::: ty1 :===: t2@(_ :& (_ :.: _)) ::: ty2) h k -> step (U q) $ do
+    Unify q@(t1 ::: ty1 :===: t2@((_ :.: _) Value.:$ _) ::: ty2) h k -> step (U q) $ do
       t2' <- whnf t2
       unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do

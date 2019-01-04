@@ -15,7 +15,7 @@ data Value
   = Type                                    -- ^ @'Type' : 'Type'@.
   | Lam                    (Value -> Value) -- ^ A lambda abstraction.
   | Pi Plicity Usage Value (Value -> Value) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Back Value :& QName                     -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
+  | QName :$ Back Value                     -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
 
 instance Eq Value where
   (==) = (==) `on` quote 0
@@ -36,12 +36,12 @@ instance FreeVariables QName Value where
   fvs = fvs . quote 0
 
 vfree :: QName -> Value
-vfree = (Nil :&)
+vfree = (:$ Nil)
 
 ($$) :: Value -> Value -> Value
 Lam b $$  v = b v
 Pi _ _ _ b $$ v = b v
-vs :& n $$ v = (vs :> v) :& n
+n :$ vs $$ v = n :$ (vs :> v)
 f $$ a = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty a)))
 
 ($$*) :: Value -> Back Value -> Value
@@ -59,7 +59,7 @@ quote i = \case
   Type -> In Core.Type ()
   Lam b -> In (Core.Lam (Gensym "" i) (quote (succ i) (b (vfree (Local (Gensym "" i)))))) ()
   Pi p u t b -> In (Core.Pi (Gensym "" i) p u (quote i t) (quote (succ i) (b (vfree (Local (Gensym "" i)))))) ()
-  sp :& v -> foldl' app (In (Core.Var v) ()) sp
+  v :$ sp -> foldl' app (In (Core.Var v) ()) sp
   where app f a = In (f Core.:$ quote i a) ()
 
 
@@ -72,9 +72,9 @@ subst q r = go
           Type -> Type
           Lam b -> Lam (go . b)
           Pi p u t b -> Pi p u (go t) (go . b)
-          sp :& v
+          v :$ sp
             | q == v    -> r $$* (go <$> sp)
-            | otherwise -> fmap go sp :& v
+            | otherwise -> v :$ fmap go sp
 
 generalizeType :: Value -> Value
 generalizeType ty = foldr bind ty (localNames (fvs ty))

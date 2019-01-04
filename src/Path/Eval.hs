@@ -17,7 +17,7 @@ eval env = \case
   In (Core.Var (Local n)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
   In (Core.Var (m :.: n)) _ -> vfree (m :.: n)
   In (Core.Lam n b) _ -> Value.Lam (\ v -> eval (Env.insert n v env) b)
-  In (f :$ a) _ -> eval env f $$ eval env a
+  In (f Core.:$ a) _ -> eval env f $$ eval env a
   In Core.Type _ -> Value.Type
   In (Core.Pi n p u t b) _ -> Value.Pi p u (eval env t) (\ v -> eval (Env.insert n v env) b)
 
@@ -25,5 +25,5 @@ eval env = \case
 --
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
 whnf :: (Carrier sig m, Member (Reader Scope) sig, Monad m) => Value -> m Value
-whnf (sp :& (m :.: n)) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure (sp :& (m :.: n))) (whnf . ($$* sp))
-whnf v                 = pure v
+whnf ((m :.: n) Value.:$ sp) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure ((m :.: n) Value.:$ sp)) (whnf . ($$* sp))
+whnf v                       = pure v
