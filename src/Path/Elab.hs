@@ -200,12 +200,12 @@ instance ( Carrier sig m
 
           step s (ElabC m) = ElabC (local (s:) m)
 
-          throwElabError reason = ElabError <$> askSpan <*> askContext <*> pure reason >>= throwError
+          throwElabError reason = ElabError <$> askSpan <*> askContext <*> existentialContext <*> pure reason >>= throwError
 
           askSteps = ElabC ask
-          askContext = Context.nub . fold <$> sequenceA [metaContext, existentialContext, ElabC ask]
+          askContext = Context.nub . fold <$> sequenceA [metaContext, ElabC ask]
           metaContext = ElabC (Context . fmap solBinding <$> get)
-          existentialContext = ElabC (Context . Back.fromList . map (fmap Meta) <$> get)
+          existentialContext = ElabC get
           askSpan = ElabC ask
           askSigma = ElabC ask
           withSpan span (ElabC m) = ElabC (local (const span) m)
