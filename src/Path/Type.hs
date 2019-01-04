@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveTraversable #-}
 module Path.Type where
 
 import Path.Pretty
@@ -6,7 +7,7 @@ import Path.Value
 type Type = Value
 
 data Typed a = a ::: Type
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 typedTerm :: Typed a -> a
 typedTerm (a ::: _) = a
