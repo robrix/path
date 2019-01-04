@@ -1,6 +1,7 @@
 module Path.Error where
 
-import Data.Foldable (fold)
+import Data.Foldable (fold, toList)
+import Path.Back
 import Path.Context as Context
 import Path.Name
 import Path.Pretty
@@ -26,6 +27,7 @@ data ElabError = ElabError
   { errorSpan         :: Span
   , errorContext      :: Context
   , errorExistentials :: [Typed Meta]
+  , errorSolutions    :: Back Solution
   , errorReason       :: ErrorReason
   }
   deriving (Eq, Ord, Show)
@@ -41,7 +43,7 @@ data ErrorReason
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
-  pretty (ElabError span ctx existentials reason) = case reason of
+  pretty (ElabError span ctx existentials solutions reason) = case reason of
     FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
     TypeMismatch (expected :===: actual) steps -> prettyErr span (fold (punctuate hardline
       [ pretty "type mismatch"
@@ -58,6 +60,7 @@ instance Pretty ElabError where
     where prettyCtx ctx
             =  unless (Context.null ctx)          "Local bindings" [pretty ctx]
             <> unless (Prelude.null existentials) "Existentials"   (map prettyExistential existentials)
+            <> unless (Prelude.null solutions)    "Solutions"      (map pretty (toList solutions))
           unless c t d = if c then [] else [nest 2 (vsep (pretty t <> colon : d))]
           prettyStep step = magenta (bold (pretty "via")) <+> align (pretty step)
           prettyExistential (m ::: t) = pretty "∃" <+> green (pretty m) <+> colon <+> pretty t
