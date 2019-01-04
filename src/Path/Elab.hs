@@ -120,8 +120,8 @@ instance ( Carrier sig m
           Value.Pi _ pi t b -> do
             (a', g2) <- check (a ::: t)
             k (In (f' Core.:$ a') (b (eval mempty a')), g1 <> pi ><< g2)
-          _ -> IllegalApplication f'' <$> askContext <*> askSpan >>= throwError
-      _ -> NoRuleToInfer <$> askContext <*> askSpan >>= throwError
+          _ -> throwElabError (IllegalApplication f'')
+      _ -> throwElabError NoRuleToInfer
 
     Check (tm ::: ty) k -> withSpan (ann tm) . step (C (ann tm ::: ty)) $ case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
@@ -133,7 +133,7 @@ instance ( Carrier sig m
         (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
         verifyResources n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
-      L (Core.Hole n) ::: ty -> TypedHole n ty <$> askContext <*> askSpan >>= throwError
+      L (Core.Hole n) ::: ty -> throwElabError (TypedHole n ty)
       _ ::: _ :& (_ :.: _) -> do
         ty' <- whnf ty
         check (tm ::: ty') >>= k
@@ -144,7 +144,7 @@ instance ( Carrier sig m
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
               unless (sigma >< pi == More) . when (pi /= used) $
-                ResourceMismatch n pi used <$> askSpan <*> pure (uses n tm) >>= throwError
+                throwElabError (ResourceMismatch n pi used (uses n tm))
 
     Unify (t1 ::: k1 :===: t2 ::: k2) h k | k1 == k2, t1 == t2 -> h t1 >>= k
     Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
@@ -173,7 +173,7 @@ instance ( Carrier sig m
           Left (v ::: t) -> unify (v $$* sp1 ::: t :===: sp2 :& v2 ::: ty2) h >>= k
           Right t
             -- FIXME: this should only throw for strong rigid occurrences
-            | Local (Meta m1) `Set.member` fvs (sp2 :& v2) -> askSpan >>= throwError . InfiniteType (Local (Meta m1)) (sp2 :& v2)
+            | Local (Meta m1) `Set.member` fvs (sp2 :& v2) -> throwElabError (InfiniteType (Local (Meta m1)) (sp2 :& v2))
             | otherwise -> do
               ty2 <- lookupVar v2
               unify (t ::: Value.Type :===: ty2 ::: Value.Type) (\ t -> do
@@ -187,7 +187,7 @@ instance ( Carrier sig m
         Left (v ::: t) -> unify (v ::: t :===: t2 ::: ty2) h >>= k
         Right t
           -- FIXME: this should only throw for strong rigid occurrences
-          | Local (Meta m1) `Set.member` fvs t2 -> askSpan >>= throwError . InfiniteType (Local (Meta m1)) t2
+          | Local (Meta m1) `Set.member` fvs t2 -> throwElabError (InfiniteType (Local (Meta m1)) t2)
           | otherwise -> do
             ElabC (modify (List.delete (m1 ::: t)))
             ElabC (modify (:> (m1 := t2 ::: t)))
@@ -208,18 +208,20 @@ instance ( Carrier sig m
       unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
     Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
       unless (ty1 == ty2) $
-        TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type) <$> askSteps <*> askContext <*> askSpan >>= throwError
+        askSteps >>= throwElabError . TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type)
       unless (t1 == t2) $
-        TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)        <$> askSteps <*> askContext <*> askSpan >>= throwError
+        askSteps >>= throwElabError . TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)
       h t1 >>= k)
     where unifySpines _ _                  Nil         Nil         h = h Nil
           unifySpines q (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) h = unify (a1 ::: t :===: a2 ::: t) (\ a -> unifySpines q (b a) as1 as2 (\ as -> h (as :> a)))
-          unifySpines q _                  _           _           _ = TypeMismatch q <$> askSteps <*> askContext <*> askSpan >>= throwError
+          unifySpines q _                  _           _           _ = askSteps >>= throwElabError . TypeMismatch q
 
           n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
 
           step s (ElabC m) = ElabC (local (s:) m)
+
+          throwElabError reason = ElabError <$> askSpan <*> askContext <*> pure reason >>= throwError
 
           askSteps = ElabC ask
           askContext = Context.nub . fold <$> sequenceA [metaContext, existentialContext, ElabC ask]
@@ -237,12 +239,12 @@ instance ( Carrier sig m
 
           whnf = ElabC . Eval.whnf
 
-          lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (FreeVariable (m :.: n) <$> askSpan >>= throwError) (pure . entryType)
+          lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar (Local (Meta m)) = either typedType id <$> lookupMeta m
-          lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (FreeVariable (Local n) <$> askSpan >>= throwError) pure
+          lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
           lookupMeta m = foldr (\ m rest -> ElabC m >>= maybe rest pure)
-            (FreeVariable (Local (Meta m)) <$> askSpan >>= throwError)
+            (throwElabError (FreeVariable (Local (Meta m))))
             [ gets (fmap (Left  . solDefn)   . Back.find     ((== m) . solMeta))
             , gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))
             ]
