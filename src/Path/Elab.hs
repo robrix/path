@@ -10,7 +10,7 @@ import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
-import Data.Foldable (foldl', for_)
+import Data.Foldable (foldl', for_, toList)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
@@ -158,7 +158,7 @@ instance ( Carrier sig m
               unify (t ::: Value.Type :===: ty2 ::: Value.Type) (\ t -> do
                 ElabC (modify (List.delete (m1 ::: t)))
                 ElabC (modify (:> (m1 := vfree v2 ::: t)))
-                unifySpines q t sp1 sp2 >>= h . (vfree v2 $$*) >>= k)
+                unifySpines q t (toList sp1) (toList sp2) >>= h . (vfree v2 $$*) >>= k)
     Unify q@(_ Value.:$ sp1 ::: _ :===: Local (Meta _) Value.:$ sp2 ::: _) h k | length sp1 == length sp2 -> unify (sym q) (k <=< h)
     Unify q@(Local (Meta m1) Value.:$ Nil ::: _ :===: t2 ::: ty2) h k -> step (U q) $ do
       found <- lookupMeta m1
@@ -178,7 +178,7 @@ instance ( Carrier sig m
         ty1 <- lookupVar v1
         ty2 <- lookupVar v2
         unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
-          unifySpines q ty sp1 sp2 >>= h . (v1 Value.:$) >>= k)
+          unifySpines q ty (toList sp1) (toList sp2) >>= h . (vfree v1 $$*) >>= k)
     Unify q@(t1@((_ :.: _) Value.:$ _) ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
       t1' <- whnf t1
       unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
@@ -191,9 +191,9 @@ instance ( Carrier sig m
       unless (t1 == t2) $
         askSteps >>= throwElabError . TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)
       h t1 >>= k)
-    where unifySpines _ _                  Nil         Nil         = pure Nil
-          unifySpines q (Value.Pi _ _ t b) (as1 :> a1) (as2 :> a2) = unify (a1 ::: t :===: a2 ::: t) (\ a -> (:> a) <$> unifySpines q (b a) as1 as2)
-          unifySpines q _                  _           _           = askSteps >>= throwElabError . TypeMismatch q
+    where unifySpines _ _                  []         []         = pure []
+          unifySpines q (Value.Pi _ _ t b) (a1 : as1) (a2 : as2) = unify (a1 ::: t :===: a2 ::: t) (\ a -> (a:) <$> unifySpines q (b a) as1 as2)
+          unifySpines q _                  _          _          = askSteps >>= throwElabError . TypeMismatch q
 
           n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
