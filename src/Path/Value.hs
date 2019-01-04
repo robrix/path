@@ -44,7 +44,7 @@ Pi _ _ _ b $$ v = b v
 n :$ vs $$ v = n :$ (vs :> v)
 f $$ a = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty a)))
 
-($$*) :: Value -> Back Value -> Value
+($$*) :: Foldable t => Value -> t Value -> Value
 v $$* sp = foldl' ($$) v sp
 
 
