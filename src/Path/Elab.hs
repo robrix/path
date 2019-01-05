@@ -55,9 +55,9 @@ runElab :: ( Carrier sig m
         => Usage
         -> Eff (ElabC m) (Term (Core Name (Typed QName)) Type)
         -> m (Set.Set Equation, (Resources, Term (Core Name (Typed QName)) Type))
-runElab sigma = runState mempty . runWriter . runFresh . runReader mempty . runReader sigma . runElabC . interpret
+runElab sigma = runWriter . runWriter . runFresh . runReader mempty . runReader sigma . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (StateC (Set.Set Equation) m))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (WriterC (Set.Set Equation) m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -133,13 +133,14 @@ instance ( Carrier sig m
               let _A = vfree mA
               mB <- exists _A
               let _B = flip (subst mA) (vfree mB)
-              (More, _A, _B) <$ ElabC (modify (Set.insert (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type)))
+              (More, _A, _B) <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type)))
             _ -> throwElabError span (IllegalApplication t)
 
           unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
             n <- exists ty1
             let vn = vfree n
-            vn <$ ElabC (modify (Set.insert (vn ::: ty1 :===: tm1 ::: ty1) . Set.insert (vn ::: ty1 :===: tm2 ::: ty2)))
+            vn <$ ElabC (tell (Set.fromList [ vn ::: ty1 :===: tm1 ::: ty1
+                                            , vn ::: ty1 :===: tm2 ::: ty2 ]))
 
           throwElabError span reason = ElabError span <$> askContext <*> pure reason >>= throwError
 
