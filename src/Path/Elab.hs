@@ -35,8 +35,8 @@ import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
 data Elab (m :: * -> *) k
-  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  (Term (Core Name (Typed QName)) Type -> k)
-  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) (Term (Core Name (Typed QName)) Type -> k)
+  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  (Term (Core (Typed Name) (Typed QName)) Type -> k)
+  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) (Term (Core (Typed Name) (Typed QName)) Type -> k)
   deriving (Functor)
 
 instance HFunctor Elab where
@@ -53,8 +53,8 @@ runElab :: ( Carrier sig m
            , Monad m
            )
         => Usage
-        -> Eff (ElabC m) (Term (Core Name (Typed QName)) Type)
-        -> m (Set.Set Equation, (Resources, Term (Core Name (Typed QName)) Type))
+        -> Eff (ElabC m) (Term (Core (Typed Name) (Typed QName)) Type)
+        -> m (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type))
 runElab sigma = runWriter . runWriter . runFresh . runReader mempty . runReader sigma . runElabC . interpret
 
 newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (WriterC (Set.Set Equation) m))))))))) a }
@@ -73,8 +73,9 @@ instance ( Carrier sig m
       R Core.Type -> k (In Core.Type Value.Type)
       R (Core.Pi n i e t b) -> do
         t' <- check (t ::: Value.Type)
-        b' <- n ::: eval mempty t' |- check (b ::: Value.Type)
-        k (In (Core.Pi n i e t' b') Value.Type)
+        let t'' = eval mempty t'
+        b' <- n ::: t'' |- check (b ::: Value.Type)
+        k (In (Core.Pi (n ::: t'') i e t' b') Value.Type)
       R (Core.Var n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
@@ -95,7 +96,7 @@ instance ( Carrier sig m
         mt <- exists Value.Type
         let t = vfree mt
         e' <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
-        k (In (Core.Lam n e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
+        k (In (Core.Lam (n ::: t) e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
       L (Core.Hole _) -> do
         ty <- exists Value.Type
         m <- exists (vfree ty)
@@ -105,11 +106,11 @@ instance ( Carrier sig m
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
         (res, e') <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n))))
         verifyResources (ann tm) n pi res
-        k (In (Core.Lam n e') ty)
+        k (In (Core.Lam (n ::: t) e') ty)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
         (res, e') <- n ::: t |- raise listen (check (e ::: b (vfree (Local n))))
         verifyResources (ann tm) n pi res
-        k (In (Core.Lam n e') ty)
+        k (In (Core.Lam (n ::: t) e') ty)
       L (Core.Hole _) ::: ty -> do
         m <- exists ty
         k (In (Core.Var (m ::: ty)) ty)
@@ -159,12 +160,12 @@ instance ( Carrier sig m
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core Name (Typed QName)) Type)
+      -> m (Term (Core (Typed Name) (Typed QName)) Type)
 infer tm = send (Infer tm ret)
 
 check :: (Carrier sig m, Member Elab sig)
       => Typed (Term (Implicit QName :+: Core Name QName) Span)
-      -> m (Term (Core Name (Typed QName)) Type)
+      -> m (Term (Core (Typed Name) (Typed QName)) Type)
 check tm = send (Check tm ret)
 
 
@@ -179,7 +180,7 @@ elabModule :: ( Carrier sig m
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Module QName (Set.Set Equation, (Resources, Term (Core Name (Typed QName)) Type)))
+           -> m (Module QName (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type)))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -206,7 +207,7 @@ elabDecl :: ( Carrier sig m
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m (Decl QName (Set.Set Equation, (Resources, Term (Core Name (Typed QName)) Type)))
+         -> m (Decl QName (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type)))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -220,7 +221,7 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m (Set.Set Equation, (Resources, Term (Core Name (Typed QName)) Type))
+            -> m (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type))
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (eval mempty (snd (snd elab)))))
@@ -235,7 +236,7 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m (Set.Set Equation, (Resources, Term (Core Name (Typed QName)) Type))
+           -> m (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type))
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
