@@ -1,28 +1,8 @@
-{-# LANGUAGE DeriveTraversable #-}
 module Path.Type where
 
 import Path.Name
 import Path.Pretty
 import Path.Value
-
-type Type = Value
-
-data Typed a = a ::: Type
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-typedTerm :: Typed a -> a
-typedTerm (a ::: _) = a
-
-typedType :: Typed a -> Type
-typedType (_ ::: t) = t
-
-infix 6 :::
-
-instance Pretty a => Pretty (Typed a) where
-  pretty (a ::: t) = pretty a <+> colon <+> pretty t
-
-instance Pretty a => PrettyPrec (Typed a)
-
 
 data Equation
   = Typed Value :===: Typed Value

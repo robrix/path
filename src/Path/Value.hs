@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Value where
 
 import Data.Foldable (foldl')
@@ -88,3 +88,22 @@ generalizeValue = go 0
 split :: Value -> (Value, Back Value)
 split (v :$ vs) = (vfree v, vs)
 split v         = (v, Nil)
+
+
+type Type = Value
+
+data Typed a = a ::: Type
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+typedTerm :: Typed a -> a
+typedTerm (a ::: _) = a
+
+typedType :: Typed a -> Type
+typedType (_ ::: t) = t
+
+infix 6 :::
+
+instance Pretty a => Pretty (Typed a) where
+  pretty (a ::: t) = pretty a <+> colon <+> pretty t
+
+instance Pretty a => PrettyPrec (Typed a)

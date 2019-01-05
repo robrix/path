@@ -6,6 +6,7 @@ import Path.Name
 import Path.Pretty
 import Path.Type
 import Path.Usage
+import Path.Value
 import Text.Trifecta.Rendering (Span)
 
 data ElabError = ElabError

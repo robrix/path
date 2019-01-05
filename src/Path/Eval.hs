@@ -10,7 +10,6 @@ import Path.Env as Env
 import Path.Name
 import Path.Scope as Scope
 import Path.Term
-import Path.Type
 import Path.Value as Value
 
 eval :: Env -> Term (Core Name (Typed QName)) a -> Value
