@@ -51,12 +51,11 @@ runElab :: ( Carrier sig m
            , Monad m
            )
         => Usage
-        -> Span
         -> Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab sigma span = runFresh . runReader mempty . runReader span . runReader sigma . runElabC . interpret
+runElab sigma = runFresh . runReader mempty . runReader sigma . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Span (Eff (ReaderC Context (Eff (FreshC m))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC m))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -67,15 +66,15 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
-    Infer tm k -> withSpan (ann tm) $ case out tm of
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+    Infer tm k -> case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
         (t', _) <- check (t ::: Value.Type)
         (b', _) <- n ::: eval mempty t' |- check (b ::: Value.Type)
         k (In (Core.Pi n i e t' b') Value.Type, mempty)
       R (Core.Var n) -> do
-        t <- lookupVar n >>= whnf
+        t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
         elabImplicits (In (Core.Var n) t) (Resources.singleton n One) >>= k . fmap (sigma ><<)
         where elabImplicits tm res
@@ -90,48 +89,46 @@ instance ( Carrier sig m
           Value.Pi _ pi t b -> do
             (a', g2) <- check (a ::: t)
             k (In (f' Core.:$ a') (b (eval mempty a')), g1 <> pi ><< g2)
-          _ -> throwElabError (IllegalApplication f'')
-      _ -> throwElabError NoRuleToInfer
+          _ -> throwElabError (ann tm) (IllegalApplication f'')
+      _ -> throwElabError (ann tm) NoRuleToInfer
 
-    Check (tm ::: ty) k -> withSpan (ann tm) $ case (out tm ::: ty) of
+    Check (tm ::: ty) k -> case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
         n <- freshName "_implicit_"
         (e', res) <- n ::: t |- check (tm ::: b (vfree (Local n)))
-        verifyResources n pi res
+        verifyResources (ann tm) n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> do
         (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
-        verifyResources n pi res
+        verifyResources (ann tm) n pi res
         k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
-      L (Core.Hole n) ::: ty -> throwElabError (TypedHole n ty)
+      L (Core.Hole n) ::: ty -> throwElabError (ann tm) (TypedHole n ty)
       _ ::: ty -> do
         (tm', res) <- infer tm
-        unified <- unify (ty ::: Value.Type :===: ann tm' ::: Value.Type)
+        unified <- unify (ann tm) (ty ::: Value.Type :===: ann tm' ::: Value.Type)
         k (tm' { ann = unified }, res)
-      where verifyResources n pi br = do
+      where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
               unless (sigma >< pi == More) . when (pi /= used) $
-                throwElabError (ResourceMismatch n pi used (uses n tm)))
+                throwElabError span (ResourceMismatch n pi used (uses n tm)))
     where n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
 
-          unify q@(t1 ::: _ :===: t2 ::: _) = if t1 == t2 then pure t1 else throwElabError (TypeMismatch q)
+          unify span q@(t1 ::: _ :===: t2 ::: _) = if t1 == t2 then pure t1 else throwElabError span (TypeMismatch q)
 
-          throwElabError reason = ElabError <$> askSpan <*> askContext <*> pure reason >>= throwError
+          throwElabError span reason = ElabError span <$> askContext <*> pure reason >>= throwError
 
           askContext = ElabC ask
-          askSpan = ElabC ask
           askSigma = ElabC ask
-          withSpan span (ElabC m) = ElabC (local (const span) m)
 
           freshName s = Gensym s <$> ElabC fresh
           exists _ = ElabC (Meta . M <$> fresh)
 
           whnf = ElabC . Eval.whnf
 
-          lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
-          lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (FreeVariable (Local n))) pure
+          lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError span (FreeVariable (m :.: n))) (pure . entryType)
+          lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError span (FreeVariable (Local n))) pure
 
 
 infer :: (Carrier sig m, Member Elab sig)
@@ -199,7 +196,7 @@ elabDeclare :: ( Carrier sig m
             -> Term (Implicit QName :+: Core Name QName) Span
             -> m (Term (Core Name QName) Type, Resources Usage)
 elabDeclare name ty = do
-  elab <- runScope (runElab Zero (ann ty) (check (generalize ty ::: Value.Type)))
+  elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (eval mempty (fst elab))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
         bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
@@ -215,7 +212,7 @@ elabDefine :: ( Carrier sig m
            -> m (Term (Core Name QName) Type, Resources Usage)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- runScope (runElab One (ann tm) (maybe (infer tm) (check . (tm :::)) ty))
+  elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
   elab <$ modify (Scope.insert name (Defn (eval mempty (fst elab) ::: ann (fst elab))))
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
