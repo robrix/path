@@ -125,12 +125,10 @@ instance ( Carrier sig m
 
           step s (ElabC m) = ElabC (local (s:) m)
 
-          throwElabError reason = ElabError <$> askSpan <*> askContext <*> existentialContext <*> solutions <*> pure reason >>= throwError
+          throwElabError reason = ElabError <$> askSpan <*> askContext <*> pure reason >>= throwError
 
           askSteps = ElabC ask
           askContext = ElabC ask
-          solutions = ElabC get
-          existentialContext = ElabC get
           askSpan = ElabC ask
           askSigma = ElabC ask
           withSpan span (ElabC m) = ElabC (local (const span) m)

@@ -1,7 +1,6 @@
 module Path.Error where
 
-import Data.Foldable (fold, toList)
-import Path.Back
+import Data.Foldable (fold)
 import Path.Context as Context
 import Path.Name
 import Path.Pretty
@@ -26,8 +25,6 @@ instance PrettyPrec Step
 data ElabError = ElabError
   { errorSpan         :: Span
   , errorContext      :: Context
-  , errorExistentials :: [Typed Meta]
-  , errorSolutions    :: Back Solution
   , errorReason       :: ErrorReason
   }
   deriving (Eq, Ord, Show)
@@ -43,7 +40,7 @@ data ErrorReason
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
-  pretty (ElabError span ctx existentials solutions reason) = case reason of
+  pretty (ElabError span ctx reason) = case reason of
     FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
     TypeMismatch (expected :===: actual) steps -> prettyErr span (fold (punctuate hardline
       [ pretty "type mismatch"
@@ -58,11 +55,7 @@ instance Pretty ElabError where
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
     where prettyCtx ctx
-            =  unless (Context.null ctx)          "Local bindings" [pretty ctx]
-            <> unless (Prelude.null existentials) "Existentials"   (map prettyExistential existentials)
-            <> unless (Prelude.null solutions)    "Solutions"      (map pretty (toList solutions))
-          unless c t d = if c then [] else [nest 2 (vsep (pretty t <> colon : d))]
+            =  if (Context.null ctx) then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyStep step = magenta (bold (pretty "via")) <+> align (pretty step)
-          prettyExistential (m ::: t) = pretty "∃" <+> green (pretty m) <+> colon <+> pretty t
 
 instance PrettyPrec ElabError
