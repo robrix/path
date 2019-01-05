@@ -109,7 +109,8 @@ instance ( Carrier sig m
         check (tm ::: ty') >>= k
       _ ::: ty -> do
         (tm', res) <- infer tm
-        unify (ty ::: Value.Type :===: ann tm' ::: Value.Type) $ \ unified -> k (tm' { ann = unified }, res)
+        unified <- unify (ty ::: Value.Type :===: ann tm' ::: Value.Type)
+        k (tm' { ann = unified }, res)
       where verifyResources n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
@@ -118,7 +119,7 @@ instance ( Carrier sig m
     where n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
 
-          unify q@(t1 ::: _ :===: t2 ::: _) h = if t1 == t2 then h t1 else askSteps >>= throwElabError . TypeMismatch q
+          unify q@(t1 ::: _ :===: t2 ::: _) = if t1 == t2 then pure t1 else askSteps >>= throwElabError . TypeMismatch q
 
           step s (ElabC m) = ElabC (local (s:) m)
 
