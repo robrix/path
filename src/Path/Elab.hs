@@ -124,6 +124,12 @@ instance ( Carrier sig m
 
           ensurePi span t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
+            Local (Meta _) Value.:$ _ -> do
+              mA <- exists Value.Type
+              let _A = vfree (Local mA)
+              mB <- exists _A
+              let _B = flip (subst (Local mA)) (vfree (Local mB))
+              (More, _A, _B) <$ ElabC (modify (Set.insert (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type)))
             _ -> throwElabError span (IllegalApplication t)
 
           unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
