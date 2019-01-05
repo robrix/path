@@ -14,6 +14,7 @@ import Data.Bifunctor (first)
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back as Back
@@ -53,10 +54,10 @@ runElab :: ( Carrier sig m
            )
         => Usage
         -> Eff (ElabC m) (Resources Usage, Term (Core Name QName) Type)
-        -> m (Resources Usage, Term (Core Name QName) Type)
-runElab sigma = runFresh . runReader mempty . runReader sigma . runElabC . interpret
+        -> m (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type))
+runElab sigma = runState mempty . runFresh . runReader mempty . runReader sigma . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC m))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (StateC (Set.Set Equation) m))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -67,7 +68,7 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> case out tm of
       R Core.Type -> k (mempty, In Core.Type Value.Type)
       R (Core.Pi n i e t b) -> do
@@ -154,7 +155,7 @@ elabModule :: ( Carrier sig m
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Module QName (Resources Usage, Term (Core Name QName) Type))
+           -> m (Module QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type)))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -181,7 +182,7 @@ elabDecl :: ( Carrier sig m
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m (Decl QName (Resources Usage, Term (Core Name QName) Type))
+         -> m (Decl QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type)))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -195,10 +196,10 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m (Resources Usage, Term (Core Name QName) Type)
+            -> m (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type))
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
-  elab <$ modify (Scope.insert name (Decl (eval mempty (snd elab))))
+  elab <$ modify (Scope.insert name (Decl (eval mempty (snd (snd elab)))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
         bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
@@ -210,11 +211,11 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m (Resources Usage, Term (Core Name QName) Type)
+           -> m (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type))
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
-  elab <$ modify (Scope.insert name (Defn (eval mempty (snd elab) ::: ann (snd elab))))
+  elab <$ modify (Scope.insert name (Defn (eval mempty (snd (snd elab)) ::: ann (snd (snd elab)))))
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
 runScope m = get >>= flip runReader m

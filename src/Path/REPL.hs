@@ -18,6 +18,7 @@ import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
+import qualified Data.Set as Set
 import Data.Traversable (for)
 import Path.Back
 import Path.Core hiding ((:+:))
@@ -156,7 +157,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Resources Usage, Term (Core Name QName) Type)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type))) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -166,14 +167,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab Zero . infer
+            (_, (_, elab)) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab Zero . infer
             print (generalizeType (ann elab))
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar) >>= elabDecl
             loop
           Eval tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab One . infer
+            (_, (_, elab)) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab One . infer
             runScope (whnf (eval mempty elab)) >>= print . generalizeValue (generalizeType (ann elab))
             loop
           Show Bindings -> do
@@ -182,7 +183,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Resources Usage, Term (Core Name QName) Type))
+            let ms = modules (graph :: ModuleGraph QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type)))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -192,7 +193,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Resources Usage, Term (Core Name QName) Type)) of
+            case m :: Maybe (Module QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type))) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
