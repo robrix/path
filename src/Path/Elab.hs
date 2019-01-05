@@ -82,7 +82,7 @@ instance ( Carrier sig m
         where elabImplicits res tm
                 | Value.Pi Im _ t b <- ann tm = do
                   n <- exists t
-                  elabImplicits (Resources.singleton (Local n) One <> res) (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n))))
+                  elabImplicits (Resources.singleton n One <> res) (In (tm Core.:$ In (Core.Var n) t) (b (vfree n)))
                 | otherwise = pure (res, tm)
       R (f Core.:$ a) -> do
         (g1, f') <- infer f
@@ -91,13 +91,13 @@ instance ( Carrier sig m
         k (g1 <> pi ><< g2, In (f' Core.:$ a') (b (eval mempty a')))
       R (Core.Lam n b) -> do
         mt <- exists Value.Type
-        let t = vfree (Local mt)
+        let t = vfree mt
         (res, e') <- n ::: t |- infer b
         k (Resources.delete (Local n) res, In (Core.Lam n e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
       L (Core.Hole _) -> do
         ty <- exists Value.Type
-        m <- exists (vfree (Local ty))
-        k (mempty, In (Core.Var (Local m)) (vfree (Local ty)))
+        m <- exists (vfree ty)
+        k (mempty, In (Core.Var m) (vfree ty))
 
     Check (tm ::: ty) k -> case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
@@ -111,7 +111,7 @@ instance ( Carrier sig m
         k (Resources.delete (Local n) res, In (Core.Lam n e') ty)
       L (Core.Hole _) ::: ty -> do
         m <- exists ty
-        k (mempty, In (Core.Var (Local m)) ty)
+        k (mempty, In (Core.Var m) ty)
       _ ::: ty -> do
         (res, tm') <- infer tm
         unified <- unify (ty ::: Value.Type :===: ann tm' ::: Value.Type)
@@ -126,17 +126,17 @@ instance ( Carrier sig m
 
           ensurePi span t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
-            Local (Meta _) Value.:$ _ -> do
+            Meta _ Value.:$ _ -> do
               mA <- exists Value.Type
-              let _A = vfree (Local mA)
+              let _A = vfree mA
               mB <- exists _A
-              let _B = flip (subst (Local mA)) (vfree (Local mB))
+              let _B = flip (subst mA) (vfree mB)
               (More, _A, _B) <$ ElabC (modify (Set.insert (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type)))
             _ -> throwElabError span (IllegalApplication t)
 
           unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
             n <- exists ty1
-            let vn = vfree (Local n)
+            let vn = vfree n
             vn <$ ElabC (modify (Set.insert (vn ::: ty1 :===: tm1 ::: ty1) . Set.insert (vn ::: ty1 :===: tm2 ::: ty2)))
 
           throwElabError span reason = ElabError span <$> askContext <*> pure reason >>= throwError
@@ -151,6 +151,7 @@ instance ( Carrier sig m
 
           lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError span (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError span (FreeVariable (Local n))) pure
+          lookupVar span (Meta n) = throwElabError span (FreeVariable (Meta n)) 
 
 
 infer :: (Carrier sig m, Member Elab sig)

@@ -11,7 +11,6 @@ import Text.Trifecta.Rendering (Span)
 data Name
   = Name String
   | Gensym String Int
-  | Meta Meta
   | Op Operator
   deriving (Eq, Ord, Show)
 
@@ -19,7 +18,6 @@ instance Pretty Name where
   pretty = \case
     Name s -> pretty s
     Gensym s i -> pretty s <> prettyVar i
-    Meta m -> pretty m
     Op op -> pretty op
 
 instance PrettyPrec Name
@@ -64,12 +62,14 @@ type PackageName = String
 
 data QName
   = ModuleName :.: Name
+  | Meta Meta
   | Local Name
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
   pretty = \case
     _ :.: n -> pretty n
+    Meta m -> pretty m
     Local n -> pretty n
 
 inModule :: ModuleName -> QName -> Bool
@@ -83,6 +83,7 @@ isLocal _         = False
 prettyQName :: QName -> Doc
 prettyQName = \case
   m :.: n -> pretty m <> dot <> pretty n
+  Meta m -> pretty m
   Local n -> pretty n
 
 localNames :: Set.Set QName -> Set.Set Name

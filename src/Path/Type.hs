@@ -57,7 +57,7 @@ solValue = typedTerm . solDefn
 solType :: Solution -> Type
 solType = typedType . solDefn
 
-solBinding :: Solution -> Typed Name
+solBinding :: Solution -> Typed QName
 solBinding (m := _ ::: t) = Meta m ::: t
 
 instance Pretty Solution where
