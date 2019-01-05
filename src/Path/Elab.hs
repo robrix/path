@@ -92,7 +92,11 @@ instance ( Carrier sig m
             (g2, a') <- check (a ::: t)
             k (g1 <> pi ><< g2, In (f' Core.:$ a') (b (eval mempty a')))
           _ -> throwElabError (ann tm) (IllegalApplication f'')
-      R (Core.Lam _ _) -> throwElabError (ann tm) NoRuleToInfer
+      R (Core.Lam n b) -> do
+        mt <- exists Value.Type
+        let t = vfree (Local mt)
+        (res, e') <- n ::: t |- infer b
+        k (Resources.delete (Local n) res, In (Core.Lam n e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
       L (Core.Hole _) -> do
         ty <- exists Value.Type
         m <- exists (vfree (Local ty))
