@@ -25,6 +25,13 @@ instance Pretty Name where
 instance PrettyPrec Name
 
 
+data Bound = Bound
+  { boundIndex :: Int
+  , boundName  :: Name
+  }
+  deriving (Eq, Ord, Show)
+
+
 newtype Meta = M Int
   deriving (Eq, Ord, Show)
 
