@@ -54,9 +54,9 @@ runElab :: ( Carrier sig m
         -> Span
         -> Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab sigma span = runFresh . runReader mempty . runReader [] . runReader span . runReader sigma . runElabC . interpret
+runElab sigma span = runFresh . runReader mempty . runReader span . runReader sigma . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Span (Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC m))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Span (Eff (ReaderC Context (Eff (FreshC m))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -67,8 +67,8 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
-    Infer tm k -> withSpan (ann tm) . step (I (ann tm)) $ case out tm of
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+    Infer tm k -> withSpan (ann tm) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
         (t', _) <- check (t ::: Value.Type)
@@ -93,7 +93,7 @@ instance ( Carrier sig m
           _ -> throwElabError (IllegalApplication f'')
       _ -> throwElabError NoRuleToInfer
 
-    Check (tm ::: ty) k -> withSpan (ann tm) . step (C (ann tm ::: ty)) $ case (out tm ::: ty) of
+    Check (tm ::: ty) k -> withSpan (ann tm) $ case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
         n <- freshName "_implicit_"
         (e', res) <- n ::: t |- check (tm ::: b (vfree (Local n)))
@@ -119,13 +119,10 @@ instance ( Carrier sig m
     where n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
 
-          unify q@(t1 ::: _ :===: t2 ::: _) = if t1 == t2 then pure t1 else askSteps >>= throwElabError . TypeMismatch q
-
-          step s (ElabC m) = ElabC (local (s:) m)
+          unify q@(t1 ::: _ :===: t2 ::: _) = if t1 == t2 then pure t1 else throwElabError (TypeMismatch q)
 
           throwElabError reason = ElabError <$> askSpan <*> askContext <*> pure reason >>= throwError
 
-          askSteps = ElabC ask
           askContext = ElabC ask
           askSpan = ElabC ask
           askSigma = ElabC ask

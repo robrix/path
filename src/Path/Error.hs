@@ -8,20 +8,6 @@ import Path.Type
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
-data Step
-  = U Equation
-  | C (Typed Span)
-  | I Span
-  deriving (Eq, Ord, Show)
-
-instance Pretty Step where
-  pretty (U eqn)          = pretty eqn
-  pretty (C (span ::: t)) = prettyInfo span (pretty "checking against" <+> pretty t) []
-  pretty (I span)         = prettyInfo span (pretty "infering") []
-
-instance PrettyPrec Step
-
-
 data ElabError = ElabError
   { errorSpan         :: Span
   , errorContext      :: Context
@@ -31,7 +17,7 @@ data ElabError = ElabError
 
 data ErrorReason
   = FreeVariable QName
-  | TypeMismatch Equation [Step]
+  | TypeMismatch Equation
   | NoRuleToInfer
   | IllegalApplication Type
   | ResourceMismatch Name Usage Usage [Span]
@@ -42,11 +28,11 @@ data ErrorReason
 instance Pretty ElabError where
   pretty (ElabError span ctx reason) = case reason of
     FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
-    TypeMismatch (expected :===: actual) steps -> prettyErr span (fold (punctuate hardline
+    TypeMismatch (expected :===: actual) -> prettyErr span (fold (punctuate hardline
       [ pretty "type mismatch"
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
-      ])) (map prettyStep steps <> prettyCtx ctx)
+      ])) (prettyCtx ctx)
     NoRuleToInfer -> prettyErr span (pretty "no rule to infer type of term") (prettyCtx ctx)
     IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
     ResourceMismatch n pi used spans -> prettyErr span msg (map prettys spans)
@@ -56,6 +42,5 @@ instance Pretty ElabError where
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
     where prettyCtx ctx
             =  if (Context.null ctx) then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
-          prettyStep step = magenta (bold (pretty "via")) <+> align (pretty step)
 
 instance PrettyPrec ElabError
