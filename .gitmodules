@@ -1,0 +1,3 @@
+[submodule "vendor/fused-effects"]
+	path = vendor/fused-effects
+	url = https://github.com/robrix/fused-effects.git
