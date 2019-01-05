@@ -34,17 +34,6 @@ instance Pretty Meta where
 instance PrettyPrec Meta
 
 
-data Twin = Only | TwinL | TwinR
-  deriving (Eq, Ord, Show)
-
-instance Pretty Twin where
-  pretty Only  = pretty "⃡"
-  pretty TwinL = pretty "⃖"
-  pretty TwinR = pretty "⃗"
-
-instance PrettyPrec Twin
-
-
 data ModuleName
   = ModuleName String
   | ModuleName :. String
