@@ -10,6 +10,7 @@ import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
+import Data.Bifunctor (first)
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
@@ -33,8 +34,8 @@ import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
 data Elab (m :: * -> *) k
-  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) ((Term (Core Name QName) Type, Resources Usage) -> k)
+  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  ((Resources Usage, Term (Core Name QName) Type) -> k)
+  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) ((Resources Usage, Term (Core Name QName) Type) -> k)
   deriving (Functor)
 
 instance HFunctor Elab where
@@ -51,8 +52,8 @@ runElab :: ( Carrier sig m
            , Monad m
            )
         => Usage
-        -> Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
-        -> m (Term (Core Name QName) Type, Resources Usage)
+        -> Eff (ElabC m) (Resources Usage, Term (Core Name QName) Type)
+        -> m (Resources Usage, Term (Core Name QName) Type)
 runElab sigma = runFresh . runReader mempty . runReader sigma . runElabC . interpret
 
 newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC m))))) a }
@@ -68,45 +69,45 @@ instance ( Carrier sig m
   ret = ElabC . ret
   eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> case out tm of
-      R Core.Type -> k (In Core.Type Value.Type, mempty)
+      R Core.Type -> k (mempty, In Core.Type Value.Type)
       R (Core.Pi n i e t b) -> do
-        (t', _) <- check (t ::: Value.Type)
-        (b', _) <- n ::: eval mempty t' |- check (b ::: Value.Type)
-        k (In (Core.Pi n i e t' b') Value.Type, mempty)
+        (_, t') <- check (t ::: Value.Type)
+        (_, b') <- n ::: eval mempty t' |- check (b ::: Value.Type)
+        k (mempty, In (Core.Pi n i e t' b') Value.Type)
       R (Core.Var n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
-        elabImplicits (In (Core.Var n) t) (Resources.singleton n One) >>= k . fmap (sigma ><<)
-        where elabImplicits tm res
+        elabImplicits (Resources.singleton n One) (In (Core.Var n) t) >>= k . first (sigma ><<)
+        where elabImplicits res tm
                 | Value.Pi Im _ t b <- ann tm = do
                   n <- exists t
-                  elabImplicits (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n)))) (Resources.singleton (Local n) One <> res)
-                | otherwise = pure (tm, res)
+                  elabImplicits (Resources.singleton (Local n) One <> res) (In (tm Core.:$ In (Core.Var (Local n)) t) (b (vfree (Local n))))
+                | otherwise = pure (res, tm)
       R (f Core.:$ a) -> do
-        (f', g1) <- infer f
+        (g1, f') <- infer f
         f'' <- whnf (ann f')
         case f'' of
           Value.Pi _ pi t b -> do
-            (a', g2) <- check (a ::: t)
-            k (In (f' Core.:$ a') (b (eval mempty a')), g1 <> pi ><< g2)
+            (g2, a') <- check (a ::: t)
+            k (g1 <> pi ><< g2, In (f' Core.:$ a') (b (eval mempty a')))
           _ -> throwElabError (ann tm) (IllegalApplication f'')
       _ -> throwElabError (ann tm) NoRuleToInfer
 
     Check (tm ::: ty) k -> case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> do
         n <- freshName "_implicit_"
-        (e', res) <- n ::: t |- check (tm ::: b (vfree (Local n)))
+        (res, e') <- n ::: t |- check (tm ::: b (vfree (Local n)))
         verifyResources (ann tm) n pi res
-        k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
+        k (Resources.delete (Local n) res, In (Core.Lam n e') ty)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> do
-        (e', res) <- n ::: t |- check (e ::: b (vfree (Local n)))
+        (res, e') <- n ::: t |- check (e ::: b (vfree (Local n)))
         verifyResources (ann tm) n pi res
-        k (In (Core.Lam n e') ty, Resources.delete (Local n) res)
+        k (Resources.delete (Local n) res, In (Core.Lam n e') ty)
       L (Core.Hole n) ::: ty -> throwElabError (ann tm) (TypedHole n ty)
       _ ::: ty -> do
-        (tm', res) <- infer tm
+        (res, tm') <- infer tm
         unified <- unify (ann tm) (ty ::: Value.Type :===: ann tm' ::: Value.Type)
-        k (tm' { ann = unified }, res)
+        k (res, tm' { ann = unified })
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
@@ -133,12 +134,12 @@ instance ( Carrier sig m
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core Name QName) Type, Resources Usage)
+      -> m (Resources Usage, Term (Core Name QName) Type)
 infer tm = send (Infer tm ret)
 
 check :: (Carrier sig m, Member Elab sig)
       => Typed (Term (Implicit QName :+: Core Name QName) Span)
-      -> m (Term (Core Name QName) Type, Resources Usage)
+      -> m (Resources Usage, Term (Core Name QName) Type)
 check tm = send (Check tm ret)
 
 
@@ -153,7 +154,7 @@ elabModule :: ( Carrier sig m
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Module QName (Term (Core Name QName) Type, Resources Usage))
+           -> m (Module QName (Resources Usage, Term (Core Name QName) Type))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -180,7 +181,7 @@ elabDecl :: ( Carrier sig m
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m (Decl QName (Term (Core Name QName) Type, Resources Usage))
+         -> m (Decl QName (Resources Usage, Term (Core Name QName) Type))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -194,10 +195,10 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m (Term (Core Name QName) Type, Resources Usage)
+            -> m (Resources Usage, Term (Core Name QName) Type)
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
-  elab <$ modify (Scope.insert name (Decl (eval mempty (fst elab))))
+  elab <$ modify (Scope.insert name (Decl (eval mempty (snd elab))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
         bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
@@ -209,11 +210,11 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m (Term (Core Name QName) Type, Resources Usage)
+           -> m (Resources Usage, Term (Core Name QName) Type)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
-  elab <$ modify (Scope.insert name (Defn (eval mempty (fst elab) ::: ann (fst elab))))
+  elab <$ modify (Scope.insert name (Defn (eval mempty (snd elab) ::: ann (snd elab))))
 
 runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
 runScope m = get >>= flip runReader m
