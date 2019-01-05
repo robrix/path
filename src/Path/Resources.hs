@@ -7,36 +7,37 @@ import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Pretty
 import Path.Semiring
+import Path.Usage
 
-newtype Resources r = Resources { unResources :: Map.Map QName r }
+newtype Resources = Resources { unResources :: Map.Map QName Usage }
   deriving (Eq, Ord, Show)
 
-singleton :: QName -> r -> Resources r
+singleton :: QName -> Usage -> Resources
 singleton n = Resources . Map.singleton n
 
-lookup :: Monoid r => QName -> Resources r -> r
+lookup :: QName -> Resources -> Usage
 lookup n = fromMaybe zero . Map.lookup n . unResources
 
-delete :: QName -> Resources r -> Resources r
+delete :: QName -> Resources -> Resources
 delete n = Resources . Map.delete n . unResources
 
-instance PrettyPrec r => Pretty (Resources r) where
+instance Pretty Resources where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unResources
     where prettyBinding name u = pretty name <+> pretty "@" <+> prettyPrec 0 u
 
-instance PrettyPrec r => PrettyPrec (Resources r)
+instance PrettyPrec Resources
 
-instance Semigroup r => Semigroup (Resources r) where
+instance Semigroup Resources where
   (<>) = fmap Resources . (Map.unionWith (<>) `on` unResources)
 
-instance Semigroup r => Monoid (Resources r) where
+instance Monoid Resources where
   mempty = Resources Map.empty
 
-instance Semiring r => Semiring (Resources r) where
+instance Semiring Resources where
   (><) = fmap Resources . (Map.intersectionWith (><) `on` unResources)
 
-instance Semiring r => LeftModule r (Resources r) where
+instance LeftModule Usage Resources where
   u ><< Resources r = Resources (fmap (u ><) r)
 
-instance FreeVariables QName r => FreeVariables QName (Resources r) where
+instance FreeVariables QName Resources where
   fvs = fvs . unResources

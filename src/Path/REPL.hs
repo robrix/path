@@ -157,7 +157,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type))) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.Set Equation, (Resources, Term (Core Name QName) Type))) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -183,7 +183,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type)))
+            let ms = modules (graph :: ModuleGraph QName (Set.Set Equation, (Resources, Term (Core Name QName) Type)))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -193,7 +193,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Set.Set Equation, (Resources Usage, Term (Core Name QName) Type))) of
+            case m :: Maybe (Module QName (Set.Set Equation, (Resources, Term (Core Name QName) Type))) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
