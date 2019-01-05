@@ -86,12 +86,9 @@ instance ( Carrier sig m
                 | otherwise = pure (res, tm)
       R (f Core.:$ a) -> do
         (g1, f') <- infer f
-        f'' <- whnf (ann f')
-        case f'' of
-          Value.Pi _ pi t b -> do
-            (g2, a') <- check (a ::: t)
-            k (g1 <> pi ><< g2, In (f' Core.:$ a') (b (eval mempty a')))
-          _ -> throwElabError (ann tm) (IllegalApplication f'')
+        (pi, t, b) <- whnf (ann f') >>= ensurePi (ann tm)
+        (g2, a') <- check (a ::: t)
+        k (g1 <> pi ><< g2, In (f' Core.:$ a') (b (eval mempty a')))
       R (Core.Lam n b) -> do
         mt <- exists Value.Type
         let t = vfree (Local mt)
@@ -124,6 +121,10 @@ instance ( Carrier sig m
                 throwElabError span (ResourceMismatch n pi used (uses n tm)))
     where n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
+
+          ensurePi span t = case t of
+            Value.Pi _ pi t b -> pure (pi, t, b)
+            _ -> throwElabError span (IllegalApplication t)
 
           unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
             n <- exists ty1
