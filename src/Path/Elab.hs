@@ -8,9 +8,9 @@ import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
+import Control.Effect.Writer
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
-import Data.Bifunctor (first)
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
@@ -35,8 +35,8 @@ import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
 data Elab (m :: * -> *) k
-  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  ((Resources, Term (Core Name QName) Type) -> k)
-  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) ((Resources, Term (Core Name QName) Type) -> k)
+  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  (Term (Core Name QName) Type -> k)
+  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) (Term (Core Name QName) Type -> k)
   deriving (Functor)
 
 instance HFunctor Elab where
@@ -53,11 +53,11 @@ runElab :: ( Carrier sig m
            , Monad m
            )
         => Usage
-        -> Eff (ElabC m) (Resources, Term (Core Name QName) Type)
+        -> Eff (ElabC m) (Term (Core Name QName) Type)
         -> m (Set.Set Equation, (Resources, Term (Core Name QName) Type))
-runElab sigma = runState mempty . runFresh . runReader mempty . runReader sigma . runElabC . interpret
+runElab sigma = runState mempty . runWriter . runFresh . runReader mempty . runReader sigma . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (StateC (Set.Set Equation) m))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (StateC (Set.Set Equation) m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -68,61 +68,63 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> case out tm of
-      R Core.Type -> k (mempty, In Core.Type Value.Type)
+      R Core.Type -> k (In Core.Type Value.Type)
       R (Core.Pi n i e t b) -> do
-        (_, t') <- check (t ::: Value.Type)
-        (_, b') <- n ::: eval mempty t' |- check (b ::: Value.Type)
-        k (mempty, In (Core.Pi n i e t' b') Value.Type)
+        t' <- check (t ::: Value.Type)
+        b' <- n ::: eval mempty t' |- check (b ::: Value.Type)
+        k (In (Core.Pi n i e t' b') Value.Type)
       R (Core.Var n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
-        elabImplicits (Resources.singleton n One) (In (Core.Var n) t) >>= k . first (sigma ><<)
-        where elabImplicits res tm
+        ElabC (tell (Resources.singleton n sigma))
+        raise (censor (Resources.mult sigma)) (elabImplicits (In (Core.Var n) t)) >>= k
+        where elabImplicits tm
                 | Value.Pi Im _ t b <- ann tm = do
                   n <- exists t
-                  elabImplicits (Resources.singleton n One <> res) (In (tm Core.:$ In (Core.Var n) t) (b (vfree n)))
-                | otherwise = pure (res, tm)
+                  ElabC (tell (Resources.singleton n One))
+                  elabImplicits (In (tm Core.:$ In (Core.Var n) t) (b (vfree n)))
+                | otherwise = pure tm
       R (f Core.:$ a) -> do
-        (g1, f') <- infer f
+        f' <- infer f
         (pi, t, b) <- whnf (ann f') >>= ensurePi (ann tm)
-        (g2, a') <- check (a ::: t)
-        k (g1 <> pi ><< g2, In (f' Core.:$ a') (b (eval mempty a')))
+        a' <- raise (censor (Resources.mult pi)) (check (a ::: t))
+        k (In (f' Core.:$ a') (b (eval mempty a')))
       R (Core.Lam n b) -> do
         mt <- exists Value.Type
         let t = vfree mt
-        (res, e') <- n ::: t |- infer b
-        k (Resources.delete (Local n) res, In (Core.Lam n e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
+        e' <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
+        k (In (Core.Lam n e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
       L (Core.Hole _) -> do
         ty <- exists Value.Type
         m <- exists (vfree ty)
-        k (mempty, In (Core.Var m) (vfree ty))
+        k (In (Core.Var m) (vfree ty))
 
     Check (tm ::: ty) k -> case (out tm ::: ty) of
-      (_ ::: Value.Pi Im pi t b) -> do
-        n <- freshName "_implicit_"
-        (res, e') <- n ::: t |- check (tm ::: b (vfree (Local n)))
+      (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
+        (res, e') <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n))))
         verifyResources (ann tm) n pi res
-        k (Resources.delete (Local n) res, In (Core.Lam n e') ty)
-      (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> do
-        (res, e') <- n ::: t |- check (e ::: b (vfree (Local n)))
+        k (In (Core.Lam n e') ty)
+      (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
+        (res, e') <- n ::: t |- raise listen (check (e ::: b (vfree (Local n))))
         verifyResources (ann tm) n pi res
-        k (Resources.delete (Local n) res, In (Core.Lam n e') ty)
+        k (In (Core.Lam n e') ty)
       L (Core.Hole _) ::: ty -> do
         m <- exists ty
-        k (mempty, In (Core.Var m) ty)
+        k (In (Core.Var m) ty)
       _ ::: ty -> do
-        (res, tm') <- infer tm
+        tm' <- infer tm
         unified <- unify (ty ::: Value.Type :===: ann tm' ::: Value.Type)
-        k (res, tm' { ann = unified })
+        k (tm' { ann = unified })
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
               unless (sigma >< pi == More) . when (pi /= used) $
                 throwElabError span (ResourceMismatch n pi used (uses n tm)))
-    where n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
+    where n ::: t |- m = raise (local (Context.insert (n ::: t))) m
           infix 5 |-
+          raise f (ElabC m) = ElabC (f m)
 
           ensurePi span t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
@@ -156,12 +158,12 @@ instance ( Carrier sig m
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m (Resources, Term (Core Name QName) Type)
+      -> m (Term (Core Name QName) Type)
 infer tm = send (Infer tm ret)
 
 check :: (Carrier sig m, Member Elab sig)
       => Typed (Term (Implicit QName :+: Core Name QName) Span)
-      -> m (Resources, Term (Core Name QName) Type)
+      -> m (Term (Core Name QName) Type)
 check tm = send (Check tm ret)
 
 

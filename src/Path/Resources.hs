@@ -21,6 +21,9 @@ lookup n = fromMaybe zero . Map.lookup n . unResources
 delete :: QName -> Resources -> Resources
 delete n = Resources . Map.delete n . unResources
 
+mult :: Usage -> Resources -> Resources
+mult = (><<)
+
 instance Pretty Resources where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unResources
     where prettyBinding name u = pretty name <+> pretty "@" <+> prettyPrec 0 u
