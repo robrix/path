@@ -151,7 +151,7 @@ instance ( Carrier sig m
 
           lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError span (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError span (FreeVariable (Local n))) pure
-          lookupVar span (Meta n) = throwElabError span (FreeVariable (Meta n)) 
+          lookupVar span (Meta n) = throwElabError span (FreeVariable (Meta n))
 
 
 infer :: (Carrier sig m, Member Elab sig)
