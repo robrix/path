@@ -107,7 +107,7 @@ instance ( Carrier sig m
       L (Core.Hole n) ::: ty -> throwElabError (ann tm) (TypedHole n ty)
       _ ::: ty -> do
         (res, tm') <- infer tm
-        unified <- unify (ann tm) (ty ::: Value.Type :===: ann tm' ::: Value.Type)
+        unified <- unify (ty ::: Value.Type :===: ann tm' ::: Value.Type)
         k (res, tm' { ann = unified })
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
@@ -117,7 +117,10 @@ instance ( Carrier sig m
     where n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
 
-          unify span q@(t1 ::: _ :===: t2 ::: _) = if t1 == t2 then pure t1 else throwElabError span (TypeMismatch q)
+          unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
+            n <- exists ty1
+            let vn = vfree (Local n)
+            vn <$ ElabC (modify (Set.insert (vn ::: ty1 :===: tm1 ::: ty1) . Set.insert (vn ::: ty1 :===: tm2 ::: ty2)))
 
           throwElabError span reason = ElabError span <$> askContext <*> pure reason >>= throwError
 
