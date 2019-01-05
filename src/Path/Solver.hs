@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase #-}
 module Path.Solver where
 
 import Control.Effect
@@ -9,6 +9,6 @@ import Path.Type
 import Text.Trifecta.Rendering (Span)
 
 simplify :: (Carrier sig m, Member (Error ElabError) sig, Monad m) => Span -> Equation -> m (Set.Set Equation)
-simplify span q@(tm1 ::: ty1 :===: tm2 ::: ty2)
-  | ty1 == ty2, tm1 == tm2 = pure Set.empty
-  | otherwise              = throwError (ElabError span mempty (TypeMismatch q))
+simplify span = \case
+  (tm1 ::: ty1 :===: tm2 ::: ty2) | ty1 == ty2, tm1 == tm2 -> pure Set.empty
+  q -> throwError (ElabError span mempty (TypeMismatch q))
