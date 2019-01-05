@@ -11,8 +11,7 @@ import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
 import Data.Coerce (coerce)
-import Data.Foldable (foldl', for_)
-import qualified Data.List as List
+import Data.Foldable (for_)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
@@ -55,11 +54,9 @@ runElab :: ( Carrier sig m
         -> Span
         -> Eff (ElabC m) (Term (Core Name QName) Type, Resources Usage)
         -> m (Term (Core Name QName) Type, Resources Usage)
-runElab sigma span = fmap (\ (sols, (tm, res)) -> (apply sols tm, res)) . runState Nil . evalState mempty . runFresh . runReader mempty . runReader [] . runReader span . runReader sigma . runElabC . interpret
-  where apply sols tm = eval mempty . quote 0 . foldl' compose id sols <$> tm
-        compose f (m := v ::: _) = f . Value.subst (Local (Meta m)) v
+runElab sigma span = runFresh . runReader mempty . runReader [] . runReader span . runReader sigma . runElabC . interpret
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Span (Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC (Eff (StateC [Typed Meta] (Eff (StateC (Back Solution) m))))))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Span (Eff (ReaderC [Step] (Eff (ReaderC Context (Eff (FreshC m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -70,7 +67,7 @@ instance ( Carrier sig m
          )
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> withSpan (ann tm) . step (I (ann tm)) $ case out tm of
       R Core.Type -> k (In Core.Type Value.Type, mempty)
       R (Core.Pi n i e t b) -> do
@@ -134,22 +131,12 @@ instance ( Carrier sig m
           withSpan span (ElabC m) = ElabC (local (const span) m)
 
           freshName s = Gensym s <$> ElabC fresh
-          exists ty = ElabC $ do
-            i <- fresh
-            let m = M i
-            Meta m <$ modify ((m ::: ty) :)
+          exists _ = ElabC (Meta . M <$> fresh)
 
           whnf = ElabC . Eval.whnf
 
           lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
-          lookupVar (Local (Meta m)) = either typedType id <$> lookupMeta m
           lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (FreeVariable (Local n))) pure
-
-          lookupMeta m = foldr (\ m rest -> ElabC m >>= maybe rest pure)
-            (throwElabError (FreeVariable (Local (Meta m))))
-            [ gets (fmap (Left  . solDefn)   . Back.find     ((== m) . solMeta))
-            , gets (fmap (Right . typedType) . List.find @[] ((== m) . typedTerm))
-            ]
 
 
 infer :: (Carrier sig m, Member Elab sig)
