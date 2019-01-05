@@ -20,5 +20,11 @@ simplify span = \case
       let vn = vfree (Local n)
       (<>) <$> simplify span (t1    ::: Type :===: t2    ::: Type)
            <*> simplify span (b1 vn ::: Type :===: b2 vn ::: Type)
+  f1 ::: Pi p1 u1 t1 b1 :===: f2 ::: Pi p2 u2 t2 b2
+    | p1 == p2, u1 == u2 -> do
+      n <- freshName "_unify_"
+      let vn = vfree (Local n)
+      (<>) <$> simplify span (t1       ::: Type  :===: t2       ::: Type)
+           <*> simplify span (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn)
   q -> throwError (ElabError span mempty (TypeMismatch q))
   where freshName s = Gensym s <$> fresh
