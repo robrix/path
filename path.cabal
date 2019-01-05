@@ -38,6 +38,7 @@ library
                      , Path.REPL.Command
                      , Path.Resources
                      , Path.Scope
+                     , Path.Solver
                      , Path.Semiring
                      , Path.Surface
                      , Path.Term
