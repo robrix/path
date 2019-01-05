@@ -10,12 +10,13 @@ import Path.Env as Env
 import Path.Name
 import Path.Scope as Scope
 import Path.Term
+import Path.Type
 import Path.Value as Value
 
-eval :: Env -> Term (Core Name QName) a -> Value
+eval :: Env -> Term (Core Name (Typed QName)) a -> Value
 eval env = \case
-  In (Core.Var (Local n)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
-  In (Core.Var n) _ -> vfree n
+  In (Core.Var (Local n ::: _)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
+  In (Core.Var (n ::: _)) _ -> vfree n
   In (Core.Lam n b) _ -> Value.Lam (\ v -> eval (Env.insert n v env) b)
   In (f Core.:$ a) _ -> eval env f $$ eval env a
   In Core.Type _ -> Value.Type
