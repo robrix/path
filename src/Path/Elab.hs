@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
@@ -10,11 +10,11 @@ import Control.Effect.State
 import Control.Effect.Sum hiding ((:+:)(..))
 import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
-import Data.Foldable (foldl', for_, toList)
+import Data.Coerce (coerce)
+import Data.Foldable (foldl', for_)
 import qualified Data.List as List
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
-import qualified Data.Set as Set
 import Data.Traversable (for)
 import Path.Back as Back
 import Path.Context as Context
@@ -33,22 +33,16 @@ import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
-data Elab m k
+data Elab (m :: * -> *) k
   = Infer        (Term (Implicit QName :+: Core Name QName) Span)  ((Term (Core Name QName) Type, Resources Usage) -> k)
   | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) ((Term (Core Name QName) Type, Resources Usage) -> k)
-  | forall a . Unify Equation (Type -> m a) (a -> k)
-
-deriving instance Functor (Elab m)
+  deriving (Functor)
 
 instance HFunctor Elab where
-  hmap _ (Infer  tm   k) = Infer  tm         k
-  hmap _ (Check  tm   k) = Check  tm         k
-  hmap f (Unify  eq h k) = Unify  eq (f . h) k
+  hmap _ = coerce
 
 instance Effect Elab where
-  handle state handler (Infer  tm   k) = Infer  tm                            (handler . (<$ state) . k)
-  handle state handler (Check  tm   k) = Check  tm                            (handler . (<$ state) . k)
-  handle state handler (Unify  eq h k) = Unify  eq (handler . (<$ state) . h) (handler . fmap k)
+  handle state handler = coerce . fmap (handler . (<$ state))
 
 
 runElab :: ( Carrier sig m
@@ -123,92 +117,11 @@ instance ( Carrier sig m
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
               unless (sigma >< pi == More) . when (pi /= used) $
-                throwElabError (ResourceMismatch n pi used (uses n tm))
-
-    Unify (t1 ::: k1 :===: t2 ::: k2) h k | k1 == k2, t1 == t2 -> h t1 >>= k
-    Unify q@(Value.Pi p1 u1 t1 b1 ::: Value.Type :===: Value.Pi p2 u2 t2 b2 ::: Value.Type) h k
-      | p1 == p2, u1 == u2 -> step (U q) $ do
-        n <- freshName "_unify_"
-        let vn = vfree (Local n)
-        -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
-        unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (b1 vn ::: Value.Type :===: b2 vn ::: Value.Type) (\ b -> h (Value.Pi p1 u1 t (flip (Value.subst (Local n)) b)) >>= k))
-    Unify q@(Value.Pi Im _ ty1 b1 ::: Value.Type :===: t2 ::: Value.Type) h k -> step (U q) $ do
-      n <- exists ty1
-      n ::: ty1 |- unify (b1 (vfree (Local n)) ::: Value.Type :===: t2 ::: Value.Type) (k <=< h)
-    Unify q@(_ ::: Value.Type :===: Value.Pi Im _ _ _ ::: Value.Type) h k -> step (U q) $
-      unify (sym q) (k <=< h)
-    Unify q@(f1 ::: Value.Pi p1 u1 t1 b1 :===: f2 ::: Value.Pi p2 u2 t2 b2) h k
-      | p1 == p2, u1 == u2 -> step (U q) $ do
-        n <- freshName "_unify_"
-        let vn = vfree (Local n)
-        -- FIXME: unification of the body shouldn’t be blocked on unification of the types; that will require split contexts
-        unify (t1 ::: Value.Type :===: t2 ::: Value.Type) (\ t ->
-          n ::: t |- unify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn) (k <=< h))
-    Unify q@(Local (Meta m1) Value.:$ sp1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
-      found <- lookupMeta m1
-      case found of
-        Left (v ::: t) -> unify (v $$* sp1 ::: t :===: t2 ::: ty2) (k <=< h)
-        Right t
-          -- FIXME: this should only throw for strong rigid occurrences
-          | Local (Meta m1) `Set.member` fvs t2 -> throwElabError (InfiniteType (Local (Meta m1)) t2)
-          | otherwise -> do
-            let (t2', sp2) = split t2
-                (rest, common) = Back.alignWith (,) sp1 sp2
-                lookupTy (v Value.:$ _) _  = lookupVar v
-                lookupTy _              ty = pure ty
-                unifySpines _                  []              = pure []
-                unifySpines (Value.Pi _ _ t b) ((a1, a2) : as) = unify (a1 ::: t :===: a2 ::: t) (\ a -> (a:) <$> unifySpines (b a) as)
-                unifySpines _                  _               = askSteps >>= throwElabError . TypeMismatch q
-                apply []     ty                 = pure ty
-                apply (a:as) (Value.Pi _ _ _ b) = apply as (b a)
-                apply _      _                  = askSteps >>= throwElabError . TypeMismatch q
-            case rest of
-              Nothing -> do -- spines are equal in length
-                -- solve m1 with t2' and zip the common spines
-                ty2' <- lookupTy t2' ty2
-                unify (t ::: Value.Type :===: ty2' ::: Value.Type) (\ ty -> do
-                  ElabC (modify (List.delete (m1 ::: t)))
-                  ElabC (modify (:> (m1 := t2' ::: ty)))
-                  unifySpines ty (toList common) >>= h . (t2' $$*) >>= k)
-              Just (Left  _) -> do -- lhs has a longer spine
-                -- eval t2' to whnf and try again
-                t2' <- whnf t2
-                unify (Local (Meta m1) Value.:$ sp1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
-              Just (Right sp2') -> do -- rhs has a longer spine
-                -- solve m1 with (t2' $$* sp2') and zip the common spines    _
-                ty2' <- lookupTy t2' ty2 >>= apply (toList sp2')
-                let t2'' = t2' $$* sp2'
-                unify (t ::: Value.Type :===: ty2' ::: Value.Type) (\ ty -> do
-                  ElabC (modify (List.delete (m1 ::: t)))
-                  ElabC (modify (:> (m1 := t2'' ::: ty)))
-                  unifySpines ty (toList common) >>= h . (t2'' $$*) >>= k)
-    Unify q@(_ :===: Local (Meta _) Value.:$ _ ::: _) h k -> unify (sym q) (k <=< h)
-    Unify q@(v1 Value.:$ sp1 ::: _ :===: v2 Value.:$ sp2 ::: _) h k
-      -- FIXME: Allow twin variables in these positions.
-      | v1 == v2, length sp1 == length sp2 -> step (U q) $ do
-        ty1 <- lookupVar v1
-        ty2 <- lookupVar v2
-        unify (ty1 ::: Value.Type :===: ty2 ::: Value.Type) (\ ty ->
-          unifySpines q ty (toList sp1) (toList sp2) >>= h . (vfree v1 $$*) >>= k)
-    Unify q@(t1@((_ :.: _) Value.:$ _) ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
-      t1' <- whnf t1
-      unify (t1' ::: ty1 :===: t2 ::: ty2) (k <=< h)
-    Unify q@(t1 ::: ty1 :===: t2@((_ :.: _) Value.:$ _) ::: ty2) h k -> step (U q) $ do
-      t2' <- whnf t2
-      unify (t1 ::: ty1 :===: t2' ::: ty2) (k <=< h)
-    Unify q@(t1 ::: ty1 :===: t2 ::: ty2) h k -> step (U q) $ do
-      unless (ty1 == ty2) $
-        askSteps >>= throwElabError . TypeMismatch (ty1 ::: Value.Type :===: ty2 ::: Value.Type)
-      unless (t1 == t2) $
-        askSteps >>= throwElabError . TypeMismatch (t1  ::: ty1        :===: t2  ::: ty2)
-      h t1 >>= k)
-    where unifySpines _ _                  []         []         = pure []
-          unifySpines q (Value.Pi _ _ t b) (a1 : as1) (a2 : as2) = unify (a1 ::: t :===: a2 ::: t) (\ a -> (a:) <$> unifySpines q (b a) as1 as2)
-          unifySpines q _                  _          _          = askSteps >>= throwElabError . TypeMismatch q
-
-          n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
+                throwElabError (ResourceMismatch n pi used (uses n tm)))
+    where n ::: t |- ElabC m = ElabC (local (Context.insert (n ::: t)) m)
           infix 5 |-
+
+          unify q@(t1 ::: _ :===: t2 ::: _) h = if t1 == t2 then h t1 else askSteps >>= throwElabError . TypeMismatch q
 
           step s (ElabC m) = ElabC (local (s:) m)
 
@@ -250,13 +163,6 @@ check :: (Carrier sig m, Member Elab sig)
       => Typed (Term (Implicit QName :+: Core Name QName) Span)
       -> m (Term (Core Name QName) Type, Resources Usage)
 check tm = send (Check tm ret)
-
-
-unify :: (Carrier sig m, Member Elab sig)
-      => Equation
-      -> (Type -> m a)
-      -> m a
-unify eq m = send (Unify eq m ret)
 
 
 type ModuleTable = Map.Map ModuleName Scope
