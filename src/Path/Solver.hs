@@ -142,7 +142,3 @@ deriving instance Functor (Thread m)
 instance HFunctor Thread where
   hmap _ (Yield  k) = Yield      k
   hmap f (Fork m k) = Fork (f m) k
-
-instance Effect Thread where
-  handle state handler (Yield  k) = Yield                       (handler (k <$ state))
-  handle state handler (Fork m k) = Fork (handler (m <$ state)) (handler (k <$ state))
