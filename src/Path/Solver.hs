@@ -146,3 +146,9 @@ instance HFunctor Thread where
 instance Effect Thread where
   handle state handler (Yield  k) = Yield                       (handler (k <$ state))
   handle state handler (Fork m k) = Fork (handler (m <$ state)) (handler (k <$ state))
+
+yield :: (Carrier sig m, Member Thread sig) => m ()
+yield = send (Yield (ret ()))
+
+fork :: (Carrier sig m, Member Thread sig) => m a -> m ()
+fork m = send (Fork m (ret ()))
