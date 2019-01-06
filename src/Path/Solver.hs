@@ -36,9 +36,9 @@ simplify = execWriter . go
             n <- exists ty2
             go (t1 :===: b2 n :@ cause)
           Lam t1 b1 :===: Lam t2 b2 :@ cause -> do
-              (_, n) <- freshName "_unify_" t1
-              go (t1   :===: t2   :@ cause)
-              go (b1 n :===: b2 n :@ cause)
+            (_, n) <- freshName "_unify_" t1
+            go (t1   :===: t2   :@ cause)
+            go (b1 n :===: b2 n :@ cause)
           (f1 ::: tf1) :$ sp1 :===: (f2 ::: tf2) :$ sp2 :@ cause
             | f1 == f2, length sp1 == length sp2 -> do
               go (tf1 :===: tf2 :@ cause)
