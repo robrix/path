@@ -36,7 +36,7 @@ instance Pretty ElabError where
       ])) (prettyCtx ctx)
     NoRuleToInfer -> prettyErr span (pretty "no rule to infer type of term") (prettyCtx ctx)
     IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
-    ResourceMismatch n pi used spans -> prettyErr span msg (map prettys spans)
+    ResourceMismatch n pi used spans -> prettyErr span msg (map prettys spans <> prettyCtx ctx)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
     TypedHole n ty -> prettyErr span msg (prettyCtx ctx)
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
