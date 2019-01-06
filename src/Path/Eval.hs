@@ -14,9 +14,9 @@ import Path.Value as Value
 
 eval :: Env -> Term (Core (Typed Name) (Typed QName)) a -> Value
 eval env = \case
-  In (Core.Var (Local n ::: _)) _ -> fromMaybe (vfree (Local n)) (Env.lookup n env)
-  In (Core.Var (n ::: _)) _ -> vfree n
-  In (Core.Lam (n ::: _) b) _ -> Value.Lam (\ v -> eval (Env.insert n v env) b)
+  In (Core.Var (Local n ::: t)) _ -> fromMaybe (vfree (Local n ::: t)) (Env.lookup n env)
+  In (Core.Var v) _ -> vfree v
+  In (Core.Lam (n ::: t) b) _ -> Value.Lam t (\ v -> eval (Env.insert n v env) b)
   In (f Core.:$ a) _ -> eval env f $$ eval env a
   In Core.Type _ -> Value.Type
   In (Core.Pi (n ::: _) p u t b) _ -> Value.Pi p u (eval env t) (\ v -> eval (Env.insert n v env) b)
@@ -25,5 +25,5 @@ eval env = \case
 --
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
 whnf :: (Carrier sig m, Member (Reader Scope) sig, Monad m) => Value -> m Value
-whnf ((m :.: n) Value.:$ sp) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure ((m :.: n) Value.:$ sp)) (whnf . ($$* sp))
-whnf v                       = pure v
+whnf ((m :.: n ::: t) Value.:$ sp) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure ((m :.: n ::: t) Value.:$ sp)) (whnf . ($$* sp))
+whnf v                             = pure v

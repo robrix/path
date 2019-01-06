@@ -85,7 +85,7 @@ instance ( Carrier sig m
                 | Value.Pi Im _ t b <- ann tm = do
                   n <- exists t
                   ElabC (tell (Resources.singleton n One))
-                  elabImplicits (In (tm Core.:$ In (Core.Var (n ::: t)) t) (b (vfree n)))
+                  elabImplicits (In (tm Core.:$ In (Core.Var (n ::: t)) t) (b (vfree (n ::: t))))
                 | otherwise = pure tm
       R (f Core.:$ a) -> do
         f' <- infer f
@@ -94,21 +94,22 @@ instance ( Carrier sig m
         k (In (f' Core.:$ a') (b (eval mempty a')))
       R (Core.Lam n b) -> do
         mt <- exists Value.Type
-        let t = vfree mt
+        let t = vfree (mt ::: Value.Type)
         e' <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
         k (In (Core.Lam (n ::: t) e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
       L (Core.Hole _) -> do
-        ty <- exists Value.Type
-        m <- exists (vfree ty)
-        k (In (Core.Var (m ::: vfree ty)) (vfree ty))
+        mty <- exists Value.Type
+        let ty = vfree (mty ::: Value.Type)
+        m <- exists ty
+        k (In (Core.Var (m ::: ty)) ty)
 
     Check (tm ::: ty) k -> case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e') <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n))))
+        (res, e') <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
         k (In (Core.Lam (n ::: t) e') ty)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e') <- n ::: t |- raise listen (check (e ::: b (vfree (Local n))))
+        (res, e') <- n ::: t |- raise listen (check (e ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
         k (In (Core.Lam (n ::: t) e') ty)
       L (Core.Hole _) ::: ty -> do
@@ -129,17 +130,17 @@ instance ( Carrier sig m
 
           ensurePi span t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
-            Meta _ Value.:$ _ -> do
+            (Meta _ ::: _) Value.:$ _ -> do
               mA <- exists Value.Type
-              let _A = vfree mA
+              let _A = vfree (mA ::: Value.Type)
               mB <- exists _A
-              let _B = flip (subst mA) (vfree mB)
+              let _B = flip (subst mA) (vfree (mB ::: _A))
               (More, _A, _B) <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type)))
             _ -> throwElabError span (IllegalApplication t)
 
           unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
             n <- exists ty1
-            let vn = vfree n
+            let vn = vfree (n ::: ty1)
             vn <$ ElabC (tell (Set.fromList [ vn ::: ty1 :===: tm1 ::: ty1
                                             , vn ::: ty1 :===: tm2 ::: ty2 ]))
 
