@@ -4,7 +4,6 @@ module Path.Solver where
 import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Fresh
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Set as Set
 import Path.Constraint
 import Path.Error
@@ -26,7 +25,7 @@ simplify = \case
       let vn = vfree n
       (<>) <$> simplify (t1       ::: Type  :===: t2       ::: Type  :@ cause)
            <*> simplify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn :@ cause)
-  q :@ cause | span:|_ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
+  q :@ cause -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
 
 solve :: Monad m => Set.Set (Caused Equation) -> m (Value -> Value)
