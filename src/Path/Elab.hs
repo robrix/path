@@ -63,7 +63,7 @@ runElab sigma = runFresh . (solveAndApply <=< runWriter . runWriter . runReader 
           pure (res, roundtrip (apply subst tm) ::: roundtrip (apply subst ty))
         roundtrip = eval mempty . quote 0
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation (Typed Value)))) (Eff (FreshC m))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation Value))) (Eff (FreshC m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -75,50 +75,50 @@ instance ( Carrier sig m
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
   eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
-    Infer tm k -> case out tm of
-      R Core.Type -> k (Value.Type ::: Value.Type)
+    Infer tm k -> k =<< case out tm of
+      R Core.Type -> pure (Value.Type ::: Value.Type)
       R (Core.Pi n i e t b) -> do
         t' ::: _ <- check (t ::: Value.Type)
         b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
-        k (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
+        pure (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
       R (Core.Var n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
-        elabImplicits (vfree (n ::: t) ::: t) >>= k
+        elabImplicits (vfree (n ::: t) ::: t)
       R (f Core.:$ a) -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
-        k (f' $$ a' ::: b a')
+        pure (f' $$ a' ::: b a')
       R (Core.Lam n b) -> do
         (_, t) <- exists Value.Type
         e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
-        k (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
       L (Core.Hole _) -> do
         (_, ty) <- exists Value.Type
         (_, m) <- exists ty
-        k (m ::: ty)
+        pure (m ::: ty)
 
-    Check (tm ::: ty) k -> case (out tm ::: ty) of
+    Check (tm ::: ty) k -> k =<< case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
-        k (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
-        k (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       L (Core.Hole _) ::: ty -> do
         (_, m) <- exists ty
-        k (m ::: ty)
+        pure (m ::: ty)
       _ ::: ((_ :.: _ ::: _) Value.:$ _) -> do
        ty' <- whnf ty
-       check (tm ::: ty') >>= k
+       check (tm ::: ty')
       _ ::: ty -> do
         tm' ::: inferred <- infer tm
-        unified <- unify (ann tm) (ty ::: Value.Type :===: inferred ::: Value.Type)
-        k (tm' ::: unified)
+        unified <- unify (ann tm) Value.Type (ty :===: inferred)
+        pure (tm' ::: unified)
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
@@ -142,13 +142,13 @@ instance ( Carrier sig m
               (mA, _A) <- exists Value.Type
               (_, _B) <- exists _A
               let _B' = flip (subst mA) _B
-              (More, _A, _B') <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B' ::: Value.Type :@ Assert span)))
+              (More, _A, _B') <$ ElabC (tell (Set.singleton (t :===: Value.Pi Ex More _A _B' :@ Assert span)))
             _ -> throwElabError (pure span) (IllegalApplication t)
 
-          unify span (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
-            (_, v) <- exists ty1
-            v <$ ElabC (tell (Set.fromList [ (v ::: ty1 :===: tm1 ::: ty1 :@ Assert span)
-                                           , (v ::: ty1 :===: tm2 ::: ty2 :@ Assert span) ]))
+          unify span ty (tm1 :===: tm2) = if tm1 == tm2 then pure tm1 else do
+            (_, v) <- exists ty
+            v <$ ElabC (tell (Set.fromList [ (v :===: tm1 :@ Assert span)
+                                           , (v :===: tm2 :@ Assert span) ]))
 
           throwElabError spans reason = ElabError spans <$> askContext <*> pure reason >>= throwError
 
