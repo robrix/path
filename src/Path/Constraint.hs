@@ -53,6 +53,9 @@ data Cause
   | Cause :<>: Cause
   deriving (Eq, Ord, Show)
 
+instance Semigroup Cause where
+  (<>) = (:<>:)
+
 spans :: Cause -> NonEmpty Span
 spans = flip go []
   where go (Assert span) = (span :|)
