@@ -3,6 +3,7 @@ module Path.Constraint where
 import Path.Name
 import Path.Pretty
 import Path.Value
+import Text.Trifecta.Rendering (Span)
 
 data Equation
   = Typed Value :===: Typed Value
@@ -44,3 +45,9 @@ instance Pretty Solution where
   pretty (m := v ::: t) = green (pretty m) <+> align (pretty "=" <+> pretty v </> colon <+> pretty t)
 
 instance PrettyPrec Solution
+
+
+data Cause
+  = Assert Span
+  | Cause :<>: Cause
+  deriving (Eq, Ord, Show)

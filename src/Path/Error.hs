@@ -45,9 +45,3 @@ instance Pretty ElabError where
             =  if (Context.null ctx) then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
 
 instance PrettyPrec ElabError
-
-
-data Cause
-  = Assert Span
-  | Cause :<>: Cause
-  deriving (Eq, Ord, Show)
