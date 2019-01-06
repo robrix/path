@@ -60,7 +60,8 @@ runElab :: ( Carrier sig m
 runElab sigma = runFresh . (solveAndApply <=< runWriter . runWriter . runReader mempty . runReader sigma . runElabC . interpret)
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
-          pure (res, apply subst tm ::: apply subst ty)
+          pure (res, roundtrip (apply subst tm) ::: roundtrip (apply subst ty))
+        roundtrip = eval mempty . quote 0
 
 newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation (Typed Value)))) (Eff (FreshC m))))))))) a }
   deriving (Applicative, Functor, Monad)
