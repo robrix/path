@@ -34,7 +34,6 @@ simplify = \case
     | f1 == f2, length sp1 == length sp2 -> do
       (<>) <$> simplify (tf1 ::: Type :===: tf2 ::: Type :@ cause)
            <*> simplifySpines q tf1 (zip (toList sp1) (toList sp2))
-      -- zipWith  (toList sp1) (toList sp2)
   q@(t1 :===: t2) :@ cause
     | stuck t1  -> pure (Set.singleton (q :@ cause))
     | stuck t2  -> pure (Set.singleton (q :@ cause))
