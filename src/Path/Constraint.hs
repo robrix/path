@@ -67,3 +67,7 @@ data Caused a
   deriving (Eq, Ord, Show)
 
 infix 0 :@
+
+
+class Substitutable t where
+  apply :: [Caused Solution] -> t -> t
