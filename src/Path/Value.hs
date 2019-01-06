@@ -121,3 +121,7 @@ erase = cata go
 abstractLam :: [Typed Name] -> Value -> Value
 abstractLam []               v = v
 abstractLam (n ::: t : rest) v = Lam t (\ a -> subst (Local n) a (abstractLam rest v))
+
+abstractPi :: [Typed (Plicity, Usage, Name)] -> Value -> Value
+abstractPi []               v = v
+abstractPi ((p, u, n) ::: t : rest) v = Pi p u t (\ a -> subst (Local n) a (abstractPi rest v))
