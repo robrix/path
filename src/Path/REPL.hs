@@ -21,7 +21,6 @@ import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 import Data.Traversable (for)
 import Path.Back
-import Path.Core hiding ((:+:))
 import Path.Desugar
 import Path.Elab
 import Path.Error
@@ -37,7 +36,6 @@ import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
-import Path.Term
 import Path.Type
 import Path.Usage
 import Path.Value
@@ -157,7 +155,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type))) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.Set Equation, (Resources, Typed Value))) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -168,14 +166,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.
           Help -> print helpDoc *> loop
           TypeOf tm -> do
             (_, (_, elab)) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab Zero . infer
-            print (generalizeType (ann elab))
+            print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
             _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar) >>= elabDecl
             loop
           Eval tm -> do
             (_, (_, elab)) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab One . infer
-            runScope (whnf (eval mempty elab)) >>= print . generalizeValue (generalizeType (ann elab))
+            runScope (whnf (typedTerm elab)) >>= print . generalizeValue (generalizeType (typedType elab))
             loop
           Show Bindings -> do
             scope <- get
@@ -183,7 +181,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type)))
+            let ms = modules (graph :: ModuleGraph QName (Set.Set Equation, (Resources, Typed Value)))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -193,7 +191,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Set.
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Set.Set Equation, (Resources, Term (Core (Typed Name) (Typed QName)) Type))) of
+            case m :: Maybe (Module QName (Set.Set Equation, (Resources, Typed Value))) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
