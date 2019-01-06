@@ -9,6 +9,7 @@ import Data.Foldable (for_)
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Path.Back
 import Path.Constraint
 import Path.Error
 import Path.Name
@@ -40,15 +41,25 @@ simplify = \case
 solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Monad m) => Set.Set (Caused (Equation (Typed Value))) -> m [Caused Solution]
 solve = fmap (map (uncurry toSolution) . Map.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Typed Value)))) . visit
   where visit cs = for_ cs each
-        each q@(s1 :===: s2 :@ _) = do
+        each q@(t1 ::: ty1 :===: t2 ::: _ :@ c) = do
           _S <- get
           case () of
-            _ | Just sol <- stuck s1 >>= solved _S -> simplify (apply [sol] q) >>= visit
-              | Just sol <- stuck s2 >>= solved _S -> simplify (apply [sol] q) >>= visit
+            _ | Just sol <- stuck t1 >>= solved _S -> simplify (apply [sol] q) >>= visit
+              | Just sol <- stuck t2 >>= solved _S -> simplify (apply [sol] q) >>= visit
+              | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 ::: ty1 :@ c)
               | otherwise -> modify (Seq.|> q)
 
-        stuck ((Meta m ::: _) :$ _ ::: _) = Just m
-        stuck _                           = Nothing
+        stuck ((Meta m ::: _) :$ _) = Just m
+        stuck _                     = Nothing
+
+        pattern ((Meta m ::: _) :$ sp)
+          | Just sp' <- traverse free sp = Just (m, sp')
+        pattern _                        = Nothing
+
+        free ((v ::: t) :$ Nil) = Just (v ::: t)
+        free _                  = Nothing
+
+        solve (m := v ::: t :@ c) = modify (Map.insert m (v ::: t :@ c))
 
         solved _S m = case Map.lookup m _S of
           Just t  -> Just (toSolution m t)
