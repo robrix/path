@@ -14,7 +14,9 @@ import Path.Constraint
 import Path.Error
 import Path.Eval
 import Path.Name
+import Path.Plicity
 import Path.Scope
+import Path.Usage
 import Path.Value
 
 simplify :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Caused (Equation (Typed Value)) -> m (Set.Set (Caused (Equation (Typed Value))))
