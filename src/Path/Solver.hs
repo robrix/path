@@ -2,7 +2,6 @@
 module Path.Solver where
 
 import Control.Effect
-import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.State
@@ -138,7 +137,3 @@ data Thread m k
   | forall a . Fork (m a) k
 
 deriving instance Functor (Thread m)
-
-instance HFunctor Thread where
-  hmap _ (Yield  k) = Yield k
-  hmap f (Fork m k) = Fork (f m) k
