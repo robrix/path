@@ -4,6 +4,10 @@ module Path.Solver where
 import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Fresh
+import Control.Effect.State
+import Data.Foldable (for_)
+import qualified Data.Sequence as Seq
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Constraint
 import Path.Error
@@ -33,7 +37,21 @@ simplify = \case
         stuck ((Meta _ ::: _) :$ _ ::: _) = True
         stuck _                           = False
 
-solve :: Monad m => Set.Set (Caused (Equation (Typed Value))) -> m [Caused Solution]
-solve equations = case Set.minView equations of
-  Nothing -> pure []
-  Just _  -> pure []
+solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Monad m) => Set.Set (Caused (Equation (Typed Value))) -> m [Caused Solution]
+solve = fmap (map (uncurry toSolution) . Map.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Typed Value)))) . visit
+  where visit cs = for_ cs each
+        each q@(s1 :===: s2 :@ _) = do
+          _S <- get
+          case () of
+            _ | Just sol <- stuck s1 >>= solved _S -> simplify (apply [sol] q) >>= visit
+              | Just sol <- stuck s2 >>= solved _S -> simplify (apply [sol] q) >>= visit
+              | otherwise -> modify (Seq.|> q)
+
+        stuck ((Meta m ::: _) :$ _ ::: _) = Just m
+        stuck _                           = Nothing
+
+        solved _S m = case Map.lookup m _S of
+          Just t  -> Just (toSolution m t)
+          Nothing -> Nothing
+
+        toSolution m (v ::: t :@ c) = m := v ::: t :@ c
