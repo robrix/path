@@ -86,3 +86,6 @@ instance Substitutable Value where
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2
+
+instance Substitutable a => Substitutable (Typed a) where
+  apply subst (tm ::: ty) = apply subst tm ::: apply subst ty
