@@ -25,9 +25,8 @@ simplify = \case
   Pi p1 u1 t1 b1 ::: Type :===: Pi p2 u2 t2 b2 ::: Type :@ cause
     | p1 == p2, u1 == u2 -> do
       n <- freshName "_unify_" t1
-      let vn = vfree n
-      (<>) <$> simplify (t1    ::: Type :===: t2    ::: Type :@ cause)
-           <*> simplify (b1 vn ::: Type :===: b2 vn ::: Type :@ cause)
+      (<>) <$> simplify (t1   ::: Type :===: t2   ::: Type :@ cause)
+           <*> simplify (b1 n ::: Type :===: b2 n ::: Type :@ cause)
   Pi Im _ ty1 b1 ::: Type :===: t2 ::: Type :@ cause -> do
     n <- exists ty1
     simplify (b1 n ::: Type :===: t2 ::: Type :@ cause)
@@ -37,9 +36,8 @@ simplify = \case
   f1 ::: Pi p1 u1 t1 b1 :===: f2 ::: Pi p2 u2 t2 b2 :@ cause
     | p1 == p2, u1 == u2 -> do
       n <- freshName "_unify_" t1
-      let vn = vfree n
-      (<>) <$> simplify (t1       ::: Type  :===: t2       ::: Type  :@ cause)
-           <*> simplify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn :@ cause)
+      (<>) <$> simplify (t1      ::: Type :===: t2      ::: Type :@ cause)
+           <*> simplify (f1 $$ n ::: b1 n :===: f2 $$ n ::: b2 n :@ cause)
   q@((f1 ::: tf1) :$ sp1 ::: _ :===: (f2 ::: tf2) :$ sp2 ::: _ :@ cause)
     | f1 == f2, length sp1 == length sp2 -> do
       (<>) <$> simplify (tf1 ::: Type :===: tf2 ::: Type :@ cause)
@@ -60,7 +58,7 @@ simplify = \case
     | stuck t1  -> pure (Set.singleton (q :@ cause))
     | stuck t2  -> pure (Set.singleton (q :@ cause))
     | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
-  where freshName s t = (::: t) . Local . Gensym s <$> fresh
+  where freshName s t = vfree . (::: t) . Local . Gensym s <$> fresh
         exists t = vfree . (::: t) . Meta . M <$> fresh
 
         ensurePi cause t = whnf t >>= \ t -> case t of
