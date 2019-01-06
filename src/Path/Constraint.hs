@@ -6,6 +6,13 @@ import Path.Pretty
 import Path.Value
 import Text.Trifecta.Rendering (Span)
 
+data Constraint
+  = Equation :@ Cause
+  deriving (Eq, Ord, Show)
+
+infix 0 :@
+
+
 data Equation
   = Typed Value :===: Typed Value
   deriving (Eq, Ord, Show)
