@@ -107,3 +107,12 @@ instance Pretty a => Pretty (Typed a) where
   pretty (a ::: t) = pretty a <+> colon <+> pretty t
 
 instance Pretty a => PrettyPrec (Typed a)
+
+
+erase :: Term (Core.Core (Typed n) (Typed q)) a -> Term (Core.Core n q) a
+erase = cata go
+  where go (Core.Var (n ::: _))        ann = In (Core.Var n)        ann
+        go (Core.Lam (n ::: _) b)      ann = In (Core.Lam n b)      ann
+        go (f Core.:$ a)               ann = In (f Core.:$ a)       ann
+        go Core.Type                   ann = In Core.Type           ann
+        go (Core.Pi (n ::: _) p u t b) ann = In (Core.Pi n p u t b) ann
