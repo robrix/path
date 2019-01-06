@@ -10,9 +10,9 @@ import Path.Value
 import Text.Trifecta.Rendering (Span)
 
 data ElabError = ElabError
-  { errorSpan         :: Span
-  , errorContext      :: Context
-  , errorReason       :: ErrorReason
+  { errorSpan    :: Span
+  , errorContext :: Context
+  , errorReason  :: ErrorReason
   }
   deriving (Eq, Ord, Show)
 
