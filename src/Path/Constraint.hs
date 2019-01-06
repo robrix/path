@@ -6,13 +6,6 @@ import Path.Pretty
 import Path.Value
 import Text.Trifecta.Rendering (Span)
 
-data Constraint
-  = Equation :@ Cause
-  deriving (Eq, Ord, Show)
-
-infix 0 :@
-
-
 data Equation
   = Typed Value :===: Typed Value
   deriving (Eq, Ord, Show)
@@ -67,3 +60,10 @@ spans :: Cause -> NonEmpty Span
 spans = flip go []
   where go (Assert span) = (span :|)
         go (l :<>: r)    = go l . toList . go r
+
+
+data Caused a
+  = a :@ Cause
+  deriving (Eq, Ord, Show)
+
+infix 0 :@

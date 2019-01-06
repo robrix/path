@@ -61,7 +61,7 @@ runElab sigma = apply <=< runWriter . runWriter . runFresh . runReader mempty . 
           subst <- solve eqns
           pure (res, subst (eval mempty tm) ::: subst (ann tm))
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (WriterC (Set.Set Constraint) m))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused Equation)) m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
