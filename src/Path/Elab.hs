@@ -87,9 +87,9 @@ instance ( Carrier sig m
         raise (censor (Resources.mult sigma)) (elabImplicits (vfree (n ::: t) ::: t)) >>= k
         where elabImplicits = \case
                 tm ::: Value.Pi Im _ t b -> do
-                  n <- exists t
-                  ElabC (tell (Resources.singleton (typedTerm n) One))
-                  elabImplicits (tm $$ vfree n ::: b (vfree n))
+                  (n, v) <- exists t
+                  ElabC (tell (Resources.singleton n One))
+                  elabImplicits (tm $$ v ::: b v)
                 tm -> pure tm
       R (f Core.:$ a) -> do
         f' ::: fTy <- infer f
@@ -97,15 +97,13 @@ instance ( Carrier sig m
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
         k (f' $$ a' ::: b a')
       R (Core.Lam n b) -> do
-        mt <- exists Value.Type
-        let t = vfree mt
+        (_, t) <- exists Value.Type
         e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
         k (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
       L (Core.Hole _) -> do
-        mty <- exists Value.Type
-        let ty = vfree mty
-        m <- exists ty
-        k (vfree m ::: ty)
+        (_, ty) <- exists Value.Type
+        (_, m) <- exists ty
+        k (m ::: ty)
 
     Check (tm ::: ty) k -> case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
@@ -117,8 +115,8 @@ instance ( Carrier sig m
         verifyResources (ann tm) n pi res
         k (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       L (Core.Hole _) ::: ty -> do
-        m <- exists ty
-        k (vfree m ::: ty)
+        (_, m) <- exists ty
+        k (m ::: ty)
       _ ::: ty -> do
         tm' ::: inferred <- infer tm
         unified <- unify (ann tm) (ty ::: Value.Type :===: inferred ::: Value.Type)
@@ -135,18 +133,16 @@ instance ( Carrier sig m
           ensurePi span t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
             (Meta _ ::: _) Value.:$ _ -> do
-              mA <- exists Value.Type
-              let _A = vfree mA
-              mB <- exists _A
-              let _B = flip (subst (typedTerm mA)) (vfree mB)
-              (More, _A, _B) <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type :@ Assert span)))
+              (mA, _A) <- exists Value.Type
+              (_, _B) <- exists _A
+              let _B' = flip (subst mA) _B
+              (More, _A, _B') <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B' ::: Value.Type :@ Assert span)))
             _ -> throwElabError (pure span) (IllegalApplication t)
 
           unify span (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
-            n <- exists ty1
-            let vn = vfree n
-            vn <$ ElabC (tell (Set.fromList [ (vn ::: ty1 :===: tm1 ::: ty1 :@ Assert span)
-                                            , (vn ::: ty1 :===: tm2 ::: ty2 :@ Assert span) ]))
+            (_, v) <- exists ty1
+            v <$ ElabC (tell (Set.fromList [ (v ::: ty1 :===: tm1 ::: ty1 :@ Assert span)
+                                           , (v ::: ty1 :===: tm2 ::: ty2 :@ Assert span) ]))
 
           throwElabError spans reason = ElabError spans <$> askContext <*> pure reason >>= throwError
 
@@ -154,7 +150,10 @@ instance ( Carrier sig m
           askSigma = ElabC ask
 
           freshName s = Gensym s <$> ElabC fresh
-          exists t = ElabC ((::: t) . Meta . M <$> fresh)
+          exists t = do
+            Context c <- askContext
+            n <- Meta . M <$> ElabC fresh
+            pure (n, vfree (n ::: abstractPi c t) $$* fmap (vfree . fmap Local) c)
 
           whnf = ElabC . Eval.whnf
 
