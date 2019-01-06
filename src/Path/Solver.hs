@@ -140,5 +140,5 @@ data Thread m k
 deriving instance Functor (Thread m)
 
 instance HFunctor Thread where
-  hmap _ (Yield  k) = Yield      k
+  hmap _ (Yield  k) = Yield k
   hmap f (Fork m k) = Fork (f m) k
