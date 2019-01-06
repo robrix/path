@@ -157,14 +157,14 @@ fork m = send (Fork m (ret ()))
 
 
 runThread :: (Carrier sig m, Effect sig, Monad m) => Eff (ThreadC m) a -> m a
-runThread p = master (interpret p) []
-  where master p ds = do
+runThread = master [] . interpret
+  where master ds p = do
           r <- runThreadC p
           case r of
             SActive x -> return x
             SYield p  -> daemons ds     [] p
             SFork d p -> daemons (d:ds) [] p
-        daemons []            ds' p = master p (reverse ds')
+        daemons []            ds' p = master (reverse ds') p
         daemons (Daemon q:ds) ds' p = do
           r <- runThreadC q
           case r of
