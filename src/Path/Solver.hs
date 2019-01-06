@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, LambdaCase, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Solver where
 
 import Control.Effect
@@ -6,7 +6,9 @@ import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.State
+import Control.Effect.Sum
 import Control.Effect.Writer
+import Control.Monad (ap, join)
 import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.IntMap as IntMap
@@ -152,3 +154,56 @@ yield = send (Yield (ret ()))
 
 fork :: (Carrier sig m, Member Thread sig) => m a -> m ()
 fork m = send (Fork m (ret ()))
+
+
+runThread :: (Carrier sig m, Effect sig, Monad m) => Eff (ThreadC m) a -> m a
+runThread p = master (interpret p) []
+  where master p ds = do
+          r <- runThreadC p
+          case r of
+            SActive x -> return x
+            SYield p  -> daemons ds     [] p
+            SFork d p -> daemons (d:ds) [] p
+        daemons []            ds' p = master p (reverse ds')
+        daemons (Daemon q:ds) ds' p = do
+          r <- runThreadC q
+          case r of
+            SActive _   -> daemons ds      ds'             p
+            SYield   q' -> daemons ds      (Daemon q':ds') p
+            SFork d' q' -> daemons (d':ds) (Daemon q':ds') p
+
+newtype ThreadC m a = ThreadC { runThreadC :: m (SThread m a) }
+  deriving (Functor)
+
+instance Monad m => Applicative (ThreadC m) where
+  pure = ThreadC . pure . SActive
+  (<*>) = ap
+
+instance Monad m => Monad (ThreadC m) where
+  return = pure
+  ThreadC m >>= f = ThreadC $ do
+    s <- m
+    thread (f <$> s)
+
+instance (Carrier sig m, Effect sig, Monad m) => Carrier (Thread :+: sig) (ThreadC m) where
+  ret = ThreadC . ret . SActive
+
+  eff = ThreadC . handleSum
+    (eff . handle (SActive ()) thread)
+    (\case
+      Yield k -> ret (SYield k)
+      Fork m k -> ret (SFork (Daemon m) k))
+
+data Daemon m = forall a . Daemon (ThreadC m a)
+
+thread :: Monad m => SThread m (ThreadC m a) -> m (SThread m a)
+thread = \case
+  SActive p -> runThreadC p
+  SYield p -> pure (SYield (join p))
+  SFork d p -> pure (SFork d (join p))
+
+data SThread m a
+  = SYield (ThreadC m a)
+  | SFork (Daemon m) (ThreadC m a)
+  | SActive a
+  deriving (Functor)
