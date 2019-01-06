@@ -50,6 +50,6 @@ under :: (Map.Map QName Entry -> Map.Map QName Entry) -> Scope -> Scope
 under = coerce
 
 instance Pretty Scope where
-  pretty = tabulate2 space . map (green . pretty *** nest 2 . align . group . pretty) . Map.toList . unScope
+  pretty = tabulate2 space . map (green . pretty *** align . group . pretty) . Map.toList . unScope
 
 instance PrettyPrec Scope
