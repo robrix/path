@@ -24,7 +24,7 @@ sym (t1 :===: t2) = t2 :===: t1
 
 
 data Solution
-  = Meta := Typed Value
+  = Meta := Value
   deriving (Eq, Ord, Show)
 
 infix 5 :=
@@ -32,20 +32,11 @@ infix 5 :=
 solMeta :: Solution -> Meta
 solMeta (m := _) = m
 
-solDefn :: Solution -> Typed Value
+solDefn :: Solution -> Value
 solDefn (_ := d) = d
 
-solValue :: Solution -> Value
-solValue = typedTerm . solDefn
-
-solType :: Solution -> Type
-solType = typedType . solDefn
-
-solBinding :: Solution -> Typed QName
-solBinding (m := _ ::: t) = Meta m ::: t
-
 instance Pretty Solution where
-  pretty (m := v ::: t) = green (pretty m) <+> align (pretty "=" <+> pretty v </> colon <+> pretty t)
+  pretty (m := v) = green (pretty m) <+> align (pretty "=" <+> pretty v)
 
 instance PrettyPrec Solution
 
@@ -81,8 +72,8 @@ instance Substitutable a => Substitutable (Caused a) where
   apply subst (a :@ c) = apply subst a :@ foldl' (flip (flip (<>) . cause)) c subst
 
 instance Substitutable Value where
-  apply []                       = id
-  apply ((m := v ::: _ :@ _):ss) = apply ss . subst (Meta m) v
+  apply []                 = id
+  apply ((m := v :@ _):ss) = apply ss . subst (Meta m) v
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2

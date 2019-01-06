@@ -19,7 +19,7 @@ data ElabError = ElabError
 
 data ErrorReason
   = FreeVariable QName
-  | TypeMismatch (Equation (Typed Value))
+  | TypeMismatch (Equation Value)
   | NoRuleToInfer
   | IllegalApplication Type
   | ResourceMismatch Name Usage Usage

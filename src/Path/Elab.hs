@@ -63,7 +63,7 @@ runElab sigma = runFresh . (solveAndApply <=< runWriter . runWriter . runReader 
           pure (res, roundtrip (apply subst tm) ::: roundtrip (apply subst ty))
         roundtrip = eval mempty . quote 0
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation (Typed Value)))) (Eff (FreshC m))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation Value))) (Eff (FreshC m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -117,7 +117,7 @@ instance ( Carrier sig m
        check (tm ::: ty') >>= k
       _ ::: ty -> do
         tm' ::: inferred <- infer tm
-        unified <- unify (ann tm) (ty ::: Value.Type :===: inferred ::: Value.Type)
+        unified <- unify (ann tm) Value.Type (ty :===: inferred)
         k (tm' ::: unified)
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
@@ -142,13 +142,13 @@ instance ( Carrier sig m
               (mA, _A) <- exists Value.Type
               (_, _B) <- exists _A
               let _B' = flip (subst mA) _B
-              (More, _A, _B') <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B' ::: Value.Type :@ Assert span)))
+              (More, _A, _B') <$ ElabC (tell (Set.singleton (t :===: Value.Pi Ex More _A _B' :@ Assert span)))
             _ -> throwElabError (pure span) (IllegalApplication t)
 
-          unify span (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
-            (_, v) <- exists ty1
-            v <$ ElabC (tell (Set.fromList [ (v ::: ty1 :===: tm1 ::: ty1 :@ Assert span)
-                                           , (v ::: ty1 :===: tm2 ::: ty2 :@ Assert span) ]))
+          unify span ty (tm1 :===: tm2) = if tm1 == tm2 then pure tm1 else do
+            (_, v) <- exists ty
+            v <$ ElabC (tell (Set.fromList [ (v :===: tm1 :@ Assert span)
+                                           , (v :===: tm2 :@ Assert span) ]))
 
           throwElabError spans reason = ElabError spans <$> askContext <*> pure reason >>= throwError
 
