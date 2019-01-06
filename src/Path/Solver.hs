@@ -47,6 +47,7 @@ simplify = \case
     | stuck t2  -> pure (Set.singleton (q :@ cause))
     | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
+  
         stuck ((Meta _ ::: _) :$ _ ::: _) = True
         stuck _                           = False
 
