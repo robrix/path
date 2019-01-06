@@ -28,7 +28,7 @@ simplify = \case
   q :@ cause -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
 
-solve :: Monad m => Set.Set (Caused Equation) -> m (Value -> Value)
+solve :: Monad m => Set.Set (Caused Equation) -> m [Caused Solution]
 solve equations = case Set.minView equations of
-  Nothing -> pure id
-  Just _  -> pure id
+  Nothing -> pure []
+  Just _  -> pure []

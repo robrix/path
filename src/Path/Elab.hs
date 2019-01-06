@@ -57,10 +57,10 @@ runElab :: ( Carrier sig m
         => Usage
         -> Eff (ElabC m) (Term (Core (Typed Name) (Typed QName)) Type)
         -> m (Resources, Typed Value)
-runElab sigma = apply <=< runWriter . runWriter . runFresh . runReader mempty . runReader sigma . runElabC . interpret
-  where apply (eqns, (res, tm)) = do
+runElab sigma = solveAndApply <=< runWriter . runWriter . runFresh . runReader mempty . runReader sigma . runElabC . interpret
+  where solveAndApply (eqns, (res, tm)) = do
           subst <- solve eqns
-          pure (res, subst (eval mempty tm) ::: subst (ann tm))
+          pure (res, apply subst (eval mempty tm) ::: apply subst (ann tm))
 
 newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused Equation)) m))))))))) a }
   deriving (Applicative, Functor, Monad)
