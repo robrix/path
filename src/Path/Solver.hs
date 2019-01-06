@@ -49,10 +49,10 @@ simplify = \case
     t2 <- whnf (f2 :$ sp2)
     simplify (t1 :===: t2 :@ cause)
   tm1 :===: Lam t2 b2 :@ cause -> do
-    (t1, s) <- ensurePi cause tm1
+    (s, t1) <- ensurePi cause tm1
     (<> s) <$> simplify (Lam t1 (tm1 $$) :===: Lam t2 b2 :@ cause)
   Lam t1 b1 :===: tm2 :@ cause -> do
-    (t2, s) <- ensurePi cause tm2
+    (s, t2) <- ensurePi cause tm2
     (<> s) <$> simplify (Lam t1 b1 :===: Lam t2 (tm2 $$) :@ cause)
   q@(t1 :===: t2) :@ cause
     | stuck t1  -> pure (Set.singleton (q :@ cause))
@@ -61,7 +61,7 @@ simplify = \case
   where freshName s t = ((,) <*> vfree . (::: t)) . Local . Gensym s <$> fresh
         exists t = vfree . (::: t) . Meta . M <$> fresh
 
-        typeof cause = runWriter . infer
+        typeof cause = infer
           where infer Type = pure Type
                 infer (Pi _ _ t b) = do
                   (_, v) <- freshName "_infer_" t
@@ -77,8 +77,8 @@ simplify = \case
                       m <- exists Type
                       m <$ tell (Set.fromList [m :===: ty :@ cause, m :===: ty' :@ cause])
 
-        ensurePi cause t = typeof cause t >>= \ (s, t) -> whnf t >>= \ t -> case t of
-          Pi _ _ t _ -> pure (t, Set.empty)
+        ensurePi cause t = runWriter $ typeof cause t >>= whnf >>= \ t -> case t of
+          Pi _ _ t _ -> pure t
           (Meta _ ::: ty) :$ sp -> do
             m1 <- Meta . M <$> fresh
             m2 <- Meta . M <$> fresh
@@ -90,7 +90,7 @@ simplify = \case
                 t2 = recur2 ty Nil
                 _A = vfree (m1 ::: t1) $$* sp
                 _B x = vfree (m2 ::: t2) $$* (sp:>x)
-            pure (_A, Set.insert (t :===: Pi Im More _A _B :@ cause) s)
+            _A <$ tell (Set.singleton (t :===: Pi Im More _A _B :@ cause))
           _ -> throwError (ElabError (spans cause) mempty (IllegalApplication t))
 
         stuck ((Meta _ ::: _) :$ _) = True
