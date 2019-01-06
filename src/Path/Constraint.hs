@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Path.Constraint where
 
 import Data.Foldable (foldl')
@@ -78,3 +79,7 @@ class Substitutable t where
 
 instance Substitutable a => Substitutable (Caused a) where
   apply subst (a :@ c) = apply subst a :@ foldl' (flip (flip (<>) . cause)) c subst
+
+instance Substitutable Value where
+  apply []                       = id
+  apply ((m := v ::: _ :@ _):ss) = apply ss . subst (Meta m) v
