@@ -122,6 +122,6 @@ abstractLam :: Foldable t => t (Typed Name) -> Value -> Value
 abstractLam = flip (foldr abstract)
   where abstract (n ::: t) rest = Lam t (\ a -> subst (Local n) a rest)
 
-abstractPi :: Foldable t => t (Typed (Plicity, Usage, Name)) -> Value -> Value
+abstractPi :: Foldable t => t (Typed Name) -> Value -> Value
 abstractPi = flip (foldr abstract)
-  where abstract ((p, u, n) ::: t) rest = Pi p u t (\ a -> subst (Local n) a rest)
+  where abstract (n ::: t) rest = Pi Im More t (\ a -> subst (Local n) a rest)
