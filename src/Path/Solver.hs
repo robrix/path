@@ -8,7 +8,7 @@ import Control.Effect.State
 import Control.Effect.Writer
 import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.Map as Map
+import qualified Data.IntMap as IntMap
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Path.Back
@@ -103,7 +103,7 @@ simplify = execWriter . go
         stuck _                     = False
 
 solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Set.Set (Caused (Equation Value)) -> m [Caused Solution]
-solve = fmap (map (uncurry toSolution) . Map.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value))) . visit
+solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value))) . visit
   where visit cs = for_ cs each
         each q@(t1 :===: t2 :@ c) = do
           _S <- get
@@ -124,10 +124,10 @@ solve = fmap (map (uncurry toSolution) . Map.toList) . execState mempty . evalSt
         free ((v ::: t) :$ Nil) = Just (v ::: t)
         free _                  = Nothing
 
-        solve (m := v :@ c) = modify (Map.insert m (v :@ c))
+        solve (M m := v :@ c) = modify (IntMap.insert m (v :@ c))
 
-        solved _S m = case Map.lookup m _S of
+        solved _S (M m) = case IntMap.lookup m _S of
           Just t  -> Just (toSolution m t)
           Nothing -> Nothing
 
-        toSolution m (v :@ c) = m := v :@ c
+        toSolution m (v :@ c) = M m := v :@ c
