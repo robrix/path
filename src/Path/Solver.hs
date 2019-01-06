@@ -25,8 +25,13 @@ simplify = \case
       let vn = vfree n
       (<>) <$> simplify (t1       ::: Type  :===: t2       ::: Type  :@ cause)
            <*> simplify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn :@ cause)
-  q :@ cause -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
+  q@(t1 :===: t2) :@ cause
+    | stuck t1  -> pure (Set.singleton (q :@ cause))
+    | stuck t2  -> pure (Set.singleton (q :@ cause))
+    | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
+        stuck ((Meta _ ::: _) :$ _ ::: _) = True
+        stuck _                           = False
 
 solve :: Monad m => Set.Set (Caused (Equation (Typed Value))) -> m [Caused Solution]
 solve equations = case Set.minView equations of
