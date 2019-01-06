@@ -118,10 +118,10 @@ erase = cata go
         go (Core.Pi (n ::: _) p u t b) ann = In (Core.Pi n p u t b) ann
 
 
-abstractLam :: [Typed Name] -> Value -> Value
-abstractLam []               v = v
-abstractLam (n ::: t : rest) v = Lam t (\ a -> subst (Local n) a (abstractLam rest v))
+abstractLam :: Foldable t => t (Typed Name) -> Value -> Value
+abstractLam = flip (foldr abstract)
+  where abstract (n ::: t) rest = Lam t (\ a -> subst (Local n) a rest)
 
-abstractPi :: [Typed (Plicity, Usage, Name)] -> Value -> Value
-abstractPi []               v = v
-abstractPi ((p, u, n) ::: t : rest) v = Pi p u t (\ a -> subst (Local n) a (abstractPi rest v))
+abstractPi :: Foldable t => t (Typed (Plicity, Usage, Name)) -> Value -> Value
+abstractPi = flip (foldr abstract)
+  where abstract ((p, u, n) ::: t) rest = Pi p u t (\ a -> subst (Local n) a rest)
