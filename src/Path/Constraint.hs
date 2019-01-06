@@ -1,5 +1,6 @@
 module Path.Constraint where
 
+import Data.Foldable (foldl')
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import Path.Name
 import Path.Pretty
@@ -74,3 +75,6 @@ cause (_ :@ cause) = cause
 
 class Substitutable t where
   apply :: [Caused Solution] -> t -> t
+
+instance Substitutable a => Substitutable (Caused a) where
+  apply subst (a :@ c) = apply subst a :@ foldl' (flip (flip (<>) . cause)) c subst
