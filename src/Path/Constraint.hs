@@ -29,12 +29,6 @@ data Solution
 
 infix 5 :=
 
-solMeta :: Solution -> Meta
-solMeta (m := _) = m
-
-solDefn :: Solution -> Value
-solDefn (_ := d) = d
-
 instance Pretty Solution where
   pretty (m := v) = green (pretty m) <+> align (pretty "=" <+> pretty v)
 
