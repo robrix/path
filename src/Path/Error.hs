@@ -28,19 +28,19 @@ data ErrorReason
 
 instance Pretty ElabError where
   pretty (ElabError span ctx reason) = case reason of
-    FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
-    TypeMismatch (expected :===: actual) -> prettyErr span (fold (punctuate hardline
+    FreeVariable name -> prettyErr (pure span) (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
+    TypeMismatch (expected :===: actual) -> prettyErr (pure span) (fold (punctuate hardline
       [ pretty "type mismatch"
       , pretty "expected:" <+> pretty expected
       , pretty "  actual:" <+> pretty actual
       ])) (prettyCtx ctx)
-    NoRuleToInfer -> prettyErr span (pretty "no rule to infer type of term") (prettyCtx ctx)
-    IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
-    ResourceMismatch n pi used spans -> prettyErr span msg (map prettys spans <> prettyCtx ctx)
+    NoRuleToInfer -> prettyErr (pure span) (pretty "no rule to infer type of term") (prettyCtx ctx)
+    IllegalApplication ty -> prettyErr (pure span) (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
+    ResourceMismatch n pi used spans -> prettyErr (pure span) msg (map prettys spans <> prettyCtx ctx)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
-    TypedHole n ty -> prettyErr span msg (prettyCtx ctx)
+    TypedHole n ty -> prettyErr (pure span) msg (prettyCtx ctx)
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-    InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
+    InfiniteType n t -> prettyErr (pure span) (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
     where prettyCtx ctx
             =  if (Context.null ctx) then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
 
