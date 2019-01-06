@@ -6,7 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.State
 import Control.Effect.Writer
-import Data.Foldable (fold, for_, toList)
+import Data.Foldable (for_, toList)
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -21,44 +21,45 @@ import Path.Usage
 import Path.Value
 
 simplify :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Caused (Equation Value) -> m (Set.Set (Caused (Equation Value)))
-simplify = \case
-  tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure Set.empty
-  Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2 :@ cause
-    | p1 == p2, u1 == u2 -> do
-      (_, n) <- freshName "_unify_" t1
-      (<>) <$> simplify (t1   :===: t2   :@ cause)
-           <*> simplify (b1 n :===: b2 n :@ cause)
-  Pi Im _ ty1 b1 :===: t2 :@ cause -> do
-    n <- exists ty1
-    simplify (b1 n :===: t2 :@ cause)
-  t1 :===: Pi Im _ ty2 b2 :@ cause -> do
-    n <- exists ty2
-    simplify (t1 :===: b2 n :@ cause)
-  Lam t1 b1 :===: Lam t2 b2 :@ cause -> do
-      (_, n) <- freshName "_unify_" t1
-      (<>) <$> simplify (t1   :===: t2   :@ cause)
-           <*> simplify (b1 n :===: b2 n :@ cause)
-  (f1 ::: tf1) :$ sp1 :===: (f2 ::: tf2) :$ sp2 :@ cause
-    | f1 == f2, length sp1 == length sp2 -> do
-      (<>) <$> simplify (tf1 :===: tf2 :@ cause)
-           <*> (fold <$> sequenceA (zipWith (fmap (simplify . (:@ cause)) . (:===:)) (toList sp1) (toList sp2)))
-  f1@((_ :.: _) ::: _) :$ sp1 :===: t2 :@ cause -> do
-    t1 <- whnf (f1 :$ sp1)
-    simplify (t1 :===: t2 :@ cause)
-  t1 :===: f2@((_ :.: _) ::: _) :$ sp2 :@ cause -> do
-    t2 <- whnf (f2 :$ sp2)
-    simplify (t1 :===: t2 :@ cause)
-  tm1 :===: Lam t2 b2 :@ cause -> do
-    (s, t1) <- ensurePi cause tm1
-    (<> s) <$> simplify (Lam t1 (tm1 $$) :===: Lam t2 b2 :@ cause)
-  Lam t1 b1 :===: tm2 :@ cause -> do
-    (s, t2) <- ensurePi cause tm2
-    (<> s) <$> simplify (Lam t1 b1 :===: Lam t2 (tm2 $$) :@ cause)
-  q@(t1 :===: t2) :@ cause
-    | stuck t1  -> pure (Set.singleton (q :@ cause))
-    | stuck t2  -> pure (Set.singleton (q :@ cause))
-    | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
-  where freshName s t = ((,) <*> vfree . (::: t)) . Local . Gensym s <$> fresh
+simplify = execWriter . go
+  where go = \case
+          tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
+          Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2 :@ cause
+            | p1 == p2, u1 == u2 -> do
+              (_, n) <- freshName "_unify_" t1
+              go (t1   :===: t2   :@ cause)
+              go (b1 n :===: b2 n :@ cause)
+          Pi Im _ ty1 b1 :===: t2 :@ cause -> do
+            n <- exists ty1
+            go (b1 n :===: t2 :@ cause)
+          t1 :===: Pi Im _ ty2 b2 :@ cause -> do
+            n <- exists ty2
+            go (t1 :===: b2 n :@ cause)
+          Lam t1 b1 :===: Lam t2 b2 :@ cause -> do
+              (_, n) <- freshName "_unify_" t1
+              go (t1   :===: t2   :@ cause)
+              go (b1 n :===: b2 n :@ cause)
+          (f1 ::: tf1) :$ sp1 :===: (f2 ::: tf2) :$ sp2 :@ cause
+            | f1 == f2, length sp1 == length sp2 -> do
+              go (tf1 :===: tf2 :@ cause)
+              for_ (zipWith (:===:) (toList sp1) (toList sp2)) (go . (:@ cause))
+          f1@((_ :.: _) ::: _) :$ sp1 :===: t2 :@ cause -> do
+            t1 <- whnf (f1 :$ sp1)
+            go (t1 :===: t2 :@ cause)
+          t1 :===: f2@((_ :.: _) ::: _) :$ sp2 :@ cause -> do
+            t2 <- whnf (f2 :$ sp2)
+            go (t1 :===: t2 :@ cause)
+          tm1 :===: Lam t2 b2 :@ cause -> do
+            t1 <- ensurePi cause tm1
+            go (Lam t1 (tm1 $$) :===: Lam t2 b2 :@ cause)
+          Lam t1 b1 :===: tm2 :@ cause -> do
+            t2 <- ensurePi cause tm2
+            go (Lam t1 b1 :===: Lam t2 (tm2 $$) :@ cause)
+          q@(t1 :===: t2) :@ cause
+            | stuck t1  -> tell (Set.singleton (q :@ cause))
+            | stuck t2  -> tell (Set.singleton (q :@ cause))
+            | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
+        freshName s t = ((,) <*> vfree . (::: t)) . Local . Gensym s <$> fresh
         exists t = vfree . (::: t) . Meta . M <$> fresh
 
         typeof cause = infer
@@ -77,7 +78,7 @@ simplify = \case
                       m <- exists Type
                       m <$ tell (Set.fromList [m :===: ty :@ cause, m :===: ty' :@ cause])
 
-        ensurePi cause t = runWriter $ typeof cause t >>= whnf >>= \ t -> case t of
+        ensurePi cause t = typeof cause t >>= whnf >>= \ t -> case t of
           Pi _ _ t _ -> pure t
           (Meta _ ::: ty) :$ sp -> do
             m1 <- Meta . M <$> fresh
