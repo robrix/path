@@ -153,7 +153,7 @@ instance ( Carrier sig m
           exists t = do
             Context c <- askContext
             n <- Meta . M <$> ElabC fresh
-            pure (n, vfree (n ::: abstractPi c t) $$* fmap (vfree . fmap Local) c)
+            pure (n, vfree (n ::: abstractPi (fmap Local <$> c) t) $$* fmap (vfree . fmap Local) c)
 
           whnf = ElabC . Eval.whnf
 
