@@ -6,7 +6,6 @@ import Data.Coerce
 import qualified Data.Map as Map
 import Path.Name
 import Path.Pretty
-import Path.Type
 import Path.Value
 
 data Entry
@@ -23,8 +22,8 @@ entryValue (Defn (v ::: _)) = Just v
 entryValue _                = Nothing
 
 instance Pretty Entry where
-  pretty (Decl        ty)  =                                     colon <+> pretty ty
-  pretty (Defn (v ::: ty)) = align $ pretty "=" <+> pretty v </> colon <+> pretty ty
+  pretty (Decl        ty)  =         colon <+> pretty ty
+  pretty (Defn (v ::: ty)) = align $ colon <+> pretty ty </> pretty "=" <+> pretty v
 
 instance PrettyPrec Entry
 
@@ -51,6 +50,6 @@ under :: (Map.Map QName Entry -> Map.Map QName Entry) -> Scope -> Scope
 under = coerce
 
 instance Pretty Scope where
-  pretty = tabulate2 space . map (green . pretty *** nest 2 . align . group . pretty) . Map.toList . unScope
+  pretty = tabulate2 space . map (green . pretty *** align . group . pretty) . Map.toList . unScope
 
 instance PrettyPrec Scope

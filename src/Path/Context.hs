@@ -6,7 +6,7 @@ import qualified Data.Set as Set
 import Path.Back as Back
 import Path.Name
 import Path.Pretty
-import Path.Type
+import Path.Value
 
 newtype Context = Context { unContext :: Back (Typed Name) }
   deriving (Eq, Ord, Show)

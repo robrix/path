@@ -11,8 +11,6 @@ import Text.Trifecta.Rendering (Span)
 data Name
   = Name String
   | Gensym String Int
-  | Meta Meta
-  | V Name Twin
   | Op Operator
   deriving (Eq, Ord, Show)
 
@@ -20,11 +18,16 @@ instance Pretty Name where
   pretty = \case
     Name s -> pretty s
     Gensym s i -> pretty s <> prettyVar i
-    Meta m -> pretty m
-    V v t -> pretty v <> pretty t
     Op op -> pretty op
 
 instance PrettyPrec Name
+
+
+data Bound = Bound
+  { boundIndex :: Int
+  , boundName  :: Name
+  }
+  deriving (Eq, Ord, Show)
 
 
 newtype Meta = M Int
@@ -34,17 +37,6 @@ instance Pretty Meta where
   pretty (M i) = pretty "_meta_" <> prettyVar i
 
 instance PrettyPrec Meta
-
-
-data Twin = Only | TwinL | TwinR
-  deriving (Eq, Ord, Show)
-
-instance Pretty Twin where
-  pretty Only  = pretty "⃡"
-  pretty TwinL = pretty "⃖"
-  pretty TwinR = pretty "⃗"
-
-instance PrettyPrec Twin
 
 
 data ModuleName
@@ -70,12 +62,14 @@ type PackageName = String
 
 data QName
   = ModuleName :.: Name
+  | Meta Meta
   | Local Name
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
   pretty = \case
     _ :.: n -> pretty n
+    Meta m -> pretty m
     Local n -> pretty n
 
 inModule :: ModuleName -> QName -> Bool
@@ -89,10 +83,14 @@ isLocal _         = False
 prettyQName :: QName -> Doc
 prettyQName = \case
   m :.: n -> pretty m <> dot <> pretty n
+  Meta m -> pretty m
   Local n -> pretty n
 
 localNames :: Set.Set QName -> Set.Set Name
 localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
+
+metaNames :: Set.Set QName -> Set.Set Meta
+metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 
 data Operator

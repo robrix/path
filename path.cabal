@@ -15,6 +15,7 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Path.Back
                      , Path.CLI
+                     , Path.Constraint
                      , Path.Context
                      , Path.Core
                      , Path.Desugar
@@ -38,10 +39,10 @@ library
                      , Path.REPL.Command
                      , Path.Resources
                      , Path.Scope
+                     , Path.Solver
                      , Path.Semiring
                      , Path.Surface
                      , Path.Term
-                     , Path.Type
                      , Path.Usage
                      , Path.Value
   other-modules:       Paths_path
