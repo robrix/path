@@ -68,6 +68,9 @@ data Caused a
 
 infix 0 :@
 
+cause :: Caused a -> Cause
+cause (_ :@ cause) = cause
+
 
 class Substitutable t where
   apply :: [Caused Solution] -> t -> t
