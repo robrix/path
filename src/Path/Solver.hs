@@ -42,11 +42,33 @@ simplify = \case
   (t1 ::: ty1 :===: f2@((_ :.: _) ::: _) :$ sp2 ::: ty2 :@ cause) -> do
     t2 <- whnf (f2 :$ sp2)
     simplify (t1 ::: ty1 :===: t2 ::: ty2 :@ cause)
+  tm1 ::: ty1 :===: Lam t2 b2 ::: ty2 :@ cause -> do
+    (u, t1, b1, s) <- ensurePi cause ty1
+    (<> s) <$> simplify (Lam t1 (tm1 $$) ::: Pi Im u t1 b1 :===: Lam t2 b2 ::: ty2 :@ cause)
+  Lam t1 b1 ::: ty1 :===: tm2 ::: ty2 :@ cause -> do
+    (u, t2, b2, s) <- ensurePi cause ty2
+    (<> s) <$> simplify (Lam t1 b1 ::: ty1 :===: Lam t2 (tm2 $$) ::: Pi Im u t2 b2 :@ cause)
   q@(t1 :===: t2) :@ cause
     | stuck t1  -> pure (Set.singleton (q :@ cause))
     | stuck t2  -> pure (Set.singleton (q :@ cause))
     | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
+
+        ensurePi cause t = whnf t >>= \ t -> case t of
+          Pi _ pi t b -> pure (pi, t, b, Set.empty)
+          (Meta _ ::: ty) :$ sp -> do
+            m1 <- Meta . M <$> fresh
+            m2 <- Meta . M <$> fresh
+            let recur1 (Pi p u t b) = Pi p u t (\ x -> recur1 (b x))
+                recur1 _            = vfree (m1 ::: Type)
+                t1 = recur1 ty
+                recur2 (Pi p u t b) xs = Pi p u t (\ x -> recur2 (b x) (xs :> x))
+                recur2 _            xs = Pi Im Zero (vfree (m1 ::: Type) $$* xs) (const Type)
+                t2 = recur2 ty Nil
+                _A = vfree (m1 ::: t1) $$* sp
+                _B x = vfree (m2 ::: t2) $$* (sp:>x)
+            pure (More, _A, _B, Set.singleton (t ::: Type :===: Pi Im More _A _B ::: Type :@ cause))
+          _ -> throwError (ElabError (spans cause) mempty (IllegalApplication t))
 
         stuck ((Meta _ ::: _) :$ _ ::: _) = True
         stuck _                           = False
