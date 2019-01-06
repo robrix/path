@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, LambdaCase, StandaloneDeriving #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase #-}
 module Path.Solver where
 
 import Control.Effect
@@ -131,9 +131,3 @@ solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . eva
           Nothing -> Nothing
 
         toSolution m (v :@ c) = M m := v :@ c
-
-data Thread m k
-  = Yield k
-  | forall a . Fork (m a) k
-
-deriving instance Functor (Thread m)
