@@ -33,8 +33,3 @@ solve :: Monad m => Set.Set (Equation, Cause) -> m (Value -> Value)
 solve equations = case Set.minView equations of
   Nothing -> pure id
   Just _  -> pure id
-
-data Cause
-  = Assert Span
-  | Cause :<>: Cause
-  deriving (Eq, Ord, Show)
