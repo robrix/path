@@ -5,9 +5,9 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Fresh
 import qualified Data.Set as Set
+import Path.Constraint
 import Path.Error
 import Path.Name
-import Path.Type
 import Path.Value
 import Text.Trifecta.Rendering (Span)
 

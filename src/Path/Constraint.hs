@@ -1,4 +1,4 @@
-module Path.Type where
+module Path.Constraint where
 
 import Path.Name
 import Path.Pretty

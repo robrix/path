@@ -18,6 +18,7 @@ import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Back as Back
+import Path.Constraint
 import Path.Context as Context
 import Path.Core as Core
 import Path.Error
@@ -30,7 +31,6 @@ import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
 import Path.Term
-import Path.Type
 import Path.Usage
 import Path.Value as Value
 import Text.Trifecta.Rendering (Span)

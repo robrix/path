@@ -1,10 +1,10 @@
 module Path.Error where
 
 import Data.Foldable (fold)
+import Path.Constraint
 import Path.Context as Context
 import Path.Name
 import Path.Pretty
-import Path.Type
 import Path.Usage
 import Path.Value
 import Text.Trifecta.Rendering (Span)
