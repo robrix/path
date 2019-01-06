@@ -191,7 +191,7 @@ instance (Carrier sig m, Effect sig, Monad m) => Carrier (Thread :+: sig) (Threa
   eff = ThreadC . handleSum
     (eff . handle (SActive ()) thread)
     (\case
-      Yield k -> ret (SYield k)
+      Yield  k -> ret (SYield k)
       Fork m k -> ret (SFork (Daemon m) k))
 
 data Daemon m = forall a . Daemon (ThreadC m a)
