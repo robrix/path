@@ -89,6 +89,9 @@ prettyQName = \case
 localNames :: Set.Set QName -> Set.Set Name
 localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
 
+metaNames :: Set.Set QName -> Set.Set Meta
+metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
+
 
 data Operator
   = Prefix (NonEmpty String)
