@@ -84,8 +84,8 @@ instance ( Carrier sig m
         where elabImplicits tm
                 | Value.Pi Im _ t b <- ann tm = do
                   n <- exists t
-                  ElabC (tell (Resources.singleton n One))
-                  elabImplicits (In (tm Core.:$ In (Core.Var (n ::: t)) t) (b (vfree (n ::: t))))
+                  ElabC (tell (Resources.singleton (typedTerm n) One))
+                  elabImplicits (In (tm Core.:$ In (Core.Var n) t) (b (vfree n)))
                 | otherwise = pure tm
       R (f Core.:$ a) -> do
         f' <- infer f
@@ -94,14 +94,14 @@ instance ( Carrier sig m
         k (In (f' Core.:$ a') (b (eval mempty a')))
       R (Core.Lam n b) -> do
         mt <- exists Value.Type
-        let t = vfree (mt ::: Value.Type)
+        let t = vfree mt
         e' <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
         k (In (Core.Lam (n ::: t) e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
       L (Core.Hole _) -> do
         mty <- exists Value.Type
-        let ty = vfree (mty ::: Value.Type)
+        let ty = vfree mty
         m <- exists ty
-        k (In (Core.Var (m ::: ty)) ty)
+        k (In (Core.Var m) ty)
 
     Check (tm ::: ty) k -> case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
@@ -114,7 +114,7 @@ instance ( Carrier sig m
         k (In (Core.Lam (n ::: t) e') ty)
       L (Core.Hole _) ::: ty -> do
         m <- exists ty
-        k (In (Core.Var (m ::: ty)) ty)
+        k (In (Core.Var m) ty)
       _ ::: ty -> do
         tm' <- infer tm
         unified <- unify (ty ::: Value.Type :===: ann tm' ::: Value.Type)
@@ -132,15 +132,15 @@ instance ( Carrier sig m
             Value.Pi _ pi t b -> pure (pi, t, b)
             (Meta _ ::: _) Value.:$ _ -> do
               mA <- exists Value.Type
-              let _A = vfree (mA ::: Value.Type)
+              let _A = vfree mA
               mB <- exists _A
-              let _B = flip (subst mA) (vfree (mB ::: _A))
+              let _B = flip (subst (typedTerm mA)) (vfree mB)
               (More, _A, _B) <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type)))
             _ -> throwElabError span (IllegalApplication t)
 
           unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
             n <- exists ty1
-            let vn = vfree (n ::: ty1)
+            let vn = vfree n
             vn <$ ElabC (tell (Set.fromList [ vn ::: ty1 :===: tm1 ::: ty1
                                             , vn ::: ty1 :===: tm2 ::: ty2 ]))
 
@@ -150,7 +150,7 @@ instance ( Carrier sig m
           askSigma = ElabC ask
 
           freshName s = Gensym s <$> ElabC fresh
-          exists _ = ElabC (Meta . M <$> fresh)
+          exists t = ElabC ((::: t) . Meta . M <$> fresh)
 
           whnf = ElabC . Eval.whnf
 
