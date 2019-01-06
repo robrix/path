@@ -117,6 +117,9 @@ instance ( Carrier sig m
       L (Core.Hole _) ::: ty -> do
         (_, m) <- exists ty
         k (m ::: ty)
+      _ ::: ((_ :.: _ ::: _) Value.:$ _) -> do
+       ty' <- whnf ty
+       check (tm ::: ty') >>= k
       _ ::: ty -> do
         tm' ::: inferred <- infer tm
         unified <- unify (ann tm) (ty ::: Value.Type :===: inferred ::: Value.Type)
