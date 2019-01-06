@@ -13,7 +13,6 @@ import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -123,7 +122,7 @@ instance ( Carrier sig m
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
               unless (sigma >< pi == More) . when (pi /= used) $
-                throwElabError (span:|uses n tm) (ResourceMismatch n pi used))
+                throwElabError span (ResourceMismatch n pi used (uses n tm)))
     where n ::: t |- m = raise (local (Context.insert (n ::: t))) m
           infix 5 |-
           raise f (ElabC m) = ElabC (f m)
@@ -143,14 +142,14 @@ instance ( Carrier sig m
               (_, _B) <- exists _A
               let _B' = flip (subst mA) _B
               (More, _A, _B') <$ ElabC (tell (Set.singleton (t :===: Value.Pi Ex More _A _B' :@ Assert span)))
-            _ -> throwElabError (pure span) (IllegalApplication t)
+            _ -> throwElabError span (IllegalApplication t)
 
           unify span ty (tm1 :===: tm2) = if tm1 == tm2 then pure tm1 else do
             (_, v) <- exists ty
             v <$ ElabC (tell (Set.fromList [ (v :===: tm1 :@ Assert span)
                                            , (v :===: tm2 :@ Assert span) ]))
 
-          throwElabError spans reason = ElabError spans <$> askContext <*> pure reason >>= throwError
+          throwElabError span reason = ElabError span <$> askContext <*> pure reason >>= throwError
 
           askContext = ElabC ask
           askSigma = ElabC ask
@@ -161,9 +160,9 @@ instance ( Carrier sig m
             n <- Meta . M <$> ElabC fresh
             pure (n, vfree (n ::: abstractPi (fmap Local <$> c) t) $$* fmap (vfree . fmap Local) c)
 
-          lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (pure span) (FreeVariable (m :.: n))) (pure . entryType)
-          lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (pure span) (FreeVariable (Local n))) pure
-          lookupVar span (Meta n) = throwElabError (pure span) (FreeVariable (Meta n))
+          lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError span (FreeVariable (m :.: n))) (pure . entryType)
+          lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError span (FreeVariable (Local n))) pure
+          lookupVar span (Meta n) = throwElabError span (FreeVariable (Meta n))
 
 
 infer :: (Carrier sig m, Member Elab sig)

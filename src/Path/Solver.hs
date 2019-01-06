@@ -7,6 +7,7 @@ import Control.Effect.Fresh
 import Control.Effect.State
 import Control.Effect.Writer
 import Data.Foldable (for_, toList)
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -59,10 +60,10 @@ simplify = execWriter . go
           Lam t1 b1 :===: tm2 :@ cause -> do
             t2 <- ensurePi cause tm2
             go (Lam t1 b1 :===: Lam t2 (tm2 $$) :@ cause)
-          q@(t1 :===: t2) :@ cause
-            | stuck t1  -> tell (Set.singleton (q :@ cause))
-            | stuck t2  -> tell (Set.singleton (q :@ cause))
-            | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
+          q@(t1 :===: t2 :@ cause)
+            | stuck t1                 -> tell (Set.singleton q)
+            | stuck t2                 -> tell (Set.singleton q)
+            | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
         freshName s t = ((,) <*> vfree . (::: t)) . Local . Gensym s <$> fresh
         exists t = vfree . (::: t) . Meta . M <$> fresh
 
@@ -96,7 +97,7 @@ simplify = execWriter . go
                 _A = vfree (m1 ::: t1) $$* sp
                 _B x = vfree (m2 ::: t2) $$* (sp:>x)
             _A <$ tell (Set.singleton (t :===: Pi Im More _A _B :@ cause))
-          _ -> throwError (ElabError (spans cause) mempty (IllegalApplication t))
+          _ | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 
         stuck ((Meta _ ::: _) :$ _) = True
         stuck _                     = False

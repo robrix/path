@@ -18,7 +18,6 @@ module Path.Pretty
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
@@ -37,19 +36,19 @@ putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
-prettyNotice :: NonEmpty Span -> Maybe Doc -> Doc -> [Doc] -> Doc
-prettyNotice (s:|ss) lvl msg ctx = vsep
+prettyNotice :: Span -> Maybe Doc -> Doc -> [Doc] -> Doc
+prettyNotice s lvl msg ctx = vsep
   ( nest 2 (group (prettyStart s <> colon <> maybe empty ((space <>) . (<> colon)) lvl </> msg))
   : prettys s
-  : ctx <> map prettys ss)
+  : ctx)
 
-prettyErr :: NonEmpty Span -> Doc -> [Doc] -> Doc
+prettyErr :: Span -> Doc -> [Doc] -> Doc
 prettyErr s = prettyNotice s (Just (red (pretty "error")))
 
-prettyWarn :: NonEmpty Span -> Doc -> [Doc] -> Doc
+prettyWarn :: Span -> Doc -> [Doc] -> Doc
 prettyWarn s = prettyNotice s (Just (magenta (pretty "warning")))
 
-prettyInfo :: NonEmpty Span -> Doc -> [Doc] -> Doc
+prettyInfo :: Span -> Doc -> [Doc] -> Doc
 prettyInfo s = prettyNotice s Nothing
 
 prettyStart :: Span -> Doc

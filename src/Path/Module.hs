@@ -66,12 +66,12 @@ data ModuleError
 
 instance Pretty ModuleError where
   pretty = \case
-    UnknownModule (Import name span) -> prettyErr (pure span) (pretty "Could not find module" <+> squotes (pretty name)) []
-    CyclicImport (Import name span :| []) -> prettyErr (pure span) (pretty "Cyclic import of" <+> squotes (pretty name)) []
+    UnknownModule (Import name span) -> prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) []
+    CyclicImport (Import name span :| []) -> prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) []
     CyclicImport (Import name span :| names) -> vsep
-      ( prettyErr (pure span) (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
+      ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
       : foldr ((:) . whichImports) [ whichImports (Import name span) ] names)
-    where whichImports (Import name span) = prettyInfo (pure span) (pretty "which imports" <+> squotes (pretty name) <> colon) []
+    where whichImports (Import name span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
 
 instance PrettyPrec ModuleError
 
