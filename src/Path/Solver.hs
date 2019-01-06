@@ -43,6 +43,10 @@ simplify = execWriter . go
             | f1 == f2, length sp1 == length sp2 -> do
               go (tf1 :===: tf2 :@ cause)
               for_ (zipWith (:===:) (toList sp1) (toList sp2)) (go . (:@ cause))
+          f1@((_ :.: _) ::: _) :$ sp1 :===: f2@((_ :.: _) ::: _) :$ sp2 :@ cause -> do
+            t1 <- whnf (f1 :$ sp1)
+            t2 <- whnf (f2 :$ sp2)
+            go (t1 :===: t2 :@ cause)
           f1@((_ :.: _) ::: _) :$ sp1 :===: t2 :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             go (t1 :===: t2 :@ cause)
