@@ -155,8 +155,6 @@ instance ( Carrier sig m
             n <- Meta . M <$> ElabC fresh
             pure (n, vfree (n ::: abstractPi (fmap Local <$> c) t) $$* fmap (vfree . fmap Local) c)
 
-          whnf = ElabC . Eval.whnf
-
           lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (pure span) (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (pure span) (FreeVariable (Local n))) pure
           lookupVar span (Meta n) = throwElabError (pure span) (FreeVariable (Meta n))
