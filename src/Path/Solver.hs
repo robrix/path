@@ -44,10 +44,10 @@ simplify = \case
     | f1 == f2, length sp1 == length sp2 -> do
       (<>) <$> simplify (tf1 ::: Type :===: tf2 ::: Type :@ cause)
            <*> simplifySpines q tf1 (zip (toList sp1) (toList sp2))
-  (f1@((_ :.: _) ::: _) :$ sp1 ::: ty1 :===: t2 ::: ty2 :@ cause) -> do
+  f1@((_ :.: _) ::: _) :$ sp1 ::: ty1 :===: t2 ::: ty2 :@ cause -> do
     t1 <- whnf (f1 :$ sp1)
     simplify (t1 ::: ty1 :===: t2 ::: ty2 :@ cause)
-  (t1 ::: ty1 :===: f2@((_ :.: _) ::: _) :$ sp2 ::: ty2 :@ cause) -> do
+  t1 ::: ty1 :===: f2@((_ :.: _) ::: _) :$ sp2 ::: ty2 :@ cause -> do
     t2 <- whnf (f2 :$ sp2)
     simplify (t1 ::: ty1 :===: t2 ::: ty2 :@ cause)
   tm1 ::: ty1 :===: Lam t2 b2 ::: ty2 :@ cause -> do
