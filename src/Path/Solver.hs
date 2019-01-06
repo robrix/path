@@ -28,6 +28,12 @@ simplify = \case
       let vn = vfree n
       (<>) <$> simplify (t1    ::: Type :===: t2    ::: Type :@ cause)
            <*> simplify (b1 vn ::: Type :===: b2 vn ::: Type :@ cause)
+  Pi Im _ ty1 b1 ::: Type :===: t2 ::: Type :@ cause -> do
+    n <- exists ty1
+    simplify (b1 n ::: Type :===: t2 ::: Type :@ cause)
+  t1 ::: Type :===: Pi Im _ ty2 b2 ::: Type :@ cause -> do
+    n <- exists ty2
+    simplify (t1 ::: Type :===: b2 n ::: Type :@ cause)
   f1 ::: Pi p1 u1 t1 b1 :===: f2 ::: Pi p2 u2 t2 b2 :@ cause
     | p1 == p2, u1 == u2 -> do
       n <- freshName "_unify_" t1
@@ -55,6 +61,7 @@ simplify = \case
     | stuck t2  -> pure (Set.singleton (q :@ cause))
     | otherwise -> throwError (ElabError (spans cause) mempty (TypeMismatch q))
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
+        exists t = vfree . (::: t) . Meta . M <$> fresh
 
         ensurePi cause t = whnf t >>= \ t -> case t of
           Pi _ pi t b -> pure (pi, t, b, Set.empty)
