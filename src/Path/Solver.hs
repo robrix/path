@@ -50,12 +50,13 @@ simplify = \case
 solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Monad m) => Set.Set (Caused (Equation (Typed Value))) -> m [Caused Solution]
 solve = fmap (map (uncurry toSolution) . Map.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Typed Value)))) . visit
   where visit cs = for_ cs each
-        each q@(t1 ::: ty1 :===: t2 ::: _ :@ c) = do
+        each q@(t1 ::: ty1 :===: t2 ::: ty2 :@ c) = do
           _S <- get
           case () of
             _ | Just sol <- stuck t1 >>= solved _S -> simplify (apply [sol] q) >>= visit
               | Just sol <- stuck t2 >>= solved _S -> simplify (apply [sol] q) >>= visit
               | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 ::: ty1 :@ c)
+              | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 ::: ty2 :@ c)
               | otherwise -> modify (Seq.|> q)
 
         stuck ((Meta m ::: _) :$ _) = Just m
