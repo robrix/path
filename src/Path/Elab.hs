@@ -85,12 +85,6 @@ instance ( Carrier sig m
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
         raise (censor (Resources.mult sigma)) (elabImplicits (vfree (n ::: t) ::: t)) >>= k
-        where elabImplicits = \case
-                tm ::: Value.Pi Im _ t b -> do
-                  (n, v) <- exists t
-                  ElabC (tell (Resources.singleton n One))
-                  elabImplicits (tm $$ v ::: b v)
-                tm -> pure tm
       R (f Core.:$ a) -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
@@ -132,6 +126,13 @@ instance ( Carrier sig m
     where n ::: t |- m = raise (local (Context.insert (n ::: t))) m
           infix 5 |-
           raise f (ElabC m) = ElabC (f m)
+
+          elabImplicits = \case
+            tm ::: Value.Pi Im _ t b -> do
+              (n, v) <- exists t
+              ElabC (tell (Resources.singleton n One))
+              elabImplicits (tm $$ v ::: b v)
+            tm -> pure tm
 
           ensurePi span t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
