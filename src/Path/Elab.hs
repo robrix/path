@@ -61,7 +61,7 @@ runElab sigma = apply <=< runWriter . runWriter . runFresh . runReader mempty . 
           subst <- solve eqns
           pure (res, subst (eval mempty tm) ::: subst (ann tm))
 
-newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (WriterC (Set.Set Equation) m))))))))) a }
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (FreshC (Eff (WriterC Resources (Eff (WriterC (Set.Set (Equation, Cause)) m))))))))) a }
   deriving (Applicative, Functor, Monad)
 
 instance ( Carrier sig m
@@ -121,7 +121,7 @@ instance ( Carrier sig m
         k (In (Core.Var m) ty)
       _ ::: ty -> do
         tm' <- infer tm
-        unified <- unify (ty ::: Value.Type :===: ann tm' ::: Value.Type)
+        unified <- unify (ann tm) (ty ::: Value.Type :===: ann tm' ::: Value.Type)
         k (tm' { ann = unified })
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
@@ -139,14 +139,14 @@ instance ( Carrier sig m
               let _A = vfree mA
               mB <- exists _A
               let _B = flip (subst (typedTerm mA)) (vfree mB)
-              (More, _A, _B) <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type)))
+              (More, _A, _B) <$ ElabC (tell (Set.singleton (t ::: Value.Type :===: Value.Pi Ex More _A _B ::: Value.Type, Assert span)))
             _ -> throwElabError span (IllegalApplication t)
 
-          unify (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
+          unify span (tm1 ::: ty1 :===: tm2 ::: ty2) = if tm1 == tm2 then pure tm1 else do
             n <- exists ty1
             let vn = vfree n
-            vn <$ ElabC (tell (Set.fromList [ vn ::: ty1 :===: tm1 ::: ty1
-                                            , vn ::: ty1 :===: tm2 ::: ty2 ]))
+            vn <$ ElabC (tell (Set.fromList [ (vn ::: ty1 :===: tm1 ::: ty1, Assert span)
+                                            , (vn ::: ty1 :===: tm2 ::: ty2, Assert span) ]))
 
           throwElabError span reason = ElabError span <$> askContext <*> pure reason >>= throwError
 

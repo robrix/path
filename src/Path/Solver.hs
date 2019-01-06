@@ -29,7 +29,7 @@ simplify span = \case
   q -> throwError (ElabError span mempty (TypeMismatch q))
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
 
-solve :: Monad m => Set.Set Equation -> m (Value -> Value)
+solve :: Monad m => Set.Set (Equation, Cause) -> m (Value -> Value)
 solve equations = case Set.minView equations of
   Nothing -> pure id
   Just _  -> pure id
