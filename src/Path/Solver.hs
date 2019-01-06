@@ -5,7 +5,7 @@ import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.State
-import Data.Foldable (for_)
+import Data.Foldable (for_, toList)
 import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -30,6 +30,11 @@ simplify = \case
       let vn = vfree n
       (<>) <$> simplify (t1       ::: Type  :===: t2       ::: Type  :@ cause)
            <*> simplify (f1 $$ vn ::: b1 vn :===: f2 $$ vn ::: b2 vn :@ cause)
+  q@((f1 ::: tf1) :$ sp1 ::: _ :===: (f2 ::: tf2) :$ sp2 ::: _ :@ cause)
+    | f1 == f2, length sp1 == length sp2 -> do
+      (<>) <$> simplify (tf1 ::: Type :===: tf2 ::: Type :@ cause)
+           <*> simplifySpines q tf1 (zip (toList sp1) (toList sp2))
+      -- zipWith  (toList sp1) (toList sp2)
   q@(t1 :===: t2) :@ cause
     | stuck t1  -> pure (Set.singleton (q :@ cause))
     | stuck t2  -> pure (Set.singleton (q :@ cause))
@@ -37,6 +42,10 @@ simplify = \case
   where freshName s t = (::: t) . Local . Gensym s <$> fresh
         stuck ((Meta _ ::: _) :$ _ ::: _) = True
         stuck _                           = False
+
+        simplifySpines _        _            []            = pure Set.empty
+        simplifySpines (q :@ c) (Pi _ _ t b) ((a1, a2):as) = (<>) <$> simplify (a1 ::: t :===: a2 ::: t :@ c) <*> simplifySpines (q :@ c) (b a1) as
+        simplifySpines (q :@ c) _            _             = throwError (ElabError (spans c) mempty (TypeMismatch q))
 
 solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Monad m) => Set.Set (Caused (Equation (Typed Value))) -> m [Caused Solution]
 solve = fmap (map (uncurry toSolution) . Map.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Typed Value)))) . visit
