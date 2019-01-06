@@ -8,8 +8,8 @@ import Control.Effect.State
 import Control.Effect.Writer
 import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.Sequence as Seq
 import qualified Data.Map as Map
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Path.Back
 import Path.Constraint
