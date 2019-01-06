@@ -116,3 +116,8 @@ erase = cata go
         go (f Core.:$ a)               ann = In (f Core.:$ a)       ann
         go Core.Type                   ann = In Core.Type           ann
         go (Core.Pi (n ::: _) p u t b) ann = In (Core.Pi n p u t b) ann
+
+
+abstractLam :: [Typed Name] -> Value -> Value
+abstractLam []               v = v
+abstractLam (n ::: t : rest) v = Lam t (\ a -> subst (Local n) a (abstractLam rest v))
