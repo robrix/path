@@ -75,50 +75,50 @@ instance ( Carrier sig m
       => Carrier (Elab Effect.:+: sig) (ElabC m) where
   ret = ElabC . ret
   eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
-    Infer tm k -> case out tm of
-      R Core.Type -> k (Value.Type ::: Value.Type)
+    Infer tm k -> k =<< case out tm of
+      R Core.Type -> pure (Value.Type ::: Value.Type)
       R (Core.Pi n i e t b) -> do
         t' ::: _ <- check (t ::: Value.Type)
         b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
-        k (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
+        pure (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
       R (Core.Var n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
-        elabImplicits (vfree (n ::: t) ::: t) >>= k
+        elabImplicits (vfree (n ::: t) ::: t)
       R (f Core.:$ a) -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
-        k (f' $$ a' ::: b a')
+        pure (f' $$ a' ::: b a')
       R (Core.Lam n b) -> do
         (_, t) <- exists Value.Type
         e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
-        k (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
       L (Core.Hole _) -> do
         (_, ty) <- exists Value.Type
         (_, m) <- exists ty
-        k (m ::: ty)
+        pure (m ::: ty)
 
-    Check (tm ::: ty) k -> case (out tm ::: ty) of
+    Check (tm ::: ty) k -> k =<< case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
-        k (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
-        k (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       L (Core.Hole _) ::: ty -> do
         (_, m) <- exists ty
-        k (m ::: ty)
+        pure (m ::: ty)
       _ ::: ((_ :.: _ ::: _) Value.:$ _) -> do
        ty' <- whnf ty
-       check (tm ::: ty') >>= k
+       check (tm ::: ty')
       _ ::: ty -> do
         tm' ::: inferred <- infer tm
         unified <- unify (ann tm) Value.Type (ty :===: inferred)
-        k (tm' ::: unified)
+        pure (tm' ::: unified)
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
