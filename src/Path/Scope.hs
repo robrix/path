@@ -22,8 +22,8 @@ entryValue (Defn (v ::: _)) = Just v
 entryValue _                = Nothing
 
 instance Pretty Entry where
-  pretty (Decl        ty)  =                                     colon <+> pretty ty
-  pretty (Defn (v ::: ty)) = align $ pretty "=" <+> pretty v </> colon <+> pretty ty
+  pretty (Decl        ty)  =         colon <+> pretty ty
+  pretty (Defn (v ::: ty)) = align $ colon <+> pretty ty </> pretty "=" <+> pretty v
 
 instance PrettyPrec Entry
 
