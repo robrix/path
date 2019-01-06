@@ -1,5 +1,6 @@
 module Path.Constraint where
 
+import Data.List.NonEmpty (NonEmpty(..), toList)
 import Path.Name
 import Path.Pretty
 import Path.Value
@@ -51,3 +52,8 @@ data Cause
   = Assert Span
   | Cause :<>: Cause
   deriving (Eq, Ord, Show)
+
+spans :: Cause -> NonEmpty Span
+spans = flip go []
+  where go (Assert span) = (span :|)
+        go (l :<>: r)    = go l . toList . go r
