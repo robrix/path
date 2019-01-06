@@ -8,18 +8,18 @@ import Path.Pretty
 import Path.Value
 import Text.Trifecta.Rendering (Span)
 
-data Equation
-  = Typed Value :===: Typed Value
+data Equation a
+  = a :===: a
   deriving (Eq, Ord, Show)
 
 infix 1 :===:
 
-instance Pretty Equation where
+instance Pretty a => Pretty (Equation a) where
   pretty (t1 :===: t2) = flatAlt (align (space <+> pretty t1 </> pretty "≡" <+> pretty t2)) (pretty t1 <+> pretty "≡" <+> pretty t2)
 
-instance PrettyPrec Equation
+instance Pretty a => PrettyPrec (Equation a)
 
-sym :: Equation -> Equation
+sym :: Equation a -> Equation a
 sym (t1 :===: t2) = t2 :===: t1
 
 
