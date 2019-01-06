@@ -37,8 +37,8 @@ import Path.Value as Value
 import Text.Trifecta.Rendering (Span)
 
 data Elab (m :: * -> *) k
-  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  (Term (Core (Typed Name) (Typed QName)) Type -> k)
-  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) (Term (Core (Typed Name) (Typed QName)) Type -> k)
+  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  (Typed Value -> k)
+  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) (Typed Value -> k)
   deriving (Functor)
 
 instance HFunctor Elab where
@@ -55,12 +55,12 @@ runElab :: ( Carrier sig m
            , Monad m
            )
         => Usage
-        -> Eff (ElabC m) (Term (Core (Typed Name) (Typed QName)) Type)
+        -> Eff (ElabC m) (Typed Value)
         -> m (Resources, Typed Value)
 runElab sigma = runFresh . (solveAndApply <=< runWriter . runWriter . runReader mempty . runReader sigma . runElabC . interpret)
-  where solveAndApply (eqns, (res, tm)) = do
+  where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
-          pure (res, apply subst (eval mempty tm) ::: apply subst (ann tm))
+          pure (res, apply subst tm ::: apply subst ty)
 
 newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation (Typed Value)))) (Eff (FreshC m))))))))) a }
   deriving (Applicative, Functor, Monad)
@@ -75,55 +75,54 @@ instance ( Carrier sig m
   ret = ElabC . ret
   eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
     Infer tm k -> case out tm of
-      R Core.Type -> k (In Core.Type Value.Type)
+      R Core.Type -> k (Value.Type ::: Value.Type)
       R (Core.Pi n i e t b) -> do
-        t' <- check (t ::: Value.Type)
-        let t'' = eval mempty t'
-        b' <- n ::: t'' |- check (b ::: Value.Type)
-        k (In (Core.Pi (n ::: t'') i e t' b') Value.Type)
+        t' ::: _ <- check (t ::: Value.Type)
+        b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
+        k (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
       R (Core.Var n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
-        raise (censor (Resources.mult sigma)) (elabImplicits (In (Core.Var (n ::: t)) t)) >>= k
-        where elabImplicits tm
-                | Value.Pi Im _ t b <- ann tm = do
+        raise (censor (Resources.mult sigma)) (elabImplicits (vfree (n ::: t) ::: t)) >>= k
+        where elabImplicits = \case
+                tm ::: Value.Pi Im _ t b -> do
                   n <- exists t
                   ElabC (tell (Resources.singleton (typedTerm n) One))
-                  elabImplicits (In (tm Core.:$ In (Core.Var n) t) (b (vfree n)))
-                | otherwise = pure tm
+                  elabImplicits (tm $$ vfree n ::: b (vfree n))
+                tm -> pure tm
       R (f Core.:$ a) -> do
-        f' <- infer f
-        (pi, t, b) <- whnf (ann f') >>= ensurePi (ann tm)
-        a' <- raise (censor (Resources.mult pi)) (check (a ::: t))
-        k (In (f' Core.:$ a') (b (eval mempty a')))
+        f' ::: fTy <- infer f
+        (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
+        a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
+        k (f' $$ a' ::: b a')
       R (Core.Lam n b) -> do
         mt <- exists Value.Type
         let t = vfree mt
-        e' <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
-        k (In (Core.Lam (n ::: t) e') (Value.Pi Ex More t (flip (Value.subst (Local n)) (ann e'))))
+        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
+        k (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
       L (Core.Hole _) -> do
         mty <- exists Value.Type
         let ty = vfree mty
         m <- exists ty
-        k (In (Core.Var m) ty)
+        k (vfree m ::: ty)
 
     Check (tm ::: ty) k -> case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e') <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n ::: t))))
+        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
-        k (In (Core.Lam (n ::: t) e') ty)
+        k (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e') <- n ::: t |- raise listen (check (e ::: b (vfree (Local n ::: t))))
+        (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (vfree (Local n ::: t))))
         verifyResources (ann tm) n pi res
-        k (In (Core.Lam (n ::: t) e') ty)
+        k (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       L (Core.Hole _) ::: ty -> do
         m <- exists ty
-        k (In (Core.Var m) ty)
+        k (vfree m ::: ty)
       _ ::: ty -> do
-        tm' <- infer tm
-        unified <- unify (ann tm) (ty ::: Value.Type :===: ann tm' ::: Value.Type)
-        k (tm' { ann = unified })
+        tm' ::: inferred <- infer tm
+        unified <- unify (ann tm) (ty ::: Value.Type :===: inferred ::: Value.Type)
+        k (tm' ::: unified)
       where verifyResources span n pi br = do
               let used = Resources.lookup (Local n) br
               sigma <- askSigma
@@ -166,12 +165,12 @@ instance ( Carrier sig m
 
 infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core (Typed Name) (Typed QName)) Type)
+      -> m (Typed Value)
 infer tm = send (Infer tm ret)
 
 check :: (Carrier sig m, Member Elab sig)
       => Typed (Term (Implicit QName :+: Core Name QName) Span)
-      -> m (Term (Core (Typed Name) (Typed QName)) Type)
+      -> m (Typed Value)
 check tm = send (Check tm ret)
 
 
