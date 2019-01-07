@@ -129,8 +129,9 @@ solve cs
 
         enqueue q = do
           let s = Set.singleton q
+              mvars = metaNames (fvs q)
           modify (Seq.|> q)
-          modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty (metaNames (fvs q))))
+          modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty mvars))
 
         dequeue = do
           q <- get
