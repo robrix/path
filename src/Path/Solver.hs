@@ -108,8 +108,8 @@ solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . eva
         each q@(t1 :===: t2 :@ c) = do
           _S <- get
           case () of
-            _ | Just sol <- stuck t1 >>= solved _S -> simplify (apply [sol] q) >>= visit
-              | Just sol <- stuck t2 >>= solved _S -> simplify (apply [sol] q) >>= visit
+            _ | Just s <- stuck t1 >>= solution _S -> simplify (apply [s] q) >>= visit
+              | Just s <- stuck t2 >>= solution _S -> simplify (apply [s] q) >>= visit
               | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
               | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
               | let s = Set.singleton q -> modify (Seq.|> q) *> modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty (metaNames (fvs q))))
@@ -125,6 +125,6 @@ solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . eva
 
         solve (M m := v :@ c) = modify (IntMap.insert m (v :@ c))
 
-        solved _S (M m) = toSolution m <$> IntMap.lookup m _S
+        solution _S (M m) = toSolution m <$> IntMap.lookup m _S
 
         toSolution m (v :@ c) = M m := v :@ c
