@@ -103,7 +103,7 @@ simplify = execWriter . go
         stuck _                     = False
 
 solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Set.Set (Caused (Equation Value)) -> m [Caused Solution]
-solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value))) . evalState (mempty :: IntMap.IntMap (Caused (Equation Value))) . visit
+solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value))) . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value)))) . visit
   where visit cs = for_ cs each
         each q@(t1 :===: t2 :@ c) = do
           _S <- get
