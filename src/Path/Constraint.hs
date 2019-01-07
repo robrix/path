@@ -19,6 +19,9 @@ instance Pretty a => Pretty (Equation a) where
 
 instance Pretty a => PrettyPrec (Equation a)
 
+instance FreeVariables v a => FreeVariables v (Equation a) where
+  fvs (a1 :===: a2) = fvs a1 <> fvs a2
+
 sym :: Equation a -> Equation a
 sym (t1 :===: t2) = t2 :===: t1
 
