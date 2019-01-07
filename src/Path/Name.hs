@@ -30,7 +30,7 @@ data Bound = Bound
   deriving (Eq, Ord, Show)
 
 
-newtype Meta = M Int
+newtype Meta = M { unM :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty Meta where
