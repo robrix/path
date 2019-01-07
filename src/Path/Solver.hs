@@ -112,7 +112,12 @@ solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . eva
               | Just s <- stuck t2 >>= solution _S -> simplify (apply [s] q) >>= visit
               | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
               | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
-              | let s = Set.singleton q -> modify (Seq.|> q) *> modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty (metaNames (fvs q))))
+              | otherwise -> enqueue q
+
+        enqueue q = do
+          let s = Set.singleton q
+          modify (Seq.|> q)
+          modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty (metaNames (fvs q))))
 
         stuck ((Meta m ::: _) :$ _) = Just m
         stuck _                     = Nothing
