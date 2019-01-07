@@ -109,7 +109,7 @@ solve cs
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
   . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value))))
   $ do
-    for_ cs enqueue
+    visit cs
     process
   where visit cs = for_ cs each
         each q@(t1 :===: t2 :@ c) = do
