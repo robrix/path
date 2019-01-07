@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
 module Path.Solver where
 
 import Control.Effect
@@ -147,7 +147,9 @@ solve cs
         free ((v ::: t) :$ Nil) = Just (v ::: t)
         free _                  = Nothing
 
-        solve (M m := v :@ c) = modify (IntMap.insert m (v :@ c))
+        solve s@(M m := v :@ c) = do
+          modify (IntMap.insert m (v :@ c))
+          modify (IntMap.adjust (apply @(Set.Set (Caused (Equation Value))) [s]) m)
 
         solution _S (M m) = toSolution m <$> IntMap.lookup m _S
 
