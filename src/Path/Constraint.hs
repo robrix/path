@@ -1,4 +1,4 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Constraint where
 
 import Data.Foldable (foldl')
@@ -54,6 +54,9 @@ data Caused a
   deriving (Eq, Ord, Show)
 
 infix 0 :@
+
+instance FreeVariables v a => FreeVariables v (Caused a) where
+  fvs (a :@ _) = fvs a
 
 cause :: Caused a -> Cause
 cause (_ :@ cause) = cause
