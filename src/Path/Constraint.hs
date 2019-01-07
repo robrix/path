@@ -3,6 +3,7 @@ module Path.Constraint where
 
 import Data.Foldable (foldl')
 import Data.List.NonEmpty (NonEmpty(..), toList)
+import qualified Data.Set as Set
 import Path.Name
 import Path.Pretty
 import Path.Value
@@ -80,3 +81,6 @@ instance Substitutable a => Substitutable (Equation a) where
 
 instance Substitutable a => Substitutable (Typed a) where
   apply subst (tm ::: ty) = apply subst tm ::: apply subst ty
+
+instance (Ord a, Substitutable a) => Substitutable (Set.Set a) where
+  apply subst = Set.map (apply subst)
