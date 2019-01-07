@@ -126,8 +126,6 @@ solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . eva
 
         solve (M m := v :@ c) = modify (IntMap.insert m (v :@ c))
 
-        solved _S (M m) = case IntMap.lookup m _S of
-          Just t  -> Just (toSolution m t)
-          Nothing -> Nothing
+        solved _S (M m) = toSolution m <$> IntMap.lookup m _S
 
         toSolution m (v :@ c) = M m := v :@ c
