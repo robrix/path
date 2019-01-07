@@ -6,7 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.State
 import Control.Effect.Writer
-import Data.Foldable (for_, toList)
+import Data.Foldable (foldl', for_, toList)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.IntMap as IntMap
 import qualified Data.Sequence as Seq
@@ -112,7 +112,7 @@ solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . eva
               | Just sol <- stuck t2 >>= solved _S -> simplify (apply [sol] q) >>= visit
               | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
               | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
-              | otherwise -> modify (Seq.|> q)
+              | let s = Set.singleton q -> modify (Seq.|> q) *> modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty (metaNames (fvs q))))
 
         stuck ((Meta m ::: _) :$ _) = Just m
         stuck _                     = Nothing
