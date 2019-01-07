@@ -103,12 +103,14 @@ simplify = execWriter . go
         stuck _                     = False
 
 solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Set.Set (Caused (Equation Value)) -> m [Caused Solution]
-solve
+solve cs
   = fmap (map (uncurry toSolution) . IntMap.toList)
   . execState mempty
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
   . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value))))
-  . visit
+  $ do
+    for_ cs enqueue
+    process
   where visit cs = for_ cs each
         each q@(t1 :===: t2 :@ c) = do
           _S <- get
@@ -119,10 +121,22 @@ solve
               | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
               | otherwise -> enqueue q
 
+        process = do
+          c <- dequeue
+          case c of
+            Just c  -> each c *> process
+            Nothing -> pure ()
+
         enqueue q = do
           let s = Set.singleton q
           modify (Seq.|> q)
           modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty (metaNames (fvs q))))
+
+        dequeue = do
+          q <- get
+          case Seq.viewl q of
+            Seq.EmptyL -> pure Nothing
+            h Seq.:< q -> Just h <$ put q
 
         stuck ((Meta m ::: _) :$ _) = Just m
         stuck _                     = Nothing
