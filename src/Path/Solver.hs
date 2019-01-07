@@ -117,9 +117,8 @@ solve = fmap (map (uncurry toSolution) . IntMap.toList) . execState mempty . eva
         stuck ((Meta m ::: _) :$ _) = Just m
         stuck _                     = Nothing
 
-        pattern ((Meta m ::: _) :$ sp)
-          | Just sp' <- traverse free sp = Just (m, sp')
-        pattern _                        = Nothing
+        pattern ((Meta m ::: _) :$ sp) = (,) m <$> traverse free sp
+        pattern _                      = Nothing
 
         free ((v ::: t) :$ Nil) = Just (v ::: t)
         free _                  = Nothing
