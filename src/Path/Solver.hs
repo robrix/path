@@ -7,8 +7,8 @@ import Control.Effect.Fresh
 import Control.Effect.State
 import Control.Effect.Writer
 import Data.Foldable (foldl', for_, toList)
-import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.IntMap as IntMap
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Path.Back
