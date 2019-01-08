@@ -9,6 +9,7 @@ import Control.Effect.Writer
 import Data.Foldable (foldl', for_, toList)
 import qualified Data.IntMap as IntMap
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.Maybe (catMaybes)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import Path.Back
@@ -115,8 +116,7 @@ solve cs
         each q@(t1 :===: t2 :@ c) = do
           _S <- get
           case () of
-            _ | Just s <- stuck t1 >>= solution _S -> simplify (apply [s] q) >>= visit
-              | Just s <- stuck t2 >>= solution _S -> simplify (apply [s] q) >>= visit
+            _ | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) -> simplify (apply s q) >>= visit
               | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
               | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
               | otherwise -> enqueue q
@@ -139,9 +139,6 @@ solve cs
             Seq.EmptyL -> pure Nothing
             h Seq.:< q -> Just h <$ put q
 
-        stuck ((Meta m ::: _) :$ _) = Just m
-        stuck _                     = Nothing
-
         pattern ((Meta m ::: _) :$ sp) = (,) m <$> traverse free sp
         pattern _                      = Nothing
 
@@ -152,6 +149,9 @@ solve cs
           modify (IntMap.insert m (v :@ c))
           modify (IntMap.adjust (apply @(Set.Set (Caused (Equation Value))) [s]) m)
 
+        solutions _S s
+          | (s:ss) <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
+          | otherwise                                          = Nothing
         solution _S (M m) = toSolution m <$> IntMap.lookup m _S
 
         toSolution m (v :@ c) = M m := v :@ c
