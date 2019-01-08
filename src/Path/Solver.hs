@@ -6,6 +6,7 @@ import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.State
 import Control.Effect.Writer
+import Control.Monad ((>=>))
 import Data.Foldable (foldl', for_, toList)
 import qualified Data.IntMap as IntMap
 import Data.List.NonEmpty (NonEmpty(..))
@@ -84,9 +85,9 @@ simplify = execWriter . go
                       m <- exists Type
                       m <$ tell (Set.fromList [m :===: ty :@ cause, m :===: ty' :@ cause])
 
-        ensurePi cause t = typeof cause t >>= whnf >>= \ t -> case t of
+        ensurePi cause = typeof cause >=> whnf >=> \case
           Pi _ _ t _ -> pure t
-          (Meta _ ::: ty) :$ sp -> do
+          (Meta m ::: ty) :$ sp -> do
             m1 <- Meta . M <$> fresh
             m2 <- Meta . M <$> fresh
             let recur1 (Pi p u t b) = Pi p u t (\ x -> recur1 (b x))
@@ -97,8 +98,8 @@ simplify = execWriter . go
                 t2 = recur2 ty Nil
                 _A = vfree (m1 ::: t1) $$* sp
                 _B x = vfree (m2 ::: t2) $$* (sp:>x)
-            _A <$ tell (Set.singleton (t :===: Pi Im More _A _B :@ cause))
-          _ | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
+            _A <$ tell (Set.singleton ((Meta m ::: ty) :$ sp :===: Pi Im More _A _B :@ cause))
+          t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 
         stuck ((Meta _ ::: _) :$ _) = True
         stuck _                     = False
