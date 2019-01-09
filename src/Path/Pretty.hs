@@ -21,7 +21,7 @@ import Control.Monad.IO.Class
 import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
-import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, putDoc)
+import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
 import Text.Trifecta.Rendering (Rendering(..), Span(..), render)
 import Text.Trifecta.Result (ErrInfo(..))
 
@@ -38,7 +38,7 @@ putDoc doc = do
 
 prettyNotice :: Span -> Maybe Doc -> Doc -> [Doc] -> Doc
 prettyNotice s lvl msg ctx = vsep
-  ( nest 2 (group (prettyStart s <> colon <> maybe empty ((space <>) . (<> colon)) lvl </> msg))
+  ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon)) lvl </> msg))
   : prettys s
   : ctx)
 
@@ -60,7 +60,7 @@ prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")
           alphabet = ['a'..'z']
 
 tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
-tabulate2 _ [] = empty
+tabulate2 _ [] = mempty
 tabulate2 s cs = vsep (map (uncurry entry) cs')
   where entry a b = fill w (pretty a) <> s <> pretty b
         w = maximum (map (columnWidth . fst) cs')
