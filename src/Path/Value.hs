@@ -111,7 +111,7 @@ instance Pretty a => PrettyPrec (Typed a)
 
 erase :: Term (Core.Core (Typed n) (Typed q)) a -> Term (Core.Core n q) a
 erase = cata go
-  where go (Core.Free (n ::: _))       ann = In (Core.Free n)        ann
+  where go (Core.Free (n ::: _))       ann = In (Core.Free n)       ann
         go (Core.Lam (n ::: _) b)      ann = In (Core.Lam n b)      ann
         go (f Core.:$ a)               ann = In (f Core.:$ a)       ann
         go Core.Type                   ann = In Core.Type           ann
