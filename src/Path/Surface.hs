@@ -2,6 +2,7 @@
 module Path.Surface where
 
 import Path.Core
+import Path.Implicit
 import Path.Name
 import Path.Plicity
 import Path.Term

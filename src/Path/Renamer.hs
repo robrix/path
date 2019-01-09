@@ -10,6 +10,7 @@ import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 import Path.Core
+import Path.Implicit
 import Path.Module
 import Path.Name
 import Path.Pretty

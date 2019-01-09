@@ -4,6 +4,7 @@ module Path.Desugar where
 import Control.Effect hiding ((:+:))
 import Control.Effect.Fresh
 import Path.Core as Core
+import Path.Implicit
 import Path.Name
 import Path.Plicity
 import Path.Surface as Surface

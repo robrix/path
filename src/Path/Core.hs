@@ -2,6 +2,7 @@
 module Path.Core where
 
 import qualified Data.Set as Set
+import Path.Implicit
 import Path.Name
 import Path.Plicity
 import Path.Pretty
@@ -22,10 +23,6 @@ data (f :+: g) a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 infixr 4 :+:
-
-data Implicit v a
-  = Hole v
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance PrettyPrec a => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
   prettyPrec d = \case
@@ -60,10 +57,6 @@ instance FreeVariables1 QName (Core Name QName) where
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
     Pi v _ _ t b -> fvs t <> Set.delete (Local v) (fvs b)
-
-instance Ord v => FreeVariables1 v (Implicit v) where
-  liftFvs _ = \case
-    Hole v -> Set.singleton v
 
 instance (FreeVariables1 v f, FreeVariables1 v g, Ord v) => FreeVariables1 v (f :+: g) where
   liftFvs fvs = \case

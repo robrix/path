@@ -22,6 +22,7 @@ library
                      , Path.Env
                      , Path.Error
                      , Path.Eval
+                     , Path.Implicit
                      , Path.Module
                      , Path.Name
                      , Path.Package

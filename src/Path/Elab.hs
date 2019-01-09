@@ -23,6 +23,7 @@ import Path.Context as Context
 import Path.Core as Core
 import Path.Error
 import Path.Eval as Eval
+import Path.Implicit as Core
 import Path.Module
 import Path.Name
 import Path.Plicity
