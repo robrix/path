@@ -17,7 +17,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Path.Back as Back
+import Path.Stack as Stack
 import Path.Constraint
 import Path.Context as Context
 import Path.Core as Core
@@ -182,7 +182,7 @@ elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error ModuleError) sig
               , Member (Reader ModuleTable) sig
-              , Member (State (Back ElabError)) sig
+              , Member (State (Stack ElabError)) sig
               , Member (State Scope) sig
               , Monad m
               )
@@ -194,7 +194,7 @@ elabModule m = do
   decls <- for (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
 
-logError :: (Carrier sig m, Member (State (Back ElabError)) sig, Monad m) => ElabError -> m ()
+logError :: (Carrier sig m, Member (State (Stack ElabError)) sig, Monad m) => ElabError -> m ()
 logError = modify . flip (:>)
 
 importModule :: ( Carrier sig m

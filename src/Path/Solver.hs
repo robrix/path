@@ -13,7 +13,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (catMaybes)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
-import Path.Back
+import Path.Stack
 import Path.Constraint
 import Path.Error
 import Path.Eval

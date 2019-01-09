@@ -13,8 +13,7 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Path.Back
-                     , Path.CLI
+  exposed-modules:     Path.CLI
                      , Path.Constraint
                      , Path.Context
                      , Path.Core
@@ -41,6 +40,7 @@ library
                      , Path.Scope
                      , Path.Solver
                      , Path.Semiring
+                     , Path.Stack
                      , Path.Surface
                      , Path.Term
                      , Path.Usage

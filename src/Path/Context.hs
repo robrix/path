@@ -3,19 +3,19 @@ module Path.Context where
 import Control.Arrow ((&&&))
 import Data.Foldable (toList)
 import qualified Data.Set as Set
-import Path.Back as Back
+import Path.Stack as Stack
 import Path.Name
 import Path.Pretty
 import Path.Value
 
-newtype Context = Context { unContext :: Back (Typed Name) }
+newtype Context = Context { unContext :: Stack (Typed Name) }
   deriving (Eq, Ord, Show)
 
 null :: Context -> Bool
 null = Prelude.null . unContext
 
 lookup :: Name -> Context -> Maybe Type
-lookup n = fmap typedType . Back.find ((== n) . typedTerm) . unContext
+lookup n = fmap typedType . Stack.find ((== n) . typedTerm) . unContext
 
 insert :: Typed Name -> Context -> Context
 insert t = Context . (:> t) . unContext
@@ -24,7 +24,7 @@ union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
 filter :: (Typed Name -> Bool) -> Context -> Context
-filter f = Context . Back.filter f . unContext
+filter f = Context . Stack.filter f . unContext
 
 boundVars :: Context -> Set.Set Name
 boundVars = foldMap (Set.singleton . typedTerm) . unContext

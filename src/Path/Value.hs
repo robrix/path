@@ -3,7 +3,7 @@ module Path.Value where
 
 import Data.Foldable (foldl')
 import Data.Function (on)
-import Path.Back as Back
+import Path.Stack as Stack
 import qualified Path.Core as Core
 import Path.Name
 import Path.Plicity
@@ -15,7 +15,7 @@ data Value
   = Type                                    -- ^ @'Type' : 'Type'@.
   | Lam              Value (Value -> Value) -- ^ A lambda abstraction.
   | Pi Plicity Usage Value (Value -> Value) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Typed QName :$ Back Value               -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
+  | Typed QName :$ Stack Value               -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
 
 instance Eq Value where
   (==) = (==) `on` quote 0
@@ -85,7 +85,7 @@ generalizeValue = go 0
   where go i (Pi Im _ t b) v = Lam t (const (go (succ i) (b (vfree (Local (Gensym "" i) ::: t))) v))
         go _ _             v = v
 
-split :: Value -> (Value, Back Value)
+split :: Value -> (Value, Stack Value)
 split (v :$ vs) = (vfree v, vs)
 split v         = (v, Nil)
 

@@ -19,7 +19,7 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Path.Back
+import Path.Stack
 import Path.Desugar
 import Path.Elab
 import Path.Error
