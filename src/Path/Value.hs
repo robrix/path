@@ -51,15 +51,15 @@ v $$* sp = foldl' ($$) v sp
 -- | Quote a 'Value', producing an equivalent 'Term'.
 --
 --   prop> quote i Type == In Core.Type ()
---   prop> quote i (Lam id) == In (Core.Lam (Gensym "" i) (In (Core.Var (Local (Gensym "" i))) ())) ()
---   prop> quote i (Pi Im Zero Type id) == In (Core.Pi (Gensym "" i) Im Zero (In Core.Type ()) (In (Core.Var (Local (Gensym "" i))) ())) ()
---   prop> quote i ((vfree (Local (Name s)) $$ vfree (Local (Name t))) $$ vfree (Local (Name u))) == In (In (In (Core.Var (Local (Name s))) () Core.:$ In (Core.Var (Local (Name t))) ()) () Core.:$ In (Core.Var (Local (Name u))) ()) ()
+--   prop> quote i (Lam id) == In (Core.Lam (Gensym "" i) (In (Core.Free (Local (Gensym "" i))) ())) ()
+--   prop> quote i (Pi Im Zero Type id) == In (Core.Pi (Gensym "" i) Im Zero (In Core.Type ()) (In (Core.Free (Local (Gensym "" i))) ())) ()
+--   prop> quote i ((vfree (Local (Name s)) $$ vfree (Local (Name t))) $$ vfree (Local (Name u))) == In (In (In (Core.Free (Local (Name s))) () Core.:$ In (Core.Free (Local (Name t))) ()) () Core.:$ In (Core.Free (Local (Name u))) ()) ()
 quote :: Int -> Value -> Term (Core.Core (Typed Name) (Typed QName)) ()
 quote i = \case
   Type -> In Core.Type ()
   Lam t b -> In (Core.Lam (Gensym "" i ::: t) (quote (succ i) (b (vfree (Local (Gensym "" i) ::: t))))) ()
   Pi p u t b -> In (Core.Pi (Gensym "" i ::: t) p u (quote i t) (quote (succ i) (b (vfree (Local (Gensym "" i) ::: t))))) ()
-  v :$ sp -> foldl' app (In (Core.Var v) ()) sp
+  v :$ sp -> foldl' app (In (Core.Free v) ()) sp
   where app f a = In (f Core.:$ quote i a) ()
 
 
@@ -111,7 +111,7 @@ instance Pretty a => PrettyPrec (Typed a)
 
 erase :: Term (Core.Core (Typed n) (Typed q)) a -> Term (Core.Core n q) a
 erase = cata go
-  where go (Core.Var (n ::: _))        ann = In (Core.Var n)        ann
+  where go (Core.Free (n ::: _))       ann = In (Core.Free n)        ann
         go (Core.Lam (n ::: _) b)      ann = In (Core.Lam n b)      ann
         go (f Core.:$ a)               ann = In (f Core.:$ a)       ann
         go Core.Type                   ann = In Core.Type           ann

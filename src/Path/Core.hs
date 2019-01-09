@@ -9,7 +9,7 @@ import Path.Term
 import Path.Usage
 
 data Core b v a
-  = Var v
+  = Free v
   | Lam b a
   | a :$ a
   | Type
@@ -29,7 +29,7 @@ data Implicit v a
 
 instance PrettyPrec a => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
   prettyPrec d = \case
-    Var n -> pretty n
+    Free n -> pretty n
     Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
       where go v b = var v b <> case b of
               In (Lam v' b') _ -> space <> go v' b'
@@ -55,7 +55,7 @@ instance PrettyPrec a => PrettyPrec (Core Name QName (Term (Core Name QName) a))
 
 instance FreeVariables1 QName (Core Name QName) where
   liftFvs fvs = \case
-    Var v -> Set.singleton v
+    Free v -> Set.singleton v
     Lam v b -> Set.delete (Local v) (fvs b)
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
@@ -72,7 +72,7 @@ instance (FreeVariables1 v f, FreeVariables1 v g, Ord v) => FreeVariables1 v (f 
 
 uses :: Name -> Term (Implicit QName :+: Core Name QName) a -> [a]
 uses n = cata $ \ f a -> case f of
-  R (Var n')
+  R (Free n')
     | Local n == n' -> [a]
     | otherwise     -> []
   R (Lam n' b)

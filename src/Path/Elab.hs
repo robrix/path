@@ -80,7 +80,7 @@ instance ( Carrier sig m
         t' ::: _ <- check (t ::: Value.Type)
         b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
         pure (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
-      R (Core.Var n) -> do
+      R (Core.Free n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))

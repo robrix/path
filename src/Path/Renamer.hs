@@ -21,7 +21,7 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
             => Term (Surface (Maybe Name) Name) Span
             -> m (Term (Surface Name QName) Span)
 resolveTerm (In syn ann) = case syn of
-  R (R (Var v)) -> in' . R . R . Var <$> resolveName v ann
+  R (R (Free v)) -> in' . R . R . Free <$> resolveName v ann
   R (R (Lam v b)) ->
     local (insertLocal v) (in' . R . R <$> (Lam <$> freshen v <*> resolveTerm b))
   R (R (f :$ a)) -> in' . R . R <$> ((:$) <$> resolveTerm f <*> resolveTerm a)

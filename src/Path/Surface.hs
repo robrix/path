@@ -33,7 +33,7 @@ type' :: Surface b v a
 type' = R (R Type)
 
 var :: v -> Surface b v a
-var = R . R . Var
+var = R . R . Free
 
 hole :: v -> Surface b v a
 hole = R . L . Hole
