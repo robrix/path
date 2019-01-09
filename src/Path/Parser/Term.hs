@@ -5,6 +5,7 @@ import Control.Applicative (Alternative(..), (<**>))
 import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Parser as Parser
+import Path.Plicity
 import Path.Parser.Mixfix
 import qualified Path.Surface as Surface
 import Path.Term hiding (ann)
@@ -12,7 +13,7 @@ import Path.Usage
 import Text.Trifecta
 import Text.Parser.Token.Highlight
 
-type', var, hole, implicit, term, application, piType, functionType, forAll, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
+type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe Name) Name) Span)
 
 term = functionType
 
@@ -25,23 +26,19 @@ reann = fmap respan . spanned
   where respan (In f _ :~ a) = In f a
 
 
-application = atom `chainl1` pure (Surface.#) <?> "function application"
+application = atom `chainl1` pure (Surface.$$) <?> "function application"
 
 type' = ann (Surface.type' <$ keyword "Type")
 
-forAll = reann (do
-  (v, ty) <- op "∀" *> binding <* dot
-  Surface.forAll (v, ty) <$> functionType) <?> "universally quantified type"
-  where binding = (,) . Just <$> name <* colon <*> term
-
 piType = reann (do
-  (v, mult, ty) <- braces ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  (Surface.piType (v, fromMaybe More mult, ty)) <$> functionType) <?> "dependent function type"
+  (p, (v, mult, ty)) <- plicity ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  (Surface.piType (v, p, fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult, ty)) <$> functionType) <?> "dependent function type"
+  where plicity m = (,) Im <$> braces m
+                <|> (,) Ex <$> parens m
 
 functionType = (,) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
-                <|> forAll
           where arrow t' t = (More, t) Surface.--> t'
 
 var = ann (Surface.var <$> name <?> "variable")
@@ -56,9 +53,7 @@ lambda = reann (do
 
 hole = ann (Surface.hole . Name <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
-implicit = ann (Surface.implicit <$ token (char '_'))
-
-atom = var <|> type' <|> lambda <|> parens term <|> hole <|> implicit
+atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"

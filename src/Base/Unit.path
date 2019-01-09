@@ -1,7 +1,7 @@
 module Base.Unit
 
 Unit : Type
-Unit = ∀ a : Type . a -> a
+Unit = { a : Type } -> a -> a
 
 unit : Unit
-unit = \ _ a . a
+unit = \ a . a

@@ -3,15 +3,15 @@ module Base.Functor
 import Base.Function
 import Base.Unit
 
-Functor : ∀ f : Type -> Type . Type
+Functor : (f : Type -> Type) -> Type
 Functor =  \ f
-        .  ∀ a : Type
-        .  ∀ b : Type
-        .  (  a ->   b)
+        .  { a : Type }
+        -> { b : Type }
+        -> (  a ->   b)
         -> (f a -> f b)
 
-void : ∀ f : Type -> Type . Functor f -> ∀ a : Type . f a -> f Unit
-void = \ _ map A . map A Unit (const Unit A unit)
+void : { f : Type -> Type } -> { a : Type } -> Functor f -> f a -> f Unit
+void = \ map . map (const unit)
 
-(_ <$ _) : ∀ f : Type -> Type . Functor f -> ∀ a : Type . ∀ b : Type . a -> f b -> f a
-(_ <$ _) = \ _ map A B a . map B A (const A B a)
+(_ <$ _) : { f : Type -> Type } -> { a : Type } -> { b : Type } -> Functor f -> a -> f b -> f a
+(_ <$ _) = \ map a . map (const a)

@@ -5,16 +5,16 @@ import Base.Function
 import Base.Functor
 
 Maybe : Type -> Type
-Maybe = \ a . ∀ b : Type . b -> (a -> b) -> b
+Maybe = \ a . { b : Type } -> b -> (a -> b) -> b
 
-just : ∀ a:Type . a -> Maybe a
-just = \ _ a _ _ just . just a
+just : a -> Maybe a
+just = \ a _ just . just a
 
-nothing : ∀ a:Type . Maybe a
-nothing = \ _ _ nothing _ . nothing
+nothing : Maybe a
+nothing = \ nothing _ . nothing
 
-isJust : ∀ a:Type . Maybe a -> Bool
-isJust = \ A m . m Bool false (const Bool A true)
+isJust : Maybe a -> Bool
+isJust = \ m . m false (\ _ . true)
 
 map : Functor Maybe
-map = \ _ b f m . m (Maybe b) (nothing b) (\ a . just b (f a))
+map = \ f m . m nothing (\ a . just (f a))

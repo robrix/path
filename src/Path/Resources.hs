@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses #-}
 module Path.Resources where
 
 import Data.Function (on)
@@ -7,40 +7,40 @@ import Data.Maybe (fromMaybe)
 import Path.Name
 import Path.Pretty
 import Path.Semiring
-import Text.PrettyPrint.ANSI.Leijen
+import Path.Usage
 
-newtype Resources v r = Resources { unResources :: Map.Map v r }
+newtype Resources = Resources { unResources :: Map.Map QName Usage }
   deriving (Eq, Ord, Show)
 
-empty :: Resources v r
-empty = Resources Map.empty
-
-singleton :: v -> r -> Resources v r
+singleton :: QName -> Usage -> Resources
 singleton n = Resources . Map.singleton n
 
-lookup :: (Monoid r, Ord v) => v -> Resources v r -> r
+lookup :: QName -> Resources -> Usage
 lookup n = fromMaybe zero . Map.lookup n . unResources
 
-delete :: Ord v => v -> Resources v r -> Resources v r
+delete :: QName -> Resources -> Resources
 delete n = Resources . Map.delete n . unResources
 
-instance (Pretty v, PrettyPrec r) => Pretty (Resources v r) where
+mult :: Usage -> Resources -> Resources
+mult = (><<)
+
+instance Pretty Resources where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unResources
     where prettyBinding name u = pretty name <+> pretty "@" <+> prettyPrec 0 u
 
-instance (Pretty v, PrettyPrec r) => PrettyPrec (Resources v r)
+instance PrettyPrec Resources
 
-instance (Semigroup r, Ord v) => Semigroup (Resources v r) where
+instance Semigroup Resources where
   (<>) = fmap Resources . (Map.unionWith (<>) `on` unResources)
 
-instance (Semigroup r, Ord v) => Monoid (Resources v r) where
+instance Monoid Resources where
   mempty = Resources Map.empty
 
-instance (Semiring r, Ord v) => Semiring (Resources v r) where
+instance Semiring Resources where
   (><) = fmap Resources . (Map.intersectionWith (><) `on` unResources)
 
-instance Semiring r => LeftModule r (Resources v r) where
+instance LeftModule Usage Resources where
   u ><< Resources r = Resources (fmap (u ><) r)
 
-instance FreeVariables v r => FreeVariables v (Resources v r) where
+instance FreeVariables QName Resources where
   fvs = fvs . unResources

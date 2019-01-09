@@ -4,28 +4,28 @@ import Base.Fix
 import Base.Functor
 
 ListF : Type -> Type -> Type
-ListF = \ a b . ∀ c : Type . c -> (a -> b -> c) -> c
+ListF = \ a b . { c : Type } -> c -> (a -> b -> c) -> c
 
-nilf : ∀ a : Type . ∀ b : Type . ListF a b
-nilf = \ _ _ _ nil _ . nil
+nilf : ListF a b
+nilf = \ nil _ . nil
 
-consf : ∀ a : Type . ∀ b : Type . a -> b -> ListF a b
-consf = \ _ _ a b _ _ cons . cons a b
+consf : a -> b -> ListF a b
+consf = \ a b _ cons . cons a b
 
 
 List : Type -> Type
 List = \ a . Fix (ListF a)
 
-nil : ∀ a : Type . List a
-nil = \ a . in (ListF a) (nilf a (List a))
+nil : List a
+nil = in nilf
 
-cons : ∀ a : Type . a -> List a -> List a
-cons = \ a h t . in (ListF a) (consf a (List a) h t)
+cons : a -> List a -> List a
+cons = \ h t . in (consf h t)
 
 
-append : ∀ a : Type . List a -> List a -> List a
-append = \ a xs ys . xs (List a) (\ _ k f . f (List a) ys (\ x xs . cons a x (k xs)))
+append : List a -> List a -> List a
+append = \ xs ys . xs (\ k f . f ys (\ x xs . cons x (k xs)))
 
 
 map : Functor List
-map = \ _ b f l . l (List b) (\ _ k g . g (List b) (nil b) (\ a as . cons b (f a) (k as)))
+map = \ f l . l (\ k g . g nil (\ a as . cons (f a) (k as)))

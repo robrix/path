@@ -16,7 +16,6 @@ import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Name
 import Path.Pretty
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
 data Module v a = Module
@@ -67,12 +66,12 @@ data ModuleError
 
 instance Pretty ModuleError where
   pretty = \case
-    UnknownModule (Import name span) -> prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) Nothing
-    CyclicImport (Import name span :| []) -> prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) Nothing
+    UnknownModule (Import name span) -> prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) []
+    CyclicImport (Import name span :| []) -> prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) []
     CyclicImport (Import name span :| names) -> vsep
-      ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) Nothing
+      ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
       : foldr ((:) . whichImports) [ whichImports (Import name span) ] names)
-    where whichImports (Import name span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) Nothing
+    where whichImports (Import name span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
 
 instance PrettyPrec ModuleError
 

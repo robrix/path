@@ -1,92 +1,127 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Value where
 
-import Data.Foldable (foldl', toList)
-import Data.Maybe (fromMaybe)
-import qualified Data.Set as Set
+import Data.Foldable (foldl')
+import Data.Function (on)
 import Path.Back as Back
+import qualified Path.Core as Core
 import Path.Name
+import Path.Plicity
 import Path.Pretty
+import Path.Term
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
-data Value a
-  = Type                               -- ^ @'Type' : 'Type'@.
-  | Lam Name                 (Value a) -- ^ A lambda abstraction.
-  | Pi  Name Usage (Value a) (Value a) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Neutral (Back (Value a)) a         -- ^ A neutral term represented as a function on the right and a list of arguments to apply it to in reverse (i.e. &, not $) order.
-  deriving (Eq, Ord, Show)
+data Value
+  = Type                                    -- ^ @'Type' : 'Type'@.
+  | Lam              Value (Value -> Value) -- ^ A lambda abstraction.
+  | Pi Plicity Usage Value (Value -> Value) -- ^ A ∏ type, with a 'Usage' annotation.
+  | Typed QName :$ Back Value               -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
 
-instance PrettyPrec (Value QName) where
-  prettyPrec d = \case
-    Type -> yellow (pretty "Type")
-    Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
-      where go v b = var v b <> case b of
-              Lam v' b' -> space <> go v' b'
-              _         -> line <> cyan dot <+> prettyPrec 0 b
-            var v b | Local v `Set.member` fvs b = pretty v
-                    | otherwise                  = pretty '_'
-    Neutral Nil f -> pretty f
-    Neutral as f -> prettyParens (d > 10) $ group (nest 2 (pretty f </> align (vsep (map (prettyPrec 11) (toList as)))))
-    Pi v pi t b
-      | Local v `Set.member` fvs b -> case pi of
-        Zero -> prettyParens (d > 1) $ align (group (cyan (pretty "∀") <+> pretty v <+> colon <+> prettyPrec 2 t <> line <> cyan dot <+> prettyPrec 1 b))
-        _    -> prettyParens (d > 1) $ prettyBraces True (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
-      | otherwise                  -> prettyParens (d > 1) $ withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
-      where withPi
-              | pi == More = id
-              | otherwise  = (pretty pi <+>)
-            arrow = blue (pretty "->")
+instance Eq Value where
+  (==) = (==) `on` quote 0
 
-instance Pretty (Value QName) where
+instance Ord Value where
+  compare = compare `on` quote 0
+
+instance Show Value where
+  showsPrec d = showsPrec d . quote 0
+
+instance PrettyPrec Value where
+  prettyPrec d = prettyPrec d . erase . quote 0
+
+instance Pretty Value where
   pretty = prettyPrec 0
 
-instance FreeVariables QName (Value QName) where
-  fvs = \case
-    Type -> mempty
-    Lam v b -> Set.delete (Local v) (fvs b)
-    Pi v _ t b -> fvs t <> Set.delete (Local v) (fvs b)
-    Neutral a f -> foldMap fvs a <> Set.singleton f
+instance FreeVariables QName Value where
+  fvs = fvs . erase . quote 0
 
-vfree :: a -> Value a
-vfree = Neutral Nil
+vfree :: Typed QName -> Value
+vfree = (:$ Nil)
 
-vapp :: Value QName -> Value QName -> Value QName
-vapp (Lam n b) v = subst (Local n) v b
-vapp (Neutral vs n) v = Neutral (vs :> v) n
-vapp f a = error ("illegal application of " <> show f <> " to " <> show a)
+($$) :: Value -> Value -> Value
+Lam _ b    $$ v = b v
+Pi _ _ _ b $$ v = b v
+n :$ vs    $$ v = n :$ (vs :> v)
+f          $$ v = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty v)))
 
--- | Capture-avoiding substitution.
-subst :: QName -> Value QName -> Value QName -> Value QName
-subst for rep = go 0
-  where fvsRep = fvs rep
-        go i = \case
+($$*) :: Foldable t => Value -> t Value -> Value
+v $$* sp = foldl' ($$) v sp
+
+
+-- | Quote a 'Value', producing an equivalent 'Term'.
+--
+--   prop> quote i Type == In Core.Type ()
+--   prop> quote i (Lam id) == In (Core.Lam (Gensym "" i) (In (Core.Var (Local (Gensym "" i))) ())) ()
+--   prop> quote i (Pi Im Zero Type id) == In (Core.Pi (Gensym "" i) Im Zero (In Core.Type ()) (In (Core.Var (Local (Gensym "" i))) ())) ()
+--   prop> quote i ((vfree (Local (Name s)) $$ vfree (Local (Name t))) $$ vfree (Local (Name u))) == In (In (In (Core.Var (Local (Name s))) () Core.:$ In (Core.Var (Local (Name t))) ()) () Core.:$ In (Core.Var (Local (Name u))) ()) ()
+quote :: Int -> Value -> Term (Core.Core (Typed Name) (Typed QName)) ()
+quote i = \case
+  Type -> In Core.Type ()
+  Lam t b -> In (Core.Lam (Gensym "" i ::: t) (quote (succ i) (b (vfree (Local (Gensym "" i) ::: t))))) ()
+  Pi p u t b -> In (Core.Pi (Gensym "" i ::: t) p u (quote i t) (quote (succ i) (b (vfree (Local (Gensym "" i) ::: t))))) ()
+  v :$ sp -> foldl' app (In (Core.Var v) ()) sp
+  where app f a = In (f Core.:$ quote i a) ()
+
+
+-- | Substitute occurrences of a 'QName' with a 'Value' within another 'Value'.
+--
+--   prop> subst (Local (Name a)) (vfree (Local (Name b))) (Lam ($$ vfree (Local (Name a)))) == Lam ($$ vfree (Local (Name b)))
+subst :: QName -> Value -> Value -> Value
+subst q r = go
+  where go = \case
           Type -> Type
-          Lam v b
-            | for == Local v -> Lam v b
-            | Local v `Set.member` fvsRep
-            , let new = gensym i (fvs b)
-            -> Lam new (go (succ i) (subst (Local v) (vfree (Local new)) b))
-            | otherwise      -> Lam v (go i b)
-          Pi v u t b
-            | for == Local v -> Pi v u (go i t) b
-            | Local v `Set.member` fvsRep
-            , let new = gensym i (fvs b)
-            -> Pi new u (go i t) (go (succ i) (subst (Local v) (vfree (Local new)) b))
-            | otherwise -> Pi v u (go i t) (go i b)
-          Neutral a v
-            | for == v  -> foldl' app rep a
-            | otherwise -> Neutral (fmap (go i) a) v
-            where app f a = f `vapp` go i a
-        locals = foldMap (\case { Local (Gensym i) -> Set.singleton i ; _ -> Set.empty })
-        gensym i names = Gensym (maybe i (succ . fst) (Set.maxView (locals (names <> fvsRep))))
+          Lam t b -> Lam (go t) (go . b)
+          Pi p u t b -> Pi p u (go t) (go . b)
+          (v ::: ty) :$ sp
+            | q == v    -> r $$* (go <$> sp)
+            | otherwise -> (v ::: ty) :$ fmap go sp
+
+generalizeType :: Value -> Value
+generalizeType ty = foldr bind ty (localNames (fvs ty))
+  where bind n b = Pi Im Zero Type (flip (subst (Local n)) b)
+
+generalizeValue :: Value -> Value -> Value
+generalizeValue = go 0
+  where go i (Pi Im _ t b) v = Lam t (const (go (succ i) (b (vfree (Local (Gensym "" i) ::: t))) v))
+        go _ _             v = v
+
+split :: Value -> (Value, Back Value)
+split (v :$ vs) = (vfree v, vs)
+split v         = (v, Nil)
 
 
-aeq :: Value QName -> Value QName -> Bool
-aeq = go (0 :: Int) [] []
-  where go i env1 env2 v1 v2 = case (v1, v2) of
-          (Type,           Type)           -> True
-          (Lam n1 b1,      Lam n2 b2)      -> go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
-          (Pi n1 e1 t1 b1, Pi n2 e2 t2 b2) -> e1 == e2 && go i env1 env2 t1 t2 && go (succ i) ((Local n1, i) : env1) ((Local n2, i) : env2) b1 b2
-          (Neutral as1 n1, Neutral as2 n2) -> fromMaybe (n1 == n2) ((==) <$> Prelude.lookup n1 env1 <*> Prelude.lookup n2 env2) && length as1 == length as2 && and (Back.zipWith (go i env1 env2) as1 as2)
-          _                                -> False
+type Type = Value
+
+data Typed a = a ::: Type
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+typedTerm :: Typed a -> a
+typedTerm (a ::: _) = a
+
+typedType :: Typed a -> Type
+typedType (_ ::: t) = t
+
+infix 6 :::
+
+instance Pretty a => Pretty (Typed a) where
+  pretty (a ::: t) = pretty a <+> colon <+> pretty t
+
+instance Pretty a => PrettyPrec (Typed a)
+
+
+erase :: Term (Core.Core (Typed n) (Typed q)) a -> Term (Core.Core n q) a
+erase = cata go
+  where go (Core.Var (n ::: _))        ann = In (Core.Var n)        ann
+        go (Core.Lam (n ::: _) b)      ann = In (Core.Lam n b)      ann
+        go (f Core.:$ a)               ann = In (f Core.:$ a)       ann
+        go Core.Type                   ann = In Core.Type           ann
+        go (Core.Pi (n ::: _) p u t b) ann = In (Core.Pi n p u t b) ann
+
+
+abstractLam :: Foldable t => t (Typed QName) -> Value -> Value
+abstractLam = flip (foldr abstract)
+  where abstract (n ::: t) rest = Lam t (\ a -> subst n a rest)
+
+abstractPi :: Foldable t => t (Typed QName) -> Value -> Value
+abstractPi = flip (foldr abstract)
+  where abstract (n ::: t) rest = Pi Im More t (\ a -> subst n a rest)

@@ -1,1 +1,0 @@
-module Path.Synth where

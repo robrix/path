@@ -19,11 +19,10 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Path.Core hiding ((:+:))
-import Path.Context as Context
+import Path.Back
 import Path.Desugar
 import Path.Elab
-import Path.Env as Env
+import Path.Error
 import Path.Eval
 import Path.Module as Module
 import Path.Name
@@ -35,12 +34,12 @@ import Path.Pretty
 import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
-import Path.Term
+import qualified Path.Scope as Scope
 import Path.Usage
+import Path.Value
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>), (</>), bool, putDoc)
 
 data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
   deriving (Functor)
@@ -130,10 +129,9 @@ repl packageSources = liftIO $ do
   runM (runControlIOC runM
        (runREPL command prefs settings
        (evalState (mempty :: ModuleTable)
-       (evalState Env.empty
-       (evalState Context.empty
+       (evalState (mempty :: Scope.Scope)
        (evalState (Resolution mempty)
-       (script packageSources)))))))
+       (script packageSources))))))
 
 newtype Line = Line Int64
 
@@ -149,14 +147,13 @@ script :: ( Carrier sig m
           , Member (Lift IO) sig
           , Member Print sig
           , Member (Prompt Command) sig
-          , Member (State Context) sig
-          , Member (State Env) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
+          , Member (State Scope.Scope) sig
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term (Core Name QName) (Resources QName Usage, Type QName))) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Resources, Typed Value)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< printResolveError)
           `catchError` (const loop <=< printElabError)
@@ -166,37 +163,33 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            elab <- runFresh (runRenamer (resolveTerm tm) >>= desugar >>= runReader Zero . runContext . runEnv . infer)
-            print (snd (ann elab))
+            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab Zero . infer
+            print (generalizeType (typedType elab))
             loop
-          Decl decl -> do
-            _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar >>= elabDecl)
+          Command.Decl decl -> do
+            _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar) >>= elabDecl
             loop
           Eval tm -> do
-            elab <- runFresh (runRenamer (resolveTerm tm) >>= desugar >>= runReader One . runContext . runEnv . infer)
-            runEnv (eval elab) >>= print
+            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab One . infer
+            runScope (whnf (typedTerm elab)) >>= print . generalizeValue (generalizeType (typedType elab))
             loop
           Show Bindings -> do
-            ctx <- get
-            unless (Context.null ctx) $ print (ctx :: Context)
-            env <- get
-            unless (Env.null env) $ print (env :: Env)
+            scope <- get
+            unless (Scope.null scope) $ print (scope :: Scope.Scope)
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
+            let ms = modules (graph :: ModuleGraph QName (Resources, Typed Value))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
           Command.Import i -> do
             table <- get
-            (ctx, env) <- runReader (table :: ModuleTable) (importModule i)
-            modify (Context.union ctx)
-            modify (Env.union env)
+            runReader (table :: ModuleTable) (importModule i) >>= modify . Scope.union
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Term (Core Name QName) (Resources QName Usage, Type QName))) of
+            case m :: Maybe (Module QName (Resources, Typed Value)) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
@@ -213,9 +206,9 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Term
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (ctx, (env, res))) <- runState [] (runReader (table :: ModuleTable) (runFresh (runState Context.empty (runState Env.empty (resolveModule m >>= traverse desugar >>= elabModule)))))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (resolveModule m >>= traverse desugar) >>= elabModule)))
             if Prelude.null errs then
-              modify (Map.insert name (ctx, env))
+              modify (Map.insert name scope)
             else do
               for_ errs printElabError
               modify (name:)

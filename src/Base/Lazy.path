@@ -5,5 +5,5 @@ import Base.Unit
 Lazy : Type -> Type
 Lazy = \ a . Unit -> a
 
-force : ∀ a : Type . Lazy a -> a
-force = \ _ f . f unit
+force : Lazy a -> a
+force = \ f . f unit

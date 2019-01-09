@@ -15,14 +15,14 @@ cabal-version:       >=1.10
 library
   exposed-modules:     Path.Back
                      , Path.CLI
+                     , Path.Constraint
                      , Path.Context
                      , Path.Core
                      , Path.Desugar
                      , Path.Elab
                      , Path.Env
+                     , Path.Error
                      , Path.Eval
-                     , Path.Meta
-                     , Path.MetaContext
                      , Path.Module
                      , Path.Name
                      , Path.Package
@@ -38,12 +38,11 @@ library
                      , Path.REPL
                      , Path.REPL.Command
                      , Path.Resources
+                     , Path.Scope
+                     , Path.Solver
                      , Path.Semiring
-                     , Path.Subst
                      , Path.Surface
-                     , Path.Synth
                      , Path.Term
-                     , Path.Unify
                      , Path.Usage
                      , Path.Value
   other-modules:       Paths_path
@@ -88,6 +87,7 @@ test-suite doctest
   main-is:             Doctest.hs
   build-depends:       base >=4.9 && <4.13
                      , doctest >=0.7 && <1.0
+                     , QuickCheck
   hs-source-dirs:      test
   default-language:    Haskell2010
 

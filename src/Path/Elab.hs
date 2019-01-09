@@ -1,132 +1,201 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect hiding ((:+:))
+import Control.Effect.Carrier
 import Control.Effect.Error
+import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
+import Control.Effect.Sum hiding ((:+:)(..))
+import Control.Effect.Writer
+import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
+import Data.Coerce (coerce)
 import Data.Foldable (for_)
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes, listToMaybe)
+import qualified Data.Set as Set
+import Data.Maybe (catMaybes)
 import Data.Traversable (for)
+import Path.Back as Back
+import Path.Constraint
 import Path.Context as Context
 import Path.Core as Core
-import Path.Env as Env
-import Path.Eval
+import Path.Error
+import Path.Eval as Eval
 import Path.Module
 import Path.Name
-import Path.Pretty
+import Path.Plicity
 import Path.Resources as Resources
+import Path.Scope as Scope
 import Path.Semiring
+import Path.Solver
 import Path.Term
 import Path.Usage
 import Path.Value as Value
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
-elab :: ( Carrier sig m
-        , Member (Error ElabError) sig
-        , Member Fresh sig
-        , Member (Reader Context) sig
-        , Member (Reader Env) sig
-        , Member (Reader Usage) sig
-        , Monad m
-        )
-     => Term (Implicit QName :+: Core Name QName) Span
-     -> Maybe (Type QName)
-     -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-elab (In out span) ty = case (out, ty) of
-  (R Core.Type, Nothing) -> pure (In Core.Type (Resources.empty, Value.Type))
-  (R (Core.Pi n e t b), Nothing) -> do
-    t' <- check t Value.Type
-    t'' <- eval t'
-    b' <- local (Context.insert (Local n) t'') (check b Value.Type)
-    pure (In (Core.Pi n e t' b') (Resources.empty, Value.Type))
-  (R (Var n), Nothing) -> do
-    res <- asks (Context.lookup n)
-    sigma <- ask
-    case res of
-      Just t -> pure (In (Core.Var n) (Resources.singleton n sigma, t))
-      _      -> throwError (FreeVariable n span)
-  (R (f :@ a), Nothing) -> do
-    f' <- infer f
-    case ann f' of
-      (g1, Value.Pi n pi t t') -> do
-        a' <- check a t
-        let (g2, _) = ann a'
-        a'' <- eval a'
-        pure (In (f' Core.:@ a') (g1 <> pi ><< g2, subst (Local n) a'' t'))
-      _ -> throwError (IllegalApplication (() <$ f') (snd (ann f')) (ann f))
-  (_, Nothing) -> ask >>= \ ctx -> throwError (NoRuleToInfer (Context.filter (const . isLocal) ctx) span)
-  (R (Core.Lam n e), Just (Value.Pi tn pi t t')) -> do
-    e' <- local (Context.insert (Local n) t) (check e (subst (Local tn) (vfree (Local n)) t'))
-    let res = fst (ann e')
-        used = Resources.lookup (Local n) res
-    sigma <- ask
-    unless (sigma >< pi == More) . when (pi /= used) $
-      throwError (ResourceMismatch n pi used span (uses n e))
-    pure (In (Core.Lam n e') (Resources.delete (Local n) res, Value.Pi tn pi t t'))
-  (L (Hole n), Just ty) -> do
-    ctx <- ask
-    throwError (TypedHole n ty (Context.filter (const . isLocal) ctx) span)
-  (tm, Just ty) -> do
-    v <- infer (In tm span)
-    actual <- vforce (snd (ann v))
-    unless (actual `aeq` ty) (throwError (TypeMismatch ty (snd (ann v)) span))
-    pure v
+data Elab (m :: * -> *) k
+  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  (Typed Value -> k)
+  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) (Typed Value -> k)
+  deriving (Functor)
 
-infer :: ( Carrier sig m
+instance HFunctor Elab where
+  hmap _ = coerce
+
+instance Effect Elab where
+  handle state handler = coerce . fmap (handler . (<$ state))
+
+
+runElab :: ( Carrier sig m
+           , Effect sig
+           , Member (Error ElabError) sig
+           , Member (Reader Scope) sig
+           , Monad m
+           )
+        => Usage
+        -> Eff (ElabC m) (Typed Value)
+        -> m (Resources, Typed Value)
+runElab sigma = runFresh . (solveAndApply <=< runWriter . runWriter . runReader mempty . runReader sigma . runElabC . interpret)
+  where solveAndApply (eqns, (res, tm ::: ty)) = do
+          subst <- solve eqns
+          pure (res, roundtrip (apply subst tm) ::: roundtrip (apply subst ty))
+        roundtrip = eval mempty . quote 0
+
+newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation Value))) (Eff (FreshC m))))))))) a }
+  deriving (Applicative, Functor, Monad)
+
+instance ( Carrier sig m
+         , Effect sig
          , Member (Error ElabError) sig
-         , Member Fresh sig
-         , Member (Reader Context) sig
-         , Member (Reader Env) sig
-         , Member (Reader Usage) sig
+         , Member (Reader Scope) sig
          , Monad m
          )
+      => Carrier (Elab Effect.:+: sig) (ElabC m) where
+  ret = ElabC . ret
+  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+    Infer tm k -> k =<< case out tm of
+      R Core.Type -> pure (Value.Type ::: Value.Type)
+      R (Core.Pi n i e t b) -> do
+        t' ::: _ <- check (t ::: Value.Type)
+        b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
+        pure (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
+      R (Core.Var n) -> do
+        t <- lookupVar (ann tm) n >>= whnf
+        sigma <- askSigma
+        ElabC (tell (Resources.singleton n sigma))
+        elabImplicits (vfree (n ::: t) ::: t)
+      R (f Core.:$ a) -> do
+        f' ::: fTy <- infer f
+        (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
+        a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
+        pure (f' $$ a' ::: b a')
+      R (Core.Lam n b) -> do
+        (_, t) <- exists Value.Type
+        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
+      L (Core.Hole _) -> do
+        (_, ty) <- exists Value.Type
+        (_, m) <- exists ty
+        pure (m ::: ty)
+
+    Check (tm ::: ty) k -> k =<< case (out tm ::: ty) of
+      (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
+        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n ::: t))))
+        verifyResources (ann tm) n pi res
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+      (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
+        (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (vfree (Local n ::: t))))
+        verifyResources (ann tm) n pi res
+        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+      L (Core.Hole _) ::: ty -> do
+        (_, m) <- exists ty
+        pure (m ::: ty)
+      _ ::: ((_ :.: _ ::: _) Value.:$ _) -> do
+       ty' <- whnf ty
+       check (tm ::: ty')
+      _ ::: ty -> do
+        tm' ::: inferred <- infer tm
+        unified <- unify (ann tm) Value.Type (ty :===: inferred)
+        pure (tm' ::: unified)
+      where verifyResources span n pi br = do
+              let used = Resources.lookup (Local n) br
+              sigma <- askSigma
+              unless (sigma >< pi == More) . when (pi /= used) $
+                throwElabError span (ResourceMismatch n pi used (uses n tm)))
+    where n ::: t |- m = raise (local (Context.insert (n ::: t))) m
+          infix 5 |-
+          raise f (ElabC m) = ElabC (f m)
+
+          elabImplicits = \case
+            tm ::: Value.Pi Im _ t b -> do
+              (n, v) <- exists t
+              sigma <- askSigma
+              ElabC (tell (Resources.singleton n sigma))
+              elabImplicits (tm $$ v ::: b v)
+            tm -> pure tm
+
+          ensurePi span t = case t of
+            Value.Pi _ pi t b -> pure (pi, t, b)
+            (Meta _ ::: _) Value.:$ _ -> do
+              (mA, _A) <- exists Value.Type
+              (_, _B) <- exists _A
+              let _B' = flip (subst mA) _B
+              (More, _A, _B') <$ ElabC (tell (Set.singleton (t :===: Value.Pi Ex More _A _B' :@ Assert span)))
+            _ -> throwElabError span (IllegalApplication t)
+
+          unify span ty (tm1 :===: tm2) = if tm1 == tm2 then pure tm1 else do
+            (_, v) <- exists ty
+            v <$ ElabC (tell (Set.fromList [ (v :===: tm1 :@ Assert span)
+                                           , (v :===: tm2 :@ Assert span) ]))
+
+          throwElabError span reason = ElabError span <$> askContext <*> pure reason >>= throwError
+
+          askContext = ElabC ask
+          askSigma = ElabC ask
+
+          freshName s = Gensym s <$> ElabC fresh
+          exists t = do
+            Context c <- askContext
+            n <- Meta . M <$> ElabC fresh
+            pure (n, vfree (n ::: abstractPi (fmap Local <$> c) t) $$* fmap (vfree . fmap Local) c)
+
+          lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError span (FreeVariable (m :.: n))) (pure . entryType)
+          lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError span (FreeVariable (Local n))) pure
+          lookupVar span (Meta n) = throwElabError span (FreeVariable (Meta n))
+
+
+infer :: (Carrier sig m, Member Elab sig)
       => Term (Implicit QName :+: Core Name QName) Span
-      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-infer tm = elab tm Nothing
+      -> m (Typed Value)
+infer tm = send (Infer tm ret)
 
-check :: ( Carrier sig m
-         , Member (Error ElabError) sig
-         , Member Fresh sig
-         , Member (Reader Context) sig
-         , Member (Reader Env) sig
-         , Member (Reader Usage) sig
-         , Monad m
-         )
-      => Term (Implicit QName :+: Core Name QName) Span
-      -> Type QName
-      -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
-check tm ty = vforce ty >>= elab tm . Just
+check :: (Carrier sig m, Member Elab sig)
+      => Typed (Term (Implicit QName :+: Core Name QName) Span)
+      -> m (Typed Value)
+check tm = send (Check tm ret)
 
 
-type ModuleTable = Map.Map ModuleName (Context, Env)
+type ModuleTable = Map.Map ModuleName Scope
 
 elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error ModuleError) sig
-              , Member Fresh sig
               , Member (Reader ModuleTable) sig
-              , Member (State Context) sig
-              , Member (State Env) sig
-              , Member (State [ElabError]) sig
+              , Member (State (Back ElabError)) sig
+              , Member (State Scope) sig
               , Monad m
               )
            => Module QName (Term (Implicit QName :+: Core Name QName) Span)
-           -> m (Module QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
+           -> m (Module QName (Resources, Typed Value))
 elabModule m = do
-  for_ (moduleImports m) $ \ i -> do
-    (ctx, env) <- importModule i
-    modify (Context.union ctx)
-    modify (Env.union env)
+  for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
   decls <- for (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
 
-logError :: (Carrier sig m, Member (State [ElabError]) sig, Monad m) => ElabError -> m ()
-logError = modify . (:)
+logError :: (Carrier sig m, Member (State (Back ElabError)) sig, Monad m) => ElabError -> m ()
+logError = modify . flip (:>)
 
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig
@@ -134,92 +203,51 @@ importModule :: ( Carrier sig m
                 , Monad m
                 )
              => Import
-             -> m (Context, Env)
-importModule n = do
-  (ctx, env) <- asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
-  pure (Context.filter p ctx, Env.filter p env)
-  where p = const . inModule (importModuleName n)
+             -> m Scope
+importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
 
 
 elabDecl :: ( Carrier sig m
+            , Effect sig
             , Member (Error ElabError) sig
-            , Member Fresh sig
-            , Member (State Context) sig
-            , Member (State Env) sig
+            , Member (State Scope) sig
             , Monad m
             )
          => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
-         -> m (Decl QName (Term (Core Name QName) (Resources QName Usage, Type QName)))
+         -> m (Decl QName (Resources, Typed Value))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
   Doc docs     d  -> Doc docs <$> elabDecl d
 
 elabDeclare :: ( Carrier sig m
+               , Effect sig
                , Member (Error ElabError) sig
-               , Member Fresh sig
-               , Member (State Context) sig
-               , Member (State Env) sig
+               , Member (State Scope) sig
                , Monad m
                )
             => QName
             -> Term (Implicit QName :+: Core Name QName) Span
-            -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
+            -> m (Resources, Typed Value)
 elabDeclare name ty = do
-  ty' <- runReader Zero (runContext (runEnv (check ty Value.Type)))
-  ty'' <- runEnv (eval ty')
-  ty' <$ modify (Context.insert name ty'')
+  elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
+  elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
+  where generalize ty = foldr bind ty (localNames (fvs ty))
+        bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
 
 elabDefine :: ( Carrier sig m
+              , Effect sig
               , Member (Error ElabError) sig
-              , Member Fresh sig
-              , Member (State Context) sig
-              , Member (State Env) sig
+              , Member (State Scope) sig
               , Monad m
               )
            => QName
            -> Term (Implicit QName :+: Core Name QName) Span
-           -> m (Term (Core Name QName) (Resources QName Usage, Type QName))
+           -> m (Resources, Typed Value)
 elabDefine name tm = do
-  ty <- gets (Context.lookup name)
-  tm' <- runReader One (runContext (runEnv (maybe infer (flip check) ty tm)))
-  tm'' <- runEnv (eval tm')
-  modify (Env.insert name tm'')
-  tm' <$ maybe (modify (Context.insert name (snd (ann tm')))) (const (pure ())) ty
+  ty <- gets (fmap entryType . Scope.lookup name)
+  elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
+  elab <$ modify (Scope.insert name (Defn (snd elab)))
 
-runContext :: (Carrier sig m, Member (State Context) sig, Monad m) => Eff (ReaderC Context m) a -> m a
-runContext m = get >>= flip runReader m
-
-runEnv :: (Carrier sig m, Member (State Env) sig, Monad m) => Eff (ReaderC Env m) a -> m a
-runEnv m = get >>= flip runReader m
-
-
-data ElabError
-  = FreeVariable QName Span
-  | TypeMismatch (Type QName) (Type QName) Span
-  | NoRuleToInfer Context Span
-  | IllegalApplication (Term (Core Name QName) ()) (Type QName) Span
-  | ResourceMismatch Name Usage Usage Span [Span]
-  | TypedHole QName (Type QName) Context Span
-  deriving (Eq, Ord, Show)
-
-instance Pretty ElabError where
-  pretty = \case
-    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
-    TypeMismatch expected actual span -> prettyErr span (vsep
-      [ pretty "type mismatch"
-      , pretty "expected:" <+> pretty expected
-      , pretty "  actual:" <+> pretty actual
-      ]) Nothing
-    NoRuleToInfer ctx span -> prettyErr span (pretty "no rule to infer type of term") (Just (prettyCtx ctx))
-    IllegalApplication tm ty span -> prettyErr span (pretty "illegal application of non-function term" <+> pretty tm <+> colon <+> pretty ty) Nothing
-    ResourceMismatch n pi used span spans -> prettyErr span msg (vsep (map prettys spans) <$ listToMaybe spans)
-      where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length spans)) <+> pretty "than required" <+> parens (pretty pi)
-    TypedHole n ty ctx span -> prettyErr span msg (Just (prettyCtx ctx))
-      where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-    where prettyCtx ctx = nest 2 $ vsep
-            [ pretty "Local bindings:"
-            , pretty ctx
-            ]
-
-instance PrettyPrec ElabError
+runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
+runScope m = get >>= flip runReader m

@@ -3,28 +3,27 @@ module Path.Eval where
 
 import Control.Effect
 import Control.Effect.Reader hiding (Reader(Local))
-import Data.Foldable (foldl')
+import Control.Monad ((<=<))
 import Data.Maybe (fromMaybe)
 import Path.Core as Core
 import Path.Env as Env
 import Path.Name
+import Path.Scope as Scope
 import Path.Term
 import Path.Value as Value
 
-eval :: (Applicative m, Carrier sig m, Member (Reader Env) sig) => Term (Core Name QName) a -> m (Value QName)
-eval = \case
-  In (Core.Var n) _
-    | isLocal n -> fromMaybe (vfree n) <$> asks (Env.lookup n)
-    | otherwise -> pure (vfree n)
-  In (Core.Lam n b) _ -> Value.Lam n <$> local (Env.insert (Local n) (vfree (Local n))) (eval b)
-  In (f :@ a) _ -> vapp <$> eval f <*> eval a
-  In Core.Type _ -> pure (Value.Type)
-  In (Core.Pi n e ty b) _ -> Value.Pi n e <$> eval ty <*> local (Env.insert (Local n) (vfree (Local n))) (eval b)
+eval :: Env -> Term (Core (Typed Name) (Typed QName)) a -> Value
+eval env = \case
+  In (Core.Var (Local n ::: t)) _ -> fromMaybe (vfree (Local n ::: t)) (Env.lookup n env)
+  In (Core.Var v) _ -> vfree v
+  In (Core.Lam (n ::: t) b) _ -> Value.Lam t (\ v -> eval (Env.insert n v env) b)
+  In (f Core.:$ a) _ -> eval env f $$ eval env a
+  In Core.Type _ -> Value.Type
+  In (Core.Pi (n ::: _) p u t b) _ -> Value.Pi p u (eval env t) (\ v -> eval (Env.insert n v env) b)
 
-vforce :: (Carrier sig m, Member (Reader Env) sig, Monad m) => Value QName -> m (Value QName)
-vforce = \case
-  Value.Lam v b      -> Value.Lam v <$> vforce b
-  Value.Type         -> pure Value.Type
-  Value.Pi v u t b   -> Value.Pi v u <$> vforce t <*> vforce b
-  Value.Neutral vs n -> foldl' app (asks (Env.lookup n) >>= maybe (pure (vfree n)) vforce) vs
-  where app f a = vapp <$> f <*> vforce a
+-- | Evaluate a 'Value' to weak head normal form.
+--
+--   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
+whnf :: (Carrier sig m, Member (Reader Scope) sig, Monad m) => Value -> m Value
+whnf ((m :.: n ::: t) Value.:$ sp) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure ((m :.: n ::: t) Value.:$ sp)) (whnf . ($$* sp))
+whnf v                             = pure v

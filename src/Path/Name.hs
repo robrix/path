@@ -6,23 +6,37 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Pretty
 import Path.Usage
-import Text.PrettyPrint.ANSI.Leijen
+import Text.Trifecta.Rendering (Span)
 
 data Name
   = Name String
-  | Gensym Int
+  | Gensym String Int
   | Op Operator
   deriving (Eq, Ord, Show)
 
 instance Pretty Name where
   pretty = \case
     Name s -> pretty s
-    Gensym i -> pretty ('_' : alphabet !! q : show r)
-      where (q, r) = i `divMod` 26
-            alphabet = ['a'..'z']
+    Gensym s i -> pretty s <> prettyVar i
     Op op -> pretty op
 
 instance PrettyPrec Name
+
+
+data Bound = Bound
+  { boundIndex :: Int
+  , boundName  :: Name
+  }
+  deriving (Eq, Ord, Show)
+
+
+newtype Meta = M { unM :: Int }
+  deriving (Eq, Ord, Show)
+
+instance Pretty Meta where
+  pretty (M i) = pretty "_meta_" <> prettyVar i
+
+instance PrettyPrec Meta
 
 
 data ModuleName
@@ -48,12 +62,14 @@ type PackageName = String
 
 data QName
   = ModuleName :.: Name
+  | Meta Meta
   | Local Name
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
   pretty = \case
     _ :.: n -> pretty n
+    Meta m -> pretty m
     Local n -> pretty n
 
 inModule :: ModuleName -> QName -> Bool
@@ -67,14 +83,14 @@ isLocal _         = False
 prettyQName :: QName -> Doc
 prettyQName = \case
   m :.: n -> pretty m <> dot <> pretty n
+  Meta m -> pretty m
   Local n -> pretty n
 
+localNames :: Set.Set QName -> Set.Set Name
+localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
 
-data Var v = V v Twin | M v
-  deriving (Eq, Ord, Show)
-
-data Twin = Only | TwinL | TwinR
-  deriving (Eq, Ord, Show)
+metaNames :: Set.Set QName -> Set.Set Meta
+metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 
 data Operator
@@ -128,3 +144,6 @@ instance Ord v => FreeVariables v (Set.Set v) where
 
 instance Ord v => FreeVariables v Usage where
   fvs _ = Set.empty
+
+instance Ord v => FreeVariables v Span where
+  fvs _ = mempty

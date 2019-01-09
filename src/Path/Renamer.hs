@@ -15,39 +15,38 @@ import Path.Name
 import Path.Pretty
 import Path.Surface
 import Path.Term
-import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
             => Term (Surface (Maybe Name) Name) Span
             -> m (Term (Surface Name QName) Span)
 resolveTerm (In syn ann) = case syn of
   R (R (Var v)) -> in' . R . R . Var <$> resolveName v ann
   R (R (Lam v b)) ->
     local (insertLocal v) (in' . R . R <$> (Lam <$> freshen v <*> resolveTerm b))
-  R (R (f :@ a)) -> in' . R . R <$> ((:@) <$> resolveTerm f <*> resolveTerm a)
+  R (R (f :$ a)) -> in' . R . R <$> ((:$) <$> resolveTerm f <*> resolveTerm a)
   R (R Type) -> pure (in' (R (R Type)))
-  R (R (Pi v pi t b)) ->
-    in' . R . R <$> (Pi <$> freshen v <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  L (ForAll v t b) ->
-    in' . L <$> (ForAll <$> freshen v <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  R (R (Pi v ie pi t b)) ->
+    in' . R . R <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   L ((u, a) :-> b) ->
     in' . L <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
   R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
-  R (L Implicit) -> pure (in' (R (L Implicit)))
   where in' = flip In ann
+
+data Mode = Decl | Defn
+  deriving (Eq, Ord, Show)
 
 resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface (Maybe Name) Name) Span) -> m (Decl QName (Term (Surface Name QName) Span))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
     moduleName <- ask
-    ty' <- runReader (res :: Resolution) (resolveTerm ty)
+    ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm ty))
     Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
   Define n tm -> do
     res <- get
     moduleName <- ask
-    tm' <- runReader (res :: Resolution) (resolveTerm tm)
+    tm' <- runReader (res :: Resolution) (runReader Defn (resolveTerm tm))
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
@@ -75,8 +74,13 @@ insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) .
 lookupName :: Name -> Resolution -> Maybe (NonEmpty QName)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
-resolveName v s = asks (lookupName v) >>= maybe (throwError (FreeVariable v s)) pure >>= unambiguous v s
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
+resolveName v s = do
+  res <- asks (lookupName v)
+  mode <- ask
+  case mode of
+    Decl -> maybe (pure (Local v :| [])) pure res >>= unambiguous v s
+    Defn -> maybe (throwError (FreeVariable v s)) pure res >>= unambiguous v s
 
 filterResolution :: (QName -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
@@ -87,7 +91,7 @@ unambiguous _ _ (q:|[]) = pure q
 unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 
 freshen :: (Applicative m, Carrier sig m, Member Fresh sig) => Maybe Name -> m Name
-freshen Nothing  = Gensym <$> fresh
+freshen Nothing  = Gensym "_" <$> fresh
 freshen (Just n) = pure n
 
 
@@ -97,9 +101,9 @@ data ResolveError
 
 instance Pretty ResolveError where
   pretty = \case
-    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) Nothing
-    AmbiguousName name span sources -> prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) (Just (nest 2 (vsep
+    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) []
+    AmbiguousName name span sources -> prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep
       ( pretty "it could refer to"
-      : map prettyQName (toList sources)))))
+      : map prettyQName (toList sources)))]
 
 instance PrettyPrec ResolveError
