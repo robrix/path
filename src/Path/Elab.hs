@@ -112,7 +112,7 @@ instance ( Carrier sig m
       L (Core.Hole _) ::: ty -> do
         (_, m) <- exists ty
         pure (m ::: ty)
-      _ ::: ((_ :.: _ ::: _) Value.:$ _) -> do
+      _ ::: ((Value.Free (_ :.: _) ::: _) Value.:$ _) -> do
        ty' <- whnf ty
        check (tm ::: ty')
       _ ::: ty -> do
@@ -138,7 +138,7 @@ instance ( Carrier sig m
 
           ensurePi span t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
-            (Meta _ ::: _) Value.:$ _ -> do
+            (Value.Free (Meta _) ::: _) Value.:$ _ -> do
               (mA, _A) <- exists Value.Type
               (_, _B) <- exists _A
               let _B' = flip (subst mA) _B

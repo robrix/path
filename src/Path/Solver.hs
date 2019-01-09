@@ -46,14 +46,14 @@ simplify = execWriter . go
             | f1 == f2, length sp1 == length sp2 -> do
               go (tf1 :===: tf2 :@ cause)
               for_ (zipWith (:===:) (toList sp1) (toList sp2)) (go . (:@ cause))
-          f1@((_ :.: _) ::: _) :$ sp1 :===: f2@((_ :.: _) ::: _) :$ sp2 :@ cause -> do
+          f1@(Free (_ :.: _) ::: _) :$ sp1 :===: f2@(Free (_ :.: _) ::: _) :$ sp2 :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             t2 <- whnf (f2 :$ sp2)
             go (t1 :===: t2 :@ cause)
-          f1@((_ :.: _) ::: _) :$ sp1 :===: t2 :@ cause -> do
+          f1@(Free (_ :.: _) ::: _) :$ sp1 :===: t2 :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             go (t1 :===: t2 :@ cause)
-          t1 :===: f2@((_ :.: _) ::: _) :$ sp2 :@ cause -> do
+          t1 :===: f2@(Free (_ :.: _) ::: _) :$ sp2 :@ cause -> do
             t2 <- whnf (f2 :$ sp2)
             go (t1 :===: t2 :@ cause)
           tm1 :===: Lam t2 b2 :@ cause -> do
@@ -87,7 +87,7 @@ simplify = execWriter . go
 
         ensurePi cause = typeof cause >=> whnf >=> \case
           Pi _ _ t _ -> pure t
-          (Meta m ::: ty) :$ sp -> do
+          (Free (Meta m) ::: ty) :$ sp -> do
             m1 <- Meta . M <$> fresh
             m2 <- Meta . M <$> fresh
             let recur1 (Pi p u t b) = Pi p u t (\ x -> recur1 (b x))
@@ -98,11 +98,11 @@ simplify = execWriter . go
                 t2 = recur2 ty Nil
                 _A = free (m1 ::: t1) $$* sp
                 _B x = free (m2 ::: t2) $$* (sp:>x)
-            _A <$ tell (Set.singleton ((Meta m ::: ty) :$ sp :===: Pi Im More _A _B :@ cause))
+            _A <$ tell (Set.singleton ((Free (Meta m) ::: ty) :$ sp :===: Pi Im More _A _B :@ cause))
           t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 
-        stuck ((Meta _ ::: _) :$ _) = True
-        stuck _                     = False
+        stuck ((Free (Meta _) ::: _) :$ _) = True
+        stuck _                            = False
 
 solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Set.Set (Caused (Equation Value)) -> m [Caused Solution]
 solve cs
@@ -140,11 +140,11 @@ solve cs
             Seq.EmptyL -> pure Nothing
             h Seq.:< q -> Just h <$ put q
 
-        pattern ((Meta m ::: _) :$ sp) = (,) m <$> traverse free sp
-        pattern _                      = Nothing
+        pattern ((Free (Meta m) ::: _) :$ sp) = (,) m <$> traverse free sp
+        pattern _                             = Nothing
 
-        free ((v ::: t) :$ Nil) = Just (v ::: t)
-        free _                  = Nothing
+        free ((Free v ::: t) :$ Nil) = Just (v ::: t)
+        free _                       = Nothing
 
         solve s@(M m := v :@ c) = do
           modify (IntMap.insert m (v :@ c))
