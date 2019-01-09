@@ -66,8 +66,8 @@ simplify = execWriter . go
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
-        freshName s t = ((,) <*> vfree . (::: t)) . Local . Gensym s <$> fresh
-        exists t = vfree . (::: t) . Meta . M <$> fresh
+        freshName s t = ((,) <*> free . (::: t)) . Local . Gensym s <$> fresh
+        exists t = free . (::: t) . Meta . M <$> fresh
 
         typeof cause = infer
           where infer Type = pure Type
@@ -91,13 +91,13 @@ simplify = execWriter . go
             m1 <- Meta . M <$> fresh
             m2 <- Meta . M <$> fresh
             let recur1 (Pi p u t b) = Pi p u t (\ x -> recur1 (b x))
-                recur1 _            = vfree (m1 ::: Type)
+                recur1 _            = free (m1 ::: Type)
                 t1 = recur1 ty
                 recur2 (Pi p u t b) xs = Pi p u t (\ x -> recur2 (b x) (xs :> x))
-                recur2 _            xs = Pi Im Zero (vfree (m1 ::: Type) $$* xs) (const Type)
+                recur2 _            xs = Pi Im Zero (free (m1 ::: Type) $$* xs) (const Type)
                 t2 = recur2 ty Nil
-                _A = vfree (m1 ::: t1) $$* sp
-                _B x = vfree (m2 ::: t2) $$* (sp:>x)
+                _A = free (m1 ::: t1) $$* sp
+                _B x = free (m2 ::: t2) $$* (sp:>x)
             _A <$ tell (Set.singleton ((Meta m ::: ty) :$ sp :===: Pi Im More _A _B :@ cause))
           t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 

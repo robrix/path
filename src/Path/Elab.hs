@@ -85,7 +85,7 @@ instance ( Carrier sig m
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
-        elabImplicits (vfree (n ::: t) ::: t)
+        elabImplicits (free (n ::: t) ::: t)
       R (f Core.:$ a) -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
@@ -102,11 +102,11 @@ instance ( Carrier sig m
 
     Check (tm ::: ty) k -> k =<< case (out tm ::: ty) of
       (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (vfree (Local n ::: t))))
+        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (free (Local n ::: t))))
         verifyResources (ann tm) n pi res
         pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (vfree (Local n ::: t))))
+        (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (free (Local n ::: t))))
         verifyResources (ann tm) n pi res
         pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
       L (Core.Hole _) ::: ty -> do
@@ -159,7 +159,7 @@ instance ( Carrier sig m
           exists t = do
             Context c <- askContext
             n <- Meta . M <$> ElabC fresh
-            pure (n, vfree (n ::: abstractPi (fmap Local <$> c) t) $$* fmap (vfree . fmap Local) c)
+            pure (n, free (n ::: abstractPi (fmap Local <$> c) t) $$* fmap (free . fmap Local) c)
 
           lookupVar span (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError span (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar span (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError span (FreeVariable (Local n))) pure

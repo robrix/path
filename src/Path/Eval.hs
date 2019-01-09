@@ -14,8 +14,8 @@ import Path.Value as Value
 
 eval :: Env -> Term (Core (Typed Name) (Typed QName)) a -> Value
 eval env = \case
-  In (Core.Free (Local n ::: t)) _ -> fromMaybe (vfree (Local n ::: t)) (Env.lookup n env)
-  In (Core.Free v) _ -> vfree v
+  In (Core.Free (Local n ::: t)) _ -> fromMaybe (free (Local n ::: t)) (Env.lookup n env)
+  In (Core.Free v) _ -> free v
   In (Core.Lam (n ::: t) b) _ -> Value.Lam t (\ v -> eval (Env.insert n v env) b)
   In (f Core.:$ a) _ -> eval env f $$ eval env a
   In Core.Type _ -> Value.Type
