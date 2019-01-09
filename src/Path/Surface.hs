@@ -1,40 +1,42 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Surface where
 
-import Path.Core
-import Path.Implicit
 import Path.Name
 import Path.Plicity
 import Path.Term
 import Path.Usage
 
-type Surface b v = Sugar b :+: Implicit v :+: Core b v
-
-data Sugar b a
-  = (Usage, a) :-> a
+data Surface b v a
+  = Free v
+  | Lam b a
+  | a :$ a
+  | Type
+  | Pi b Plicity Usage a a
+  | Hole v
+  | (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 (-->) :: Semigroup ann => (Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-(e, a) --> b = In (L ((e, a) :-> b)) (ann a <> ann b)
+(e, a) --> b = In ((e, a) :-> b) (ann a <> ann b)
 
 infixr 0 -->
 
 piType :: Semigroup ann => (Maybe Name, Plicity, Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-(n, p, e, a) `piType` b = In (R (R (Pi n p e a b))) (ann a <> ann b)
+(n, p, e, a) `piType` b = In (Pi n p e a b) (ann a <> ann b)
 
 infixr 0 `piType`
 
 lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-lam (n, a) b = In (R (R (Lam n b))) (a <> ann b)
+lam (n, a) b = In (Lam n b) (a <> ann b)
 
 ($$) :: Semigroup ann => Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-f $$ a = In (R (R (f :$ a))) (ann f <> ann a)
+f $$ a = In (f :$ a) (ann f <> ann a)
 
 type' :: Surface b v a
-type' = R (R Type)
+type' = Type
 
 var :: v -> Surface b v a
-var = R . R . Free
+var = Free
 
 hole :: v -> Surface b v a
-hole = R . L . Hole
+hole = Hole

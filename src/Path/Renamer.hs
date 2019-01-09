@@ -9,8 +9,6 @@ import Control.Effect.State
 import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
-import Path.Core
-import Path.Implicit
 import Path.Module
 import Path.Name
 import Path.Pretty
@@ -22,16 +20,16 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
             => Term (Surface (Maybe Name) Name) Span
             -> m (Term (Surface Name QName) Span)
 resolveTerm (In syn ann) = case syn of
-  R (R (Free v)) -> in' . R . R . Free <$> resolveName v ann
-  R (R (Lam v b)) ->
-    local (insertLocal v) (in' . R . R <$> (Lam <$> freshen v <*> resolveTerm b))
-  R (R (f :$ a)) -> in' . R . R <$> ((:$) <$> resolveTerm f <*> resolveTerm a)
-  R (R Type) -> pure (in' (R (R Type)))
-  R (R (Pi v ie pi t b)) ->
-    in' . R . R <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  L ((u, a) :-> b) ->
-    in' . L <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
-  R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
+  Free v -> in' . Free <$> resolveName v ann
+  Lam v b ->
+    local (insertLocal v) (in' <$> (Lam <$> freshen v <*> resolveTerm b))
+  f :$ a -> in' <$> ((:$) <$> resolveTerm f <*> resolveTerm a)
+  Type -> pure (in' Type)
+  Pi v ie pi t b ->
+    in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  (u, a) :-> b ->
+    in' <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
+  Hole v -> in' . Hole . (:.: v) <$> ask
   where in' = flip In ann
 
 data Mode = Decl | Defn
