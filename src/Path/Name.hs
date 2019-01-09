@@ -11,17 +11,13 @@ import Text.Trifecta.Rendering (Span)
 data Name
   = Name String
   | Gensym String Int
-  | Name :// String
   | Op Operator
   deriving (Eq, Ord, Show)
-
-infixl 6 ://
 
 instance Pretty Name where
   pretty = \case
     Name s -> pretty s
     Gensym s i -> pretty s <> prettyVar i
-    _ :// s -> pretty s
     Op op -> pretty op
 
 instance PrettyPrec Name
