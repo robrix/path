@@ -85,10 +85,6 @@ generalizeValue = go 0
   where go i (Pi Im _ t b) v = Lam t (const (go (succ i) (b (free (Local (Gensym "" i) ::: t))) v))
         go _ _             v = v
 
-split :: Value -> (Value, Stack Value)
-split (v :$ vs) = (free v, vs)
-split v         = (v, Nil)
-
 
 type Type = Value
 
