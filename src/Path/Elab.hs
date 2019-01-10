@@ -1,15 +1,14 @@
 {-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
-import Control.Effect hiding ((:+:))
+import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
-import Control.Effect.Sum hiding ((:+:)(..))
+import Control.Effect.Sum
 import Control.Effect.Writer
-import qualified Control.Effect.Sum as Effect
 import Control.Monad ((<=<), unless, when)
 import Data.Coerce (coerce)
 import Data.Foldable (for_)
@@ -23,7 +22,6 @@ import Path.Context as Context
 import Path.Core as Core
 import Path.Error
 import Path.Eval as Eval
-import Path.Implicit as Core
 import Path.Module
 import Path.Name
 import Path.Plicity
@@ -37,8 +35,8 @@ import Path.Value as Value hiding (Scope(..))
 import Text.Trifecta.Rendering (Span)
 
 data Elab (m :: * -> *) k
-  = Infer        (Term (Implicit QName :+: Core Name QName) Span)  (Typed Value -> k)
-  | Check (Typed (Term (Implicit QName :+: Core Name QName) Span)) (Typed Value -> k)
+  = Infer        (Term (Core Name QName) Span)  (Typed Value -> k)
+  | Check (Typed (Term (Core Name QName) Span)) (Typed Value -> k)
   deriving (Functor)
 
 instance HFunctor Elab where
@@ -71,30 +69,30 @@ instance ( Carrier sig m
          , Member (Reader Scope) sig
          , Monad m
          )
-      => Carrier (Elab Effect.:+: sig) (ElabC m) where
+      => Carrier (Elab :+: sig) (ElabC m) where
   ret = ElabC . ret
-  eff = handleSum (ElabC . eff . Effect.R . Effect.R . Effect.R . Effect.R . Effect.R . handleCoercible) (\case
+  eff = handleSum (ElabC . eff . R . R . R . R . R . handleCoercible) (\case
     Infer tm k -> k =<< case out tm of
-      R Core.Type -> pure (Value.Type ::: Value.Type)
-      R (Core.Pi n i e t b) -> do
+      Core.Type -> pure (Value.Type ::: Value.Type)
+      Core.Pi n i e t b -> do
         t' ::: _ <- check (t ::: Value.Type)
         b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
         pure (Value.pi ((n, i, e) ::: t') b' ::: Value.Type)
-      R (Core.Free n) -> do
+      Core.Free n -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
         elabImplicits (free (n ::: t) ::: t)
-      R (f Core.:$ a) -> do
+      f Core.:$ a -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
         pure (f' $$ a' ::: instantiate a' b)
-      R (Core.Lam n b) -> do
+      Core.Lam n b -> do
         (_, t) <- exists Value.Type
         e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
         pure (Value.lam (n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
-      L (Core.Hole _) -> do
+      Core.Hole _ -> do
         (_, ty) <- exists Value.Type
         (_, m) <- exists ty
         pure (m ::: ty)
@@ -104,11 +102,11 @@ instance ( Carrier sig m
         (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (Local n ::: t)) b))
         verifyResources (ann tm) n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
-      R (Core.Lam n e) ::: Value.Pi Ex pi t b -> raise (censor (Resources.delete (Local n))) $ do
+      Core.Lam n e ::: Value.Pi Ex pi t b -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: instantiate (free (Local n ::: t)) b))
         verifyResources (ann tm) n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
-      L (Core.Hole _) ::: ty -> do
+      Core.Hole _ ::: ty -> do
         (_, m) <- exists ty
         pure (m ::: ty)
       _ ::: ((Value.Free (_ :.: _) ::: _) Value.:$ _) -> do
@@ -166,12 +164,12 @@ instance ( Carrier sig m
 
 
 infer :: (Carrier sig m, Member Elab sig)
-      => Term (Implicit QName :+: Core Name QName) Span
+      => Term (Core Name QName) Span
       -> m (Typed Value)
 infer tm = send (Infer tm ret)
 
 check :: (Carrier sig m, Member Elab sig)
-      => Typed (Term (Implicit QName :+: Core Name QName) Span)
+      => Typed (Term (Core Name QName) Span)
       -> m (Typed Value)
 check tm = send (Check tm ret)
 
@@ -186,7 +184,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               , Monad m
               )
-           => Module QName (Term (Implicit QName :+: Core Name QName) Span)
+           => Module QName (Term (Core Name QName) Span)
            -> m (Module QName (Resources, Typed Value))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
@@ -213,7 +211,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             , Monad m
             )
-         => Decl QName (Term (Implicit QName :+: Core Name QName) Span)
+         => Decl QName (Term (Core Name QName) Span)
          -> m (Decl QName (Resources, Typed Value))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
@@ -227,13 +225,13 @@ elabDeclare :: ( Carrier sig m
                , Monad m
                )
             => QName
-            -> Term (Implicit QName :+: Core Name QName) Span
+            -> Term (Core Name QName) Span
             -> m (Resources, Typed Value)
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
-        bind n b = In (R (Core.Pi n Im Zero (In (R Core.Type) (ann ty)) b)) (ann ty)
+        bind n b = In (Core.Pi n Im Zero (In Core.Type (ann ty)) b) (ann ty)
 
 elabDefine :: ( Carrier sig m
               , Effect sig
@@ -242,7 +240,7 @@ elabDefine :: ( Carrier sig m
               , Monad m
               )
            => QName
-           -> Term (Implicit QName :+: Core Name QName) Span
+           -> Term (Core Name QName) Span
            -> m (Resources, Typed Value)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
