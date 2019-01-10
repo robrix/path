@@ -13,7 +13,7 @@ import Path.Usage
 import Text.Trifecta
 import Text.Parser.Token.Highlight
 
-type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe UName) UName))
+type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Term Surface.Surface)
 
 term = functionType
 

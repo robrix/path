@@ -8,9 +8,9 @@ import Path.Term
 data Command
   = Quit
   | Help
-  | TypeOf (Term (Surface (Maybe UName) UName))
-  | Decl (Decl UName (Term (Surface (Maybe UName) UName)))
-  | Eval (Term (Surface (Maybe UName) UName))
+  | TypeOf (Term Surface)
+  | Decl (Decl UName (Term Surface))
+  | Eval (Term Surface)
   | Show Info
   | Reload
   | Import Import

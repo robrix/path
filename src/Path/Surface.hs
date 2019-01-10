@@ -7,37 +7,37 @@ import Path.Term
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
-data Surface b v a
-  = Free v
-  | Lam b a
+data Surface a
+  = Free UName
+  | Lam (Maybe UName) a
   | a :$ a
   | Type
-  | Pi b Plicity Usage a a
-  | Hole v
+  | Pi (Maybe UName) Plicity Usage a a
+  | Hole UName
   | (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-(-->) :: (Usage, Term (Surface (Maybe UName) v)) -> Term (Surface (Maybe UName) v) -> Term (Surface (Maybe UName) v)
+(-->) :: (Usage, Term Surface) -> Term Surface -> Term Surface
 (e, a) --> b = In ((e, a) :-> b) (ann a <> ann b)
 
 infixr 0 -->
 
-piType :: (Maybe UName, Plicity, Usage, Term (Surface (Maybe UName) v)) -> Term (Surface (Maybe UName) v) -> Term (Surface (Maybe UName) v)
+piType :: (Maybe UName, Plicity, Usage, Term Surface) -> Term Surface -> Term Surface
 (n, p, e, a) `piType` b = In (Pi n p e a b) (ann a <> ann b)
 
 infixr 0 `piType`
 
-lam :: (Maybe UName, Span) -> Term (Surface (Maybe UName) v) -> Term (Surface (Maybe UName) v)
+lam :: (Maybe UName, Span) -> Term Surface -> Term Surface
 lam (n, a) b = In (Lam n b) (a <> ann b)
 
-($$) :: Term (Surface (Maybe UName) v) -> Term (Surface (Maybe UName) v) -> Term (Surface (Maybe UName) v)
+($$) :: Term Surface -> Term Surface -> Term Surface
 f $$ a = In (f :$ a) (ann f <> ann a)
 
-type' :: Surface b v a
+type' :: Surface a
 type' = Type
 
-var :: v -> Surface b v a
+var :: UName -> Surface a
 var = Free
 
-hole :: v -> Surface b v a
+hole :: UName -> Surface a
 hole = Hole
