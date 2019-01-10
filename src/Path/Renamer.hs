@@ -29,7 +29,7 @@ resolveTerm (In syn ann) = case syn of
     in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
   (u, a) :-> b ->
     in' <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
-  Hole v -> in' . Hole . (:.: toName v) <$> ask
+  Hole v -> in' . Hole . (:.: v) <$> ask
   where in' = flip In ann
 
 data Mode = Decl | Defn
@@ -41,12 +41,12 @@ resolveDecl = \case
     res <- get
     moduleName <- ask
     ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm ty))
-    Declare (moduleName :.: toName n) ty' <$ modify (insertGlobal n moduleName)
+    Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
   Define n tm -> do
     res <- get
     moduleName <- ask
     tm' <- runReader (res :: Resolution) (runReader Defn (resolveTerm tm))
-    Define (moduleName :.: toName n) tm' <$ modify (insertGlobal n moduleName)
+    Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
 resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term (Surface (Maybe UName) UName) Span) -> m (Module QName (Term (Surface Name QName) Span))
@@ -68,7 +68,7 @@ insertLocal Nothing  = id
 insertLocal (Just n) = Resolution . Map.insert n (Local (toName n):|[]) . unResolution
 
 insertGlobal :: UName -> ModuleName -> Resolution -> Resolution
-insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:toName n:|[]) . unResolution
+insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) . unResolution
 
 lookupName :: UName -> Resolution -> Maybe (NonEmpty QName)
 lookupName n = Map.lookup n . unResolution

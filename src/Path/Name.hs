@@ -71,7 +71,7 @@ type PackageName = String
 
 
 data QName
-  = ModuleName :.: Name
+  = ModuleName :.: UName
   | Meta Meta
   | Local Name
   deriving (Eq, Ord, Show)
