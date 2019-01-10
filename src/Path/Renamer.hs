@@ -19,17 +19,16 @@ import Text.Trifecta.Rendering (Span)
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
             => Term (Core (Maybe UName) UName) Span
             -> m (Term (Core Name QName) Span)
-resolveTerm (In syn ann) = case syn of
-  Free v -> in' . Free <$> resolveName v ann
-  Bound i -> pure (in' (Bound i))
+resolveTerm (In syn ann) = flip In ann <$> case syn of
+  Free v -> Free <$> resolveName v ann
+  Bound i -> pure (Bound i)
   Lam v (Scope b) ->
-    local (insertLocal v) (in' <$> (Lam <$> freshen v <*> (Scope <$> resolveTerm b)))
-  f :$ a -> in' <$> ((:$) <$> resolveTerm f <*> resolveTerm a)
-  Type -> pure (in' Type)
+    local (insertLocal v) (Lam <$> freshen v <*> (Scope <$> resolveTerm b))
+  f :$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
+  Type -> pure Type
   Pi v ie pi t (Scope b) ->
-    in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b))
-  Hole v -> in' . Hole . (:.: v) <$> ask
-  where in' = flip In ann
+    Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b)
+  Hole v -> Hole . (:.: v) <$> ask
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
