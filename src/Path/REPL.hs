@@ -19,8 +19,6 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Path.Stack
-import Path.Desugar
 import Path.Elab
 import Path.Error
 import Path.Eval
@@ -35,6 +33,7 @@ import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
+import Path.Stack
 import Path.Usage
 import Path.Value
 import Prelude hiding (print)
@@ -163,14 +162,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm (desugar tm)))) >>= runScope . runElab Zero . infer
+            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm))) >>= runScope . runElab Zero . infer
             print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
-            _ <- runFresh (runRenamer (resolveDecl (desugar <$> decl))) >>= elabDecl
+            _ <- runFresh (runRenamer (resolveDecl decl)) >>= elabDecl
             loop
           Eval tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm (desugar tm)))) >>= runScope . runElab One . infer
+            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm))) >>= runScope . runElab One . infer
             runScope (whnf (typedTerm elab)) >>= print . generalizeValue (generalizeType (typedType elab))
             loop
           Show Bindings -> do
@@ -206,7 +205,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (resolveModule (desugar <$> m)) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (resolveModule m) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do

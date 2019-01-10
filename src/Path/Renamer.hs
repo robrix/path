@@ -12,28 +12,30 @@ import qualified Data.Map as Map
 import Path.Core
 import Path.Module
 import Path.Name
+import Path.Plicity
 import Path.Pretty
+import qualified Path.Surface as Surface
 import Path.Term
 import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-            => Term (Core (Maybe UName) UName) Span
+            => Term (Surface.Surface (Maybe UName) UName) Span
             -> m (Term (Core Name QName) Span)
 resolveTerm (In syn ann) = flip In ann <$> case syn of
-  Free v -> Free <$> resolveName v ann
-  Bound i -> pure (Bound i)
-  Lam v (Scope b) ->
+  Surface.Free v -> Free <$> resolveName v ann
+  Surface.Lam v b ->
     local (insertLocal v) (Lam <$> freshen v <*> (Scope <$> resolveTerm b))
-  f :$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
-  Type -> pure Type
-  Pi v ie pi t (Scope b) ->
+  f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
+  Surface.Type -> pure Type
+  Surface.Pi v ie pi t b ->
     Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b)
-  Hole v -> Hole . (:.: v) <$> ask
+  (u, a) Surface.:-> b -> Pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> (Scope <$> resolveTerm b)
+  Surface.Hole v -> Hole . (:.: v) <$> ask
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl UName (Term (Core (Maybe UName) UName) Span) -> m (Decl QName (Term (Core Name QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl UName (Term (Surface.Surface (Maybe UName) UName) Span) -> m (Decl QName (Term (Core Name QName) Span))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -47,7 +49,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term (Core (Maybe UName) UName) Span) -> m (Module QName (Term (Core Name QName) Span))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term (Surface.Surface (Maybe UName) UName) Span) -> m (Module QName (Term (Core Name QName) Span))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
