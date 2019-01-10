@@ -22,12 +22,12 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
 resolveTerm (In syn ann) = case syn of
   Free v -> in' . Free <$> resolveName v ann
   Bound i -> pure (in' (Bound i))
-  Lam v b ->
-    local (insertLocal v) (in' <$> (Lam <$> freshen v <*> resolveTerm b))
+  Lam v (Scope b) ->
+    local (insertLocal v) (in' <$> (Lam <$> freshen v <*> (Scope <$> resolveTerm b)))
   f :$ a -> in' <$> ((:$) <$> resolveTerm f <*> resolveTerm a)
   Type -> pure (in' Type)
-  Pi v ie pi t b ->
-    in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
+  Pi v ie pi t (Scope b) ->
+    in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b))
   Hole v -> in' . Hole . (:.: v) <$> ask
   where in' = flip In ann
 

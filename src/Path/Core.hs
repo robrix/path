@@ -10,10 +10,10 @@ import Path.Usage
 data Core b v a
   = Free v
   | Bound Int
-  | Lam b a
+  | Lam b (Scope a)
   | a :$ a
   | Type
-  | Pi b Plicity Usage a a
+  | Pi b Plicity Usage a (Scope a)
   | Hole v
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
@@ -24,10 +24,10 @@ instance FreeVariables1 QName (Core Name QName) where
   liftFvs fvs = \case
     Free v -> Set.singleton v
     Bound _ -> Set.empty
-    Lam v b -> Set.delete (Local v) (fvs b)
+    Lam v (Scope b) -> Set.delete (Local v) (fvs b)
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
-    Pi v _ _ t b -> fvs t <> Set.delete (Local v) (fvs b)
+    Pi v _ _ t (Scope b) -> fvs t <> Set.delete (Local v) (fvs b)
     Hole v -> Set.singleton v
 
 uses :: Name -> Term (Core Name QName) a -> [a]
@@ -36,12 +36,12 @@ uses n = cata $ \ f a -> case f of
     | Local n == n' -> [a]
     | otherwise     -> []
   Bound _ -> []
-  Lam n' b
+  Lam n' (Scope b)
     | n == n'   -> []
     | otherwise -> b
   f :$ a -> f <> a
   Type -> []
-  Pi n' _ _ t b
+  Pi n' _ _ t (Scope b)
     | n == n'   -> t
     | otherwise -> t <> b
   Hole n'
