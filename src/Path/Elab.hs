@@ -33,7 +33,7 @@ import Path.Semiring
 import Path.Solver
 import Path.Term
 import Path.Usage
-import Path.Value as Value
+import Path.Value as Value hiding (Scope(..))
 import Text.Trifecta.Rendering (Span)
 
 data Elab (m :: * -> *) k
@@ -60,8 +60,7 @@ runElab :: ( Carrier sig m
 runElab sigma = runFresh . (solveAndApply <=< runWriter . runWriter . runReader mempty . runReader sigma . runElabC . interpret)
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
-          pure (res, roundtrip (apply subst tm) ::: roundtrip (apply subst ty))
-        roundtrip = eval mempty . quote 0
+          pure (res, apply subst tm ::: apply subst ty)
 
 newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation Value))) (Eff (FreshC m))))))))) a }
   deriving (Applicative, Functor, Monad)
@@ -80,7 +79,7 @@ instance ( Carrier sig m
       R (Core.Pi n i e t b) -> do
         t' ::: _ <- check (t ::: Value.Type)
         b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
-        pure (Value.Pi i e t' (flip (subst (Local n)) b') ::: Value.Type)
+        pure (Value.pi ((n, i, e) ::: t') b' ::: Value.Type)
       R (Core.Free n) -> do
         t <- lookupVar (ann tm) n >>= whnf
         sigma <- askSigma
@@ -90,11 +89,11 @@ instance ( Carrier sig m
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
-        pure (f' $$ a' ::: b a')
+        pure (f' $$ a' ::: instantiate a' b)
       R (Core.Lam n b) -> do
         (_, t) <- exists Value.Type
         e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
-        pure (Value.Lam t (flip (subst (Local n)) e') ::: Value.Pi Ex More t (flip (Value.subst (Local n)) eTy))
+        pure (Value.lam (n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
       L (Core.Hole _) -> do
         (_, ty) <- exists Value.Type
         (_, m) <- exists ty
@@ -102,13 +101,13 @@ instance ( Carrier sig m
 
     Check (tm ::: ty) k -> k =<< case (out tm ::: ty) of
       _ ::: Value.Pi Im pi t b -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (free (Local n ::: t))))
+        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (Local n ::: t)) b))
         verifyResources (ann tm) n pi res
-        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+        pure (Value.lam (n ::: t) e' ::: ty)
       R (Core.Lam n e) ::: Value.Pi Ex pi t b -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (free (Local n ::: t))))
+        (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: instantiate (free (Local n ::: t)) b))
         verifyResources (ann tm) n pi res
-        pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
+        pure (Value.lam (n ::: t) e' ::: ty)
       L (Core.Hole _) ::: ty -> do
         (_, m) <- exists ty
         pure (m ::: ty)
@@ -133,7 +132,7 @@ instance ( Carrier sig m
               (n, v) <- exists t
               sigma <- askSigma
               ElabC (tell (Resources.singleton n sigma))
-              elabImplicits (tm $$ v ::: b v)
+              elabImplicits (tm $$ v ::: instantiate v b)
             tm -> pure tm
 
           ensurePi span t = case t of
@@ -141,7 +140,7 @@ instance ( Carrier sig m
             (Value.Free (Meta _) ::: _) Value.:$ _ -> do
               (mA, _A) <- exists Value.Type
               (_, _B) <- exists _A
-              let _B' = flip (subst mA) _B
+              let _B' = bind mA _B
               (More, _A, _B') <$ ElabC (tell (Set.singleton (t :===: Value.Pi Ex More _A _B' :@ Assert span)))
             _ -> throwElabError span (IllegalApplication t)
 
