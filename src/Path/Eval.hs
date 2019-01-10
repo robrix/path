@@ -4,22 +4,9 @@ module Path.Eval where
 import Control.Effect
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Monad ((<=<))
-import Data.Maybe (fromMaybe)
-import Path.Core as Core
-import Path.Env as Env
 import Path.Name
 import Path.Scope as Scope
-import Path.Term
 import Path.Value as Value hiding (Scope(..))
-
-eval :: Env -> Term (Core (Typed Name) (Typed QName)) a -> Value
-eval env = \case
-  In (Core.Free (Local n ::: t)) _ -> fromMaybe (free (Local n ::: t)) (Env.lookup n env)
-  In (Core.Free v) _ -> free v
-  In (Core.Lam (n ::: t) b) _ -> Value.lam (n ::: t) (eval env b)
-  In (f Core.:$ a) _ -> eval env f $$ eval env a
-  In Core.Type _ -> Value.Type
-  In (Core.Pi (n ::: _) p u t b) _ -> Value.pi ((n, p, u) ::: eval env t) (eval env b)
 
 -- | Evaluate a 'Value' to weak head normal form.
 --
