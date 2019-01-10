@@ -83,6 +83,11 @@ instance ( Carrier sig m
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
         elabImplicits (free (n ::: t) ::: t)
+      Core.Bound i | let n = Local (Gensym "" i) -> do
+        t <- lookupVar (ann tm) n >>= whnf
+        sigma <- askSigma
+        ElabC (tell (Resources.singleton n sigma))
+        elabImplicits (free (n ::: t) ::: t)
       f Core.:$ a -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi (ann tm)

@@ -9,6 +9,7 @@ import Path.Usage
 
 data Core b v a
   = Free v
+  | Bound Int
   | Lam b a
   | a :$ a
   | Type
@@ -19,6 +20,7 @@ data Core b v a
 instance FreeVariables1 QName (Core Name QName) where
   liftFvs fvs = \case
     Free v -> Set.singleton v
+    Bound _ -> Set.empty
     Lam v b -> Set.delete (Local v) (fvs b)
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
@@ -30,6 +32,7 @@ uses n = cata $ \ f a -> case f of
   Free n'
     | Local n == n' -> [a]
     | otherwise     -> []
+  Bound _ -> []
   Lam n' b
     | n == n'   -> []
     | otherwise -> b

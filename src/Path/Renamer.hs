@@ -21,6 +21,7 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
             -> m (Term (Core Name QName) Span)
 resolveTerm (In syn ann) = case syn of
   Free v -> in' . Free <$> resolveName v ann
+  Bound i -> pure (in' (Bound i))
   Lam v b ->
     local (insertLocal v) (in' <$> (Lam <$> freshen v <*> resolveTerm b))
   f :$ a -> in' <$> ((:$) <$> resolveTerm f <*> resolveTerm a)
