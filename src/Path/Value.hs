@@ -5,11 +5,9 @@ import Control.Applicative (Alternative(..))
 import Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import Path.Stack as Stack
-import qualified Path.Core as Core
 import Path.Name
 import Path.Plicity
 import Path.Pretty
-import Path.Term
 import Path.Usage
 import Prelude hiding (pi)
 
@@ -148,15 +146,6 @@ instance Pretty a => Pretty (Typed a) where
   pretty (a ::: t) = pretty a <+> colon <+> pretty t
 
 instance Pretty a => PrettyPrec (Typed a)
-
-
-erase :: Term (Core.Core (Typed n) (Typed q)) a -> Term (Core.Core n q) a
-erase = cata go
-  where go (Core.Free (n ::: _))       ann = In (Core.Free n)       ann
-        go (Core.Lam (n ::: _) b)      ann = In (Core.Lam n b)      ann
-        go (f Core.:$ a)               ann = In (f Core.:$ a)       ann
-        go Core.Type                   ann = In Core.Type           ann
-        go (Core.Pi (n ::: _) p u t b) ann = In (Core.Pi n p u t b) ann
 
 
 abstractLam :: Foldable t => t (Typed QName) -> Value -> Value
