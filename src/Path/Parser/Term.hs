@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleInstances, LambdaCase #-}
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
@@ -7,51 +7,46 @@ import Path.Name
 import Path.Parser as Parser
 import Path.Plicity
 import Path.Parser.Mixfix
-import qualified Path.Surface as Surface
-import Path.Term hiding (ann)
+import Path.Surface
 import Path.Usage
 import Text.Trifecta
 import Text.Parser.Token.Highlight
 
-type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Term Surface.Surface)
+type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m Surface
 
 term = functionType
 
-ann :: DeltaParsing m => m (f (Term f)) -> m (Term f)
+ann :: DeltaParsing m => m Surface -> m Surface
 ann = fmap respan . spanned
-  where respan (f :~ a) = In f a
+  where respan (f :~ a) = Ann a f
 
-reann :: DeltaParsing m => m (Term f) -> m (Term f)
-reann = fmap respan . spanned
-  where respan (In f _ :~ a) = In f a
+application = atom `chainl1` pure (:$) <?> "function application"
 
+type' = ann (Type <$ keyword "Type")
 
-application = atom `chainl1` pure (Surface.$$) <?> "function application"
-
-type' = ann (Surface.type' <$ keyword "Type")
-
-piType = reann (do
-  (p, (v, mult, ty)) <- plicity ((,,) . Just <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  (Surface.piType (v, p, fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult, ty)) <$> functionType) <?> "dependent function type"
+piType = ann (do
+  (p, (v, mult, ty)) <- plicity ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  (Pi (Just v) p (fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult) ty) <$> functionType) <?> "dependent function type"
   where plicity m = (,) Im <$> braces m
                 <|> (,) Ex <$> parens m
 
-functionType = (,) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType)
+functionType = (,) <$> multiplicity <*> application <**> (flip (:->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
-          where arrow t' t = (More, t) Surface.--> t'
+          where arrow t' t = (More, t) :-> t'
 
-var = ann (Surface.var <$> name <?> "variable")
+var = ann (Free <$> name <?> "variable")
 
-lambda = reann (do
+lambda = ann (do
   vs <- op "\\" *> patterns <* dot
   bind vs) <?> "lambda"
   where pattern = spanned (Just <$> name <|> Nothing <$ token (string "_")) <?> "pattern"
         patterns = (:) <$> pattern <*> (patterns <|> pure [])
         bind [] = term
-        bind ((v :~ a):vv) = Surface.lam (v, a) <$> bind vv
+        bind (v:vv) = wrap v <$> spanned (bind vv)
+          where wrap (a :~ v1) (b :~ v2) = Ann (v1 <> v2) (Lam a b)
 
-hole = ann (Surface.hole . UName <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
+hole = ann (Hole . UName <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
 atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 

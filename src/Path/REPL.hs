@@ -39,6 +39,7 @@ import Path.Value
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
+import Text.Trifecta.Rendering (Span(..))
 
 data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
   deriving (Functor)
@@ -205,7 +206,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (resolveModule m) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
@@ -218,7 +219,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
         failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
         runRenamer m = do
           res <- get
-          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
+          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m))
         printResolveError err = print (err :: ResolveError)
         printElabError    err = print (err :: ElabError)
         printModuleError  err = print (err :: ModuleError)

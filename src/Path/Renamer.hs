@@ -15,29 +15,27 @@ import Path.Name
 import Path.Plicity
 import Path.Pretty
 import qualified Path.Surface as Surface
-import Path.Term
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-            => Term Surface.Surface
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m)
+            => Surface.Surface
             -> m Core
-resolveTerm (In syn ann) = case syn of
-  Surface.Free v -> in' . Free <$> resolveName v ann
+resolveTerm = \case
+  Surface.Free v -> Free <$> resolveName v
   Surface.Lam v b ->
-    in' <$> local (insertLocal v) (Lam <$> freshen v <*> (Scope <$> resolveTerm b))
-  f Surface.:$ a -> fmap in' . (:$) <$> resolveTerm f <*> resolveTerm a
-  Surface.Type -> pure (in' Type)
+    local (insertLocal v) (Lam <$> freshen v <*> (Scope <$> resolveTerm b))
+  f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
+  Surface.Type -> pure Type
   Surface.Pi v ie pi t b ->
-    in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b))
-  (u, a) Surface.:-> b -> in' <$> (Pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> (Scope <$> resolveTerm b))
-  Surface.Hole v -> in' . Hole . (:.: v) <$> ask
-  Surface.Ann ann a -> Ann ann <$> resolveTerm a
-  where in' = Ann ann
+    Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b)
+  (u, a) Surface.:-> b -> Pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> (Scope <$> resolveTerm b)
+  Surface.Hole v -> Hole . (:.: v) <$> ask
+  Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl UName (Term Surface.Surface) -> m (Decl QName Core)
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Decl UName Surface.Surface -> m (Decl QName Core)
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -51,7 +49,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term Surface.Surface) -> m (Module QName Core)
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Module UName Surface.Surface -> m (Module QName Core)
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -75,10 +73,11 @@ insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) .
 lookupName :: UName -> Resolution -> Maybe (NonEmpty QName)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Monad m) => UName -> Span -> m QName
-resolveName v s = do
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m) => UName -> m QName
+resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
+  s <- ask
   case mode of
     Decl -> maybe (pure (Local (toName v) :| [])) pure res >>= unambiguous v s
     Defn -> maybe (throwError (FreeVariable v s)) pure res >>= unambiguous v s
