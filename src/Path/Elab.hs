@@ -101,7 +101,7 @@ instance ( Carrier sig m
         pure (m ::: ty)
 
     Check (tm ::: ty) k -> k =<< case (out tm ::: ty) of
-      (_ ::: Value.Pi Im pi t b) -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
+      _ ::: Value.Pi Im pi t b -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (free (Local n ::: t))))
         verifyResources (ann tm) n pi res
         pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
