@@ -6,6 +6,7 @@ import Path.Name
 import Path.Plicity
 import Path.Term
 import Path.Usage
+import Text.Trifecta.Rendering (Span)
 
 data Core b v a
   = Free v
@@ -30,7 +31,7 @@ instance FreeVariables1 QName (Core Name QName) where
     Pi v _ _ t (Scope b) -> fvs t <> Set.delete (Local v) (fvs b)
     Hole v -> Set.singleton v
 
-uses :: Name -> Term (Core Name QName) a -> [a]
+uses :: Name -> Term (Core Name QName) -> [Span]
 uses n = cata $ \ f a -> case f of
   Free n'
     | Local n == n' -> [a]

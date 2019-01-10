@@ -3,30 +3,28 @@ module Path.Term where
 
 import Path.Name
 import Path.Pretty
+import Text.Trifecta.Rendering (Span)
 
-data Term f a = In { out :: f (Term f a), ann :: a }
+data Term f = In { out :: f (Term f), ann :: Span }
 
-deriving instance (Eq   (f (Term f a)), Eq   a) => Eq   (Term f a)
-deriving instance (Ord  (f (Term f a)), Ord  a) => Ord  (Term f a)
-deriving instance (Show (f (Term f a)), Show a) => Show (Term f a)
+deriving instance (Eq   (f (Term f))) => Eq   (Term f)
+deriving instance (Ord  (f (Term f))) => Ord  (Term f)
+deriving instance (Show (f (Term f))) => Show (Term f)
 
-instance (PrettyPrec (f (Term f a)), PrettyPrec a) => PrettyPrec (Term f a) where
+instance PrettyPrec (f (Term f)) => PrettyPrec (Term f) where
   prettyPrec d (In tm ty)
     | show ty' == "" = prettyPrec d tm
     | otherwise      = prettyParens (d > 0) $ prettyPrec 1 tm <> pretty " : " <> ty'
     where ty' = prettyPrec 1 ty
 
-instance (PrettyPrec (f (Term f a)), PrettyPrec a) => Pretty (Term f a) where
+instance PrettyPrec (f (Term f)) => Pretty (Term f) where
   pretty = prettyPrec 0
 
-instance Functor f => Functor (Term f) where
-  fmap f (In tm a) = In (fmap (fmap f) tm) (f a)
-
-cata :: Functor f => (f b -> a -> b) -> Term f a -> b
+cata :: Functor f => (f b -> Span -> b) -> Term f -> b
 cata alg = go where go = alg . fmap go . out <*> ann
 
-hoist :: Functor f => (forall x . f x -> g x) -> Term f a -> Term g a
+hoist :: Functor f => (forall x . f x -> g x) -> Term f -> Term g
 hoist f = cata (In . f)
 
-instance FreeVariables1 v f => FreeVariables v (Term f a) where
+instance FreeVariables1 v f => FreeVariables v (Term f) where
   fvs (In out _) = liftFvs fvs out

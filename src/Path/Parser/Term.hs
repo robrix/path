@@ -13,15 +13,15 @@ import Path.Usage
 import Text.Trifecta
 import Text.Parser.Token.Highlight
 
-type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe UName) UName) Span)
+type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Term (Surface.Surface (Maybe UName) UName))
 
 term = functionType
 
-ann :: DeltaParsing m => m (f (Term f Span)) -> m (Term f Span)
+ann :: DeltaParsing m => m (f (Term f)) -> m (Term f)
 ann = fmap respan . spanned
   where respan (f :~ a) = In f a
 
-reann :: DeltaParsing m => m (Term f Span) -> m (Term f Span)
+reann :: DeltaParsing m => m (Term f) -> m (Term f)
 reann = fmap respan . spanned
   where respan (In f _ :~ a) = In f a
 

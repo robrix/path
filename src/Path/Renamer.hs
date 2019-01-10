@@ -19,8 +19,8 @@ import Path.Term
 import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-            => Term (Surface.Surface (Maybe UName) UName) Span
-            -> m (Term (Core Name QName) Span)
+            => Term (Surface.Surface (Maybe UName) UName)
+            -> m (Term (Core Name QName))
 resolveTerm (In syn ann) = flip In ann <$> case syn of
   Surface.Free v -> Free <$> resolveName v ann
   Surface.Lam v b ->
@@ -35,7 +35,7 @@ resolveTerm (In syn ann) = flip In ann <$> case syn of
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl UName (Term (Surface.Surface (Maybe UName) UName) Span) -> m (Decl QName (Term (Core Name QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl UName (Term (Surface.Surface (Maybe UName) UName)) -> m (Decl QName (Term (Core Name QName)))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -49,7 +49,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term (Surface.Surface (Maybe UName) UName) Span) -> m (Module QName (Term (Core Name QName) Span))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term (Surface.Surface (Maybe UName) UName)) -> m (Module QName (Term (Core Name QName)))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
