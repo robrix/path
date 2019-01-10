@@ -23,8 +23,5 @@ instance PrettyPrec (f (Term f)) => Pretty (Term f) where
 cata :: Functor f => (f b -> Span -> b) -> Term f -> b
 cata alg = go where go = alg . fmap go . out <*> ann
 
-hoist :: Functor f => (forall x . f x -> g x) -> Term f -> Term g
-hoist f = cata (In . f)
-
 instance FreeVariables1 v f => FreeVariables v (Term f) where
   fvs (In out _) = liftFvs fvs out
