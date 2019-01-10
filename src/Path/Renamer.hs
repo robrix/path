@@ -9,16 +9,16 @@ import Control.Effect.State
 import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
+import Path.Core
 import Path.Module
 import Path.Name
 import Path.Pretty
-import Path.Surface
 import Path.Term
 import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-            => Term (Surface (Maybe UName) UName) Span
-            -> m (Term (Surface Name QName) Span)
+            => Term (Core (Maybe UName) UName) Span
+            -> m (Term (Core Name QName) Span)
 resolveTerm (In syn ann) = case syn of
   Free v -> in' . Free <$> resolveName v ann
   Lam v b ->
@@ -27,15 +27,13 @@ resolveTerm (In syn ann) = case syn of
   Type -> pure (in' Type)
   Pi v ie pi t b ->
     in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  (u, a) :-> b ->
-    in' <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
   Hole v -> in' . Hole . (:.: v) <$> ask
   where in' = flip In ann
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl UName (Term (Surface (Maybe UName) UName) Span) -> m (Decl QName (Term (Surface Name QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl UName (Term (Core (Maybe UName) UName) Span) -> m (Decl QName (Term (Core Name QName) Span))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -49,7 +47,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term (Surface (Maybe UName) UName) Span) -> m (Module QName (Term (Surface Name QName) Span))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module UName (Term (Core (Maybe UName) UName) Span) -> m (Module QName (Term (Core Name QName) Span))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
