@@ -19,7 +19,7 @@ import Data.Traversable (for)
 import Path.Stack as Stack
 import Path.Constraint
 import Path.Context as Context
-import Path.Core as Core
+import Path.Core as Core hiding (Scope(..))
 import Path.Error
 import Path.Eval as Eval
 import Path.Module
