@@ -17,7 +17,7 @@ data Core b v a
   | Hole v
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-newtype Scope b v a = Scope (Core b v a)
+newtype Scope a = Scope a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance FreeVariables1 QName (Core Name QName) where
