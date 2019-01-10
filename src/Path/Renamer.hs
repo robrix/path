@@ -21,16 +21,17 @@ import Text.Trifecta.Rendering (Span)
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
             => Term Surface.Surface
             -> m (Term Core)
-resolveTerm (In syn ann) = flip In ann <$> case syn of
-  Surface.Free v -> Free <$> resolveName v ann
+resolveTerm (In syn ann) = case syn of
+  Surface.Free v -> in' . Free <$> resolveName v ann
   Surface.Lam v b ->
-    local (insertLocal v) (Lam <$> freshen v <*> (Scope <$> resolveTerm b))
-  f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
-  Surface.Type -> pure Type
+    in' <$> local (insertLocal v) (Lam <$> freshen v <*> (Scope <$> resolveTerm b))
+  f Surface.:$ a -> fmap in' . (:$) <$> resolveTerm f <*> resolveTerm a
+  Surface.Type -> pure (in' Type)
   Surface.Pi v ie pi t b ->
-    Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b)
-  (u, a) Surface.:-> b -> Pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> (Scope <$> resolveTerm b)
-  Surface.Hole v -> Hole . (:.: v) <$> ask
+    in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b))
+  (u, a) Surface.:-> b -> in' <$> (Pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> (Scope <$> resolveTerm b))
+  Surface.Hole v -> in' . Hole . (:.: v) <$> ask
+  where in' = flip In ann
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
