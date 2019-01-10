@@ -15,6 +15,7 @@ data Surface a
   | Pi (Maybe UName) Plicity Usage a a
   | Hole UName
   | (Usage, a) :-> a
+  | Ann Span a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 (-->) :: (Usage, Term Surface) -> Term Surface -> Term Surface

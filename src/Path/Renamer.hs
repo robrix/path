@@ -31,6 +31,7 @@ resolveTerm (In syn ann) = case syn of
     in' <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b))
   (u, a) Surface.:-> b -> in' <$> (Pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> (Scope <$> resolveTerm b))
   Surface.Hole v -> in' . Hole . (:.: v) <$> ask
+  Surface.Ann ann a -> Ann ann <$> resolveTerm a
   where in' = Ann ann
 
 data Mode = Decl | Defn
