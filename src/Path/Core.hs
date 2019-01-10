@@ -1,28 +1,29 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Core where
 
+import Data.Foldable (toList)
 import qualified Data.Set as Set
 import Path.Name
 import Path.Plicity
-import Path.Term
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
-data Core a
+data Core
   = Free QName
   | Bound Int
-  | Lam Name (Scope a)
-  | a :$ a
+  | Lam Name Scope
+  | Core :$ Core
   | Type
-  | Pi Name Plicity Usage a (Scope a)
+  | Pi Name Plicity Usage Core (Scope)
   | Hole QName
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+  | Ann Span Core
+  deriving (Eq, Ord, Show)
 
-newtype Scope a = Scope a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+newtype Scope = Scope Core
+  deriving (Eq, Ord, Show)
 
-instance FreeVariables1 QName Core where
-  liftFvs fvs = \case
+instance FreeVariables QName Core where
+  fvs = \case
     Free v -> Set.singleton v
     Bound _ -> Set.empty
     Lam v (Scope b) -> Set.delete (Local v) (fvs b)
@@ -30,21 +31,24 @@ instance FreeVariables1 QName Core where
     Type -> Set.empty
     Pi v _ _ t (Scope b) -> fvs t <> Set.delete (Local v) (fvs b)
     Hole v -> Set.singleton v
+    Ann _ a -> fvs a
 
-uses :: Name -> Term Core -> [Span]
-uses n = cata $ \ f a -> case f of
-  Free n'
-    | Local n == n' -> [a]
-    | otherwise     -> []
-  Bound _ -> []
-  Lam n' (Scope b)
-    | n == n'   -> []
-    | otherwise -> b
-  f :$ a -> f <> a
-  Type -> []
-  Pi n' _ _ t (Scope b)
-    | n == n'   -> t
-    | otherwise -> t <> b
-  Hole n'
-    | Local n == n' -> [a]
-    | otherwise     -> []
+uses :: Name -> Core -> [Span]
+uses n = go Nothing
+  where go span = \case
+          Free n'
+            | Local n == n' -> toList span
+            | otherwise     -> []
+          Bound _ -> []
+          Lam n' (Scope b)
+            | n == n'   -> []
+            | otherwise -> go span b
+          f :$ a -> go span f <> go span a
+          Type -> []
+          Pi n' _ _ t (Scope b)
+            | n == n'   -> go span t
+            | otherwise -> go span t <> go span b
+          Hole n'
+            | Local n == n' -> toList span
+            | otherwise     -> []
+          Ann span a -> go (Just span) a
