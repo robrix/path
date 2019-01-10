@@ -34,8 +34,8 @@ import Path.Usage
 import Path.Value as Value hiding (Scope(..))
 
 data Elab (m :: * -> *) k
-  = Infer        (Term (Core.Core Name QName))  (Typed Value -> k)
-  | Check (Typed (Term (Core.Core Name QName))) (Typed Value -> k)
+  = Infer        (Term Core.Core)  (Typed Value -> k)
+  | Check (Typed (Term Core.Core)) (Typed Value -> k)
   deriving (Functor)
 
 instance HFunctor Elab where
@@ -168,12 +168,12 @@ instance ( Carrier sig m
 
 
 infer :: (Carrier sig m, Member Elab sig)
-      => Term (Core.Core Name QName)
+      => Term Core.Core
       -> m (Typed Value)
 infer tm = send (Infer tm ret)
 
 check :: (Carrier sig m, Member Elab sig)
-      => Typed (Term (Core.Core Name QName))
+      => Typed (Term Core.Core)
       -> m (Typed Value)
 check tm = send (Check tm ret)
 
@@ -188,7 +188,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               , Monad m
               )
-           => Module QName (Term (Core.Core Name QName))
+           => Module QName (Term Core.Core)
            -> m (Module QName (Resources, Typed Value))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
@@ -215,7 +215,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             , Monad m
             )
-         => Decl QName (Term (Core.Core Name QName))
+         => Decl QName (Term Core.Core)
          -> m (Decl QName (Resources, Typed Value))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
@@ -229,7 +229,7 @@ elabDeclare :: ( Carrier sig m
                , Monad m
                )
             => QName
-            -> Term (Core.Core Name QName)
+            -> Term Core.Core
             -> m (Resources, Typed Value)
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
@@ -244,7 +244,7 @@ elabDefine :: ( Carrier sig m
               , Monad m
               )
            => QName
-           -> Term (Core.Core Name QName)
+           -> Term Core.Core
            -> m (Resources, Typed Value)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)

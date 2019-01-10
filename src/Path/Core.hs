@@ -8,20 +8,20 @@ import Path.Term
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
-data Core b v a
-  = Free v
+data Core a
+  = Free QName
   | Bound Int
-  | Lam b (Scope a)
+  | Lam Name (Scope a)
   | a :$ a
   | Type
-  | Pi b Plicity Usage a (Scope a)
-  | Hole v
+  | Pi Name Plicity Usage a (Scope a)
+  | Hole QName
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype Scope a = Scope a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance FreeVariables1 QName (Core Name QName) where
+instance FreeVariables1 QName Core where
   liftFvs fvs = \case
     Free v -> Set.singleton v
     Bound _ -> Set.empty
@@ -31,7 +31,7 @@ instance FreeVariables1 QName (Core Name QName) where
     Pi v _ _ t (Scope b) -> fvs t <> Set.delete (Local v) (fvs b)
     Hole v -> Set.singleton v
 
-uses :: Name -> Term (Core Name QName) -> [Span]
+uses :: Name -> Term Core -> [Span]
 uses n = cata $ \ f a -> case f of
   Free n'
     | Local n == n' -> [a]
