@@ -28,6 +28,13 @@ data UName
   | UOp Operator
   deriving (Eq, Ord, Show)
 
+instance Pretty UName where
+  pretty = \case
+    UName s -> pretty s
+    UOp op -> pretty op
+
+instance PrettyPrec UName
+
 
 newtype Meta = M { unM :: Int }
   deriving (Eq, Ord, Show)
