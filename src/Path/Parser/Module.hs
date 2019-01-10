@@ -10,7 +10,7 @@ import Path.Term
 import Text.Trifecta
 import Text.Trifecta.Indentation
 
-module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module Name (Term (Surface (Maybe Name) Name) Span))
+module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module UName (Term (Surface (Maybe UName) UName) Span))
 module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
   where make comment name = Module.Module name comment path
 
@@ -21,7 +21,7 @@ import' :: DeltaParsing m => m Module.Import
 import' = ann <$> spanned (Module.Import <$ keyword "import" <*> moduleName)
   where ann (f :~ a) = f a
 
-declaration :: DeltaParsing m => m (Module.Decl Name (Term (Surface (Maybe Name) Name) Span))
+declaration :: DeltaParsing m => m (Module.Decl UName (Term (Surface (Maybe UName) UName) Span))
 declaration = (Module.Doc <$> docs <|> pure id) <*> decl
   where decl = name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term
 

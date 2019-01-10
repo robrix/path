@@ -35,6 +35,10 @@ instance Pretty UName where
 
 instance PrettyPrec UName
 
+toName :: UName -> Name
+toName (UName s) = Name s
+toName (UOp op)  = Op op
+
 
 newtype Meta = M { unM :: Int }
   deriving (Eq, Ord, Show)

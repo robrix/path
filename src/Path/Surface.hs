@@ -16,20 +16,20 @@ data Surface b v a
   | (Usage, a) :-> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-(-->) :: Semigroup ann => (Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
+(-->) :: Semigroup ann => (Usage, Term (Surface (Maybe UName) v) ann) -> Term (Surface (Maybe UName) v) ann -> Term (Surface (Maybe UName) v) ann
 (e, a) --> b = In ((e, a) :-> b) (ann a <> ann b)
 
 infixr 0 -->
 
-piType :: Semigroup ann => (Maybe Name, Plicity, Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
+piType :: Semigroup ann => (Maybe UName, Plicity, Usage, Term (Surface (Maybe UName) v) ann) -> Term (Surface (Maybe UName) v) ann -> Term (Surface (Maybe UName) v) ann
 (n, p, e, a) `piType` b = In (Pi n p e a b) (ann a <> ann b)
 
 infixr 0 `piType`
 
-lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
+lam :: Semigroup ann => (Maybe UName, ann) -> Term (Surface (Maybe UName) v) ann -> Term (Surface (Maybe UName) v) ann
 lam (n, a) b = In (Lam n b) (a <> ann b)
 
-($$) :: Semigroup ann => Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
+($$) :: Semigroup ann => Term (Surface (Maybe UName) v) ann -> Term (Surface (Maybe UName) v) ann -> Term (Surface (Maybe UName) v) ann
 f $$ a = In (f :$ a) (ann f <> ann a)
 
 type' :: Surface b v a

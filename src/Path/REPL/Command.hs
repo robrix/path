@@ -9,9 +9,9 @@ import Text.Trifecta.Rendering (Span)
 data Command
   = Quit
   | Help
-  | TypeOf (Term (Surface (Maybe Name) Name) Span)
-  | Decl (Decl Name (Term (Surface (Maybe Name) Name) Span))
-  | Eval (Term (Surface (Maybe Name) Name) Span)
+  | TypeOf (Term (Surface (Maybe UName) UName) Span)
+  | Decl (Decl UName (Term (Surface (Maybe UName) UName) Span))
+  | Eval (Term (Surface (Maybe UName) UName) Span)
   | Show Info
   | Reload
   | Import Import
