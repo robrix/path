@@ -105,7 +105,7 @@ instance ( Carrier sig m
         (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: b (free (Local n ::: t))))
         verifyResources (ann tm) n pi res
         pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
-      (R (Core.Lam n e) ::: Value.Pi Ex pi t b) -> raise (censor (Resources.delete (Local n))) $ do
+      R (Core.Lam n e) ::: Value.Pi Ex pi t b -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: b (free (Local n ::: t))))
         verifyResources (ann tm) n pi res
         pure (Value.Lam t (flip (subst (Local n)) e') ::: ty)
