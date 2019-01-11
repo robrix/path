@@ -94,6 +94,9 @@ unlams value = intro 0 (Nil, value)
 pi :: Typed (Name, Plicity, Usage) -> Value -> Value
 pi ((n, p, u) ::: t) b = Pi p u t (bind (Local n) b)
 
+pis :: Foldable t => t (Typed (Name, Plicity, Usage)) -> Value -> Value
+pis names body = foldr pi body names
+
 unpi :: Alternative m => Name -> Value -> m (Typed (Name, Plicity, Usage), Value)
 unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (Local n ::: t)) b)
 unpi _ _            = empty
