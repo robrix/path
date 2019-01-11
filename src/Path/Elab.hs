@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TupleSections, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect
@@ -238,8 +238,7 @@ elabDeclare :: ( Carrier sig m
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
-  where generalize ty = foldr bind ty (localNames (fvs ty))
-        bind n = Core.pi n Im Zero Core.Type
+  where generalize ty = Core.pis (Set.map (, Im, Zero, Core.Type) (localNames (fvs ty))) ty
 
 elabDefine :: ( Carrier sig m
               , Effect sig
