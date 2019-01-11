@@ -23,6 +23,30 @@ instance Pretty Name where
 instance PrettyPrec Name
 
 
+data Gensym
+  = Root String
+  | Gensym :/ (String, Int)
+  deriving (Eq, Ord, Show)
+
+infixl 6 :/
+
+instance Pretty Gensym where
+  pretty = \case
+    Root s -> pretty s
+    r :/ (s, i) -> pretty r <> pretty "/" <> pretty s <> prettyVar i
+
+instance PrettyPrec Gensym
+
+(//) :: Gensym -> String -> Gensym
+root // s = root :/ (s, 0)
+
+infixl 6 //
+
+prime :: Gensym -> Gensym
+prime (root :/ (s, i)) = root :/ (s, succ i)
+prime root             = root :/ ("", 0)
+
+
 data UName
   = UName String
   | UOp Operator
