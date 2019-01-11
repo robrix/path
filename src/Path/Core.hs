@@ -6,6 +6,7 @@ import qualified Data.Set as Set
 import Path.Name
 import Path.Plicity
 import Path.Usage
+import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
 data Core
@@ -30,6 +31,9 @@ lams names body = foldr lam body names
 
 pi :: Name -> Plicity -> Usage -> Core -> Core -> Core
 pi n p u t b = Pi p u t (bind (Local n) b)
+
+pis :: Foldable t => t (Name, Plicity, Usage, Core) -> Core -> Core
+pis names body = foldr (\ (n, p, u, t) -> pi n p u t) body names
 
 instance FreeVariables QName Core where
   fvs = \case
