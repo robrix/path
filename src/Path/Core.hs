@@ -25,6 +25,9 @@ newtype Scope = Scope Core
 lam :: Name -> Core -> Core
 lam n b = Lam (bind (Local n) b)
 
+lams :: Foldable t => t Name -> Core -> Core
+lams names body = foldr lam body names
+
 pi :: Name -> Plicity -> Usage -> Core -> Core -> Core
 pi n p u t b = Pi p u t (bind (Local n) b)
 
