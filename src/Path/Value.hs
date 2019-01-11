@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, TupleSections #-}
 module Path.Value where
 
 import Control.Applicative (Alternative(..))
@@ -124,8 +124,7 @@ subst :: QName -> Value -> Value -> Value
 subst name image = instantiate image . bind name
 
 generalizeType :: Value -> Value
-generalizeType ty = foldr generalize ty (localNames (fvs ty))
-  where generalize n = pi ((n, Im, Zero) ::: Type)
+generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty))) ty
 
 generalizeValue :: Value -> Value -> Value
 generalizeValue ty = lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) params)
