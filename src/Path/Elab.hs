@@ -73,9 +73,9 @@ instance ( Carrier sig m
   eff = handleSum (ElabC . eff . R . R . R . R . R . R . handleCoercible) (\case
     Infer tm k -> k =<< case tm of
       Core.Type -> pure (Value.Type ::: Value.Type)
-      Core.Pi n i e t (Core.Scope b) -> do
+      Core.Pi i e t b -> freshName "_infer_" >>= \ n -> do
         t' ::: _ <- check (t ::: Value.Type)
-        b' ::: _ <- n ::: t' |- check (b ::: Value.Type)
+        b' ::: _ <- n ::: t' |- check (Core.instantiate (Core.Free (Local n)) b ::: Value.Type)
         pure (Value.pi ((n, i, e) ::: t') b' ::: Value.Type)
       Core.Free n -> do
         t <- lookupVar n >>= whnf
@@ -92,9 +92,9 @@ instance ( Carrier sig m
         (pi, t, b) <- whnf fTy >>= ensurePi
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
         pure (f' $$ a' ::: instantiate a' b)
-      Core.Lam n (Core.Scope b) -> do
+      Core.Lam b -> freshName "_infer_" >>= \ n -> do
         (_, t) <- exists Value.Type
-        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer b)
+        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer (Core.instantiate (Core.Free (Local n)) b))
         pure (Value.lam (n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
       Core.Hole _ -> do
         (_, ty) <- exists Value.Type
@@ -107,8 +107,8 @@ instance ( Carrier sig m
         (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (Local n ::: t)) b))
         verifyResources n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
-      Core.Lam n (Core.Scope e) ::: Value.Pi Ex pi t b -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (e ::: instantiate (free (Local n ::: t)) b))
+      Core.Lam e ::: Value.Pi Ex pi t b -> freshName "_infer_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
+        (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.Free (Local n)) e ::: instantiate (free (Local n ::: t)) b))
         verifyResources n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
       Core.Hole _ ::: ty -> do
@@ -239,7 +239,7 @@ elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
   where generalize ty = foldr bind ty (localNames (fvs ty))
-        bind n b = Core.Pi n Im Zero Core.Type (Core.Scope b)
+        bind n = Core.pi n Im Zero Core.Type
 
 elabDefine :: ( Carrier sig m
               , Effect sig

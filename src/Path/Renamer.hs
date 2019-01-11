@@ -15,6 +15,7 @@ import Path.Name
 import Path.Plicity
 import Path.Pretty
 import qualified Path.Surface as Surface
+import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m)
@@ -23,12 +24,12 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
 resolveTerm = \case
   Surface.Free v -> Free <$> resolveName v
   Surface.Lam v b ->
-    local (insertLocal v) (Lam <$> freshen v <*> (Scope <$> resolveTerm b))
+    local (insertLocal v) (lam <$> freshen v <*> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
-  Surface.Pi v ie pi t b ->
-    Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (Scope <$> resolveTerm b)
-  (u, a) Surface.:-> b -> Pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> (Scope <$> resolveTerm b)
+  Surface.Pi v ie u t b ->
+    pi <$> freshen v <*> pure ie <*> pure u <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b)
+  (u, a) Surface.:-> b -> pi <$> freshen Nothing <*> pure Ex <*> pure u <*> resolveTerm a <*> resolveTerm b
   Surface.Hole v -> Hole . (:.: v) <$> ask
   Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
