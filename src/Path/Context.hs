@@ -34,7 +34,7 @@ nub = Context . go mempty . unContext
   where go _ Nil = Nil
         go v (init :> last)
           | typedTerm last `Set.member` v = go v init
-          | otherwise                   = go (Set.insert (typedTerm last) v) init :> last
+          | otherwise                     = go (Set.insert (typedTerm last) v) init :> last
 
 instance Pretty Context where
   pretty = tabulate2 (space <> colon <> space) . map (green . pretty . typedTerm &&& nest 2 . align . group . pretty . typedType) . toList . unContext
