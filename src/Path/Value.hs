@@ -21,21 +21,6 @@ data Value
 newtype Scope = Scope Value
   deriving (Eq, Ord, Pretty, PrettyPrec, Show)
 
-data Head
-  = Free QName
-  | Bound Int
-  deriving (Eq, Ord, Show)
-
-instance FreeVariables QName Head where
-  fvs (Free q) = Set.singleton q
-  fvs _        = mempty
-
-instance Pretty Head where
-  pretty (Free q) = pretty q
-  pretty (Bound i) = prettyVar i
-
-instance PrettyPrec Head
-
 instance PrettyPrec Value where
   prettyPrec = go (prime (Root "pretty"))
     where go root d = \case

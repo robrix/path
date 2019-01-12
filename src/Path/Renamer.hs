@@ -9,7 +9,7 @@ import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Path.Core
+import Path.Core as Core
 import Path.Module
 import Path.Name
 import Path.Plicity
@@ -23,7 +23,7 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
             => Surface.Surface
             -> m Core
 resolveTerm = local prime . \case
-  Surface.Var v -> Free <$> resolveName v
+  Surface.Var v -> Core.Free <$> resolveName v
   Surface.Lam v b -> do
     n <- ask
     local (insertLocal v n) (lam n <$> resolveTerm b)

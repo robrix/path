@@ -108,6 +108,22 @@ metaNames :: Set.Set QName -> Set.Set Meta
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 
+data Head
+  = Free QName
+  | Bound Int
+  deriving (Eq, Ord, Show)
+
+instance FreeVariables QName Head where
+  fvs (Free q) = Set.singleton q
+  fvs _        = mempty
+
+instance Pretty Head where
+  pretty (Free q) = pretty q
+  pretty (Bound i) = prettyVar i
+
+instance PrettyPrec Head
+
+
 data Operator
   = Prefix (NonEmpty String)
   | Postfix (NonEmpty String)

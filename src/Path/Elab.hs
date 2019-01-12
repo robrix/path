@@ -113,7 +113,7 @@ instance ( Carrier sig m
         (_, m) <- exists ty
         pure (m ::: ty)
       Core.Ann ann tm ::: ty -> raise (local (const ann)) (check (tm ::: ty))
-      _ ::: ((Value.Free (_ :.: _) ::: _) Value.:$ _) -> do
+      _ ::: ((Free (_ :.: _) ::: _) Value.:$ _) -> do
        ty' <- whnf ty
        check (tm ::: ty')
       _ ::: ty -> do
@@ -140,7 +140,7 @@ instance ( Carrier sig m
 
           ensurePi t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
-            (Value.Free (Meta _) ::: _) Value.:$ _ -> do
+            (Free (Meta _) ::: _) Value.:$ _ -> do
               (mA, _A) <- exists Value.Type
               (_, _B) <- exists _A
               let _B' = bind mA _B

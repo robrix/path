@@ -3,7 +3,7 @@ module Path.Core where
 
 import Data.Foldable (toList)
 import qualified Data.Set as Set
-import Path.Name
+import Path.Name hiding (Head(..))
 import Path.Plicity
 import Path.Usage
 import Prelude hiding (pi)
