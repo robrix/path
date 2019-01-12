@@ -136,9 +136,6 @@ data Assoc = LAssoc | RAssoc | NonAssoc
 class Ord v => FreeVariables v a where
   fvs :: a -> Set.Set v
 
-class Ord v => FreeVariables1 v t where
-  liftFvs :: (a -> Set.Set v) -> t a -> Set.Set v
-
 instance Ord v => FreeVariables v () where
   fvs _ = Set.empty
 
