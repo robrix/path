@@ -35,7 +35,7 @@ functionType = (,) <$> multiplicity <*> application <**> (flip (:->) <$ op "->" 
                 <|> piType
           where arrow t' t = (More, t) :-> t'
 
-var = ann (Free <$> name <?> "variable")
+var = ann (Var <$> name <?> "variable")
 
 lambda = ann (do
   vs <- op "\\" *> patterns <* dot

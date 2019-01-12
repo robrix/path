@@ -23,7 +23,7 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
             => Surface.Surface
             -> m Core
 resolveTerm = local prime . \case
-  Surface.Free v -> Free <$> resolveName v
+  Surface.Var v -> Free <$> resolveName v
   Surface.Lam v b -> do
     n <- ask
     local (insertLocal v n) (lam n <$> resolveTerm b)

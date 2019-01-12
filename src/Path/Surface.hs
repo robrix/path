@@ -8,7 +8,7 @@ import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
 data Surface
-  = Free UName
+  = Var UName
   | Lam (Maybe UName) Surface
   | Surface :$ Surface
   | Type
@@ -20,7 +20,7 @@ data Surface
 
 instance FreeVariables UName Surface where
   fvs = \case
-    Free v -> Set.singleton v
+    Var v -> Set.singleton v
     Lam (Just v) b -> Set.delete v (fvs b)
     Lam Nothing  b -> fvs b
     f :$ a -> fvs f <> fvs a
