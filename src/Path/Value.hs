@@ -154,10 +154,6 @@ abstractLam :: Foldable t => t (Typed QName) -> Value -> Value
 abstractLam = flip (foldr abstract)
   where abstract (n ::: t) = Lam t . bind n
 
-abstractPi :: Foldable t => t (Typed QName) -> Value -> Value
-abstractPi = flip (foldr abstract)
-  where abstract (n ::: t) = Pi Im More t . bind n
-
 
 -- | Bind occurrences of a 'Name' in a 'Value' term, producing a 'Scope' in which the 'Name' is bound.
 bind :: QName -> Value -> Scope

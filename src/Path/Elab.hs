@@ -165,7 +165,7 @@ instance ( Carrier sig m
           exists t = do
             Context c <- askContext
             n <- Meta . M <$> ElabC fresh
-            pure (n, free (n ::: abstractPi (fmap Local <$> c) t) $$* fmap (free . fmap Local) c)
+            pure (n, free (n ::: lams c t) $$* fmap (free . fmap Local) c)
 
           lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (FreeVariable (Local n))) pure
