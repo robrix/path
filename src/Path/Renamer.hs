@@ -31,7 +31,7 @@ resolveTerm = local prime . \case
   Surface.Type -> pure Type
   Surface.Pi v ie u t b -> do
     n <- ask
-    pi n <$> pure ie <*> pure u <*> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
+    pi n ie u <$> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
   (u, a) Surface.:-> b ->
     pi <$> ask <*> pure Ex <*> pure u <*> resolveTerm a <*> resolveTerm b
   Surface.Hole v -> Hole . (:.: v) <$> ask
