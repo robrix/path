@@ -18,7 +18,6 @@ library
                      , Path.Context
                      , Path.Core
                      , Path.Elab
-                     , Path.Env
                      , Path.Error
                      , Path.Eval
                      , Path.Module
