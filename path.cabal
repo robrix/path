@@ -17,9 +17,7 @@ library
                      , Path.Constraint
                      , Path.Context
                      , Path.Core
-                     , Path.Desugar
                      , Path.Elab
-                     , Path.Env
                      , Path.Error
                      , Path.Eval
                      , Path.Module
@@ -42,7 +40,6 @@ library
                      , Path.Semiring
                      , Path.Stack
                      , Path.Surface
-                     , Path.Term
                      , Path.Usage
                      , Path.Value
   other-modules:       Paths_path

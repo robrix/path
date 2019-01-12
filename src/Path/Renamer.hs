@@ -1,48 +1,55 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, TupleSections #-}
 module Path.Renamer where
 
 import Control.Effect
 import Control.Effect.Error
-import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
+import qualified Data.Set as Set
 import Path.Core
 import Path.Module
 import Path.Name
+import Path.Plicity
 import Path.Pretty
-import Path.Surface
-import Path.Term
+import qualified Path.Surface as Surface
+import Path.Usage
+import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Monad m)
-            => Term (Surface (Maybe Name) Name) Span
-            -> m (Term (Surface Name QName) Span)
-resolveTerm (In syn ann) = case syn of
-  R (R (Var v)) -> in' . R . R . Var <$> resolveName v ann
-  R (R (Lam v b)) ->
-    local (insertLocal v) (in' . R . R <$> (Lam <$> freshen v <*> resolveTerm b))
-  R (R (f :$ a)) -> in' . R . R <$> ((:$) <$> resolveTerm f <*> resolveTerm a)
-  R (R Type) -> pure (in' (R (R Type)))
-  R (R (Pi v ie pi t b)) ->
-    in' . R . R <$> (Pi <$> freshen v <*> pure ie <*> pure pi <*> resolveTerm t <*> local (insertLocal v) (resolveTerm b))
-  L ((u, a) :-> b) ->
-    in' . L <$> ((:->) . (,) u <$> resolveTerm a <*> resolveTerm b)
-  R (L (Hole v)) -> in' . R . L . Hole . (:.: v) <$> ask
-  where in' = flip In ann
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m)
+            => Surface.Surface
+            -> m Core
+resolveTerm = local prime . \case
+  Surface.Free v -> Free <$> resolveName v
+  Surface.Lam v b -> do
+    n <- ask
+    local (insertLocal v n) (lam n <$> resolveTerm b)
+  f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
+  Surface.Type -> pure Type
+  Surface.Pi v ie u t b -> do
+    n <- ask
+    pi n <$> pure ie <*> pure u <*> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
+  (u, a) Surface.:-> b -> do
+    n <- ask
+    pi n <$> pure Ex <*> pure u <*> resolveTerm a <*> resolveTerm b
+  Surface.Hole v -> Hole . (:.: v) <$> ask
+  Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (State Resolution) sig, Monad m) => Decl Name (Term (Surface (Maybe Name) Name) Span) -> m (Decl QName (Term (Surface Name QName) Span))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Decl UName Surface.Surface -> m (Decl QName Core)
 resolveDecl = \case
   Declare n ty -> do
     res <- get
     moduleName <- ask
-    ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm ty))
+    ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm (generalize res ty)))
     Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
+    where generalize res ty = foldr bind ty (fvs ty Set.\\ Map.keysSet (unResolution res))
+          bind n = Surface.Pi (Just n) Im Zero Surface.Type -- FIXME: insert metavariables for the type
   Define n tm -> do
     res <- get
     moduleName <- ask
@@ -50,7 +57,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (State Resolution) sig, Monad m) => Module Name (Term (Surface (Maybe Name) Name) Span) -> m (Module QName (Term (Surface Name QName) Span))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Module UName Surface.Surface -> m (Module QName Core)
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -58,46 +65,44 @@ resolveModule m = do
   pure (m { moduleDecls = decls })
   where amongImports q = any (flip inModule q . importModuleName) (moduleImports m)
 
-newtype Resolution = Resolution { unResolution :: Map.Map Name (NonEmpty QName) }
+newtype Resolution = Resolution { unResolution :: Map.Map UName (NonEmpty QName) }
   deriving (Eq, Ord, Show)
 
 instance Semigroup Resolution where
   Resolution m1 <> Resolution m2 = Resolution (Map.unionWith (fmap nub . (<>)) m1 m2)
 
-insertLocal :: Maybe Name -> Resolution -> Resolution
-insertLocal Nothing  = id
-insertLocal (Just n) = Resolution . Map.insert n (Local n:|[]) . unResolution
+insertLocal :: Maybe UName -> Gensym -> Resolution -> Resolution
+insertLocal Nothing  _ = id
+insertLocal (Just n) m = Resolution . Map.insert n (Local m:|[]) . unResolution
 
-insertGlobal :: Name -> ModuleName -> Resolution -> Resolution
+insertGlobal :: UName -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) . unResolution
 
-lookupName :: Name -> Resolution -> Maybe (NonEmpty QName)
+lookupName :: UName -> Resolution -> Maybe (NonEmpty QName)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Monad m) => Name -> Span -> m QName
-resolveName v s = do
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m) => UName -> m QName
+resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
+  s <- ask
+  n <- ask
   case mode of
-    Decl -> maybe (pure (Local v :| [])) pure res >>= unambiguous v s
+    Decl -> maybe (pure (Local n :| [])) pure res >>= unambiguous v s
     Defn -> maybe (throwError (FreeVariable v s)) pure res >>= unambiguous v s
 
 filterResolution :: (QName -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
-unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => Name -> Span -> NonEmpty QName -> m QName
+unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => UName -> Span -> NonEmpty QName -> m QName
 unambiguous _ _ (q:|[]) = pure q
 unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 
-freshen :: (Applicative m, Carrier sig m, Member Fresh sig) => Maybe Name -> m Name
-freshen Nothing  = Gensym "_" <$> fresh
-freshen (Just n) = pure n
-
 
 data ResolveError
-  = FreeVariable Name Span
-  | AmbiguousName Name Span (NonEmpty QName)
+  = FreeVariable UName Span
+  | AmbiguousName UName Span (NonEmpty QName)
 
 instance Pretty ResolveError where
   pretty = \case

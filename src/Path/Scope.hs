@@ -6,7 +6,7 @@ import Data.Coerce
 import qualified Data.Map as Map
 import Path.Name
 import Path.Pretty
-import Path.Value
+import Path.Value hiding (Scope(..))
 
 data Entry
   = Decl Type

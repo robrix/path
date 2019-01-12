@@ -19,8 +19,6 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Path.Stack
-import Path.Desugar
 import Path.Elab
 import Path.Error
 import Path.Eval
@@ -35,11 +33,13 @@ import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
+import Path.Stack
 import Path.Usage
 import Path.Value
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
+import Text.Trifecta.Rendering (Span(..))
 
 data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
   deriving (Functor)
@@ -131,7 +131,8 @@ repl packageSources = liftIO $ do
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Scope.Scope)
        (evalState (Resolution mempty)
-       (script packageSources))))))
+       (runReader (Root "repl")
+       (script packageSources)))))))
 
 newtype Line = Line Int64
 
@@ -147,6 +148,7 @@ script :: ( Carrier sig m
           , Member (Lift IO) sig
           , Member Print sig
           , Member (Prompt Command) sig
+          , Member (Reader Gensym) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           , Member (State Scope.Scope) sig
@@ -163,14 +165,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab Zero . infer
+            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm))) >>= runScope . runElab Zero . infer
             print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
-            _ <- runFresh (runRenamer (resolveDecl decl) >>= traverse desugar) >>= elabDecl
+            _ <- runFresh (runRenamer (resolveDecl decl)) >>= elabDecl
             loop
           Eval tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm)) >>= desugar) >>= runScope . runElab One . infer
+            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm))) >>= runScope . runElab One . infer
             runScope (whnf (typedTerm elab)) >>= print . generalizeValue (generalizeType (typedType elab))
             loop
           Show Bindings -> do
@@ -206,7 +208,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (resolveModule m >>= traverse desugar) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
@@ -219,7 +221,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
         failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
         runRenamer m = do
           res <- get
-          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
+          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m))
         printResolveError err = print (err :: ResolveError)
         printElabError    err = print (err :: ElabError)
         printModuleError  err = print (err :: ModuleError)

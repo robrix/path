@@ -1,88 +1,89 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Core where
 
+import Data.Foldable (toList)
 import qualified Data.Set as Set
 import Path.Name
 import Path.Plicity
-import Path.Pretty
-import Path.Term
 import Path.Usage
+import Prelude hiding (pi)
+import Text.Trifecta.Rendering (Span)
 
-data Core b v a
-  = Var v
-  | Lam b a
-  | a :$ a
+data Core
+  = Free QName
+  | Bound Int
+  | Lam Scope
+  | Core :$ Core
   | Type
-  | Pi b Plicity Usage a a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+  | Pi Plicity Usage Core (Scope)
+  | Hole QName
+  | Ann Span Core
+  deriving (Eq, Ord, Show)
 
-data (f :+: g) a
-  = L (f a)
-  | R (g a)
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+newtype Scope = Scope Core
+  deriving (Eq, Ord, Show)
 
-infixr 4 :+:
+lam :: Gensym -> Core -> Core
+lam n b = Lam (bind (Local n) b)
 
-data Implicit v a
-  = Hole v
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+lams :: Foldable t => t Gensym -> Core -> Core
+lams names body = foldr lam body names
 
-instance PrettyPrec a => PrettyPrec (Core Name QName (Term (Core Name QName) a)) where
-  prettyPrec d = \case
-    Var n -> pretty n
-    Lam v b -> prettyParens (d > 0) $ align (group (cyan backslash <+> go v b))
-      where go v b = var v b <> case b of
-              In (Lam v' b') _ -> space <> go v' b'
-              _                -> line <> cyan dot <+> prettyPrec 0 b
-            var v b | Local v `Set.member` fvs b = pretty v
-                    | otherwise                  = pretty '_'
-    f :$ a -> prettyParens (d > 10) $ group (align (nest 2 (go f a)))
-      where go f a = case f of
-              In (f' :$ a') _ -> go f' a' </> prettyPrec 11 a
-              _               -> prettyPrec 10 f </> prettyPrec 11 a
-    Type -> yellow (pretty "Type")
-    Pi v ie pi t b
-      | Local v `Set.member` fvs b -> prettyParens (d > 1) $ withIe (pretty v <+> colon <+> withPi (prettyPrec 0 t)) <+> arrow <+> prettyPrec 1 b
-      | otherwise                  -> prettyParens (d > 1) $ withPi (prettyPrec 2 t <+> arrow <+> prettyPrec 1 b)
-      where withPi
-              | ie == Ex, pi == More = id
-              | ie == Im, pi == Zero = id
-              | otherwise  = (pretty pi <+>)
-            withIe
-              | ie == Im  = prettyBraces True
-              | otherwise = prettyParens True
-            arrow = blue (pretty "->")
+pi :: Gensym -> Plicity -> Usage -> Core -> Core -> Core
+pi n p u t b = Pi p u t (bind (Local n) b)
 
-instance FreeVariables1 QName (Core Name QName) where
-  liftFvs fvs = \case
-    Var v -> Set.singleton v
-    Lam v b -> Set.delete (Local v) (fvs b)
+pis :: Foldable t => t (Gensym, Plicity, Usage, Core) -> Core -> Core
+pis names body = foldr (\ (n, p, u, t) -> pi n p u t) body names
+
+instance FreeVariables QName Core where
+  fvs = \case
+    Free v -> Set.singleton v
+    Bound _ -> Set.empty
+    Lam (Scope b) -> fvs b
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
-    Pi v _ _ t b -> fvs t <> Set.delete (Local v) (fvs b)
-
-instance Ord v => FreeVariables1 v (Implicit v) where
-  liftFvs _ = \case
+    Pi _ _ t (Scope b) -> fvs t <> fvs b
     Hole v -> Set.singleton v
+    Ann _ a -> fvs a
 
-instance (FreeVariables1 v f, FreeVariables1 v g, Ord v) => FreeVariables1 v (f :+: g) where
-  liftFvs fvs = \case
-    L f -> liftFvs fvs f
-    R g -> liftFvs fvs g
+uses :: Gensym -> Core -> [Span]
+uses n = go Nothing
+  where go span = \case
+          Free n'
+            | Local n == n' -> toList span
+            | otherwise     -> []
+          Bound _ -> []
+          Lam (Scope b) -> go span b
+          f :$ a -> go span f <> go span a
+          Type -> []
+          Pi _ _ t (Scope b) -> go span t <> go span b
+          Hole n'
+            | Local n == n' -> toList span
+            | otherwise     -> []
+          Ann span a -> go (Just span) a
 
-uses :: Name -> Term (Implicit QName :+: Core Name QName) a -> [a]
-uses n = cata $ \ f a -> case f of
-  R (Var n')
-    | Local n == n' -> [a]
-    | otherwise     -> []
-  R (Lam n' b)
-    | n == n'   -> []
-    | otherwise -> b
-  R (f :$ a) -> f <> a
-  R Type -> []
-  R (Pi n' _ _ t b)
-    | n == n'   -> t
-    | otherwise -> t <> b
-  L (Hole n')
-    | Local n == n' -> [a]
-    | otherwise     -> []
+
+-- | Bind occurrences of a 'Name' in a 'Core' term, producing a 'Scope' in which the 'Name' is bound.
+bind :: QName -> Core -> Scope
+bind name = Scope . substIn (\ i v -> case v of
+  Left  j -> Bound j
+  Right n -> if name == n then Bound i else Free n)
+
+-- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Core' term.
+instantiate :: Core -> Scope -> Core
+instantiate image (Scope b) = substIn (\ i v -> case v of
+  Left  j -> if i == j then image else Bound j
+  Right n -> Free n) b
+
+substIn :: (Int -> Either Int QName -> Core)
+        -> Core
+        -> Core
+substIn var = go 0
+  where go i (Free n)             = var i (Right n)
+        go i (Bound j)            = var i (Left j)
+        go i (Lam (Scope b))      = Lam (Scope (go (succ i) b))
+        go i (f :$ a)             = go i f :$ go i a
+        go _ Type                 = Type
+        go i (Pi p u t (Scope b)) = Pi p u (go i t) (Scope (go (succ i) b))
+        go _ (Hole q)             = Hole q
+        go i (Ann s c)            = Ann s (go i c)

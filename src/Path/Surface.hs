@@ -1,39 +1,32 @@
-{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE LambdaCase, MultiParamTypeClasses #-}
 module Path.Surface where
 
-import Path.Core
+import qualified Data.Set as Set
 import Path.Name
 import Path.Plicity
-import Path.Term
 import Path.Usage
+import Text.Trifecta.Rendering (Span)
 
-type Surface b v = Sugar b :+: Implicit v :+: Core b v
+data Surface
+  = Free UName
+  | Lam (Maybe UName) Surface
+  | Surface :$ Surface
+  | Type
+  | Pi (Maybe UName) Plicity Usage Surface Surface
+  | Hole UName
+  | (Usage, Surface) :-> Surface
+  | Ann Span Surface
+  deriving (Eq, Ord, Show)
 
-data Sugar b a
-  = (Usage, a) :-> a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-(-->) :: Semigroup ann => (Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-(e, a) --> b = In (L ((e, a) :-> b)) (ann a <> ann b)
-
-infixr 0 -->
-
-piType :: Semigroup ann => (Maybe Name, Plicity, Usage, Term (Surface (Maybe Name) v) ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-(n, p, e, a) `piType` b = In (R (R (Pi n p e a b))) (ann a <> ann b)
-
-infixr 0 `piType`
-
-lam :: Semigroup ann => (Maybe Name, ann) -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-lam (n, a) b = In (R (R (Lam n b))) (a <> ann b)
-
-($$) :: Semigroup ann => Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann -> Term (Surface (Maybe Name) v) ann
-f $$ a = In (R (R (f :$ a))) (ann f <> ann a)
-
-type' :: Surface b v a
-type' = R (R Type)
-
-var :: v -> Surface b v a
-var = R . R . Var
-
-hole :: v -> Surface b v a
-hole = R . L . Hole
+instance FreeVariables UName Surface where
+  fvs = \case
+    Free v -> Set.singleton v
+    Lam (Just v) b -> Set.delete v (fvs b)
+    Lam Nothing  b -> fvs b
+    f :$ a -> fvs f <> fvs a
+    Type -> Set.empty
+    Pi (Just v) _ _ t b -> fvs t <> Set.delete v (fvs b)
+    Pi Nothing  _ _ t b -> fvs t <> fvs b
+    Hole v -> Set.singleton v
+    (_, a) :-> b -> fvs a <> fvs b
+    Ann _ a -> fvs a

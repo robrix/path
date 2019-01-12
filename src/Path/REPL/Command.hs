@@ -3,15 +3,13 @@ module Path.REPL.Command where
 import Path.Module
 import Path.Name
 import Path.Surface
-import Path.Term
-import Text.Trifecta.Rendering (Span)
 
 data Command
   = Quit
   | Help
-  | TypeOf (Term (Surface (Maybe Name) Name) Span)
-  | Decl (Decl Name (Term (Surface (Maybe Name) Name) Span))
-  | Eval (Term (Surface (Maybe Name) Name) Span)
+  | TypeOf Surface
+  | Decl (Decl UName Surface)
+  | Eval Surface
   | Show Info
   | Reload
   | Import Import

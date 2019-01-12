@@ -21,7 +21,7 @@ data ErrorReason
   | TypeMismatch (Caused (Equation Value))
   | NoRuleToInfer
   | IllegalApplication Type
-  | ResourceMismatch Name Usage Usage [Span]
+  | ResourceMismatch Gensym Usage Usage [Span]
   | TypedHole QName Type
   | InfiniteType QName Type
   deriving (Eq, Ord, Show)

@@ -8,19 +8,41 @@ import Path.Pretty
 import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
-data Name
-  = Name String
-  | Gensym String Int
-  | Op Operator
+data Gensym
+  = Root String
+  | Gensym :/ (String, Int)
   deriving (Eq, Ord, Show)
 
-instance Pretty Name where
-  pretty = \case
-    Name s -> pretty s
-    Gensym s i -> pretty s <> prettyVar i
-    Op op -> pretty op
+infixl 6 :/
 
-instance PrettyPrec Name
+instance Pretty Gensym where
+  pretty = \case
+    Root s -> pretty s
+    _ :/ (_, i) -> prettyVar i
+
+instance PrettyPrec Gensym
+
+(//) :: Gensym -> String -> Gensym
+root // s = root :/ (s, 0)
+
+infixl 6 //
+
+prime :: Gensym -> Gensym
+prime (root :/ (s, i)) = root :/ (s, succ i)
+prime root             = root :/ ("", 0)
+
+
+data UName
+  = UName String
+  | UOp Operator
+  deriving (Eq, Ord, Show)
+
+instance Pretty UName where
+  pretty = \case
+    UName s -> pretty s
+    UOp op -> pretty op
+
+instance PrettyPrec UName
 
 
 newtype Meta = M { unM :: Int }
@@ -54,9 +76,9 @@ type PackageName = String
 
 
 data QName
-  = ModuleName :.: Name
+  = ModuleName :.: UName
   | Meta Meta
-  | Local Name
+  | Local Gensym
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
@@ -79,7 +101,7 @@ prettyQName = \case
   Meta m -> pretty m
   Local n -> pretty n
 
-localNames :: Set.Set QName -> Set.Set Name
+localNames :: Set.Set QName -> Set.Set Gensym
 localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
 
 metaNames :: Set.Set QName -> Set.Set Meta
