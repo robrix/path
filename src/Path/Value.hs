@@ -37,21 +37,18 @@ instance Pretty Head where
 instance PrettyPrec Head
 
 instance PrettyPrec Value where
-  prettyPrec = go 0
-    where go i d = \case
-            Lam t b -> prettyParens (d > 0) $ align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> go i 0 b') as))
-              where (as, b') = unlams (Lam t b)
+  prettyPrec = go (prime (Root "pretty"))
+    where go root d = \case
+            Lam t b -> prettyParens (d > 0) $ align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> go root 0 b') as))
+              where (as, b') = unlams root (Lam t b)
                     var vs (n ::: _) rest
                       | Local n `Set.member` vs = pretty n   <+> rest
                       | otherwise               = pretty '_' <+> rest
             Type -> yellow (pretty "Type")
-            Pi ie pi t b'
-              | let v = Gensym "" i
-                    b = instantiate (free (Local v ::: t)) b'
-              -> if Local v `Set.member` fvs b then
-                prettyParens (d > 1) $ withIe (pretty v <+> colon <+> withPi (go i 0 t)) <+> arrow <+> go (succ i) 1 b
+            Pi ie pi t b' -> if Local root `Set.member` fvs b then
+                prettyParens (d > 1) $ withIe (pretty root <+> colon <+> withPi (go root 0 t)) <+> arrow <+> go (prime root) 1 b
               else
-                prettyParens (d > 1) $ withPi (go i 2 t <+> arrow <+> go (succ i) 1 b)
+                prettyParens (d > 1) $ withPi (go root 2 t <+> arrow <+> go (prime root) 1 b)
               where withPi
                       | ie == Ex, pi == More = id
                       | ie == Im, pi == Zero = id
@@ -60,7 +57,8 @@ instance PrettyPrec Value where
                       | ie == Im  = prettyBraces True
                       | otherwise = prettyParens True
                     arrow = blue (pretty "->")
-            (f ::: _) :$ sp -> prettyParens (d > 10 && not (null sp)) $ group (align (nest 2 (vsep (pretty f : map (go i 11) (toList sp)))))
+                    b = instantiate (free (Local root ::: t)) b'
+            (f ::: _) :$ sp -> prettyParens (d > 10 && not (null sp)) $ group (align (nest 2 (vsep (pretty f : map (go root 11) (toList sp)))))
 
 instance Pretty Value where
   pretty = prettyPrec 0
@@ -75,36 +73,36 @@ instance FreeVariables QName Value where
 free :: Typed QName -> Value
 free (q ::: t) = (Free q ::: t) :$ Nil
 
-lam :: Typed Name -> Value -> Value
+lam :: Typed Gensym -> Value -> Value
 lam (n ::: t) b = Lam t (bind (Local n) b)
 
-lams :: Foldable t => t (Typed Name) -> Value -> Value
+lams :: Foldable t => t (Typed Gensym) -> Value -> Value
 lams names body = foldr lam body names
 
-unlam :: Alternative m => Name -> Value -> m (Typed Name, Value)
+unlam :: Alternative m => Gensym -> Value -> m (Typed Gensym, Value)
 unlam n (Lam t b) = pure (n ::: t, instantiate (free (Local n ::: t)) b)
 unlam _ _         = empty
 
-unlams :: Value -> (Stack (Typed Name), Value)
-unlams value = intro 0 (Nil, value)
-  where intro i (names, value) = case unlam (Gensym "" i) value of
-          Just (name, body) -> intro (succ i) (names :> name, body)
+unlams :: Gensym -> Value -> (Stack (Typed Gensym), Value)
+unlams root value = intro (root // "unlams") (Nil, value)
+  where intro root (names, value) = case unlam root value of
+          Just (name, body) -> intro (prime root) (names :> name, body)
           Nothing           -> (names, value)
 
-pi :: Typed (Name, Plicity, Usage) -> Value -> Value
+pi :: Typed (Gensym, Plicity, Usage) -> Value -> Value
 pi ((n, p, u) ::: t) b = Pi p u t (bind (Local n) b)
 
-pis :: Foldable t => t (Typed (Name, Plicity, Usage)) -> Value -> Value
+pis :: Foldable t => t (Typed (Gensym, Plicity, Usage)) -> Value -> Value
 pis names body = foldr pi body names
 
-unpi :: Alternative m => Name -> Value -> m (Typed (Name, Plicity, Usage), Value)
+unpi :: Alternative m => Gensym -> Value -> m (Typed (Gensym, Plicity, Usage), Value)
 unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (Local n ::: t)) b)
 unpi _ _            = empty
 
-unpis :: Value -> (Stack (Typed (Name, Plicity, Usage)), Value)
-unpis value = intro 0 (Nil, value)
-  where intro i (names, value) = case unpi (Gensym "" i) value of
-          Just (name, body) -> intro (succ i) (names :> name, body)
+unpis :: Gensym -> Value -> (Stack (Typed (Gensym, Plicity, Usage)), Value)
+unpis root value = intro (root // "unpis") (Nil, value)
+  where intro root (names, value) = case unpi root value of
+          Just (name, body) -> intro (prime root) (names :> name, body)
           Nothing           -> (names, value)
 
 ($$) :: Value -> Value -> Value
@@ -119,7 +117,7 @@ v $$* sp = foldl' ($$) v sp
 
 -- | Substitute occurrences of a 'QName' with a 'Value' within another 'Value'.
 --
---   prop> subst (Local (Name a)) (free (Local (Name b))) (Lam ($$ free (Local (Name a)))) == Lam ($$ free (Local (Name b)))
+--   prop> subst (Local (Root a)) (free (Local (Root b))) (Lam ($$ free (Local (Root a)))) == Lam ($$ free (Local (Root b)))
 subst :: QName -> Value -> Value -> Value
 subst name image = instantiate image . bind name
 
@@ -128,7 +126,7 @@ generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty
 
 generalizeValue :: Value -> Value -> Value
 generalizeValue ty = lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) params)
-  where (params, _) = unpis ty
+  where (params, _) = unpis (Root "generalizeValue") ty
 
 
 type Type = Value
@@ -155,7 +153,7 @@ abstractLam = flip (foldr abstract)
   where abstract (n ::: t) = Lam t . bind n
 
 
--- | Bind occurrences of a 'Name' in a 'Value' term, producing a 'Scope' in which the 'Name' is bound.
+-- | Bind occurrences of a 'Gensym' in a 'Value' term, producing a 'Scope' in which the 'Name' is bound.
 bind :: QName -> Value -> Scope
 bind name = Scope . substIn (\ i (h ::: t) -> (:$ Nil) . (::: t) $ case h of
   Bound j -> Bound j

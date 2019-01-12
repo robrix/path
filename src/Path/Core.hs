@@ -23,16 +23,16 @@ data Core
 newtype Scope = Scope Core
   deriving (Eq, Ord, Show)
 
-lam :: Name -> Core -> Core
+lam :: Gensym -> Core -> Core
 lam n b = Lam (bind (Local n) b)
 
-lams :: Foldable t => t Name -> Core -> Core
+lams :: Foldable t => t Gensym -> Core -> Core
 lams names body = foldr lam body names
 
-pi :: Name -> Plicity -> Usage -> Core -> Core -> Core
+pi :: Gensym -> Plicity -> Usage -> Core -> Core -> Core
 pi n p u t b = Pi p u t (bind (Local n) b)
 
-pis :: Foldable t => t (Name, Plicity, Usage, Core) -> Core -> Core
+pis :: Foldable t => t (Gensym, Plicity, Usage, Core) -> Core -> Core
 pis names body = foldr (\ (n, p, u, t) -> pi n p u t) body names
 
 instance FreeVariables QName Core where
@@ -46,7 +46,7 @@ instance FreeVariables QName Core where
     Hole v -> Set.singleton v
     Ann _ a -> fvs a
 
-uses :: Name -> Core -> [Span]
+uses :: Gensym -> Core -> [Span]
 uses n = go Nothing
   where go span = \case
           Free n'

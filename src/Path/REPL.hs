@@ -131,7 +131,8 @@ repl packageSources = liftIO $ do
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Scope.Scope)
        (evalState (Resolution mempty)
-       (script packageSources))))))
+       (runReader (Root "repl")
+       (script packageSources)))))))
 
 newtype Line = Line Int64
 
@@ -147,6 +148,7 @@ script :: ( Carrier sig m
           , Member (Lift IO) sig
           , Member Print sig
           , Member (Prompt Command) sig
+          , Member (Reader Gensym) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           , Member (State Scope.Scope) sig

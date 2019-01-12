@@ -8,25 +8,25 @@ import Path.Name
 import Path.Pretty
 import Path.Value
 
-newtype Context = Context { unContext :: Stack (Typed Name) }
+newtype Context = Context { unContext :: Stack (Typed Gensym) }
   deriving (Eq, Ord, Show)
 
 null :: Context -> Bool
 null = Prelude.null . unContext
 
-lookup :: Name -> Context -> Maybe Type
+lookup :: Gensym -> Context -> Maybe Type
 lookup n = fmap typedType . Stack.find ((== n) . typedTerm) . unContext
 
-insert :: Typed Name -> Context -> Context
+insert :: Typed Gensym -> Context -> Context
 insert t = Context . (:> t) . unContext
 
 union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (Typed Name -> Bool) -> Context -> Context
+filter :: (Typed Gensym -> Bool) -> Context -> Context
 filter f = Context . Stack.filter f . unContext
 
-boundVars :: Context -> Set.Set Name
+boundVars :: Context -> Set.Set Gensym
 boundVars = foldMap (Set.singleton . typedTerm) . unContext
 
 nub :: Context -> Context

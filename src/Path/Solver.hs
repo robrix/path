@@ -4,6 +4,7 @@ module Path.Solver where
 import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Fresh
+import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((>=>))
@@ -24,9 +25,9 @@ import Path.Usage
 import Path.Value hiding (Scope(..))
 import Prelude hiding (pi)
 
-simplify :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Caused (Equation Value) -> m (Set.Set (Caused (Equation Value)))
+simplify :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Monad m) => Caused (Equation Value) -> m (Set.Set (Caused (Equation Value)))
 simplify = execWriter . go
-  where go = \case
+  where go = local prime . \case
           tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
           Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2 :@ cause
             | p1 == p2, u1 == u2 -> do
@@ -69,7 +70,7 @@ simplify = execWriter . go
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
-        freshName s t = ((,) <*> free . (::: t) . Local) . Gensym s <$> fresh
+        freshName s t = asks (((,) <*> free . (::: t) . Local) . (// s))
         exists t = free . (::: t) . Meta . M <$> fresh
 
         typeof cause = infer
@@ -93,21 +94,21 @@ simplify = execWriter . go
           (Free (Meta m) ::: ty) :$ sp -> do
             m1 <- Meta . M <$> fresh
             m2 <- Meta . M <$> fresh
-            let recur1 i (Pi p u t b) = let n = Gensym "_unify_" i in pi ((n, p, u) ::: t) (recur1 (succ i) (instantiate (free (Local n ::: t)) b))
-                recur1 _ _            = free (m1 ::: Type)
-                t1 = recur1 0 ty
-                recur2 i (Pi p u t b) xs = let { n = Gensym "_unify_" i ; x = free (Local n ::: t) } in pi ((n, p, u) ::: t) (recur2 (succ i) (instantiate x b) (xs :> x))
-                recur2 i _            xs = let { n = Gensym "_unify_" i ; t = free (m1 ::: Type) $$* xs } in pi ((n, Im, Zero) ::: t) Type
-                t2 = recur2 0 ty Nil
+            n <- asks (// "ensurePi")
+            let t1 = pis (fst (unpis n ty)) (free (m1 ::: Type))
+                maximal Nil = n
+                maximal (_ :> ((n, _, _) ::: _)) = n
+                app ((n, _, _) ::: t) = free (Local n ::: t)
+                t2 = let (s, _) = unpis n ty in pis (s :> ((maximal s, Im, Zero) ::: free (m1 ::: Type) $$* fmap app s)) Type
                 _A = free (m1 ::: t1) $$* sp
                 _B x = free (m2 ::: t2) $$* (sp:>x)
-            _A <$ tell (Set.singleton ((Free (Meta m) ::: ty) :$ sp :===: pi ((Gensym "_unify_" 0, Im, More) ::: _A) (_B (free (Local (Gensym "_unify_" 0) ::: _A))) :@ cause))
+            _A <$ tell (Set.singleton ((Free (Meta m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (Local n ::: _A))) :@ cause))
           t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 
         stuck ((Free (Meta _) ::: _) :$ _) = True
         stuck _                            = False
 
-solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Scope) sig, Monad m) => Set.Set (Caused (Equation Value)) -> m [Caused Solution]
+solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Monad m) => Set.Set (Caused (Equation Value)) -> m [Caused Solution]
 solve cs
   = fmap (map (uncurry toSolution) . IntMap.toList)
   . execState mempty

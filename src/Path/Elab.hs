@@ -48,13 +48,14 @@ instance Effect Elab where
 runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
+           , Member (Reader Gensym) sig
            , Member (Reader Scope) sig
            , Monad m
            )
         => Usage
         -> Eff (ElabC m) (Typed Value)
         -> m (Resources, Typed Value)
-runElab sigma = runFresh . (solveAndApply <=< runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty) . runElabC . interpret)
+runElab sigma = local (// "elab") . runFresh . (solveAndApply <=< runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty) . runElabC . interpret)
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
@@ -65,6 +66,7 @@ newtype ElabC m a = ElabC { runElabC :: Eff (ReaderC Span (Eff (ReaderC Usage (E
 instance ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
+         , Member (Reader Gensym) sig
          , Member (Reader Scope) sig
          , Monad m
          )
@@ -73,16 +75,11 @@ instance ( Carrier sig m
   eff = handleSum (ElabC . eff . R . R . R . R . R . R . handleCoercible) (\case
     Infer tm k -> k =<< case tm of
       Core.Type -> pure (Value.Type ::: Value.Type)
-      Core.Pi i e t b -> freshName "_infer_" >>= \ n -> do
+      Core.Pi i e t b -> ask >>= \ n -> do
         t' ::: _ <- check (t ::: Value.Type)
-        b' ::: _ <- n ::: t' |- check (Core.instantiate (Core.Free (Local n)) b ::: Value.Type)
+        b' ::: _ <- n ::: t' |- local prime (check (Core.instantiate (Core.Free (Local n)) b ::: Value.Type))
         pure (Value.pi ((n, i, e) ::: t') b' ::: Value.Type)
       Core.Free n -> do
-        t <- lookupVar n >>= whnf
-        sigma <- askSigma
-        ElabC (tell (Resources.singleton n sigma))
-        elabImplicits (free (n ::: t) ::: t)
-      Core.Bound i | let n = Local (Gensym "" i) -> do
         t <- lookupVar n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
@@ -92,23 +89,24 @@ instance ( Carrier sig m
         (pi, t, b) <- whnf fTy >>= ensurePi
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
         pure (f' $$ a' ::: instantiate a' b)
-      Core.Lam b -> freshName "_infer_" >>= \ n -> do
+      Core.Lam b -> ask >>= \ n -> do
         (_, t) <- exists Value.Type
-        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer (Core.instantiate (Core.Free (Local n)) b))
+        e' ::: eTy <- n ::: t |- local prime (raise (censor (Resources.delete (Local n))) (infer (Core.instantiate (Core.Free (Local n)) b)))
         pure (Value.lam (n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
       Core.Hole _ -> do
         (_, ty) <- exists Value.Type
         (_, m) <- exists ty
         pure (m ::: ty)
       Core.Ann ann t -> raise (local (const ann)) (infer t)
+      _ -> throwElabError NoRuleToInfer
 
     Check (tm ::: ty) k -> k =<< case tm ::: ty of
-      _ ::: Value.Pi Im pi t b -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (Local n ::: t)) b))
+      _ ::: Value.Pi Im pi t b -> ask >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
+        (res, e' ::: _) <- n ::: t |- local prime (raise listen (check (tm ::: instantiate (free (Local n ::: t)) b)))
         verifyResources tm n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
-      Core.Lam e ::: Value.Pi Ex pi t b -> freshName "_infer_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.Free (Local n)) e ::: instantiate (free (Local n ::: t)) b))
+      Core.Lam e ::: Value.Pi Ex pi t b -> ask >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
+        (res, e' ::: _) <- n ::: t |- local prime (raise listen (check (Core.instantiate (Core.Free (Local n)) e ::: instantiate (free (Local n ::: t)) b)))
         verifyResources tm n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
       Core.Hole _ ::: ty -> do
@@ -161,7 +159,6 @@ instance ( Carrier sig m
           askContext = ElabC ask
           askSigma = ElabC ask
 
-          freshName s = Gensym s <$> ElabC fresh
           exists t = do
             Context c <- askContext
             n <- Meta . M <$> ElabC fresh
@@ -189,6 +186,7 @@ elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error ModuleError) sig
               , Member (Reader ModuleTable) sig
+              , Member (Reader Gensym) sig
               , Member (State (Stack ElabError)) sig
               , Member (State Scope) sig
               , Monad m
@@ -217,6 +215,7 @@ importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (U
 elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error ElabError) sig
+            , Member (Reader Gensym) sig
             , Member (State Scope) sig
             , Monad m
             )
@@ -230,6 +229,7 @@ elabDecl = \case
 elabDeclare :: ( Carrier sig m
                , Effect sig
                , Member (Error ElabError) sig
+               , Member (Reader Gensym) sig
                , Member (State Scope) sig
                , Monad m
                )
@@ -237,13 +237,13 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core
             -> m (Resources, Typed Value)
 elabDeclare name ty = do
-  elab <- runScope (runElab Zero (check (generalize ty ::: Value.Type)))
+  elab <- runScope (runElab Zero (check (ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
-  where generalize ty = Core.pis (Set.map (, Im, Zero, Core.Type) (localNames (fvs ty))) ty
 
 elabDefine :: ( Carrier sig m
               , Effect sig
               , Member (Error ElabError) sig
+              , Member (Reader Gensym) sig
               , Member (State Scope) sig
               , Monad m
               )
