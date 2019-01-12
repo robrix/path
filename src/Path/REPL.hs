@@ -5,7 +5,6 @@ import Control.Arrow ((&&&))
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
-import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum as Effect
@@ -165,14 +164,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm))) >>= runScope . runElab Zero . infer
+            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero . infer
             print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
-            _ <- runFresh (runRenamer (resolveDecl decl)) >>= elabDecl
+            _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
-            (_, elab) <- runFresh (runRenamer (runReader Defn (resolveTerm tm))) >>= runScope . runElab One . infer
+            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One . infer
             runScope (whnf (typedTerm elab)) >>= print . generalizeValue (generalizeType (typedType elab))
             loop
           Show Bindings -> do
@@ -208,7 +207,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do

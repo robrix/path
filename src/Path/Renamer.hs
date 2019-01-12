@@ -19,7 +19,7 @@ import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m)
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m)
             => Surface.Surface
             -> m Core
 resolveTerm = local prime . \case
@@ -41,7 +41,7 @@ resolveTerm = local prime . \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Decl UName Surface.Surface -> m (Decl QName Core)
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Decl UName Surface.Surface -> m (Decl QName Core)
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -57,7 +57,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Module UName Surface.Surface -> m (Module QName Core)
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Module UName Surface.Surface -> m (Module QName Core)
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
