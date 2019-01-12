@@ -105,11 +105,11 @@ instance ( Carrier sig m
     Check (tm ::: ty) k -> k =<< case tm ::: ty of
       _ ::: Value.Pi Im pi t b -> freshName "_implicit_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (Local n ::: t)) b))
-        verifyResources n pi res
+        verifyResources tm n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
       Core.Lam e ::: Value.Pi Ex pi t b -> freshName "_infer_" >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
         (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.Free (Local n)) e ::: instantiate (free (Local n ::: t)) b))
-        verifyResources n pi res
+        verifyResources tm n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
       Core.Hole _ ::: ty -> do
         (_, m) <- exists ty
@@ -121,15 +121,16 @@ instance ( Carrier sig m
       _ ::: ty -> do
         tm' ::: inferred <- infer tm
         unified <- unify Value.Type (ty :===: inferred)
-        pure (tm' ::: unified)
-      where verifyResources n pi br = do
-              let used = Resources.lookup (Local n) br
-              sigma <- askSigma
-              unless (sigma >< pi == More) . when (pi /= used) $
-                throwElabError (ResourceMismatch n pi used (Core.uses n tm)))
+        pure (tm' ::: unified))
     where n ::: t |- m = raise (local (Context.insert (n ::: t))) m
           infix 5 |-
           raise f (ElabC m) = ElabC (f m)
+
+          verifyResources tm n pi br = do
+            let used = Resources.lookup (Local n) br
+            sigma <- askSigma
+            unless (sigma >< pi == More) . when (pi /= used) $
+              throwElabError (ResourceMismatch n pi used (Core.uses n tm))
 
           elabImplicits = \case
             tm ::: Value.Pi Im _ t b -> do
