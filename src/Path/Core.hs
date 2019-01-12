@@ -15,7 +15,7 @@ data Core
   | Lam Scope
   | Core :$ Core
   | Type
-  | Pi Plicity Usage Core (Scope)
+  | Pi Plicity Usage Core Scope
   | Hole QName
   | Ann Span Core
   deriving (Eq, Ord, Show)
