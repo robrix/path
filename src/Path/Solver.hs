@@ -134,7 +134,7 @@ solve cs
   . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value))))
   $ do
     visit cs
-    process
+    step
   where visit cs = for_ cs each
         each q@(t1 :===: t2 :@ c) = do
           _S <- get
@@ -144,10 +144,10 @@ solve cs
               | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
               | otherwise -> enqueue q
 
-        process = do
+        step = do
           c <- dequeue
           case c of
-            Just c  -> each c *> process
+            Just c  -> each c *> step
             Nothing -> pure ()
 
         enqueue q = do
