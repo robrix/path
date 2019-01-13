@@ -1,28 +1,28 @@
 {-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
 module Path.Solver where
 
-import Control.Effect
-import Control.Effect.Error
-import Control.Effect.Fresh
-import Control.Effect.Reader hiding (Local)
-import Control.Effect.State
-import Control.Effect.Writer
-import Control.Monad ((>=>))
-import Data.Foldable (foldl', for_, toList)
+import           Control.Effect
+import           Control.Effect.Error
+import           Control.Effect.Fresh
+import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.State
+import           Control.Effect.Writer
+import           Control.Monad ((>=>))
+import           Data.Foldable (foldl', for_, toList)
 import qualified Data.IntMap as IntMap
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Maybe (catMaybes)
+import           Data.List.NonEmpty (NonEmpty (..))
+import           Data.Maybe (catMaybes)
 import qualified Data.Set as Set
-import Path.Stack
-import Path.Constraint
-import Path.Error
-import Path.Eval
-import Path.Name
-import Path.Plicity
-import Path.Scope
-import Path.Usage
-import Path.Value hiding (Scope(..))
-import Prelude hiding (pi)
+import           Path.Constraint
+import           Path.Error
+import           Path.Eval
+import           Path.Name
+import           Path.Plicity
+import           Path.Scope
+import           Path.Stack
+import           Path.Usage
+import           Path.Value hiding (Scope (..))
+import           Prelude hiding (pi)
 
 simplify :: ( Carrier sig m
             , Effect sig
@@ -104,7 +104,7 @@ simplify = execWriter . go
             m2 <- Meta . M <$> fresh
             n <- asks (// "ensurePi")
             let t1 = pis (fst (unpis n ty)) (free (m1 ::: Type))
-                maximal Nil = n
+                maximal Nil                      = n
                 maximal (_ :> ((n, _, _) ::: _)) = n
                 app ((n, _, _) ::: t) = free (Local n ::: t)
                 t2 = let (s, _) = unpis n ty in pis (s :> ((maximal s, Im, Zero) ::: free (m1 ::: Type) $$* fmap app s)) Type
