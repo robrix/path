@@ -7,8 +7,8 @@ import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>))
-import           Data.Foldable (foldl', for_, toList)
+import           Control.Monad ((>=>), unless)
+import           Data.Foldable (fold, foldl', for_, toList)
 import qualified Data.IntMap as IntMap
 import           Data.List.NonEmpty (NonEmpty (..))
 import           Data.Maybe (catMaybes)
@@ -131,10 +131,11 @@ solve cs
   = fmap (map (uncurry toSolution) . IntMap.toList)
   . execState mempty
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
-  . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value))))
   $ do
-    modify (flip (foldl' (Seq.|>)) cs)
-    step
+    stuck <- fmap fold . execState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value)))) $ do
+      modify (flip (foldl' (Seq.|>)) cs)
+      step
+    unless (Prelude.null stuck) $ for_ stuck throwMismatch -- FIXME: throw a single error comprised of all of them
   where step = do
           c <- dequeue
           case c of
@@ -174,3 +175,5 @@ solve cs
         solution _S (M m) = toSolution m <$> IntMap.lookup m _S
 
         toSolution m (v :@ c) = M m := v :@ c
+
+        throwMismatch q@(_ :@ c) | let span :| _ = spans c = throwError (ElabError span mempty (TypeMismatch q))
