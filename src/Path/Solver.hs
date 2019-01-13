@@ -135,19 +135,16 @@ solve cs
   $ do
     modify (flip (foldl' (Seq.|>)) cs)
     step
-  where visit cs = for_ cs each
-        each q@(t1 :===: t2 :@ c) = do
-          _S <- get
-          case () of
-            _ | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) -> simplify (apply s q) >>= visit
-              | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
-              | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
-              | otherwise -> enqueue q
-
-        step = do
+  where step = do
           c <- dequeue
           case c of
-            Just c  -> each c *> step
+            Just q@(t1 :===: t2 :@ c) -> do
+              _S <- get
+              case () of
+                _ | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) -> simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
+                  | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
+                  | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
+                  | otherwise -> enqueue q *> step
             Nothing -> pure ()
 
         enqueue q = do
