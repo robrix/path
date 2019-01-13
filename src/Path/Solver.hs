@@ -25,7 +25,16 @@ import Path.Usage
 import Path.Value hiding (Scope(..))
 import Prelude hiding (pi)
 
-simplify :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Monad m) => Caused (Equation Value) -> m (Set.Set (Caused (Equation Value)))
+simplify :: ( Carrier sig m
+            , Effect sig
+            , Member (Error ElabError) sig
+            , Member Fresh sig
+            , Member (Reader Gensym) sig
+            , Member (Reader Scope) sig
+            , Monad m
+            )
+         => Caused (Equation Value)
+         -> m (Set.Set (Caused (Equation Value)))
 simplify = execWriter . go
   where go = local prime . \case
           tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
@@ -108,7 +117,16 @@ simplify = execWriter . go
         stuck ((Free (Meta _) ::: _) :$ _) = True
         stuck _                            = False
 
-solve :: (Carrier sig m, Effect sig, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Monad m) => Set.Set (Caused (Equation Value)) -> m [Caused Solution]
+solve :: ( Carrier sig m
+         , Effect sig
+         , Member (Error ElabError) sig
+         , Member Fresh sig
+         , Member (Reader Gensym) sig
+         , Member (Reader Scope) sig
+         , Monad m
+         )
+      => Set.Set (Caused (Equation Value))
+      -> m [Caused Solution]
 solve cs
   = fmap (map (uncurry toSolution) . IntMap.toList)
   . execState mempty
