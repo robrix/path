@@ -133,7 +133,7 @@ solve cs
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
   . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value))))
   $ do
-    visit cs
+    modify (flip (foldl' (Seq.|>)) cs)
     step
   where visit cs = for_ cs each
         each q@(t1 :===: t2 :@ c) = do
