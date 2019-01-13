@@ -41,6 +41,6 @@ instance Pretty ElabError where
     TypedHole n ty -> prettyErr span msg (prettyCtx ctx)
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
-    where prettyCtx ctx = if (Context.null ctx) then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
+    where prettyCtx ctx = if Context.null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
 
 instance PrettyPrec ElabError
