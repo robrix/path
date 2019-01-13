@@ -145,7 +145,8 @@ solve cs
                 _ | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) -> simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
                   | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
                   | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
-                  | otherwise -> enqueue q *> step
+                  | otherwise -> enqueue q
+              step
             Nothing -> pure ()
 
         enqueue q = do
