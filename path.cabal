@@ -29,7 +29,6 @@ library
                      , Path.Parser.Package
                      , Path.Parser.REPL
                      , Path.Parser.Term
-                     , Path.Partial
                      , Path.Plicity
                      , Path.Pretty
                      , Path.Renamer

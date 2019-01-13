@@ -1,1 +1,0 @@
-module Path.Partial where
