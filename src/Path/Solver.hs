@@ -139,15 +139,17 @@ solve cs
   where step = do
           c <- dequeue
           case c of
-            Just q@(t1 :===: t2 :@ c) -> do
+            Just q -> do
               _S <- get
-              case () of
-                _ | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) -> simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
-                  | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
-                  | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
-                  | otherwise -> enqueue q
+              process _S q
               step
             Nothing -> pure ()
+
+        process _S q@(t1 :===: t2 :@ c)
+          | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) = simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
+          | Just (m, sp) <- pattern t1 = solve (m := abstractLam sp t2 :@ c)
+          | Just (m, sp) <- pattern t2 = solve (m := abstractLam sp t1 :@ c)
+          | otherwise = enqueue q
 
         enqueue q = do
           let s = Set.singleton q
