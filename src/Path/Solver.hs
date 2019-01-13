@@ -12,6 +12,7 @@ import           Data.Foldable (foldl', for_, toList)
 import qualified Data.IntMap as IntMap
 import           Data.List.NonEmpty (NonEmpty (..))
 import           Data.Maybe (catMaybes)
+import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
 import           Path.Error
@@ -126,11 +127,14 @@ solve :: ( Carrier sig m
          )
       => Set.Set (Caused (Equation Value))
       -> m [Caused Solution]
-solve
+solve cs
   = fmap (map (uncurry toSolution) . IntMap.toList)
   . execState mempty
+  . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
   . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value))))
-  . visit
+  $ do
+    visit cs
+    process
   where visit cs = for_ cs each
         each q@(t1 :===: t2 :@ c) = do
           _S <- get
@@ -140,10 +144,23 @@ solve
               | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
               | otherwise -> enqueue q
 
+        process = do
+          c <- dequeue
+          case c of
+            Just c  -> each c *> process
+            Nothing -> pure ()
+
         enqueue q = do
           let s = Set.singleton q
               mvars = metaNames (fvs q)
+          modify (Seq.|> q)
           modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty mvars))
+
+        dequeue = do
+          q <- get
+          case Seq.viewl q of
+            Seq.EmptyL -> pure Nothing
+            h Seq.:< q -> Just h <$ put q
 
         pattern ((Free (Meta m) ::: _) :$ sp) = (,) m <$> traverse free sp
         pattern _                             = Nothing
