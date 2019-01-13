@@ -10,7 +10,6 @@ data Partial
   | Lam Scope
   | Pi Plicity Usage Partial Scope
   | Head :$ Stack Partial
-  | Or [Partial]
   deriving (Eq, Ord, Show)
 
 newtype Scope = Scope Partial
