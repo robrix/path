@@ -7,7 +7,7 @@ import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>), unless)
+import           Control.Monad ((>=>), unless, when)
 import           Data.Foldable (fold, foldl', for_, toList)
 import qualified Data.IntMap as IntMap
 import           Data.List.NonEmpty (NonEmpty (..))
@@ -151,6 +151,7 @@ solve cs
         enqueue q = do
           let s = Set.singleton q
               mvars = metaNames (fvs q)
+          when (Prelude.null mvars) (throwMismatch q)
           modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty mvars))
 
         dequeue = do
