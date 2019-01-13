@@ -11,7 +11,7 @@ import           Control.Monad ((>=>), unless, when)
 import           Data.Foldable (fold, foldl', for_, toList)
 import qualified Data.IntMap as IntMap
 import           Data.List.NonEmpty (NonEmpty (..))
-import           Data.Maybe (catMaybes)
+import           Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
@@ -168,7 +168,9 @@ solve cs
 
         solve s@(M m := v :@ c) = do
           modify (IntMap.insert m (v :@ c))
-          modify (IntMap.adjust (apply @(Set.Set (Caused (Equation Value))) [s]) m)
+          cs <- gets (fromMaybe mempty . IntMap.lookup m)
+          modify (flip (foldl' (Seq.|>)) (apply @(Set.Set (Caused (Equation Value))) [s] cs))
+          modify (IntMap.delete @(Set.Set (Caused (Equation Value))) m)
 
         solutions _S s
           | (s:ss) <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
