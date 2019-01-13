@@ -167,10 +167,10 @@ solve cs
         free ((Free v ::: t) :$ Nil) = Just (v ::: t)
         free _                       = Nothing
 
-        solve s@(M m := v :@ c) = do
+        solve (M m := v :@ c) = do
           modify (IntMap.insert m (v :@ c))
           cs <- gets (fromMaybe mempty . IntMap.lookup m)
-          modify (flip (foldl' (Seq.|>)) (apply @(Set.Set (Caused (Equation Value))) [s] cs))
+          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation Value))))
           modify (IntMap.delete @(Set.Set (Caused (Equation Value))) m)
 
         solutions _S s
