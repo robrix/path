@@ -1,29 +1,29 @@
 {-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
 module Path.Solver where
 
-import Control.Effect
-import Control.Effect.Error
-import Control.Effect.Fresh
-import Control.Effect.Reader hiding (Local)
-import Control.Effect.State
-import Control.Effect.Writer
-import Control.Monad ((>=>))
-import Data.Foldable (foldl', for_, toList)
+import           Control.Effect
+import           Control.Effect.Error
+import           Control.Effect.Fresh
+import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.State
+import           Control.Effect.Writer
+import           Control.Monad ((>=>), unless, when)
+import           Data.Foldable (fold, foldl', for_, toList)
 import qualified Data.IntMap as IntMap
-import Data.List.NonEmpty (NonEmpty(..))
-import Data.Maybe (catMaybes)
+import           Data.List.NonEmpty (NonEmpty (..))
+import           Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
-import Path.Stack
-import Path.Constraint
-import Path.Error
-import Path.Eval
-import Path.Name
-import Path.Plicity
-import Path.Scope
-import Path.Usage
-import Path.Value hiding (Scope(..))
-import Prelude hiding (pi)
+import           Path.Constraint
+import           Path.Error
+import           Path.Eval
+import           Path.Name
+import           Path.Plicity
+import           Path.Scope
+import           Path.Stack
+import           Path.Usage
+import           Path.Value hiding (Scope (..))
+import           Prelude hiding (pi)
 
 simplify :: ( Carrier sig m
             , Effect sig
@@ -105,7 +105,7 @@ simplify = execWriter . go
             m2 <- Meta . M <$> fresh
             n <- asks (// "ensurePi")
             let t1 = pis (fst (unpis n ty)) (free (m1 ::: Type))
-                maximal Nil = n
+                maximal Nil                      = n
                 maximal (_ :> ((n, _, _) ::: _)) = n
                 app ((n, _, _) ::: t) = free (Local n ::: t)
                 t2 = let (s, _) = unpis n ty in pis (s :> ((maximal s, Im, Zero) ::: free (m1 ::: Type) $$* fmap app s)) Type
@@ -131,29 +131,28 @@ solve cs
   = fmap (map (uncurry toSolution) . IntMap.toList)
   . execState mempty
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
-  . evalState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value))))
   $ do
-    visit cs
-    process
-  where visit cs = for_ cs each
-        each q@(t1 :===: t2 :@ c) = do
-          _S <- get
-          case () of
-            _ | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) -> simplify (apply s q) >>= visit
-              | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
-              | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
-              | otherwise -> enqueue q
-
-        process = do
+    stuck <- fmap fold . execState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value)))) $ do
+      modify (flip (foldl' (Seq.|>)) cs)
+      step
+    unless (Prelude.null stuck) $ for_ stuck throwMismatch -- FIXME: throw a single error comprised of all of them
+  where step = do
           c <- dequeue
           case c of
-            Just c  -> each c *> process
+            Just q@(t1 :===: t2 :@ c) -> do
+              _S <- get
+              case () of
+                _ | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) -> simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
+                  | Just (m, sp) <- pattern t1 -> solve (m := abstractLam sp t2 :@ c)
+                  | Just (m, sp) <- pattern t2 -> solve (m := abstractLam sp t1 :@ c)
+                  | otherwise -> enqueue q
+              step
             Nothing -> pure ()
 
         enqueue q = do
           let s = Set.singleton q
               mvars = metaNames (fvs q)
-          modify (Seq.|> q)
+          when (Prelude.null mvars) (throwMismatch q)
           modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty mvars))
 
         dequeue = do
@@ -168,9 +167,11 @@ solve cs
         free ((Free v ::: t) :$ Nil) = Just (v ::: t)
         free _                       = Nothing
 
-        solve s@(M m := v :@ c) = do
+        solve (M m := v :@ c) = do
           modify (IntMap.insert m (v :@ c))
-          modify (IntMap.adjust (apply @(Set.Set (Caused (Equation Value))) [s]) m)
+          cs <- gets (fromMaybe mempty . IntMap.lookup m)
+          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation Value))))
+          modify (IntMap.delete @(Set.Set (Caused (Equation Value))) m)
 
         solutions _S s
           | (s:ss) <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
@@ -178,3 +179,5 @@ solve cs
         solution _S (M m) = toSolution m <$> IntMap.lookup m _S
 
         toSolution m (v :@ c) = M m := v :@ c
+
+        throwMismatch q@(_ :@ c) | let span :| _ = spans c = throwError (ElabError span mempty (TypeMismatch q))
