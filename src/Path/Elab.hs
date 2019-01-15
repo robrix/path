@@ -151,8 +151,8 @@ instance ( Carrier sig m
           unify ty (tm1 :===: tm2) = if tm1 == tm2 then pure tm1 else do
             (_, v) <- exists ty
             span <- ElabC ask
-            v <$ ElabC (tell (Set.fromList [ (v :===: tm1 :@ Assert span)
-                                           , (v :===: tm2 :@ Assert span) ]))
+            v <$ ElabC (tell (Set.fromList [ v :===: tm1 :@ Assert span
+                                           , v :===: tm2 :@ Assert span ]))
 
           throwElabError reason = ElabError <$> ElabC ask <*> askContext <*> pure reason >>= throwError
 
