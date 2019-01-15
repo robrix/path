@@ -1,15 +1,15 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, TupleSections #-}
 module Path.Value where
 
-import Control.Applicative (Alternative(..))
-import Data.Foldable (foldl', toList)
+import           Control.Applicative (Alternative (..))
+import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
-import Path.Stack as Stack
-import Path.Name
-import Path.Plicity
-import Path.Pretty
-import Path.Usage
-import Prelude hiding (pi)
+import           Path.Name
+import           Path.Plicity
+import           Path.Pretty
+import           Path.Stack as Stack
+import           Path.Usage
+import           Prelude hiding (pi)
 
 data Value
   = Type                         -- ^ @'Type' : 'Type'@.
