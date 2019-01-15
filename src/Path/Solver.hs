@@ -137,14 +137,12 @@ solve cs
       modify (flip (foldl' (Seq.|>)) cs)
       step
     unless (Prelude.null stuck) $ for_ stuck throwMismatch -- FIXME: throw a single error comprised of all of them
-  where step = do
-          c <- dequeue
-          case c of
-            Just q -> do
-              _S <- get
-              process _S q
-              step
-            Nothing -> pure ()
+  where step = dequeue >>= \case
+          Just q -> do
+            _S <- get
+            process _S q
+            step
+          Nothing -> pure ()
 
         process _S q@(t1 :===: t2 :@ c)
           | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) = simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
@@ -158,11 +156,9 @@ solve cs
           when (Prelude.null mvars) (throwMismatch q)
           modify (Map.unionWith (<>) (foldl' (\ m i -> Map.insertWith (<>) i s m) mempty mvars))
 
-        dequeue = do
-          q <- get
-          case Seq.viewl q of
-            Seq.EmptyL -> pure Nothing
-            h Seq.:< q -> Just h <$ put q
+        dequeue = gets Seq.viewl >>= \case
+          Seq.EmptyL -> pure Nothing
+          h Seq.:< q -> Just h <$ put q
 
         pattern ((Free (Meta m) ::: _) :$ sp) = (,) m <$> traverse free sp
         pattern _                             = Nothing
