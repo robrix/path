@@ -40,7 +40,7 @@ simplify = execWriter . go
           tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
           Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2 :@ cause
             | p1 == p2, u1 == u2 -> do
-              (_, n) <- freshName "_unify_" t1
+              (_, n) <- freshName t1
               go (t1               :===: t2               :@ cause)
               go (instantiate n b1 :===: instantiate n b2 :@ cause)
           Pi Im _ ty1 b1 :===: t2 :@ cause -> do
@@ -50,7 +50,7 @@ simplify = execWriter . go
             n <- exists ty2
             go (t1 :===: instantiate n b2 :@ cause)
           Lam t1 b1 :===: Lam t2 b2 :@ cause -> do
-            (_, n) <- freshName "_unify_" t1
+            (_, n) <- freshName t1
             go (t1               :===: t2               :@ cause)
             go (instantiate n b1 :===: instantiate n b2 :@ cause)
           (f1 ::: tf1) :$ sp1 :===: (f2 ::: tf2) :$ sp2 :@ cause
@@ -69,27 +69,27 @@ simplify = execWriter . go
             go (t1 :===: t2 :@ cause)
           tm1 :===: Lam t2 b2 :@ cause -> do
             t1 <- ensurePi cause tm1
-            (n, v) <- freshName "_unify_" t1
+            (n, v) <- freshName t1
             go (lam (n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ cause)
           Lam t1 b1 :===: tm2 :@ cause -> do
             t2 <- ensurePi cause tm2
-            (n, v) <- freshName "_unify_" t2
+            (n, v) <- freshName t2
             go (Lam t1 b1 :===: lam (n ::: t2) (tm2 $$ v) :@ cause)
           q@(t1 :===: t2 :@ cause)
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
-        freshName s t = ((,) <*> free . (::: t) . Local) <$> gensym s
+        freshName t = ((,) <*> free . (::: t) . Local) <$> gensym ""
         exists t = free . (::: t) . Meta . M <$> gensym "_meta_"
 
         typeof cause = infer
           where infer Type = pure Type
                 infer (Pi _ _ t b) = do
-                  (_, v) <- freshName "_infer_" t
+                  (_, v) <- freshName t
                   Type <$ check (t ::: Type) <* check (instantiate v b ::: Type)
                 infer (Lam t b) = do
                   t' <- check (t ::: Type)
-                  (n, v) <- freshName "_infer_" t'
+                  (n, v) <- freshName t'
                   pi ((n, Ex, More) ::: t') <$> infer (instantiate v b)
                 infer ((_ ::: ty) :$ sp) = pure (ty $$* sp)
                 check (tm ::: ty) = do
