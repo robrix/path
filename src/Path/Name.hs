@@ -45,11 +45,11 @@ instance Pretty UName where
 instance PrettyPrec UName
 
 
-newtype Meta = M { unM :: Int }
+newtype Meta = M { unM :: Gensym }
   deriving (Eq, Ord, Show)
 
 instance Pretty Meta where
-  pretty (M i) = pretty "_meta_" <> prettyVar i
+  pretty (M i) = pretty i
 
 instance PrettyPrec Meta
 

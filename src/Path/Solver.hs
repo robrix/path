@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, TupleSections, TypeApplications #-}
 module Path.Solver where
 
 import           Control.Effect
@@ -9,8 +9,8 @@ import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad ((>=>), unless, when)
 import           Data.Foldable (fold, foldl', for_, toList)
-import qualified Data.IntMap as IntMap
 import           Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.Map as Map
 import           Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
@@ -36,7 +36,7 @@ simplify :: ( Carrier sig m
          => Caused (Equation Value)
          -> m (Set.Set (Caused (Equation Value)))
 simplify = execWriter . go
-  where go = local prime . \case
+  where go = \case
           tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
           Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2 :@ cause
             | p1 == p2, u1 == u2 -> do
@@ -79,8 +79,9 @@ simplify = execWriter . go
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
-        freshName s t = asks (((,) <*> free . (::: t) . Local) . (// s))
-        exists t = free . (::: t) . Meta . M <$> fresh
+        gensym s = (:/) <$> ask <*> ((s,) <$> fresh)
+        freshName s t = ((,) <*> free . (::: t) . Local) <$> gensym s
+        exists t = free . (::: t) . Meta . M <$> gensym "_meta_"
 
         typeof cause = infer
           where infer Type = pure Type
@@ -101,8 +102,8 @@ simplify = execWriter . go
         ensurePi cause = typeof cause >=> whnf >=> \case
           Pi _ _ t _ -> pure t
           (Free (Meta m) ::: ty) :$ sp -> do
-            m1 <- Meta . M <$> fresh
-            m2 <- Meta . M <$> fresh
+            m1 <- Meta . M <$> gensym "_meta_"
+            m2 <- Meta . M <$> gensym "_meta_"
             n <- asks (// "ensurePi")
             let t1 = pis (fst (unpis n ty)) (free (m1 ::: Type))
                 maximal Nil                      = n
@@ -120,7 +121,6 @@ simplify = execWriter . go
 solve :: ( Carrier sig m
          , Effect sig
          , Member (Error ElabError) sig
-         , Member Fresh sig
          , Member (Reader Gensym) sig
          , Member (Reader Scope) sig
          , Monad m
@@ -129,11 +129,12 @@ solve :: ( Carrier sig m
       -> m [Caused Solution]
 solve cs
   = local (// "solve")
-  . fmap (map (uncurry toSolution) . IntMap.toList)
+  . runFresh
+  . fmap (map (uncurry toSolution) . Map.toList)
   . execState mempty
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
   $ do
-    stuck <- fmap fold . execState (mempty :: IntMap.IntMap (Set.Set (Caused (Equation Value)))) $ do
+    stuck <- fmap fold . execState (mempty :: Map.Map Meta (Set.Set (Caused (Equation Value)))) $ do
       modify (flip (foldl' (Seq.|>)) cs)
       step
     unless (Prelude.null stuck) $ for_ stuck throwMismatch -- FIXME: throw a single error comprised of all of them
@@ -156,7 +157,7 @@ solve cs
           let s = Set.singleton q
               mvars = metaNames (fvs q)
           when (Prelude.null mvars) (throwMismatch q)
-          modify (IntMap.unionWith (<>) (foldl' (\ m (M i) -> IntMap.insertWith (<>) i s m) mempty mvars))
+          modify (Map.unionWith (<>) (foldl' (\ m i -> Map.insertWith (<>) i s m) mempty mvars))
 
         dequeue = do
           q <- get
@@ -170,17 +171,17 @@ solve cs
         free ((Free v ::: t) :$ Nil) = Just (v ::: t)
         free _                       = Nothing
 
-        solve (M m := v :@ c) = do
-          modify (IntMap.insert m (v :@ c))
-          cs <- gets (fromMaybe mempty . IntMap.lookup m)
+        solve (m := v :@ c) = do
+          modify (Map.insert m (v :@ c))
+          cs <- gets (fromMaybe mempty . Map.lookup m)
           modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation Value))))
-          modify (IntMap.delete @(Set.Set (Caused (Equation Value))) m)
+          modify (Map.delete @Meta @(Set.Set (Caused (Equation Value))) m)
 
         solutions _S s
           | (s:ss) <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
           | otherwise                                          = Nothing
-        solution _S (M m) = toSolution m <$> IntMap.lookup m _S
+        solution _S m = toSolution m <$> Map.lookup m _S
 
-        toSolution m (v :@ c) = M m := v :@ c
+        toSolution m (v :@ c) = m := v :@ c
 
         throwMismatch q@(_ :@ c) | let span :| _ = spans c = throwError (ElabError span mempty (TypeMismatch q))
