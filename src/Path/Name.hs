@@ -1,6 +1,9 @@
-{-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Name where
 
+import           Control.Effect
+import           Control.Effect.Fresh
+import           Control.Effect.Reader hiding (Local)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -30,6 +33,9 @@ infixl 6 //
 prime :: Gensym -> Gensym
 prime (root :/ (s, i)) = root :/ (s, succ i)
 prime root             = root :/ ("", 0)
+
+gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Gensym
+gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
 
 
 data UName

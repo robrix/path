@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase, TupleSections, TypeApplications #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
 module Path.Solver where
 
 import           Control.Effect
@@ -79,7 +79,6 @@ simplify = execWriter . go
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
-        gensym s = (:/) <$> ask <*> ((s,) <$> fresh)
         freshName s t = ((,) <*> free . (::: t) . Local) <$> gensym s
         exists t = free . (::: t) . Meta . M <$> gensym "_meta_"
 
