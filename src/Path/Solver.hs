@@ -128,7 +128,8 @@ solve :: ( Carrier sig m
       => Set.Set (Caused (Equation Value))
       -> m [Caused Solution]
 solve cs
-  = fmap (map (uncurry toSolution) . IntMap.toList)
+  = local (// "solve")
+  . fmap (map (uncurry toSolution) . IntMap.toList)
   . execState mempty
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
   $ do
