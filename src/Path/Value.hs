@@ -1,7 +1,10 @@
-{-# LANGUAGE DeriveTraversable, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, TupleSections #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, TupleSections #-}
 module Path.Value where
 
 import           Control.Applicative (Alternative (..))
+import           Control.Effect
+import           Control.Effect.Fresh
+import           Control.Effect.Reader hiding (Local)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -22,18 +25,27 @@ newtype Scope = Scope Value
   deriving (Eq, Ord, Pretty, PrettyPrec, Show)
 
 instance PrettyPrec Value where
-  prettyPrec = go (prime (Root "pretty"))
-    where go root d = \case
-            Lam t b -> prettyParens (d > 0) $ align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> go root 0 b') as))
-              where (as, b') = unlams root (Lam t b)
-                    var vs (n ::: _) rest
+  prettyPrec d = run . runFresh . runReader (Root "pretty") . go d
+    where go d = \case
+            Lam t b -> do
+              (as, b') <- unlamsM (Lam t b)
+              b'' <- go 0 b'
+              pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> b'') as))))
+              where var vs (n ::: _) rest
                       | Local n `Set.member` vs = pretty n   <+> rest
                       | otherwise               = pretty '_' <+> rest
-            Type -> yellow (pretty "Type")
-            Pi ie pi t b' -> if Local root `Set.member` fvs b then
-                prettyParens (d > 1) $ withIe (pretty root <+> colon <+> withPi (go root 0 t)) <+> arrow <+> go (prime root) 1 b
-              else
-                prettyParens (d > 1) $ withPi (go root 2 t <+> arrow <+> go (prime root) 1 b)
+            Type -> pure (yellow (pretty "Type"))
+            Pi ie pi t b -> do
+              name <- gensym ""
+              let b' = instantiate (free (Local name ::: t)) b
+              if Local name `Set.member` fvs b' then do
+                t' <- go 0 t
+                b'' <- go 1 b'
+                pure (prettyParens (d > 1) (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b''))
+              else do
+                t' <- go 2 t
+                b'' <- go 1 b'
+                pure (prettyParens (d > 1) (withPi (t' <+> arrow <+> b'')))
               where withPi
                       | ie == Ex, pi == More = id
                       | ie == Im, pi == Zero = id
@@ -42,8 +54,9 @@ instance PrettyPrec Value where
                       | ie == Im  = prettyBraces True
                       | otherwise = prettyParens True
                     arrow = blue (pretty "->")
-                    b = instantiate (free (Local root ::: t)) b'
-            (f ::: _) :$ sp -> prettyParens (d > 10 && not (null sp)) $ group (align (nest 2 (vsep (pretty f : map (go root 11) (toList sp)))))
+            (f ::: _) :$ sp -> do
+              sp' <- traverse (go 11) (toList sp)
+              pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
 
 instance Pretty Value where
   pretty = prettyPrec 0
@@ -73,6 +86,14 @@ unlams root value = intro (root // "unlams") (Nil, value)
   where intro root (names, value) = case unlam root value of
           Just (name, body) -> intro (prime root) (names :> name, body)
           Nothing           -> (names, value)
+
+unlamsM :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig, Monad m) => Value -> m (Stack (Typed Gensym), Value)
+unlamsM value = intro (Nil, value)
+  where intro (names, value) = do
+          name <- gensym ""
+          case unlam name value of
+            Just (name, body) -> intro (names :> name, body)
+            Nothing           -> pure (names, value)
 
 pi :: Typed (Gensym, Plicity, Usage) -> Value -> Value
 pi ((n, p, u) ::: t) b = Pi p u t (bind (Local n) b)
