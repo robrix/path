@@ -85,8 +85,9 @@ simplify = execWriter . go
         typeof cause = infer
           where infer Type = pure Type
                 infer (Pi _ _ t b) = do
-                  (_, v) <- freshName t
-                  Type <$ check (t ::: Type) <* check (instantiate v b ::: Type)
+                  t' <- check (t ::: Type)
+                  (_, v) <- freshName t'
+                  Type <$ check (instantiate v b ::: Type)
                 infer (Lam t b) = do
                   t' <- check (t ::: Type)
                   (n, v) <- freshName t'
