@@ -1,12 +1,12 @@
-{-# LANGUAGE LambdaCase, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Name where
 
-import Data.List.NonEmpty (NonEmpty(..))
+import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Path.Pretty
-import Path.Usage
-import Text.Trifecta.Rendering (Span)
+import           Path.Pretty
+import           Path.Usage
+import           Text.Trifecta.Rendering (Span)
 
 data Gensym
   = Root String
@@ -118,7 +118,7 @@ instance FreeVariables QName Head where
   fvs _        = mempty
 
 instance Pretty Head where
-  pretty (Free q) = pretty q
+  pretty (Free q)  = pretty q
   pretty (Bound i) = prettyVar i
 
 instance PrettyPrec Head
