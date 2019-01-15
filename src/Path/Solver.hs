@@ -177,8 +177,8 @@ solve cs
           modify (Map.delete @Meta @(Set.Set (Caused (Equation Value))) m)
 
         solutions _S s
-          | (s:ss) <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
-          | otherwise                                          = Nothing
+          | s:ss <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
+          | otherwise                                        = Nothing
         solution _S m = toSolution m <$> Map.lookup m _S
 
         toSolution m (v :@ c) = m := v :@ c
