@@ -93,10 +93,10 @@ simplify = execWriter . go
                   pi ((n, Ex, More) ::: t') <$> infer (instantiate v b)
                 infer ((_ ::: ty) :$ sp) = pure (ty $$* sp)
                 check (tm ::: ty) = do
-                    ty' <- infer tm
-                    if ty == ty' then pure ty' else do
-                      m <- exists Type
-                      m <$ tell (Set.fromList [m :===: ty :@ cause, m :===: ty' :@ cause])
+                  ty' <- infer tm
+                  if ty == ty' then pure ty' else do
+                    m <- exists Type
+                    m <$ tell (Set.fromList [m :===: ty :@ cause, m :===: ty' :@ cause])
 
         ensurePi cause = typeof cause >=> whnf >=> \case
           Pi _ _ t _ -> pure t
