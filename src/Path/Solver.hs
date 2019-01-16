@@ -104,13 +104,11 @@ simplify = execWriter . go
           (Free (Meta m) ::: ty) :$ sp -> do
             m1 <- Meta . M <$> gensym "_meta_"
             m2 <- Meta . M <$> gensym "_meta_"
-            n <- asks (// "ensurePi")
             (names, _) <- unpis ty
+            n <- gensym ""
             let t1 = pis names (free (m1 ::: Type))
-                maximal Nil                      = n
-                maximal (_ :> ((n, _, _) ::: _)) = n
                 app ((n, _, _) ::: t) = free (Local n ::: t)
-                t2 = pis (names :> ((maximal names, Im, Zero) ::: free (m1 ::: Type) $$* fmap app names)) Type
+                t2 = pis (names :> ((n, Im, Zero) ::: free (m1 ::: Type) $$* fmap app names)) Type
                 _A = free (m1 ::: t1) $$* sp
                 _B x = free (m2 ::: t2) $$* (sp:>x)
             _A <$ tell (Set.singleton ((Free (Meta m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (Local n ::: _A))) :@ cause))
