@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Name where
 
 import           Control.Effect
@@ -114,20 +114,20 @@ metaNames :: Set.Set QName -> Set.Set Meta
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 
-data Head
-  = Free QName
+data Head a
+  = Free a
   | Bound Int
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance FreeVariables QName Head where
+instance Ord a => FreeVariables a (Head a) where
   fvs (Free q) = Set.singleton q
   fvs _        = mempty
 
-instance Pretty Head where
+instance Pretty a => Pretty (Head a) where
   pretty (Free q)  = pretty q
   pretty (Bound i) = prettyVar i
 
-instance PrettyPrec Head
+instance Pretty a => PrettyPrec (Head a)
 
 
 data Operator

@@ -15,10 +15,10 @@ import           Path.Usage
 import           Prelude hiding (pi)
 
 data Value
-  = Type                         -- ^ @'Type' : 'Type'@.
-  | Lam              Value Scope -- ^ A lambda abstraction.
-  | Pi Plicity Usage Value Scope -- ^ A ∏ type, with a 'Usage' annotation.
-  | Typed Head :$ Stack Value    -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
+  = Type                              -- ^ @'Type' : 'Type'@.
+  | Lam              Value Scope      -- ^ A lambda abstraction.
+  | Pi Plicity Usage Value Scope      -- ^ A ∏ type, with a 'Usage' annotation.
+  | Typed (Head QName) :$ Stack Value -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
   deriving (Eq, Ord, Show)
 
 newtype Scope = Scope Value
@@ -172,7 +172,7 @@ instantiate image (Scope b) = substIn (\ i (h ::: t) -> case h of
   Bound j -> if i == j then image else (Bound j ::: t) :$ Nil
   Free n  -> free (n ::: t)) b
 
-substIn :: (Int -> Typed Head -> Value)
+substIn :: (Int -> Typed (Head QName) -> Value)
         -> Value
         -> Value
 substIn var = go 0
