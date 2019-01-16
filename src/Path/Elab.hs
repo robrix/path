@@ -140,7 +140,7 @@ instance ( Carrier sig m
 
           ensurePi t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
-            (Free (Meta _) ::: _) Value.:$ _ -> do
+            (Free (M _) ::: _) Value.:$ _ -> do
               (mA, _A) <- exists Value.Type
               (_, _B) <- exists _A
               let _B' = bind mA _B
@@ -161,7 +161,7 @@ instance ( Carrier sig m
 
           exists t = do
             Context c <- askContext
-            n <- Meta . M <$> ElabC (gensym "_meta_")
+            n <- M . Meta <$> ElabC (gensym "_meta_")
             pure (n, free (n ::: lams (fmap (fmap (Q . Local)) c) t) $$* fmap (free . fmap (Q . Local)) c)
 
           lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)

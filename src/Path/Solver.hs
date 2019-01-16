@@ -80,7 +80,7 @@ simplify = execWriter . go
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
         freshName t = ((,) <*> free . (::: t) . Q . Local) <$> gensym ""
-        exists t = free . (::: t) . Meta . M <$> gensym "_meta_"
+        exists t = free . (::: t) . M . Meta <$> gensym "_meta_"
 
         typeof cause = infer
           where infer Type = pure Type
@@ -101,9 +101,9 @@ simplify = execWriter . go
 
         ensurePi cause = typeof cause >=> whnf >=> \case
           Pi _ _ t _ -> pure t
-          (Free (Meta m) ::: ty) :$ sp -> do
-            m1 <- Meta . M <$> gensym "_meta_"
-            m2 <- Meta . M <$> gensym "_meta_"
+          (Free (M m) ::: ty) :$ sp -> do
+            m1 <- M . Meta <$> gensym "_meta_"
+            m2 <- M . Meta <$> gensym "_meta_"
             (names, _) <- unpis ty
             n <- gensym ""
             let t1 = pis names (free (m1 ::: Type))
@@ -111,11 +111,11 @@ simplify = execWriter . go
                 t2 = pis (names :> ((n, Im, Zero) ::: free (m1 ::: Type) $$* fmap app names)) Type
                 _A = free (m1 ::: t1) $$* sp
                 _B x = free (m2 ::: t2) $$* (sp:>x)
-            _A <$ tell (Set.singleton ((Free (Meta m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (Q (Local n) ::: _A))) :@ cause))
+            _A <$ tell (Set.singleton ((Free (M m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (Q (Local n) ::: _A))) :@ cause))
           t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 
-        stuck ((Free (Meta _) ::: _) :$ _) = True
-        stuck _                            = False
+        stuck ((Free (M _) ::: _) :$ _) = True
+        stuck _                         = False
 
 solve :: ( Carrier sig m
          , Effect sig
@@ -160,8 +160,8 @@ solve cs
           Seq.EmptyL -> pure Nothing
           h Seq.:< q -> Just h <$ put q
 
-        pattern ((Free (Meta m) ::: _) :$ sp) = (,) m <$> traverse free sp
-        pattern _                             = Nothing
+        pattern ((Free (M m) ::: _) :$ sp) = (,) m <$> traverse free sp
+        pattern _                          = Nothing
 
         free ((Free v ::: t) :$ Nil) = Just (v ::: t)
         free _                       = Nothing

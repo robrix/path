@@ -51,11 +51,11 @@ instance Pretty UName where
 instance PrettyPrec UName
 
 
-newtype Meta = M { unM :: Gensym }
+newtype Meta = Meta { unMeta :: Gensym }
   deriving (Eq, Ord, Show)
 
 instance Pretty Meta where
-  pretty (M i) = pretty i
+  pretty (Meta i) = pretty i
 
 instance PrettyPrec Meta
 
@@ -110,16 +110,16 @@ localNames = foldMap (\case { Q (Local v) -> Set.singleton v ; _ -> mempty })
 
 data MName
   = Q QName
-  | Meta Meta
+  | M Meta
   deriving (Eq, Ord, Show)
 
 instance Pretty MName where
   pretty = \case
     Q q -> pretty q
-    Meta m -> pretty m
+    M m -> pretty m
 
 metaNames :: Set.Set MName -> Set.Set Meta
-metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
+metaNames = foldMap (\case { M m -> Set.singleton m ; _ -> mempty })
 
 
 data Head a
