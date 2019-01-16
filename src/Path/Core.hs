@@ -3,15 +3,14 @@ module Path.Core where
 
 import Data.Foldable (toList)
 import qualified Data.Set as Set
-import Path.Name hiding (Head(..))
+import Path.Name
 import Path.Plicity
 import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
 data Core
-  = Free QName
-  | Bound Int
+  = Head (Head QName)
   | Lam Scope
   | Core :$ Core
   | Type
@@ -22,6 +21,9 @@ data Core
 
 newtype Scope = Scope Core
   deriving (Eq, Ord, Show)
+
+free :: QName -> Core
+free = Head . Free
 
 lam :: Gensym -> Core -> Core
 lam n b = Lam (bind (Local n) b)
@@ -37,8 +39,7 @@ pis names body = foldr (\ (n, p, u, t) -> pi n p u t) body names
 
 instance FreeVariables QName Core where
   fvs = \case
-    Free v -> Set.singleton v
-    Bound _ -> Set.empty
+    Head h -> fvs h
     Lam (Scope b) -> fvs b
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
@@ -49,10 +50,9 @@ instance FreeVariables QName Core where
 uses :: Gensym -> Core -> [Span]
 uses n = go Nothing
   where go span = \case
-          Free n'
-            | Local n == n' -> toList span
-            | otherwise     -> []
-          Bound _ -> []
+          Head h
+            | Free n' <- h, Local n == n' -> toList span
+            | otherwise                   -> []
           Lam (Scope b) -> go span b
           f :$ a -> go span f <> go span a
           Type -> []
@@ -65,22 +65,21 @@ uses n = go Nothing
 
 -- | Bind occurrences of a 'Name' in a 'Core' term, producing a 'Scope' in which the 'Name' is bound.
 bind :: QName -> Core -> Scope
-bind name = Scope . substIn (\ i v -> case v of
-  Left  j -> Bound j
-  Right n -> if name == n then Bound i else Free n)
+bind name = Scope . substIn (\ i v -> Head $ case v of
+  Bound j -> Bound j
+  Free  n -> if name == n then Bound i else Free n)
 
 -- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Core' term.
 instantiate :: Core -> Scope -> Core
 instantiate image (Scope b) = substIn (\ i v -> case v of
-  Left  j -> if i == j then image else Bound j
-  Right n -> Free n) b
+  Bound j -> if i == j then image else Head (Bound j)
+  Free  n -> free n) b
 
-substIn :: (Int -> Either Int QName -> Core)
+substIn :: (Int -> Head QName -> Core)
         -> Core
         -> Core
 substIn var = go 0
-  where go i (Free n)             = var i (Right n)
-        go i (Bound j)            = var i (Left j)
+  where go i (Head h)             = var i h
         go i (Lam (Scope b))      = Lam (Scope (go (succ i) b))
         go i (f :$ a)             = go i f :$ go i a
         go _ Type                 = Type

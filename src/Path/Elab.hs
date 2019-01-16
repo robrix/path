@@ -77,9 +77,9 @@ instance ( Carrier sig m
       Core.Type -> pure (Value.Type ::: Value.Type)
       Core.Pi i e t b -> ElabC (gensym "") >>= \ n -> do
         t' ::: _ <- check (t ::: Value.Type)
-        b' ::: _ <- n ::: t' |- check (Core.instantiate (Core.Free (Local n)) b ::: Value.Type)
+        b' ::: _ <- n ::: t' |- check (Core.instantiate (Core.free (Local n)) b ::: Value.Type)
         pure (Value.pi ((n, i, e) ::: t') b' ::: Value.Type)
-      Core.Free n -> do
+      Core.Head (Free n) -> do
         t <- lookupVar n >>= whnf
         sigma <- askSigma
         ElabC (tell (Resources.singleton n sigma))
@@ -91,7 +91,7 @@ instance ( Carrier sig m
         pure (f' $$ a' ::: instantiate a' b)
       Core.Lam b -> ElabC (gensym "") >>= \ n -> do
         (_, t) <- exists Value.Type
-        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer (Core.instantiate (Core.Free (Local n)) b))
+        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer (Core.instantiate (Core.free (Local n)) b))
         pure (Value.lam (n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
       Core.Hole _ -> do
         (_, ty) <- exists Value.Type
@@ -106,7 +106,7 @@ instance ( Carrier sig m
         verifyResources tm n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
       Core.Lam e ::: Value.Pi Ex pi t b -> ElabC (gensym "") >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.Free (Local n)) e ::: instantiate (free (Local n ::: t)) b))
+        (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.free (Local n)) e ::: instantiate (free (Local n ::: t)) b))
         verifyResources tm n pi res
         pure (Value.lam (n ::: t) e' ::: ty)
       Core.Hole _ ::: ty -> do
