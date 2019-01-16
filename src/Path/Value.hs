@@ -28,7 +28,7 @@ instance PrettyPrec Value where
   prettyPrec d = run . runFresh . runReader (Root "pretty") . go d
     where go d = \case
             Lam t b -> do
-              (as, b') <- unlamsM (Lam t b)
+              (as, b') <- unlams (Lam t b)
               b'' <- go 0 b'
               pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> b'') as))))
               where var vs (n ::: _) rest
@@ -81,14 +81,8 @@ unlam :: Alternative m => Gensym -> Value -> m (Typed Gensym, Value)
 unlam n (Lam t b) = pure (n ::: t, instantiate (free (Local n ::: t)) b)
 unlam _ _         = empty
 
-unlams :: Gensym -> Value -> (Stack (Typed Gensym), Value)
-unlams root value = intro (root // "unlams") (Nil, value)
-  where intro root (names, value) = case unlam root value of
-          Just (name, body) -> intro (prime root) (names :> name, body)
-          Nothing           -> (names, value)
-
-unlamsM :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig, Monad m) => Value -> m (Stack (Typed Gensym), Value)
-unlamsM value = intro (Nil, value)
+unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig, Monad m) => Value -> m (Stack (Typed Gensym), Value)
+unlams value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
           case unlam name value of
