@@ -130,7 +130,7 @@ subst name image = instantiate image . bind name
 generalizeType :: Value -> Value
 generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty))) ty
 
-generalizeValue :: Value -> Value -> Value
+generalizeValue :: Type -> Value -> Value
 generalizeValue ty = lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) params)
   where (params, _) = unpis (Root "generalizeValue") ty
 
