@@ -38,43 +38,43 @@ simplify :: ( Carrier sig m
 simplify = execWriter . go
   where go = \case
           tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
-          Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2 :@ cause
+          q@(Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2) :@ cause
             | p1 == p2, u1 == u2 -> do
               (_, n) <- freshName t1
-              go (t1               :===: t2               :@ cause)
-              go (instantiate n b1 :===: instantiate n b2 :@ cause)
-          Pi Im _ ty1 b1 :===: t2 :@ cause -> do
+              go (t1               :===: t2               :@ Via q cause)
+              go (instantiate n b1 :===: instantiate n b2 :@ Via q cause)
+          q@(Pi Im _ ty1 b1 :===: t2) :@ cause -> do
             n <- exists ty1
-            go (instantiate n b1 :===: t2 :@ cause)
-          t1 :===: Pi Im _ ty2 b2 :@ cause -> do
+            go (instantiate n b1 :===: t2 :@ Via q cause)
+          q@(t1 :===: Pi Im _ ty2 b2) :@ cause -> do
             n <- exists ty2
-            go (t1 :===: instantiate n b2 :@ cause)
-          Lam t1 b1 :===: Lam t2 b2 :@ cause -> do
+            go (t1 :===: instantiate n b2 :@ Via q cause)
+          q@(Lam t1 b1 :===: Lam t2 b2) :@ cause -> do
             (_, n) <- freshName t1
-            go (t1               :===: t2               :@ cause)
-            go (instantiate n b1 :===: instantiate n b2 :@ cause)
-          (f1 ::: tf1) :$ sp1 :===: (f2 ::: tf2) :$ sp2 :@ cause
+            go (t1               :===: t2               :@ Via q cause)
+            go (instantiate n b1 :===: instantiate n b2 :@ Via q cause)
+          q@((f1 ::: tf1) :$ sp1 :===: (f2 ::: tf2) :$ sp2) :@ cause
             | f1 == f2, length sp1 == length sp2 -> do
-              go (tf1 :===: tf2 :@ cause)
-              for_ (zipWith (:===:) (toList sp1) (toList sp2)) (go . (:@ cause))
-          f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2 :@ cause -> do
+              go (tf1 :===: tf2 :@ Via q cause)
+              for_ (zipWith (:===:) (toList sp1) (toList sp2)) (go . (:@ Via q cause))
+          q@(f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             t2 <- whnf (f2 :$ sp2)
-            go (t1 :===: t2 :@ cause)
-          f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: t2 :@ cause -> do
+            go (t1 :===: t2 :@ Via q cause)
+          q@(f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: t2) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
-            go (t1 :===: t2 :@ cause)
-          t1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2 :@ cause -> do
+            go (t1 :===: t2 :@ Via q cause)
+          q@(t1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2) :@ cause -> do
             t2 <- whnf (f2 :$ sp2)
-            go (t1 :===: t2 :@ cause)
-          tm1 :===: Lam t2 b2 :@ cause -> do
+            go (t1 :===: t2 :@ Via q cause)
+          q@(tm1 :===: Lam t2 b2) :@ cause -> do
             t1 <- ensurePi cause tm1
             (n, v) <- freshName t1
-            go (lam (qlocal n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ cause)
-          Lam t1 b1 :===: tm2 :@ cause -> do
+            go (lam (qlocal n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ Via q cause)
+          q@(Lam t1 b1 :===: tm2) :@ cause -> do
             t2 <- ensurePi cause tm2
             (n, v) <- freshName t2
-            go (Lam t1 b1 :===: lam (qlocal n ::: t2) (tm2 $$ v) :@ cause)
+            go (Lam t1 b1 :===: lam (qlocal n ::: t2) (tm2 $$ v) :@ Via q cause)
           q@(t1 :===: t2 :@ cause)
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)

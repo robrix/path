@@ -38,6 +38,7 @@ instance PrettyPrec Solution
 
 data Cause
   = Assert Span
+  | Via (Equation Value) Cause
   | Cause :<>: Cause
   deriving (Eq, Ord, Show)
 
@@ -47,6 +48,7 @@ instance Semigroup Cause where
 spans :: Cause -> NonEmpty Span
 spans = flip go []
   where go (Assert span) = (span :|)
+        go (Via _ cause) = go cause
         go (l :<>: r)    = go l . toList . go r
 
 
