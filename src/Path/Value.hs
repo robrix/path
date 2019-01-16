@@ -32,13 +32,13 @@ instance PrettyPrec Value where
               b'' <- go 0 b'
               pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> b'') as))))
               where var vs (n ::: _) rest
-                      | Q (Local n) `Set.member` vs = pretty n   <+> rest
+                      | qlocal n `Set.member` vs = pretty n   <+> rest
                       | otherwise                   = pretty '_' <+> rest
             Type -> pure (yellow (pretty "Type"))
             Pi ie pi t b -> do
               name <- gensym ""
-              let b' = instantiate (free (Q (Local name) ::: t)) b
-              if Q (Local name) `Set.member` fvs b' then do
+              let b' = instantiate (free (qlocal name ::: t)) b
+              if qlocal name `Set.member` fvs b' then do
                 t' <- go 0 t
                 b'' <- go 1 b'
                 pure (prettyParens (d > 1) (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b''))
@@ -78,7 +78,7 @@ lams :: Foldable t => t (Typed MName) -> Value -> Value
 lams names body = foldr lam body names
 
 unlam :: Alternative m => Gensym -> Value -> m (Typed Gensym, Value)
-unlam n (Lam t b) = pure (n ::: t, instantiate (free (Q (Local n) ::: t)) b)
+unlam n (Lam t b) = pure (n ::: t, instantiate (free (qlocal n ::: t)) b)
 unlam _ _         = empty
 
 unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig, Monad m) => Value -> m (Stack (Typed Gensym), Value)
@@ -90,13 +90,13 @@ unlams value = intro (Nil, value)
             Nothing           -> pure (names, value)
 
 pi :: Typed (Gensym, Plicity, Usage) -> Value -> Value
-pi ((n, p, u) ::: t) b = Pi p u t (bind (Q (Local n)) b)
+pi ((n, p, u) ::: t) b = Pi p u t (bind (qlocal n) b)
 
 pis :: Foldable t => t (Typed (Gensym, Plicity, Usage)) -> Value -> Value
 pis names body = foldr pi body names
 
 unpi :: Alternative m => Gensym -> Value -> m (Typed (Gensym, Plicity, Usage), Value)
-unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (Q (Local n) ::: t)) b)
+unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (qlocal n ::: t)) b)
 unpi _ _            = empty
 
 unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig, Monad m) => Value -> m (Stack (Typed (Gensym, Plicity, Usage)), Value)
@@ -127,7 +127,7 @@ generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty
 generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig, Monad m) => Type -> Value -> m Value
 generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
   (names, _) <- unpis ty
-  pure (lams (fmap (\ ((n, _, _) ::: t) -> Q (Local n) ::: t) names) value)
+  pure (lams (fmap (\ ((n, _, _) ::: t) -> qlocal n ::: t) names) value)
 
 
 type Type = Value

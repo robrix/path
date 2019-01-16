@@ -118,6 +118,9 @@ instance Pretty MName where
     Q q -> pretty q
     M m -> pretty m
 
+qlocal :: Gensym -> MName
+qlocal = Q . Local
+
 metaNames :: Set.Set MName -> Set.Set Meta
 metaNames = foldMap (\case { M m -> Set.singleton m ; _ -> mempty })
 
