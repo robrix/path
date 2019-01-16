@@ -105,11 +105,11 @@ unpi :: Alternative m => Gensym -> Value -> m (Typed (Gensym, Plicity, Usage), V
 unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (Local n ::: t)) b)
 unpi _ _            = empty
 
-unpis :: Gensym -> Value -> (Stack (Typed (Gensym, Plicity, Usage)), Value)
-unpis root value = intro (root // "unpis") (Nil, value)
-  where intro root (names, value) = case unpi root value of
-          Just (name, body) -> intro (prime root) (names :> name, body)
-          Nothing           -> (names, value)
+unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig, Monad m) => Value -> m (Stack (Typed (Gensym, Plicity, Usage)), Value)
+unpis value = intro (Nil, value)
+  where intro (names, value) = gensym "" >>= \ root -> case unpi root value of
+          Just (name, body) -> intro (names :> name, body)
+          Nothing           -> pure (names, value)
 
 ($$) :: Value -> Value -> Value
 Lam _ b    $$ v = instantiate v b
@@ -131,9 +131,9 @@ generalizeType :: Value -> Value
 generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty))) ty
 
 generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig, Monad m) => Type -> Value -> m Value
-generalizeValue ty value = runFresh $ do
-  root <- asks (// "generalizeValue")
-  pure (lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) (fst (unpis root ty))) value)
+generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
+  (names, _) <- unpis ty
+  pure (lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) names) value)
 
 
 type Type = Value
