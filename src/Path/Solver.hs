@@ -7,7 +7,7 @@ import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>), unless, when)
+import           Control.Monad ((>=>), when)
 import           Data.Foldable (fold, foldl', for_, toList)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
@@ -78,7 +78,7 @@ simplify = execWriter . go
           q@(t1 :===: t2 :@ cause)
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
-            | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
+            | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch (Set.singleton q)))
         freshName t = ((,) <*> free . (::: t) . qlocal) <$> gensym ""
         exists t = free . (::: t) . M . Meta <$> gensym "_meta_"
 
@@ -136,7 +136,9 @@ solve cs
     stuck <- fmap fold . execState (mempty :: Map.Map Meta (Set.Set (Caused (Equation Value)))) $ do
       modify (flip (foldl' (Seq.|>)) cs)
       step
-    unless (Prelude.null stuck) $ for_ stuck throwMismatch -- FIXME: throw a single error comprised of all of them
+    case Set.minView stuck of
+      Nothing     -> pure ()
+      Just (c, _) -> throwMismatch stuck (cause c)
   where step = dequeue >>= \case
           Just q -> do
             _S <- get
@@ -153,7 +155,7 @@ solve cs
         enqueue q = do
           let s = Set.singleton q
               mvars = metaNames (fvs q)
-          when (Prelude.null mvars) (throwMismatch q)
+          when (Prelude.null mvars) (throwMismatch (Set.singleton q) (cause q))
           modify (Map.unionWith (<>) (foldl' (\ m i -> Map.insertWith (<>) i s m) mempty mvars))
 
         dequeue = gets Seq.viewl >>= \case
@@ -179,4 +181,4 @@ solve cs
 
         toSolution m (v :@ c) = m := v :@ c
 
-        throwMismatch q@(_ :@ c) | let span :| _ = spans c = throwError (ElabError span mempty (TypeMismatch q))
+        throwMismatch qs c | span :| _ <- spans c = throwError (ElabError span mempty (TypeMismatch qs))
