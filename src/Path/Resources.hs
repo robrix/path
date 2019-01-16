@@ -9,16 +9,16 @@ import Path.Pretty
 import Path.Semiring
 import Path.Usage
 
-newtype Resources = Resources { unResources :: Map.Map QName Usage }
+newtype Resources = Resources { unResources :: Map.Map MName Usage }
   deriving (Eq, Ord, Show)
 
-singleton :: QName -> Usage -> Resources
+singleton :: MName -> Usage -> Resources
 singleton n = Resources . Map.singleton n
 
-lookup :: QName -> Resources -> Usage
+lookup :: MName -> Resources -> Usage
 lookup n = fromMaybe zero . Map.lookup n . unResources
 
-delete :: QName -> Resources -> Resources
+delete :: MName -> Resources -> Resources
 delete n = Resources . Map.delete n . unResources
 
 mult :: Usage -> Resources -> Resources
@@ -42,5 +42,5 @@ instance Semiring Resources where
 instance LeftModule Usage Resources where
   u ><< Resources r = Resources (fmap (u ><) r)
 
-instance FreeVariables QName Resources where
+instance FreeVariables MName Resources where
   fvs = fvs . unResources

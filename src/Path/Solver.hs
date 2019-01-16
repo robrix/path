@@ -57,29 +57,29 @@ simplify = execWriter . go
             | f1 == f2, length sp1 == length sp2 -> do
               go (tf1 :===: tf2 :@ cause)
               for_ (zipWith (:===:) (toList sp1) (toList sp2)) (go . (:@ cause))
-          f1@(Free (_ :.: _) ::: _) :$ sp1 :===: f2@(Free (_ :.: _) ::: _) :$ sp2 :@ cause -> do
+          f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2 :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             t2 <- whnf (f2 :$ sp2)
             go (t1 :===: t2 :@ cause)
-          f1@(Free (_ :.: _) ::: _) :$ sp1 :===: t2 :@ cause -> do
+          f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: t2 :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             go (t1 :===: t2 :@ cause)
-          t1 :===: f2@(Free (_ :.: _) ::: _) :$ sp2 :@ cause -> do
+          t1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2 :@ cause -> do
             t2 <- whnf (f2 :$ sp2)
             go (t1 :===: t2 :@ cause)
           tm1 :===: Lam t2 b2 :@ cause -> do
             t1 <- ensurePi cause tm1
             (n, v) <- freshName t1
-            go (lam (Local n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ cause)
+            go (lam (Q (Local n) ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ cause)
           Lam t1 b1 :===: tm2 :@ cause -> do
             t2 <- ensurePi cause tm2
             (n, v) <- freshName t2
-            go (Lam t1 b1 :===: lam (Local n ::: t2) (tm2 $$ v) :@ cause)
+            go (Lam t1 b1 :===: lam (Q (Local n) ::: t2) (tm2 $$ v) :@ cause)
           q@(t1 :===: t2 :@ cause)
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch q))
-        freshName t = ((,) <*> free . (::: t) . Local) <$> gensym ""
+        freshName t = ((,) <*> free . (::: t) . Q . Local) <$> gensym ""
         exists t = free . (::: t) . Meta . M <$> gensym "_meta_"
 
         typeof cause = infer
@@ -107,11 +107,11 @@ simplify = execWriter . go
             (names, _) <- unpis ty
             n <- gensym ""
             let t1 = pis names (free (m1 ::: Type))
-                app ((n, _, _) ::: t) = free (Local n ::: t)
+                app ((n, _, _) ::: t) = free (Q (Local n) ::: t)
                 t2 = pis (names :> ((n, Im, Zero) ::: free (m1 ::: Type) $$* fmap app names)) Type
                 _A = free (m1 ::: t1) $$* sp
                 _B x = free (m2 ::: t2) $$* (sp:>x)
-            _A <$ tell (Set.singleton ((Free (Meta m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (Local n ::: _A))) :@ cause))
+            _A <$ tell (Set.singleton ((Free (Meta m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (Q (Local n) ::: _A))) :@ cause))
           t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 
         stuck ((Free (Meta _) ::: _) :$ _) = True

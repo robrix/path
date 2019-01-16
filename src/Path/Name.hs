@@ -83,14 +83,12 @@ type PackageName = String
 
 data QName
   = ModuleName :.: UName
-  | Meta Meta
   | Local Gensym
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
   pretty = \case
     _ :.: n -> pretty n
-    Meta m -> pretty m
     Local n -> pretty n
 
 inModule :: ModuleName -> QName -> Bool
@@ -104,13 +102,23 @@ isLocal _         = False
 prettyQName :: QName -> Doc
 prettyQName = \case
   m :.: n -> pretty m <> dot <> pretty n
-  Meta m -> pretty m
   Local n -> pretty n
 
-localNames :: Set.Set QName -> Set.Set Gensym
-localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
+localNames :: Set.Set MName -> Set.Set Gensym
+localNames = foldMap (\case { Q (Local v) -> Set.singleton v ; _ -> mempty })
 
-metaNames :: Set.Set QName -> Set.Set Meta
+
+data MName
+  = Q QName
+  | Meta Meta
+  deriving (Eq, Ord, Show)
+
+instance Pretty MName where
+  pretty = \case
+    Q q -> pretty q
+    Meta m -> pretty m
+
+metaNames :: Set.Set MName -> Set.Set Meta
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 

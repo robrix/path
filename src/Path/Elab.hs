@@ -82,8 +82,8 @@ instance ( Carrier sig m
       Core.Head (Free n) -> do
         t <- lookupVar n >>= whnf
         sigma <- askSigma
-        ElabC (tell (Resources.singleton n sigma))
-        elabImplicits (free (n ::: t) ::: t)
+        ElabC (tell (Resources.singleton (Q n) sigma))
+        elabImplicits (free (Q n ::: t) ::: t)
       f Core.:$ a -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi
@@ -91,8 +91,8 @@ instance ( Carrier sig m
         pure (f' $$ a' ::: instantiate a' b)
       Core.Lam b -> ElabC (gensym "") >>= \ n -> do
         (_, t) <- exists Value.Type
-        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Local n))) (infer (Core.instantiate (Core.free (Local n)) b))
-        pure (Value.lam (Local n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
+        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (Q (Local n)))) (infer (Core.instantiate (Core.free (Local n)) b))
+        pure (Value.lam (Q (Local n) ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
       Core.Hole _ -> do
         (_, ty) <- exists Value.Type
         (_, m) <- exists ty
@@ -101,19 +101,19 @@ instance ( Carrier sig m
       _ -> throwElabError NoRuleToInfer
 
     Check (tm ::: ty) k -> k =<< case tm ::: ty of
-      _ ::: Value.Pi Im pi t b -> ElabC (gensym "") >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (Local n ::: t)) b))
+      _ ::: Value.Pi Im pi t b -> ElabC (gensym "") >>= \ n -> raise (censor (Resources.delete (Q (Local n)))) $ do
+        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (Q (Local n) ::: t)) b))
         verifyResources tm n pi res
-        pure (Value.lam (Local n ::: t) e' ::: ty)
-      Core.Lam e ::: Value.Pi Ex pi t b -> ElabC (gensym "") >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.free (Local n)) e ::: instantiate (free (Local n ::: t)) b))
+        pure (Value.lam (Q (Local n) ::: t) e' ::: ty)
+      Core.Lam e ::: Value.Pi Ex pi t b -> ElabC (gensym "") >>= \ n -> raise (censor (Resources.delete (Q (Local n)))) $ do
+        (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.free (Local n)) e ::: instantiate (free (Q (Local n) ::: t)) b))
         verifyResources tm n pi res
-        pure (Value.lam (Local n ::: t) e' ::: ty)
+        pure (Value.lam (Q (Local n) ::: t) e' ::: ty)
       Core.Hole _ ::: ty -> do
         (_, m) <- exists ty
         pure (m ::: ty)
       Core.Ann ann tm ::: ty -> raise (local (const ann)) (check (tm ::: ty))
-      _ ::: ((Free (_ :.: _) ::: _) Value.:$ _) -> do
+      _ ::: ((Free (Q (_ :.: _)) ::: _) Value.:$ _) -> do
        ty' <- whnf ty
        check (tm ::: ty')
       _ ::: ty -> do
@@ -125,7 +125,7 @@ instance ( Carrier sig m
           raise f (ElabC m) = ElabC (f m)
 
           verifyResources tm n pi br = do
-            let used = Resources.lookup (Local n) br
+            let used = Resources.lookup (Q (Local n)) br
             sigma <- askSigma
             unless (sigma >< pi == More) . when (pi /= used) $
               throwElabError (ResourceMismatch n pi used (Core.uses n tm))
@@ -162,11 +162,10 @@ instance ( Carrier sig m
           exists t = do
             Context c <- askContext
             n <- Meta . M <$> ElabC (gensym "_meta_")
-            pure (n, free (n ::: lams (fmap (fmap Local) c) t) $$* fmap (free . fmap Local) c)
+            pure (n, free (n ::: lams (fmap (fmap (Q . Local)) c) t) $$* fmap (free . fmap (Q . Local)) c)
 
           lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (FreeVariable (Local n))) pure
-          lookupVar (Meta n) = throwElabError (FreeVariable (Meta n))
 
 
 infer :: (Carrier sig m, Member Elab sig)

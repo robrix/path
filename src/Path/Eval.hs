@@ -12,5 +12,5 @@ import Path.Value as Value hiding (Scope(..))
 --
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
 whnf :: (Carrier sig m, Member (Reader Scope) sig, Monad m) => Value -> m Value
-whnf ((Free (m :.: n) ::: t) Value.:$ sp) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure ((Free (m :.: n) ::: t) Value.:$ sp)) (whnf . ($$* sp))
-whnf v                                          = pure v
+whnf ((Free (Q (m :.: n)) ::: t) Value.:$ sp) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure ((Free (Q (m :.: n)) ::: t) Value.:$ sp)) (whnf . ($$* sp))
+whnf v                                        = pure v
