@@ -70,11 +70,11 @@ simplify = execWriter . go
           tm1 :===: Lam t2 b2 :@ cause -> do
             t1 <- ensurePi cause tm1
             (n, v) <- freshName t1
-            go (lam (n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ cause)
+            go (lam (Local n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ cause)
           Lam t1 b1 :===: tm2 :@ cause -> do
             t2 <- ensurePi cause tm2
             (n, v) <- freshName t2
-            go (Lam t1 b1 :===: lam (n ::: t2) (tm2 $$ v) :@ cause)
+            go (Lam t1 b1 :===: lam (Local n ::: t2) (tm2 $$ v) :@ cause)
           q@(t1 :===: t2 :@ cause)
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
@@ -146,8 +146,8 @@ solve cs
 
         process _S q@(t1 :===: t2 :@ c)
           | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) = simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
-          | Just (m, sp) <- pattern t1 = solve (m := abstractLam sp t2 :@ c)
-          | Just (m, sp) <- pattern t2 = solve (m := abstractLam sp t1 :@ c)
+          | Just (m, sp) <- pattern t1 = solve (m := lams sp t2 :@ c)
+          | Just (m, sp) <- pattern t2 = solve (m := lams sp t1 :@ c)
           | otherwise = enqueue q
 
         enqueue q = do

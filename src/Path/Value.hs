@@ -71,10 +71,10 @@ instance FreeVariables QName Value where
 free :: Typed QName -> Value
 free (q ::: t) = (Free q ::: t) :$ Nil
 
-lam :: Typed Gensym -> Value -> Value
-lam (n ::: t) b = Lam t (bind (Local n) b)
+lam :: Typed QName -> Value -> Value
+lam (n ::: t) b = Lam t (bind n b)
 
-lams :: Foldable t => t (Typed Gensym) -> Value -> Value
+lams :: Foldable t => t (Typed QName) -> Value -> Value
 lams names body = foldr lam body names
 
 unlam :: Alternative m => Gensym -> Value -> m (Typed Gensym, Value)
@@ -133,7 +133,7 @@ generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty
 generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig, Monad m) => Type -> Value -> m Value
 generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
   (names, _) <- unpis ty
-  pure (lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) names) value)
+  pure (lams (fmap (\ ((n, _, _) ::: t) -> Local n ::: t) names) value)
 
 
 type Type = Value
@@ -153,11 +153,6 @@ instance Pretty a => Pretty (Typed a) where
   pretty (a ::: t) = pretty a <+> colon <+> pretty t
 
 instance Pretty a => PrettyPrec (Typed a)
-
-
-abstractLam :: Foldable t => t (Typed QName) -> Value -> Value
-abstractLam = flip (foldr abstract)
-  where abstract (n ::: t) = Lam t . bind n
 
 
 -- | Bind occurrences of a 'Gensym' in a 'Value' term, producing a 'Scope' in which the 'Name' is bound.
