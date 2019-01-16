@@ -130,9 +130,10 @@ subst name image = instantiate image . bind name
 generalizeType :: Value -> Value
 generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty))) ty
 
-generalizeValue :: Type -> Value -> Value
-generalizeValue ty = lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) params)
-  where (params, _) = unpis (Root "generalizeValue") ty
+generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig, Monad m) => Type -> Value -> m Value
+generalizeValue ty value = runFresh $ do
+  root <- asks (// "generalizeValue")
+  pure (lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) (fst (unpis root ty))) value)
 
 
 type Type = Value
