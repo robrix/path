@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TupleSections, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect
@@ -55,7 +55,7 @@ runElab :: ( Carrier sig m
         => Usage
         -> Eff (ElabC m) (Typed Value)
         -> m (Resources, Typed Value)
-runElab sigma = local (// "elab") . runFresh . (solveAndApply <=< runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty) . runElabC . interpret)
+runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty) . runElabC . interpret
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
@@ -75,24 +75,24 @@ instance ( Carrier sig m
   eff = handleSum (ElabC . eff . R . R . R . R . R . R . handleCoercible) (\case
     Infer tm k -> k =<< case tm of
       Core.Type -> pure (Value.Type ::: Value.Type)
-      Core.Pi i e t b -> ask >>= \ n -> do
+      Core.Pi i e t b -> ElabC (gensym "") >>= \ n -> do
         t' ::: _ <- check (t ::: Value.Type)
-        b' ::: _ <- n ::: t' |- local prime (check (Core.instantiate (Core.Free (Local n)) b ::: Value.Type))
+        b' ::: _ <- n ::: t' |- check (Core.instantiate (Core.free (Local n)) b ::: Value.Type)
         pure (Value.pi ((n, i, e) ::: t') b' ::: Value.Type)
-      Core.Free n -> do
+      Core.Head (Free n) -> do
         t <- lookupVar n >>= whnf
         sigma <- askSigma
-        ElabC (tell (Resources.singleton n sigma))
-        elabImplicits (free (n ::: t) ::: t)
+        ElabC (tell (Resources.singleton (Q n) sigma))
+        elabImplicits (free (Q n ::: t) ::: t)
       f Core.:$ a -> do
         f' ::: fTy <- infer f
         (pi, t, b) <- whnf fTy >>= ensurePi
         a' ::: _ <- raise (censor (Resources.mult pi)) (check (a ::: t))
         pure (f' $$ a' ::: instantiate a' b)
-      Core.Lam b -> ask >>= \ n -> do
+      Core.Lam b -> ElabC (gensym "") >>= \ n -> do
         (_, t) <- exists Value.Type
-        e' ::: eTy <- n ::: t |- local prime (raise (censor (Resources.delete (Local n))) (infer (Core.instantiate (Core.Free (Local n)) b)))
-        pure (Value.lam (n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
+        e' ::: eTy <- n ::: t |- raise (censor (Resources.delete (qlocal n))) (infer (Core.instantiate (Core.free (Local n)) b))
+        pure (Value.lam (qlocal n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
       Core.Hole _ -> do
         (_, ty) <- exists Value.Type
         (_, m) <- exists ty
@@ -101,19 +101,19 @@ instance ( Carrier sig m
       _ -> throwElabError NoRuleToInfer
 
     Check (tm ::: ty) k -> k =<< case tm ::: ty of
-      _ ::: Value.Pi Im pi t b -> ask >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- local prime (raise listen (check (tm ::: instantiate (free (Local n ::: t)) b)))
+      _ ::: Value.Pi Im pi t b -> ElabC (gensym "") >>= \ n -> raise (censor (Resources.delete (qlocal n))) $ do
+        (res, e' ::: _) <- n ::: t |- raise listen (check (tm ::: instantiate (free (qlocal n ::: t)) b))
         verifyResources tm n pi res
-        pure (Value.lam (n ::: t) e' ::: ty)
-      Core.Lam e ::: Value.Pi Ex pi t b -> ask >>= \ n -> raise (censor (Resources.delete (Local n))) $ do
-        (res, e' ::: _) <- n ::: t |- local prime (raise listen (check (Core.instantiate (Core.Free (Local n)) e ::: instantiate (free (Local n ::: t)) b)))
+        pure (Value.lam (qlocal n ::: t) e' ::: ty)
+      Core.Lam e ::: Value.Pi Ex pi t b -> ElabC (gensym "") >>= \ n -> raise (censor (Resources.delete (qlocal n))) $ do
+        (res, e' ::: _) <- n ::: t |- raise listen (check (Core.instantiate (Core.free (Local n)) e ::: instantiate (free (qlocal n ::: t)) b))
         verifyResources tm n pi res
-        pure (Value.lam (n ::: t) e' ::: ty)
+        pure (Value.lam (qlocal n ::: t) e' ::: ty)
       Core.Hole _ ::: ty -> do
         (_, m) <- exists ty
         pure (m ::: ty)
       Core.Ann ann tm ::: ty -> raise (local (const ann)) (check (tm ::: ty))
-      _ ::: ((Free (_ :.: _) ::: _) Value.:$ _) -> do
+      _ ::: ((Free (Q (_ :.: _)) ::: _) Value.:$ _) -> do
        ty' <- whnf ty
        check (tm ::: ty')
       _ ::: ty -> do
@@ -125,7 +125,7 @@ instance ( Carrier sig m
           raise f (ElabC m) = ElabC (f m)
 
           verifyResources tm n pi br = do
-            let used = Resources.lookup (Local n) br
+            let used = Resources.lookup (qlocal n) br
             sigma <- askSigma
             unless (sigma >< pi == More) . when (pi /= used) $
               throwElabError (ResourceMismatch n pi used (Core.uses n tm))
@@ -140,7 +140,7 @@ instance ( Carrier sig m
 
           ensurePi t = case t of
             Value.Pi _ pi t b -> pure (pi, t, b)
-            (Free (Meta _) ::: _) Value.:$ _ -> do
+            (Free (M _) ::: _) Value.:$ _ -> do
               (mA, _A) <- exists Value.Type
               (_, _B) <- exists _A
               let _B' = bind mA _B
@@ -151,8 +151,8 @@ instance ( Carrier sig m
           unify ty (tm1 :===: tm2) = if tm1 == tm2 then pure tm1 else do
             (_, v) <- exists ty
             span <- ElabC ask
-            v <$ ElabC (tell (Set.fromList [ (v :===: tm1 :@ Assert span)
-                                           , (v :===: tm2 :@ Assert span) ]))
+            v <$ ElabC (tell (Set.fromList [ v :===: tm1 :@ Assert span
+                                           , v :===: tm2 :@ Assert span ]))
 
           throwElabError reason = ElabError <$> ElabC ask <*> askContext <*> pure reason >>= throwError
 
@@ -161,12 +161,11 @@ instance ( Carrier sig m
 
           exists t = do
             Context c <- askContext
-            n <- Meta . M <$> ElabC fresh
-            pure (n, free (n ::: lams c t) $$* fmap (free . fmap Local) c)
+            n <- M . Meta <$> ElabC (gensym "_meta_")
+            pure (n, free (n ::: lams (fmap (fmap qlocal) c) t) $$* fmap (free . fmap qlocal) c)
 
           lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
           lookupVar (Local n) = ElabC (asks (Context.lookup n)) >>= maybe (throwElabError (FreeVariable (Local n))) pure
-          lookupVar (Meta n) = throwElabError (FreeVariable (Meta n))
 
 
 infer :: (Carrier sig m, Member Elab sig)

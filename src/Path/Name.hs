@@ -1,12 +1,15 @@
-{-# LANGUAGE LambdaCase, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
 module Path.Name where
 
-import Data.List.NonEmpty (NonEmpty(..))
+import           Control.Effect
+import           Control.Effect.Fresh
+import           Control.Effect.Reader hiding (Local)
+import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Path.Pretty
-import Path.Usage
-import Text.Trifecta.Rendering (Span)
+import           Path.Pretty
+import           Path.Usage
+import           Text.Trifecta.Rendering (Span)
 
 data Gensym
   = Root String
@@ -31,6 +34,9 @@ prime :: Gensym -> Gensym
 prime (root :/ (s, i)) = root :/ (s, succ i)
 prime root             = root :/ ("", 0)
 
+gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Gensym
+gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
+
 
 data UName
   = UName String
@@ -45,11 +51,11 @@ instance Pretty UName where
 instance PrettyPrec UName
 
 
-newtype Meta = M { unM :: Int }
+newtype Meta = Meta { unMeta :: Gensym }
   deriving (Eq, Ord, Show)
 
 instance Pretty Meta where
-  pretty (M i) = pretty "_meta_" <> prettyVar i
+  pretty (Meta i) = pretty i
 
 instance PrettyPrec Meta
 
@@ -77,51 +83,58 @@ type PackageName = String
 
 data QName
   = ModuleName :.: UName
-  | Meta Meta
   | Local Gensym
   deriving (Eq, Ord, Show)
 
 instance Pretty QName where
   pretty = \case
     _ :.: n -> pretty n
-    Meta m -> pretty m
     Local n -> pretty n
 
 inModule :: ModuleName -> QName -> Bool
 inModule m (m' :.: _) = m == m'
 inModule _ _          = False
 
-isLocal :: QName -> Bool
-isLocal (Local _) = True
-isLocal _         = False
-
 prettyQName :: QName -> Doc
 prettyQName = \case
   m :.: n -> pretty m <> dot <> pretty n
-  Meta m -> pretty m
   Local n -> pretty n
 
-localNames :: Set.Set QName -> Set.Set Gensym
-localNames = foldMap (\case { Local v -> Set.singleton v ; _ -> mempty })
-
-metaNames :: Set.Set QName -> Set.Set Meta
-metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
+localNames :: Set.Set MName -> Set.Set Gensym
+localNames = foldMap (\case { Q (Local v) -> Set.singleton v ; _ -> mempty })
 
 
-data Head
-  = Free QName
-  | Bound Int
+data MName
+  = Q QName
+  | M Meta
   deriving (Eq, Ord, Show)
 
-instance FreeVariables QName Head where
+instance Pretty MName where
+  pretty = \case
+    Q q -> pretty q
+    M m -> pretty m
+
+qlocal :: Gensym -> MName
+qlocal = Q . Local
+
+metaNames :: Set.Set MName -> Set.Set Meta
+metaNames = foldMap (\case { M m -> Set.singleton m ; _ -> mempty })
+
+
+data Head a
+  = Free a
+  | Bound Int
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Ord a => FreeVariables a (Head a) where
   fvs (Free q) = Set.singleton q
   fvs _        = mempty
 
-instance Pretty Head where
-  pretty (Free q) = pretty q
+instance Pretty a => Pretty (Head a) where
+  pretty (Free q)  = pretty q
   pretty (Bound i) = prettyVar i
 
-instance PrettyPrec Head
+instance Pretty a => PrettyPrec (Head a)
 
 
 data Operator

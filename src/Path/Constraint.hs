@@ -38,6 +38,7 @@ instance PrettyPrec Solution
 
 data Cause
   = Assert Span
+  | Via (Equation Value) Cause
   | Cause :<>: Cause
   deriving (Eq, Ord, Show)
 
@@ -47,6 +48,7 @@ instance Semigroup Cause where
 spans :: Cause -> NonEmpty Span
 spans = flip go []
   where go (Assert span) = (span :|)
+        go (Via _ cause) = go cause
         go (l :<>: r)    = go l . toList . go r
 
 
@@ -71,7 +73,7 @@ instance Substitutable a => Substitutable (Caused a) where
 
 instance Substitutable Value where
   apply []                 = id
-  apply ((m := v :@ _):ss) = apply ss . subst (Meta m) v
+  apply ((m := v :@ _):ss) = apply ss . subst (M m) v
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2

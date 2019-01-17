@@ -172,7 +172,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
             loop
           Eval tm -> do
             (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One . infer
-            runScope (whnf (typedTerm elab)) >>= print . generalizeValue (generalizeType (typedType elab))
+            runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
             loop
           Show Bindings -> do
             scope <- get
