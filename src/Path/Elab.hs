@@ -116,8 +116,7 @@ check = \case
    check (tm ::: ty')
   tm ::: ty -> do
     tm' ::: inferred <- infer tm
-    unified <- unify Value.Type (ty :===: inferred)
-    pure (tm' ::: unified)
+    (tm' :::) <$> unify Value.Type (ty :===: inferred)
   where verifyResources tm n pi br = do
           let used = Resources.lookup (qlocal n) br
           sigma <- ask
