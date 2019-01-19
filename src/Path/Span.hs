@@ -5,3 +5,9 @@ data Pos = Pos
   , posCol  :: {-# UNPACK #-} !Int
   }
   deriving (Eq, Ord, Show)
+
+data Span = Span
+  { spanStart :: {-# UNPACK #-} !Pos
+  , spanEnd   :: {-# UNPACK #-} !Pos
+  }
+  deriving (Eq, Ord, Show)
