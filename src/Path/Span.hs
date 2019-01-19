@@ -11,3 +11,6 @@ data Span = Span
   , spanEnd   :: {-# UNPACK #-} !Pos
   }
   deriving (Eq, Ord, Show)
+
+instance Semigroup Span where
+  Span start1 end1 <> Span start2 end2 = Span (min start1 start2) (max end1 end2)
