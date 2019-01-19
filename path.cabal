@@ -36,6 +36,7 @@ library
                      , Path.REPL.Command
                      , Path.Resources
                      , Path.Scope
+                     , Path.Span
                      , Path.Solver
                      , Path.Semiring
                      , Path.Stack
