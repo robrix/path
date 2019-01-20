@@ -1,5 +1,6 @@
 module Path.Span where
 
+import qualified Data.ByteString.Char8 as Char8
 import qualified Text.Trifecta.Delta as Trifecta
 import qualified Text.Trifecta.Rendering as Trifecta
 
@@ -14,6 +15,10 @@ fromDelta d = Pos (fromIntegral (line d)) (fromIntegral (Trifecta.column d))
   where line (Trifecta.Lines      l _ _ _) = l
         line (Trifecta.Directed _ l _ _ _) = l
         line _                             = 1
+
+toDelta :: Maybe FilePath -> Pos -> Trifecta.Delta
+toDelta Nothing  (Pos l c) = Trifecta.Lines (fromIntegral l) (fromIntegral c) 0 (fromIntegral c)
+toDelta (Just p) (Pos l c) = Trifecta.Directed (Char8.pack p) (fromIntegral l) (fromIntegral c) 0 (fromIntegral c)
 
 data Span = Span
   { spanStart :: {-# UNPACK #-} !Pos
