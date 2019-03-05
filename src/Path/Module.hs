@@ -2,9 +2,8 @@
 module Path.Module where
 
 import Control.Effect
-import Control.Effect.Carrier
+import Control.Effect.Cull (runNonDetOnce)
 import Control.Effect.Error
-import Control.Effect.NonDet (runNonDetOnce)
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
@@ -47,9 +46,9 @@ modules :: ModuleGraph v a -> [Module v a]
 modules = Map.elems . unModuleGraph
 
 lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a -> Import -> m (Module v a)
-lookupModule g i = maybe (throwError (UnknownModule i)) ret (Map.lookup (importModuleName i) (unModuleGraph g))
+lookupModule g i = maybe (throwError (UnknownModule i)) pure (Map.lookup (importModuleName i) (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> Import -> m ()
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig) => ModuleGraph v a -> Import -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (importModuleName n))
@@ -76,7 +75,7 @@ instance Pretty ModuleError where
 instance PrettyPrec ModuleError
 
 
-loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig, Monad m) => ModuleGraph v a -> m [Module v a]
+loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig) => ModuleGraph v a -> m [Module v a]
 loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.elems (unModuleGraph g)) loopM)))
   where loopM m = do
           visited <- gets (Set.member (moduleName m))

@@ -19,7 +19,7 @@ import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m)
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
             -> m Core
 resolveTerm = local prime . \case
@@ -40,7 +40,7 @@ resolveTerm = local prime . \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Decl UName Surface.Surface -> m (Decl QName Core)
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl UName Surface.Surface -> m (Decl QName Core)
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -56,7 +56,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig, Monad m) => Module UName Surface.Surface -> m (Module QName Core)
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module UName Surface.Surface -> m (Module QName Core)
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -80,7 +80,7 @@ insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) .
 lookupName :: UName -> Resolution -> Maybe (NonEmpty QName)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig, Monad m) => UName -> m QName
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => UName -> m QName
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
@@ -94,7 +94,7 @@ filterResolution :: (QName -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
-unambiguous :: (Applicative m, Carrier sig m, Member (Error ResolveError) sig) => UName -> Span -> NonEmpty QName -> m QName
+unambiguous :: (Carrier sig m, Member (Error ResolveError) sig) => UName -> Span -> NonEmpty QName -> m QName
 unambiguous _ _ (q:|[]) = pure q
 unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 

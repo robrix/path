@@ -31,7 +31,6 @@ simplify :: ( Carrier sig m
             , Member Fresh sig
             , Member (Reader Gensym) sig
             , Member (Reader Scope) sig
-            , Monad m
             )
          => Caused (Equation Value)
          -> m (Set.Set (Caused (Equation Value)))
@@ -122,7 +121,6 @@ solve :: ( Carrier sig m
          , Member (Error ElabError) sig
          , Member (Reader Gensym) sig
          , Member (Reader Scope) sig
-         , Monad m
          )
       => Set.Set (Caused (Equation Value))
       -> m [Caused Solution]
