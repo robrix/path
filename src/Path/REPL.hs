@@ -50,7 +50,7 @@ instance Effect (Prompt cmd) where
   handle state handler = coerce . fmap (handler . (<$ state))
 
 prompt :: (Carrier sig m, Member (Prompt cmd) sig) => String -> m (Maybe cmd)
-prompt p = send (Prompt p ret)
+prompt p = send (Prompt p pure)
 
 
 data Print (m :: * -> *) k = Print Doc k
@@ -63,30 +63,35 @@ instance Effect Print where
   handle state handler = coerce . fmap (handler . (<$ state))
 
 print :: (Carrier sig m, Member Print sig, PrettyPrec a) => a -> m ()
-print s = send (Print (prettys s) (ret ()))
+print s = send (Print (prettys s) (pure ()))
 
 
-runREPL :: (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Parser (Maybe cmd) -> Prefs -> Settings m -> Eff (REPLC cmd m) a -> m a
-runREPL parser prefs settings = runInputTWithPrefs prefs settings . runREPLC parser (Line 0) . interpret
+runREPL :: MonadException m => Parser (Maybe cmd) -> Prefs -> Settings m -> REPLC cmd m a -> m a
+runREPL parser prefs settings = runInputTWithPrefs prefs settings . runTransC . runReader (Line 0) . runReader parser . runREPLC
 
-newtype REPLC cmd m a = REPLC (Parser (Maybe cmd) -> Line -> InputT m a)
+newtype REPLC cmd m a = REPLC { runREPLC :: ReaderC (Parser (Maybe cmd)) (ReaderC Line (TransC InputT m)) a }
+  deriving (Applicative, Functor, Monad, MonadIO)
 
-runREPLC :: Parser (Maybe cmd) -> Line -> REPLC cmd m a -> InputT m a
-runREPLC p l (REPLC m) = m p l
-
-instance (Carrier sig m, Effect sig, Member (Lift IO) sig, MonadException m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
-  ret = REPLC . const . const . pure
-  eff op = REPLC (\ c l -> handleSum (handleSum (join . lift . eff . handle (pure ()) (pure . (runREPLC c l =<<)))
-    (\ (Print text k) -> putDoc text *> runREPLC c l k))
-    (\ (Prompt prompt k) -> do
-      str <- getInputLine (cyan <> prompt <> plain)
-      res <- lift (runError (traverse (parseString (whole c) (lineDelta l)) str))
-      res <- case res of
-        Left  err -> Nothing <$ printParserError err
-        Right res -> pure (join res)
-      runREPLC c (increment l) (k res)) op)
+instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
+  eff (L (Prompt prompt k)) = REPLC $ do
+    c <- ask
+    l <- ask
+    str <- lift (lift (TransC (getInputLine (cyan <> prompt <> plain))))
+    res <- runError (traverse (parseString (whole c) (lineDelta l)) str)
+    res <- case res of
+      Left  err -> Nothing <$ printParserError err
+      Right res -> pure (join res)
+    local increment (runREPLC (k res))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
+  eff (R (L (Print text k))) = putDoc text *> k
+  eff (R (R other)) = REPLC (eff (R (R (handleCoercible other))))
+
+newtype TransC t (m :: * -> *) a = TransC { runTransC :: t m a }
+  deriving (Applicative, Functor, Monad, MonadIO, MonadTrans)
+
+instance (Carrier sig m, Effect sig, Monad (t m), MonadTrans t) => Carrier sig (TransC t m) where
+  eff = TransC . join . lift . eff . handle (pure ()) (pure . (runTransC =<<))
 
 newtype ControlIOC m a = ControlIOC ((forall x . m x -> IO x) -> m a)
 
@@ -98,7 +103,6 @@ instance Applicative m => Applicative (ControlIOC m) where
   ControlIOC f <*> ControlIOC a = ControlIOC (\ h -> f h <*> a h)
 
 instance Monad m => Monad (ControlIOC m) where
-  return = pure
   ControlIOC m >>= f = ControlIOC (\ handler -> m handler >>= runControlIOC handler . f)
 
 instance MonadIO m => MonadIO (ControlIOC m) where
@@ -108,7 +112,6 @@ runControlIOC :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
 runControlIOC f (ControlIOC m) = m f
 
 instance Carrier sig m => Carrier sig (ControlIOC m) where
-  ret a = ControlIOC (const (ret a))
   eff op = ControlIOC (\ handler -> eff (handlePure (runControlIOC handler) op))
 
 instance MonadIO m => MonadException (ControlIOC m) where
@@ -143,14 +146,13 @@ lineDelta (Line l) = Lines l 0 0 0
 
 script :: ( Carrier sig m
           , Effect sig
-          , Functor m
-          , Member (Lift IO) sig
           , Member Print sig
           , Member (Prompt Command) sig
           , Member (Reader Gensym) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           , Member (State Scope.Scope) sig
+          , MonadIO m
           )
        => [FilePath]
        -> m ()

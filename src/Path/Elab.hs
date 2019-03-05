@@ -35,17 +35,16 @@ runElab :: ( Carrier sig m
            , Member (Error ElabError) sig
            , Member (Reader Gensym) sig
            , Member (Reader Scope) sig
-           , Monad m
            )
         => Usage
-        -> Eff (ReaderC Span (Eff (ReaderC Usage (Eff (ReaderC Context (Eff (WriterC Resources (Eff (WriterC (Set.Set (Caused (Equation Value))) (Eff (FreshC m))))))))))) (Typed Value)
+        -> ReaderC Span (ReaderC Usage (ReaderC Context (WriterC Resources (WriterC (Set.Set (Caused (Equation Value))) (FreshC m))))) (Typed Value)
         -> m (Resources, Typed Value)
 runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty)
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
 
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation Value)))) sig, Monad m)
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation Value)))) sig)
       => Core.Core
       -> m (Typed Value)
 infer = \case
@@ -95,7 +94,7 @@ infer = \case
         lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
         lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
-check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation Value)))) sig, Monad m)
+check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation Value)))) sig)
       => Typed Core.Core
       -> m (Typed Value)
 check = \case
@@ -134,10 +133,10 @@ n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
 
-throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig, Monad m) => ErrorReason -> m a
+throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig) => ErrorReason -> m a
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
-exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Monad m) => Type -> m (MName, Type)
+exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type -> m (MName, Type)
 exists t = do
   Context c <- ask
   n <- M . Meta <$> gensym "_meta_"
@@ -153,7 +152,6 @@ elabModule :: ( Carrier sig m
               , Member (Reader Gensym) sig
               , Member (State (Stack ElabError)) sig
               , Member (State Scope) sig
-              , Monad m
               )
            => Module QName Core.Core
            -> m (Module QName (Resources, Typed Value))
@@ -163,13 +161,12 @@ elabModule m = do
   decls <- for (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
 
-logError :: (Carrier sig m, Member (State (Stack ElabError)) sig, Monad m) => ElabError -> m ()
+logError :: (Carrier sig m, Member (State (Stack ElabError)) sig) => ElabError -> m ()
 logError = modify . flip (:>)
 
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig
                 , Member (Reader ModuleTable) sig
-                , Monad m
                 )
              => Import
              -> m Scope
@@ -181,7 +178,6 @@ elabDecl :: ( Carrier sig m
             , Member (Error ElabError) sig
             , Member (Reader Gensym) sig
             , Member (State Scope) sig
-            , Monad m
             )
          => Decl QName Core.Core
          -> m (Decl QName (Resources, Typed Value))
@@ -195,7 +191,6 @@ elabDeclare :: ( Carrier sig m
                , Member (Error ElabError) sig
                , Member (Reader Gensym) sig
                , Member (State Scope) sig
-               , Monad m
                )
             => QName
             -> Core.Core
@@ -209,7 +204,6 @@ elabDefine :: ( Carrier sig m
               , Member (Error ElabError) sig
               , Member (Reader Gensym) sig
               , Member (State Scope) sig
-              , Monad m
               )
            => QName
            -> Core.Core
@@ -219,5 +213,5 @@ elabDefine name tm = do
   elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
   elab <$ modify (Scope.insert name (Defn (snd elab)))
 
-runScope :: (Carrier sig m, Member (State Scope) sig, Monad m) => Eff (ReaderC Scope m) a -> m a
+runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
