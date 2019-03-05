@@ -77,7 +77,7 @@ instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (Pr
     c <- ask
     l <- ask
     str <- lift (lift (TransC (getInputLine (cyan <> prompt <> plain))))
-    res <- lift (lift (lift (runError (traverse (parseString (whole c) (lineDelta l)) str))))
+    res <- runError (traverse (parseString (whole c) (lineDelta l)) str)
     res <- case res of
       Left  err -> Nothing <$ printParserError err
       Right res -> pure (join res)
