@@ -76,8 +76,8 @@ instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (Pr
   eff (L (Prompt prompt k)) = REPLC $ do
     c <- ask
     l <- ask
-    str <- ReaderC (const (ReaderC (const (TransC (getInputLine (cyan <> prompt <> plain))))))
-    res <- ReaderC (const (ReaderC (const (lift (runError (traverse (parseString (whole c) (lineDelta l)) str))))))
+    str <- lift (lift (TransC (getInputLine (cyan <> prompt <> plain))))
+    res <- lift (lift (lift (runError (traverse (parseString (whole c) (lineDelta l)) str))))
     res <- case res of
       Left  err -> Nothing <$ printParserError err
       Right res -> pure (join res)
