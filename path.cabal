@@ -46,12 +46,12 @@ library
   other-modules:       Paths_path
   -- other-extensions:
   build-depends:       ansi-wl-pprint
-                     , base >=4.11 && <4.12
+                     , base >=4.11 && <4.13
                      , bytestring
                      , containers
                      , directory
                      , filepath
-                     , fused-effects < 0.2
+                     , fused-effects < 0.3
                      , haskeline
                      , indentation-trifecta
                      , mtl
