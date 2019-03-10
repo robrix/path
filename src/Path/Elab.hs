@@ -43,6 +43,9 @@ intro body = do
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
   expect (Value.lam (qlocal x) u ::: Value.pi ((qlocal x, Ex, zero) ::: _A) _B)
 
+type' :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta)
+type' = expect (Type ::: Type)
+
 
 expect :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 expect exp = do
