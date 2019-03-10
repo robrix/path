@@ -30,6 +30,12 @@ import Path.Usage
 import Path.Value as Value hiding (Scope(..))
 import Text.Trifecta.Rendering (Span(..))
 
+assume :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Qual -> m (Value Meta ::: Type Meta)
+assume v = do
+  _A <- lookupVar v
+  expect (pure (Qual v) ::: _A)
+
+
 expect :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 expect exp = do
   res <- goal >>= exists'
