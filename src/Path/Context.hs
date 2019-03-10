@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, GeneralizedNewtypeDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, TypeOperators #-}
 module Path.Context where
 
 import Control.Arrow ((&&&))
@@ -43,8 +43,14 @@ instance Pretty a => Pretty (Context a) where
 
 instance Pretty a => PrettyPrec (Context a)
 
+instance FreeVariables v a => FreeVariables v (Context a) where
+  fvs = foldMap fvs
+
 
 data Contextual a = Context (Type Meta) :|-: a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 infixr 1 :|-:
+
+instance FreeVariables Meta a => FreeVariables Meta (Contextual a) where
+  fvs (ctx :|-: b) = fvs ctx <> fvs b
