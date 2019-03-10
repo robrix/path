@@ -118,22 +118,6 @@ metaNames :: Set.Set MName -> Set.Set Meta
 metaNames = foldMap (\case { M m -> Set.singleton m ; _ -> mempty })
 
 
-data Head a
-  = Free a
-  | Bound Int
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Ord a => FreeVariables a (Head a) where
-  fvs (Free q) = Set.singleton q
-  fvs _        = mempty
-
-instance Pretty a => Pretty (Head a) where
-  pretty (Free q)  = pretty q
-  pretty (Bound i) = prettyVar i
-
-instance Pretty a => PrettyPrec (Head a)
-
-
 data Operator
   = Prefix (NonEmpty String)
   | Postfix (NonEmpty String)
