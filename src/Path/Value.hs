@@ -33,8 +33,8 @@ instance PrettyPrec Value where
               b'' <- go 0 b'
               pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> b'') as))))
               where var vs (n ::: _) rest
-                      | qlocal n `Set.member` vs = pretty n   <+> rest
-                      | otherwise                   = pretty '_' <+> rest
+                      | n `Set.member` vs = pretty n   <+> rest
+                      | otherwise         = pretty '_' <+> rest
             Type -> pure (yellow (pretty "Type"))
             Pi ie pi t b -> do
               name <- gensym ""
@@ -78,15 +78,15 @@ lam (n ::: t) b = Lam t (bind n b)
 lams :: Foldable t => t (MName ::: Type) -> Value -> Value
 lams names body = foldr lam body names
 
-unlam :: Alternative m => Gensym -> Value -> m (Gensym ::: Type, Value)
-unlam n (Lam t b) = pure (n ::: t, instantiate (free (qlocal n ::: t)) b)
+unlam :: Alternative m => MName -> Value -> m (MName ::: Type, Value)
+unlam n (Lam t b) = pure (n ::: t, instantiate (free (n ::: t)) b)
 unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack (Gensym ::: Type), Value)
+unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack (MName ::: Type), Value)
 unlams value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
-          case unlam name value of
+          case unlam (qlocal name) value of
             Just (name, body) -> intro (names :> name, body)
             Nothing           -> pure (names, value)
 
