@@ -4,6 +4,7 @@ module Path.Constraint where
 import Data.Foldable (foldl')
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import qualified Data.Set as Set
+import Path.Context
 import Path.Name
 import Path.Pretty
 import Path.Value
@@ -22,6 +23,10 @@ instance Pretty a => PrettyPrec (Equation a)
 
 instance FreeVariables v a => FreeVariables v (Equation a) where
   fvs (a1 :===: a2) = fvs a1 <> fvs a2
+
+
+type HetConstraint = Contextual (Equation (Value Meta ::: Type Meta))
+type HomConstraint = Contextual (Equation (Value Meta) ::: Type Meta)
 
 
 data Solution
