@@ -44,11 +44,14 @@ runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . run
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
 
+type' :: Applicative m => m (Value Meta ::: Type Meta)
+type' = pure (Value.Type ::: Value.Type)
+
 infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
       => Core.Core Qual
       -> m (Value Meta ::: Type Meta)
 infer = \case
-  Core.Type -> pure (Value.Type ::: Value.Type)
+  Core.Type -> type'
   Core.Pi i e t b -> gensym "" >>= \ n -> do
     t' ::: _ <- check (t ::: Value.Type)
     b' ::: _ <- n ::: t' |- check (Core.instantiate (pure (Local n)) b ::: Value.Type)
