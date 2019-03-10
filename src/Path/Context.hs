@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, TypeOperators #-}
 module Path.Context where
 
 import Control.Arrow ((&&&))
@@ -47,3 +47,9 @@ instance Semigroup Context where
 
 instance Monoid Context where
   mempty = Context Nil
+
+
+data Contextual a = Context :|-: a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+infixr 1 :|-:
