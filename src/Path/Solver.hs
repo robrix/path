@@ -3,11 +3,12 @@ module Path.Solver where
 
 import           Control.Effect
 import           Control.Effect.Error
+import           Control.Effect.Fail
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad (when)
+import           Control.Monad ((>=>), guard, join, unless, when)
 import           Data.Foldable (fold, foldl')
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
@@ -15,14 +16,19 @@ import           Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
+import           Path.Context as Context
 import           Path.Error
 import           Path.Eval
 import           Path.Name
 import           Path.Plicity
-import           Path.Scope
+import           Path.Scope hiding (null)
 import           Path.Stack
-import           Path.Value hiding (Scope (..))
-import           Prelude hiding (pi)
+import           Path.Value as Value hiding (Scope (..))
+import           Prelude hiding (fail, pi)
+
+type Blocked = Map.Map Gensym (Set.Set HomConstraint)
+type Substitution = Map.Map Gensym (Value Meta)
+type Queue = Seq.Seq HomConstraint
 
 simplify :: ( Carrier sig m
             , Effect sig
@@ -140,3 +146,120 @@ solve cs
         toSolution m (v :@ c) = m := v :@ c
 
         throwMismatch qs c | span :| _ <- spans c = throwError (ElabError span mempty (TypeMismatch qs))
+
+
+solver :: (Carrier sig m, Effect sig, Member Fresh sig, Member (Reader Gensym) sig, MonadFail m) => Set.Set HomConstraint -> m Substitution
+solver constraints = execState Map.empty $ do
+  queue <- execState (Seq.empty :: Queue) $ do
+    stuck <- fmap fold . execState (Map.empty :: Blocked) $ do
+      enqueueAll constraints
+      step
+    unless (null stuck) $ fail ("stuck constraints: " ++ show stuck)
+  unless (null queue) $ fail ("stalled constraints: " ++ show queue)
+
+step :: (Carrier sig m, Effect sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => m ()
+step = do
+  _S <- get
+  dequeue >>= maybe (pure ()) (process _S >=> const step)
+
+process :: (Carrier sig m, Effect sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => Substitution -> HomConstraint -> m ()
+process _S c@(_ :|-: (tm1 :===: tm2) ::: _)
+  | tm1 == tm2 = pure ()
+  | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify' (applyConstraint s c) >>= enqueueAll
+  | Just (m, sp) <- pattern tm1 = solve' (m := Value.lams sp tm2)
+  | Just (m, sp) <- pattern tm2 = solve' (m := Value.lams sp tm1)
+  | otherwise = block c
+
+block :: (Carrier sig m, Member (State Blocked) sig, MonadFail m) => HomConstraint -> m ()
+block c = do
+  let s = Set.singleton c
+      mvars = metaNames (fvs c)
+  when (null mvars) $ fail ("cannot block constraint without metavars: " ++ show c)
+  modify (Map.unionWith (<>) (foldl' (\ m i -> Map.insertWith (<>) i s m) mempty mvars))
+
+enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t HomConstraint -> m ()
+enqueueAll = modify . flip (foldl' (Seq.|>))
+
+dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe HomConstraint)
+dequeue = gets Seq.viewl >>= \case
+  Seq.EmptyL -> pure Nothing
+  h Seq.:< q -> Just h <$ put q
+
+pattern :: Type Meta -> Maybe (Gensym, Stack Meta)
+pattern (Meta m :$ sp) = (,) m <$> (traverse free sp >>= distinct)
+pattern _              = Nothing
+
+free :: Type a -> Maybe a
+free (v :$ Nil) = Just v
+free _          = Nothing
+
+distinct :: (Foldable t, Ord a) => t a -> Maybe (t a)
+distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
+
+solve' :: (Carrier sig m, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Solution -> m ()
+solve' (m := v) = do
+  modify (Map.insert m v . fmap (applyType (Map.singleton m v)))
+  cs <- gets (fromMaybe Set.empty . Map.lookup m)
+  enqueueAll cs
+  modify (Map.delete m :: Blocked -> Blocked)
+
+applyConstraint :: Substitution -> HomConstraint -> HomConstraint
+applyConstraint subst (ctx :|-: (tm1 :===: tm2) ::: ty) = applyContext subst ctx :|-: (applyType subst tm1 :===: applyType subst tm2) ::: applyType subst ty
+
+applyContext :: Substitution -> Context (Type Meta) -> Context (Type Meta)
+applyContext = fmap . applyType
+
+applyType :: Substitution -> Type Meta -> Type Meta
+applyType subst ty = ty >>= \case
+  Qual n -> pure (Qual n)
+  Meta m -> fromMaybe (pure (Meta m)) (Map.lookup m subst)
+
+substTyped :: (Carrier sig m, MonadFail m) => Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> m (Value Qual ::: Type Qual)
+substTyped subst (val ::: ty) = (:::) <$> substTy subst val <*> substTy subst ty
+
+substTy :: (Carrier sig m, MonadFail m) => Map.Map Gensym (Type Meta) -> Type Meta -> m (Type Qual)
+substTy subst = fmap (fmap join) . traverse $ \case
+  Qual n -> pure (pure n)
+  Meta m -> maybe (fail ("unsolved metavariable " ++ show m)) (substTy subst) (Map.lookup m subst)
+
+simplify' :: ( Carrier sig m
+            , Effect sig
+            , Member Fresh sig
+            , Member (Reader Gensym) sig
+            , MonadFail m
+            )
+         => HomConstraint
+         -> m (Set.Set HomConstraint)
+simplify' = execWriter . go
+  where go = \case
+          _ :|-: (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
+          ctx :|-: (Pi p1 _ t1 b1 :===: Pi p2 _ t2 b2) ::: Type
+            | p1 == p2 -> do
+              go (ctx :|-: (t1 :===: t2) ::: Type)
+              n <- gensym "simplify"
+              -- FIXME: this should insert some sort of dependency
+              go (Context.insert (n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
+          ctx :|-: (Pi Im _ t1 b1 :===: tm2) ::: Type -> do
+            n <- exists t1
+            go (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
+          ctx :|-: (tm1 :===: Pi Im _ t2 b2) ::: Type -> do
+            n <- exists t2
+            go (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
+          ctx :|-: (Lam f1 :===: Lam f2) ::: Pi _ _ t b -> do
+            n <- gensym "simplify"
+            go (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
+          c@(_ :|-: (t1 :===: t2) ::: _)
+            | stuck t1 || stuck t2 -> tell (Set.singleton c)
+            | otherwise            -> fail ("unsimplifiable constraint: " ++ show c)
+
+        exists _ = pure . Meta <$> gensym "_meta_"
+
+        stuck (Meta _ :$ _) = True
+        stuck _             = False
+
+hetToHom :: HetConstraint -> Set.Set HomConstraint
+hetToHom (ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) = Set.fromList
+  -- FIXME: represent dependency of second on first
+  [ ctx :|-: (ty1 :===: ty2) ::: Type
+  , ctx :|-: (tm1 :===: tm2) ::: ty1
+  ]
