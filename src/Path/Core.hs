@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Core where
 
 import Data.Foldable (toList)
@@ -31,11 +31,11 @@ lam n b = Lam (bind n b)
 lams :: Foldable t => t QName -> Core -> Core
 lams names body = foldr lam body names
 
-pi :: Gensym -> Plicity -> Usage -> Core -> Core -> Core
-pi n p u t b = Pi p u t (bind (Local n) b)
+pi :: (Gensym, Plicity, Usage) ::: Core -> Core -> Core
+pi ((n, p, u) ::: t) b = Pi p u t (bind (Local n) b)
 
-pis :: Foldable t => t (Gensym, Plicity, Usage, Core) -> Core -> Core
-pis names body = foldr (\ (n, p, u, t) -> pi n p u t) body names
+pis :: Foldable t => t ((Gensym, Plicity, Usage) ::: Core) -> Core -> Core
+pis names body = foldr pi body names
 
 instance FreeVariables QName Core where
   fvs = \case
