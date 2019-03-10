@@ -8,6 +8,7 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((<=<), unless, when)
+import Data.Bifunctor
 import Data.Foldable (for_)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -140,7 +141,7 @@ exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member 
 exists t = do
   Context c <- ask
   n <- M . Meta <$> gensym "_meta_"
-  pure (n, free (n ::: lams (fmap (fmap qlocal) c) t) $$* fmap (free . fmap qlocal) c)
+  pure (n, free (n ::: lams (fmap (first qlocal) c) t) $$* fmap (free . first qlocal) c)
 
 
 type ModuleTable = Map.Map ModuleName Scope

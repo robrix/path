@@ -1,10 +1,11 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, TupleSections #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, TupleSections, TypeOperators #-}
 module Path.Value where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
+import           Data.Bifunctor
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -131,9 +132,13 @@ generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
 
 
 type Type = Value
+type Typed a = a ::: Type
 
-data Typed a = a ::: Type
+data a ::: b = a ::: b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Bifunctor (:::) where
+  bimap f g (a ::: b) = f a ::: g b
 
 typedTerm :: Typed a -> a
 typedTerm (a ::: _) = a
@@ -143,10 +148,10 @@ typedType (_ ::: t) = t
 
 infix 6 :::
 
-instance Pretty a => Pretty (Typed a) where
+instance (Pretty a, Pretty b) => Pretty (a ::: b) where
   pretty (a ::: t) = pretty a <+> colon <+> pretty t
 
-instance Pretty a => PrettyPrec (Typed a)
+instance (Pretty a, Pretty b) => PrettyPrec (a ::: b)
 
 
 -- | Bind occurrences of an 'MName' in a 'Value' term, producing a 'Scope' in which the 'MName' is bound.
