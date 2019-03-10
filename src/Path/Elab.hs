@@ -90,9 +90,6 @@ infer = \case
             (More, _A, _B') <$ tell (Set.singleton ((t :===: Value.Pi Ex More _A _B') ::: (Type :: Type Meta) :@ Assert span))
           _ -> throwElabError (IllegalApplication t)
 
-        lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
-        lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
-
 check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
       => Core.Core Qual ::: Type Meta
       -> m (Value Meta ::: Type Meta)
@@ -140,6 +137,10 @@ exists _ = do
   Context c <- ask
   n <- Meta <$> gensym "_meta_"
   pure (n, pure n $$* fmap (pure . qlocal . typedTerm) c)
+
+lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Qual -> m (Type Meta)
+lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
+lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
 
 type ModuleTable = Map.Map ModuleName Scope
