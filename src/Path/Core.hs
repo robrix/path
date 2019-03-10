@@ -25,10 +25,10 @@ newtype Scope = Scope Core
 free :: QName -> Core
 free = Head . Free
 
-lam :: Gensym -> Core -> Core
-lam n b = Lam (bind (Local n) b)
+lam :: QName -> Core -> Core
+lam n b = Lam (bind n b)
 
-lams :: Foldable t => t Gensym -> Core -> Core
+lams :: Foldable t => t QName -> Core -> Core
 lams names body = foldr lam body names
 
 pi :: Gensym -> Plicity -> Usage -> Core -> Core -> Core

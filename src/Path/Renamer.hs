@@ -26,7 +26,7 @@ resolveTerm = local prime . \case
   Surface.Var v -> Core.free <$> resolveName v
   Surface.Lam v b -> do
     n <- ask
-    local (insertLocal v n) (lam n <$> resolveTerm b)
+    local (insertLocal v n) (lam (Local n) <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi v ie u t b -> do
