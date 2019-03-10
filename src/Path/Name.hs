@@ -88,9 +88,6 @@ prettyQName = \case
   m :.: n -> pretty m <> dot <> pretty n
   Local n -> pretty n
 
-localNames :: Set.Set MName -> Set.Set Gensym
-localNames = foldMap (\case { Qual (Local v) -> Set.singleton v ; _ -> mempty })
-
 
 data MName
   = Qual QName
@@ -104,6 +101,9 @@ instance Pretty MName where
 
 qlocal :: Gensym -> MName
 qlocal = Qual . Local
+
+localNames :: Set.Set MName -> Set.Set Gensym
+localNames = foldMap (\case { Qual (Local v) -> Set.singleton v ; _ -> mempty })
 
 metaNames :: Set.Set MName -> Set.Set Gensym
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
