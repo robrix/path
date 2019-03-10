@@ -121,8 +121,8 @@ v $$* sp = foldl' ($$) v sp
 -- | Substitute occurrences of an 'MName' with a 'Value' within another 'Value'.
 --
 --   prop> subst (Local (Root a)) (free (Local (Root b))) (Lam ($$ free (Local (Root a)))) == Lam ($$ free (Local (Root b)))
-subst :: Eq a => a -> Value a -> Value a -> Value a
-subst name image = instantiate image . bind name
+substitute :: Eq a => a -> Value a -> Value a -> Value a
+substitute name image = instantiate image . bind name
 
 generalizeType :: Value MName -> Value MName
 generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero) . qlocal) (localNames (fvs ty))) ty

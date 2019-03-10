@@ -4,7 +4,7 @@ module Path.Constraint where
 import Data.Foldable (foldl')
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import qualified Data.Set as Set
-import Path.Name hiding (subst)
+import Path.Name
 import Path.Pretty
 import Path.Value
 import Text.Trifecta.Rendering (Span)
@@ -73,7 +73,7 @@ instance Substitutable a => Substitutable (Caused a) where
 
 instance Substitutable (Value MName) where
   apply []                 = id
-  apply ((m := v :@ _):ss) = apply ss . subst (M m) v
+  apply ((m := v :@ _):ss) = apply ss . substitute (M m) v
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2
