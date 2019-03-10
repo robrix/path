@@ -37,6 +37,10 @@ nub = Context . go mempty . unContext
           | typedTerm last `Set.member` v = go v init
           | otherwise                     = go (Set.insert (typedTerm last) v) init :> last
 
+vars :: Context -> Stack Gensym
+vars = fmap typedTerm . unContext
+
+
 instance Pretty Context where
   pretty = tabulate2 (space <> colon <> space) . map (green . pretty . typedTerm &&& nest 2 . align . group . pretty . typedType) . toList . unContext
 

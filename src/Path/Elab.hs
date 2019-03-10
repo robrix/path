@@ -30,6 +30,13 @@ import Path.Usage
 import Path.Value as Value hiding (Scope(..))
 import Text.Trifecta.Rendering (Span(..))
 
+goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
+goal = ask
+
+goalIs :: (Carrier sig m, Member (Reader (Type Meta)) sig) => Type Meta -> m a -> m a
+goalIs ty = local (const ty)
+
+
 runElab :: ( Carrier sig m
            , Effect sig
            , Member (Error ElabError) sig
