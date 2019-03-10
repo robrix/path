@@ -14,7 +14,7 @@ data Equation a
   = a :===: a
   deriving (Eq, Ord, Show)
 
-infix 1 :===:
+infix 3 :===:
 
 instance Pretty a => Pretty (Equation a) where
   pretty (t1 :===: t2) = flatAlt (align (space <+> pretty t1 </> pretty "≡" <+> pretty t2)) (pretty t1 <+> pretty "≡" <+> pretty t2)
