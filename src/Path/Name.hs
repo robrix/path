@@ -1,9 +1,10 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Name where
 
 import           Control.Effect
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
+import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -168,6 +169,26 @@ match x y | x == y    = Z
 subst :: a -> Incr a -> a
 subst a Z     = a
 subst _ (S a) = a
+
+
+data a ::: b = a ::: b
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Bifunctor (:::) where
+  bimap f g (a ::: b) = f a ::: g b
+
+typedTerm :: a ::: b -> a
+typedTerm (a ::: _) = a
+
+typedType :: a ::: b -> b
+typedType (_ ::: t) = t
+
+infix 6 :::
+
+instance (Pretty a, Pretty b) => Pretty (a ::: b) where
+  pretty (a ::: t) = pretty a <+> colon <+> pretty t
+
+instance (Pretty a, Pretty b) => PrettyPrec (a ::: b)
 
 
 data Assoc = LAssoc | RAssoc | NonAssoc
