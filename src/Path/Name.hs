@@ -31,10 +31,6 @@ root // s = root :/ (s, 0)
 
 infixl 6 //
 
-prime :: Gensym -> Gensym
-prime (root :/ (s, i)) = root :/ (s, succ i)
-prime root             = root :/ ("", 0)
-
 gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Gensym
 gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
 
