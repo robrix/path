@@ -33,6 +33,9 @@ import Text.Trifecta.Rendering (Span(..))
 freshName :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Qual
 freshName s = Local <$> gensym s
 
+context :: (Carrier sig m, Member (Reader Context) sig) => m Context
+context = ask
+
 goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
 goal = ask
 
