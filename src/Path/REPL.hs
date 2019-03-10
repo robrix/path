@@ -5,6 +5,7 @@ import Control.Arrow ((&&&))
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
+import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum as Effect
@@ -209,7 +210,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
@@ -222,7 +223,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
         failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
         runRenamer m = do
           res <- get
-          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m))
+          runFresh (runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m)))
         printResolveError err = print (err :: ResolveError)
         printElabError    err = print (err :: ElabError)
         printModuleError  err = print (err :: ModuleError)

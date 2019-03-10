@@ -19,18 +19,18 @@ import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
             -> m Core
-resolveTerm = local prime . \case
+resolveTerm = \case
   Surface.Var v -> Core.free <$> resolveName v
   Surface.Lam v b -> do
-    n <- ask
+    n <- gensym ""
     local (insertLocal v n) (lam (Local n) <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi v ie u t b -> do
-    n <- ask
+    n <- gensym ""
     pi . ((n, ie, u) :::) <$> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
   (u, a) Surface.:-> b ->
     pi <$> ((:::) . (, Ex, u) <$> ask <*> resolveTerm a) <*> resolveTerm b
@@ -40,7 +40,7 @@ resolveTerm = local prime . \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl UName Surface.Surface -> m (Decl QName Core)
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl UName Surface.Surface -> m (Decl QName Core)
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -56,7 +56,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module UName Surface.Surface -> m (Module QName Core)
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module UName Surface.Surface -> m (Module QName Core)
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
