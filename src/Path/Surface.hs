@@ -8,17 +8,17 @@ import Path.Usage
 import Text.Trifecta.Rendering (Span)
 
 data Surface
-  = Var UName
-  | Lam (Maybe UName) Surface
+  = Var User
+  | Lam (Maybe User) Surface
   | Surface :$ Surface
   | Type
-  | Pi (Maybe UName) Plicity Usage Surface Surface
-  | Hole UName
+  | Pi (Maybe User) Plicity Usage Surface Surface
+  | Hole User
   | (Usage, Surface) :-> Surface
   | Ann Span Surface
   deriving (Eq, Ord, Show)
 
-instance FreeVariables UName Surface where
+instance FreeVariables User Surface where
   fvs = \case
     Var v -> Set.singleton v
     Lam (Just v) b -> Set.delete v (fvs b)

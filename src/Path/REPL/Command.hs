@@ -8,7 +8,7 @@ data Command
   = Quit
   | Help
   | TypeOf Surface
-  | Decl (Decl UName Surface)
+  | Decl (Decl User Surface)
   | Eval Surface
   | Show Info
   | Reload

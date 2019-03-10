@@ -35,17 +35,17 @@ gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym
 gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
 
 
-data UName
-  = UName String
-  | UOp Operator
+data User
+  = User String
+  | Op Operator
   deriving (Eq, Ord, Show)
 
-instance Pretty UName where
+instance Pretty User where
   pretty = \case
-    UName s -> pretty s
-    UOp op -> pretty op
+    User s -> pretty s
+    Op op -> pretty op
 
-instance PrettyPrec UName
+instance PrettyPrec User
 
 
 data ModuleName
@@ -70,7 +70,7 @@ type PackageName = String
 
 
 data Qual
-  = ModuleName :.: UName
+  = ModuleName :.: User
   | Local Gensym
   deriving (Eq, Ord, Show)
 

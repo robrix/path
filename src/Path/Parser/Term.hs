@@ -46,13 +46,13 @@ lambda = ann (do
         bind (v:vv) = wrap v <$> spanned (bind vv)
           where wrap (a :~ v1) (b :~ v2) = Ann (v1 <> v2) (Lam a b)
 
-hole = ann (Hole . UName <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
+hole = ann (Hole . User <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
 atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
-name :: (Monad m, TokenParsing m) => m UName
-name =       (UName <$> identifier <?> "name")
-     <|> try (UOp <$> parens operator <?> "operator name")
+name :: (Monad m, TokenParsing m) => m User
+name =       (User <$> identifier <?> "name")
+     <|> try (Op <$> parens operator <?> "operator name")
