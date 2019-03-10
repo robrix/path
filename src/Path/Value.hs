@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TupleSections, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeOperators #-}
 module Path.Value where
 
 import           Control.Applicative (Alternative (..))
@@ -19,14 +19,11 @@ data Value a
   = Type                                 -- ^ @'Type' : 'Type'@.
   | Lam                        (Scope a) -- ^ A lambda abstraction.
   | Pi Plicity Usage (Value a) (Scope a) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Head a :$ Stack (Value a)            -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
+  | a :$ Stack (Value a)                 -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-newtype Scope a = Scope (Value a)
+newtype Scope a = Scope (Value (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-deriving instance Pretty (Scope MName)
-deriving instance PrettyPrec (Scope MName)
 
 instance PrettyPrec (Value MName) where
   prettyPrec d = run . runFresh . runReader (Root "pretty") . go d
@@ -66,20 +63,14 @@ instance Pretty (Value MName) where
   pretty = prettyPrec 0
 
 instance Ord a => FreeVariables a (Value a) where
-  fvs = \case
-    Type -> mempty
-    Lam (Scope b) -> fvs b
-    Pi _ _ t (Scope b) -> fvs t <> fvs b
-    v :$ sp -> fvs v <> foldMap fvs sp
+  fvs = foldMap Set.singleton
 
 instance Applicative Value where
-  pure = (:$ Nil) . Free
+  pure = (:$ Nil)
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = substIn (const (\case
-    Free a' -> f a'
-    Bound i -> Bound i :$ Nil)) a
+  a >>= f = joinT (fmap f a)
 
 
 lam :: Eq a => a -> Value a -> Value a
@@ -126,6 +117,30 @@ _          $$ _ = error "illegal application of Type"
 v $$* sp = foldl' ($$) v sp
 
 
+gfoldT :: forall m n b
+       .  (forall a . n (Incr a) -> n a)
+       -> (forall a . m a -> Stack (n a) -> n a)
+       -> (forall a . n a)
+       -> (forall a . Plicity -> Usage -> n a -> n (Incr a) -> n a)
+       -> (forall a . Incr (m a) -> m (Incr a))
+       -> Value (m b)
+       -> n b
+gfoldT lam app ty pi dist = go
+  where go :: Type (m x) -> n x
+        go = \case
+          Lam (Scope b) -> lam (go (dist <$> b))
+          f :$ a -> app f (fmap go a)
+          Type -> ty
+          Pi p m t (Scope b) -> pi p m (go t) (go (dist <$> b))
+
+joinT :: Value (Value a) -> Value a
+joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) distT
+
+distT :: Incr (Value a) -> Value (Incr a)
+distT Z     = pure Z
+distT (S t) = S <$> t
+
+
 -- | Substitute occurrences of an 'MName' with a 'Value' within another 'Value'.
 --
 --   prop> subst (Local (Root a)) (pure (Local (Root b))) (Lam ($$ pure (Local (Root a)))) == Lam ($$ pure (Local (Root b)))
@@ -146,21 +161,8 @@ type Type = Value
 
 -- | Bind occurrences of an 'MName' in a 'Value' term, producing a 'Scope' in which the 'MName' is bound.
 bind :: Eq a => a -> Value a -> Scope a
-bind name = Scope . substIn (\ i h -> (:$ Nil) $ case h of
-  Bound j -> Bound j
-  Free n  -> if name == n then Bound i else Free n)
+bind name = Scope . fmap (match name)
 
 -- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Value' term.
 instantiate :: Value a -> Scope a -> Value a
-instantiate image (Scope b) = substIn (\ i h -> case h of
-  Bound j -> if i == j then image else Bound j :$ Nil
-  Free n  -> pure n) b
-
-substIn :: (Int -> Head a -> Value b)
-        -> Value a
-        -> Value b
-substIn var = go 0
-  where go _ Type                 = Type
-        go i (Lam      (Scope b)) = Lam             (Scope (go (succ i) b))
-        go i (Pi p u t (Scope b)) = Pi p u (go i t) (Scope (go (succ i) b))
-        go i (head :$ sp)         = var i (head) $$* fmap (go i) sp
+instantiate t (Scope b) = b >>= subst t . fmap pure

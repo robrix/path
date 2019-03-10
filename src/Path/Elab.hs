@@ -82,7 +82,7 @@ infer = \case
 
         ensurePi t = case t of
           Value.Pi _ pi t b -> pure (pi, t, b)
-          Free (M _) Value.:$ _ -> do
+          M _ Value.:$ _ -> do
             (mA, _A) <- exists Value.Type
             (_, _B) <- exists _A
             let _B' = bind mA _B
@@ -109,7 +109,7 @@ check = \case
     (_, m) <- exists ty
     pure (m ::: ty)
   Core.Ann ann tm ::: ty -> local (const ann) (check (tm ::: ty))
-  tm ::: ty@(Free (Q (_ :.: _)) Value.:$ _) -> do
+  tm ::: ty@(Q (_ :.: _) Value.:$ _) -> do
    ty' <- whnf ty
    check (tm ::: ty')
   tm ::: ty -> do

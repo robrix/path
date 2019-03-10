@@ -50,14 +50,14 @@ simplify = execWriter . go
           q@((Lam b1 :===: Lam b2) ::: Pi _ _ t b) :@ cause -> do
             (_, n) <- freshName
             go ((instantiate n b1 :===: instantiate n b2) ::: instantiate t b :@ Via q cause)
-          q@((f1@(Free (Q (_ :.: _))) :$ sp1 :===: f2@(Free (Q (_ :.: _))) :$ sp2) ::: ty) :@ cause -> do
+          q@((f1@(Q (_ :.: _)) :$ sp1 :===: f2@(Q (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             t2 <- whnf (f2 :$ sp2)
             go ((t1 :===: t2) ::: ty :@ Via q cause)
-          q@((f1@(Free (Q (_ :.: _))) :$ sp1 :===: t2) ::: ty) :@ cause -> do
+          q@((f1@(Q (_ :.: _)) :$ sp1 :===: t2) ::: ty) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             go ((t1 :===: t2) ::: ty :@ Via q cause)
-          q@((t1 :===: f2@(Free (Q (_ :.: _))) :$ sp2) ::: ty) :@ cause -> do
+          q@((t1 :===: f2@(Q (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
             t2 <- whnf (f2 :$ sp2)
             go ((t1 :===: t2) ::: ty :@ Via q cause)
           q@((tm1 :===: Lam b2) ::: ty) :@ cause -> do
@@ -73,8 +73,8 @@ simplify = execWriter . go
         freshName = ((,) <*> pure) . qlocal <$> gensym ""
         exists = pure . M . Meta <$> gensym "_meta_"
 
-        stuck (Free (M _) :$ _) = True
-        stuck _                 = False
+        stuck (M _ :$ _) = True
+        stuck _          = False
 
 solve :: ( Carrier sig m
          , Effect sig
@@ -120,11 +120,11 @@ solve cs
           Seq.EmptyL -> pure Nothing
           h Seq.:< q -> Just h <$ put q
 
-        pattern (Free (M m) :$ sp) = (,) m <$> traverse free sp
-        pattern _                  = Nothing
+        pattern (M m :$ sp) = (,) m <$> traverse free sp
+        pattern _           = Nothing
 
-        free (Free v :$ Nil) = Just v
-        free _               = Nothing
+        free (v :$ Nil) = Just v
+        free _          = Nothing
 
         solve (m := v :@ c) = do
           modify (Map.insert m (v :@ c))
