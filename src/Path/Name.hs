@@ -186,6 +186,9 @@ instance (Pretty a, Pretty b) => Pretty (a ::: b) where
 
 instance (Pretty a, Pretty b) => PrettyPrec (a ::: b)
 
+instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a ::: b) where
+  fvs (a ::: b) = fvs a <> fvs b
+
 
 data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
