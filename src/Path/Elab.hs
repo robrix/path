@@ -48,6 +48,9 @@ goal = ask
 goalIs :: (Carrier sig m, Member (Reader (Type Meta)) sig) => Type Meta -> m a -> m a
 goalIs ty = local (const ty)
 
+unify :: (Carrier sig m, Member (Reader Context) sig, Member (Writer (Set.Set HetConstraint)) sig) => Equation (Value Meta ::: Type Meta) -> m ()
+unify constraint = context >>= tell . Set.singleton . (:|-: constraint)
+
 
 runElab :: ( Carrier sig m
            , Effect sig
