@@ -110,7 +110,7 @@ unpis value = intro (Nil, value)
 Lam _ b    $$ v = instantiate v b
 Pi _ _ _ b $$ v = instantiate v b
 n :$ vs    $$ v = n :$ (vs :> v)
-f          $$ v = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty v)))
+_          $$ _ = error "illegal application of Type"
 
 ($$*) :: Foldable t => Value -> t Value -> Value
 v $$* sp = foldl' ($$) v sp
