@@ -53,7 +53,7 @@ infer = \case
   Core.Pi i e t b -> gensym "" >>= \ n -> do
     t' ::: _ <- check (t ::: Value.Type)
     b' ::: _ <- n ::: t' |- check (Core.instantiate (Core.free (Local n)) b ::: Value.Type)
-    pure (Value.pi ((n, i, e) ::: t') b' ::: Value.Type)
+    pure (Value.pi ((qlocal n, i, e) ::: t') b' ::: Value.Type)
   Core.Head (Free n) -> do
     t <- lookupVar n >>= whnf
     sigma <- ask
@@ -67,7 +67,7 @@ infer = \case
   Core.Lam b -> gensym "" >>= \ n -> do
     (_, t) <- exists Value.Type
     e' ::: eTy <- n ::: t |- censor (Resources.delete (qlocal n)) (infer (Core.instantiate (Core.free (Local n)) b))
-    pure (Value.lam (qlocal n ::: t) e' ::: Value.pi ((n, Ex, More) ::: t) eTy)
+    pure (Value.lam (qlocal n ::: t) e' ::: Value.pi ((qlocal n, Ex, More) ::: t) eTy)
   Core.Hole _ -> do
     (_, ty) <- exists Value.Type
     (_, m) <- exists ty

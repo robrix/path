@@ -90,19 +90,19 @@ unlams value = intro (Nil, value)
             Just (name, body) -> intro (names :> name, body)
             Nothing           -> pure (names, value)
 
-pi :: (Gensym, Plicity, Usage) ::: Type -> Value -> Value
-pi ((n, p, u) ::: t) b = Pi p u t (bind (qlocal n) b)
+pi :: (MName, Plicity, Usage) ::: Type -> Value -> Value
+pi ((n, p, u) ::: t) b = Pi p u t (bind n b)
 
-pis :: Foldable t => t ((Gensym, Plicity, Usage) ::: Type) -> Value -> Value
+pis :: Foldable t => t ((MName, Plicity, Usage) ::: Type) -> Value -> Value
 pis names body = foldr pi body names
 
-unpi :: Alternative m => Gensym -> Value -> m ((Gensym, Plicity, Usage) ::: Type, Value)
-unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (qlocal n ::: t)) b)
+unpi :: Alternative m => MName -> Value -> m ((MName, Plicity, Usage) ::: Type, Value)
+unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (n ::: t)) b)
 unpi _ _            = empty
 
-unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack ((Gensym, Plicity, Usage) ::: Type), Value)
+unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack ((MName, Plicity, Usage) ::: Type), Value)
 unpis value = intro (Nil, value)
-  where intro (names, value) = gensym "" >>= \ root -> case unpi root value of
+  where intro (names, value) = gensym "" >>= \ root -> case unpi (qlocal root) value of
           Just (name, body) -> intro (names :> name, body)
           Nothing           -> pure (names, value)
 
@@ -123,12 +123,12 @@ subst :: MName -> Value -> Value -> Value
 subst name image = instantiate image . bind name
 
 generalizeType :: Value -> Value
-generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty))) ty
+generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero) . qlocal) (localNames (fvs ty))) ty
 
 generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig) => Type -> Value -> m Value
 generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
   (names, _) <- unpis ty
-  pure (lams (fmap (\ ((n, _, _) ::: t) -> qlocal n ::: t) names) value)
+  pure (lams (fmap (\ ((n, _, _) ::: t) -> n ::: t) names) value)
 
 
 type Type = Value

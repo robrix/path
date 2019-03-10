@@ -69,16 +69,16 @@ simplify = execWriter . go
           q@(tm1 :===: Lam t2 b2) :@ cause -> do
             t1 <- ensurePi cause tm1
             (n, v) <- freshName t1
-            go (lam (qlocal n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ Via q cause)
+            go (lam (n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ Via q cause)
           q@(Lam t1 b1 :===: tm2) :@ cause -> do
             t2 <- ensurePi cause tm2
             (n, v) <- freshName t2
-            go (Lam t1 b1 :===: lam (qlocal n ::: t2) (tm2 $$ v) :@ Via q cause)
+            go (Lam t1 b1 :===: lam (n ::: t2) (tm2 $$ v) :@ Via q cause)
           q@(t1 :===: t2 :@ cause)
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch (Set.singleton q)))
-        freshName t = ((,) <*> free . (::: t) . qlocal) <$> gensym ""
+        freshName t = ((,) <*> free . (::: t)) . qlocal <$> gensym ""
         exists t = free . (::: t) . M . Meta <$> gensym "_meta_"
 
         typeof cause = infer
@@ -106,11 +106,11 @@ simplify = execWriter . go
             (names, _) <- unpis ty
             n <- gensym ""
             let t1 = pis names (free (m1 ::: Type))
-                app ((n, _, _) ::: t) = free (qlocal n ::: t)
-                t2 = pis (names :> ((n, Im, Zero) ::: free (m1 ::: Type) $$* fmap app names)) Type
+                app ((n, _, _) ::: t) = free (n ::: t)
+                t2 = pis (names :> ((qlocal n, Im, Zero) ::: free (m1 ::: Type) $$* fmap app names)) Type
                 _A = free (m1 ::: t1) $$* sp
                 _B x = free (m2 ::: t2) $$* (sp:>x)
-            _A <$ tell (Set.singleton ((Free (M m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (qlocal n ::: _A))) :@ cause))
+            _A <$ tell (Set.singleton ((Free (M m) ::: ty) :$ sp :===: pi ((qlocal n, Im, More) ::: _A) (_B (free (qlocal n ::: _A))) :@ cause))
           t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
 
         stuck ((Free (M _) ::: _) :$ _) = True
