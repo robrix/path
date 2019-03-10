@@ -8,7 +8,7 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((<=<), unless, when)
-import Data.Foldable (for_)
+import Data.Foldable (for_, toList)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -35,6 +35,12 @@ freshName s = Local <$> gensym s
 
 context :: (Carrier sig m, Member (Reader Context) sig) => m Context
 context = ask
+
+exists' :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type Meta -> m (Value Meta ::: Type Meta)
+exists' ty = do
+  ctx <- context
+  n <- Meta <$> gensym "meta"
+  pure (pure n Value.$$* map (pure . qlocal) (toList (Context.vars ctx)) ::: ty)
 
 goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
 goal = ask
