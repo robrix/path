@@ -19,10 +19,10 @@ data Value a
   | Lam                        (Scope a) -- ^ A lambda abstraction.
   | Pi Plicity Usage (Value a) (Scope a) -- ^ A ∏ type, with a 'Usage' annotation.
   | Head a :$ Stack (Value a)            -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype Scope a = Scope (Value a)
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 deriving instance Pretty (Scope MName)
 deriving instance PrettyPrec (Scope MName)
