@@ -38,7 +38,7 @@ instance PrettyPrec Solution
 
 data Cause
   = Assert Span
-  | Via (Equation (Value MName)) Cause
+  | Via (Equation (Value MName) ::: Type MName) Cause
   | Cause :<>: Cause
   deriving (Eq, Ord, Show)
 

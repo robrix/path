@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 module Path.Error where
 
 import           Data.Foldable (fold, toList)
@@ -19,7 +20,7 @@ data ElabError = ElabError
 
 data ErrorReason
   = FreeVariable QName
-  | TypeMismatch (Set.Set (Caused (Equation (Value MName))))
+  | TypeMismatch (Set.Set (Caused (Equation (Value MName) ::: Type MName)))
   | IllegalApplication (Type MName)
   | ResourceMismatch Gensym Usage Usage [Span]
   | TypedHole QName (Type MName)
@@ -38,7 +39,7 @@ instance Pretty ElabError where
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
     where prettyCtx ctx = if Context.null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
-          prettyEqn (expected :===: actual :@ cause) = fold (punctuate hardline
+          prettyEqn ((expected :===: actual) ::: _ :@ cause) = fold (punctuate hardline
             ( pretty "expected:" <+> pretty expected
             : pretty "  actual:" <+> pretty actual
             : prettyCause cause))
