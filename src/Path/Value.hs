@@ -16,9 +16,9 @@ import           Path.Usage
 import           Prelude hiding (pi)
 
 data Value a
-  = Type                                 -- ^ @'Type' : 'Type'@.
-  | Lam              (Value a) (Scope a)         -- ^ A lambda abstraction.
-  | Pi Plicity Usage (Value a) (Scope a)         -- ^ A ∏ type, with a 'Usage' annotation.
+  = Type                                   -- ^ @'Type' : 'Type'@.
+  | Lam              (Value a) (Scope a)   -- ^ A lambda abstraction.
+  | Pi Plicity Usage (Value a) (Scope a)   -- ^ A ∏ type, with a 'Usage' annotation.
   | (Head a ::: Type a) :$ Stack (Value a) -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
   deriving (Eq, Ord, Show)
 
