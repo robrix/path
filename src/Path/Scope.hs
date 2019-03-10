@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, TypeOperators #-}
 module Path.Scope where
 
 import Control.Arrow ((***))
@@ -10,7 +10,7 @@ import Path.Value hiding (Scope(..))
 
 data Entry
   = Decl Type
-  | Defn (Typed Value)
+  | Defn (Value ::: Type)
   deriving (Eq, Ord, Show)
 
 entryType :: Entry -> Type

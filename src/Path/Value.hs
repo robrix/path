@@ -16,10 +16,10 @@ import           Path.Usage
 import           Prelude hiding (pi)
 
 data Value
-  = Type                              -- ^ @'Type' : 'Type'@.
-  | Lam              Value Scope      -- ^ A lambda abstraction.
-  | Pi Plicity Usage Value Scope      -- ^ A ∏ type, with a 'Usage' annotation.
-  | Typed (Head MName) :$ Stack Value -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
+  = Type                                 -- ^ @'Type' : 'Type'@.
+  | Lam              Value Scope         -- ^ A lambda abstraction.
+  | Pi Plicity Usage Value Scope         -- ^ A ∏ type, with a 'Usage' annotation.
+  | (Head MName ::: Type) :$ Stack Value -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
   deriving (Eq, Ord, Show)
 
 newtype Scope = Scope Value
@@ -69,20 +69,20 @@ instance FreeVariables MName Value where
     Pi _ _ t (Scope b) -> fvs t <> fvs b
     (v ::: _) :$ sp -> fvs v <> foldMap fvs sp
 
-free :: Typed MName -> Value
+free :: MName ::: Type -> Value
 free (q ::: t) = (Free q ::: t) :$ Nil
 
-lam :: Typed MName -> Value -> Value
+lam :: MName ::: Type -> Value -> Value
 lam (n ::: t) b = Lam t (bind n b)
 
-lams :: Foldable t => t (Typed MName) -> Value -> Value
+lams :: Foldable t => t (MName ::: Type) -> Value -> Value
 lams names body = foldr lam body names
 
-unlam :: Alternative m => Gensym -> Value -> m (Typed Gensym, Value)
+unlam :: Alternative m => Gensym -> Value -> m (Gensym ::: Type, Value)
 unlam n (Lam t b) = pure (n ::: t, instantiate (free (qlocal n ::: t)) b)
 unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack (Typed Gensym), Value)
+unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack (Gensym ::: Type), Value)
 unlams value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
@@ -90,17 +90,17 @@ unlams value = intro (Nil, value)
             Just (name, body) -> intro (names :> name, body)
             Nothing           -> pure (names, value)
 
-pi :: Typed (Gensym, Plicity, Usage) -> Value -> Value
+pi :: (Gensym, Plicity, Usage) ::: Type -> Value -> Value
 pi ((n, p, u) ::: t) b = Pi p u t (bind (qlocal n) b)
 
-pis :: Foldable t => t (Typed (Gensym, Plicity, Usage)) -> Value -> Value
+pis :: Foldable t => t ((Gensym, Plicity, Usage) ::: Type) -> Value -> Value
 pis names body = foldr pi body names
 
-unpi :: Alternative m => Gensym -> Value -> m (Typed (Gensym, Plicity, Usage), Value)
+unpi :: Alternative m => Gensym -> Value -> m ((Gensym, Plicity, Usage) ::: Type, Value)
 unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (qlocal n ::: t)) b)
 unpi _ _            = empty
 
-unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack (Typed (Gensym, Plicity, Usage)), Value)
+unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack ((Gensym, Plicity, Usage) ::: Type), Value)
 unpis value = intro (Nil, value)
   where intro (names, value) = gensym "" >>= \ root -> case unpi root value of
           Just (name, body) -> intro (names :> name, body)
@@ -132,7 +132,6 @@ generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
 
 
 type Type = Value
-type Typed a = a ::: Type
 
 data a ::: b = a ::: b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -166,7 +165,7 @@ instantiate image (Scope b) = substIn (\ i (h ::: t) -> case h of
   Bound j -> if i == j then image else (Bound j ::: t) :$ Nil
   Free n  -> free (n ::: t)) b
 
-substIn :: (Int -> Typed (Head MName) -> Value)
+substIn :: (Int -> Head MName ::: Type -> Value)
         -> Value
         -> Value
 substIn var = go 0
