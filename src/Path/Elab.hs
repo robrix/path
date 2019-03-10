@@ -53,6 +53,15 @@ pi p m t body = do
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
   expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
 
+app :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta)
+app f a = do
+  _A ::: _ <- exists' Type
+  _B ::: _ <- exists' Type
+  x <- gensym "app"
+  f' ::: _ <- goalIs (Value.pi ((qlocal x, Ex, zero) ::: _A) _B) f
+  a' ::: _ <- goalIs _A a
+  expect (f' Value.$$ a' ::: _B)
+
 
 expect :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 expect exp = do
