@@ -70,11 +70,7 @@ gfoldT var lam app ty pi hole ann dist = go
 
 
 joinT :: Core (Core a) -> Core a
-joinT = gfoldT id (Lam . Scope) (:$) Type (\ p m t -> Pi p m t . Scope) id Ann distT
-
-distT :: Incr (Core a) -> Core (Incr a)
-distT Z     = Var Z
-distT (S t) = S <$> t
+joinT = gfoldT id (Lam . Scope) (:$) Type (\ p m t -> Pi p m t . Scope) id Ann (incr (pure Z) (fmap S))
 
 
 instance Ord a => FreeVariables a (Core a) where

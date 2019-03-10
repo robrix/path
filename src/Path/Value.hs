@@ -134,11 +134,7 @@ gfoldT lam app ty pi dist = go
           Pi p m t (Scope b) -> pi p m (go t) (go (dist <$> b))
 
 joinT :: Value (Value a) -> Value a
-joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) distT
-
-distT :: Incr (Value a) -> Value (Incr a)
-distT Z     = pure Z
-distT (S t) = S <$> t
+joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pure Z) (fmap S))
 
 
 -- | Substitute occurrences of an 'MName' with a 'Value' within another 'Value'.
