@@ -11,7 +11,7 @@ import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
 data Core a
-  = Head (Head a)
+  = Var (Head a)
   | Lam (Scope a)
   | Core a :$ Core a
   | Type
@@ -24,13 +24,13 @@ newtype Scope a = Scope (Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Core where
-  pure = Head . Free
+  pure = Var . Free
   (<*>) = ap
 
 instance Monad Core where
   a >>= f = substIn (const (\case
     Free n -> f n
-    Bound i -> Head (Bound i))) a
+    Bound i -> Var (Bound i))) a
 
 lam :: Eq a => a -> Core a -> Core a
 lam n b = Lam (bind n b)
@@ -46,7 +46,7 @@ pis names body = foldr pi body names
 
 instance Ord a => FreeVariables a (Core a) where
   fvs = \case
-    Head h -> fvs h
+    Var h -> fvs h
     Lam (Scope b) -> fvs b
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
@@ -57,7 +57,7 @@ instance Ord a => FreeVariables a (Core a) where
 uses :: Gensym -> Core QName -> [Span]
 uses n = go Nothing
   where go span = \case
-          Head h
+          Var h
             | Free n' <- h, Local n == n' -> toList span
             | otherwise                   -> []
           Lam (Scope b) -> go span b
@@ -72,21 +72,21 @@ uses n = go Nothing
 
 -- | Bind occurrences of a 'Name' in a 'Core' term, producing a 'Scope' in which the 'Name' is bound.
 bind :: Eq a => a -> Core a -> Scope a
-bind name = Scope . substIn (\ i v -> Head $ case v of
+bind name = Scope . substIn (\ i v -> Var $ case v of
   Bound j -> Bound j
   Free  n -> if name == n then Bound i else Free n)
 
 -- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Core' term.
 instantiate :: Core a -> Scope a -> Core a
 instantiate image (Scope b) = substIn (\ i v -> case v of
-  Bound j -> if i == j then image else Head (Bound j)
+  Bound j -> if i == j then image else Var (Bound j)
   Free  n -> pure n) b
 
 substIn :: (Int -> Head a -> Core b)
         -> Core a
         -> Core b
 substIn var = go 0
-  where go i (Head h)             = var i h
+  where go i (Var h)              = var i h
         go i (Lam (Scope b))      = Lam (Scope (go (succ i) b))
         go i (f :$ a)             = go i f :$ go i a
         go _ Type                 = Type

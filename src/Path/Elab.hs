@@ -54,7 +54,7 @@ infer = \case
     t' ::: _ <- check (t ::: Value.Type)
     b' ::: _ <- n ::: t' |- check (Core.instantiate (pure (Local n)) b ::: Value.Type)
     pure (Value.pi ((qlocal n, i, e) ::: t') b' ::: Value.Type)
-  Core.Head (Free n) -> do
+  Core.Var (Free n) -> do
     t <- lookupVar n >>= whnf
     sigma <- ask
     tell (Resources.singleton (Q n) sigma)
