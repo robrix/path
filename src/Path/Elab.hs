@@ -46,6 +46,13 @@ intro body = do
 type' :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta)
 type' = expect (Type ::: Type)
 
+pi :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Plicity -> Usage -> m (Value Meta ::: Type Meta) -> (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
+pi p m t body = do
+  t' ::: _ <- goalIs Type t
+  x <- gensym "pi"
+  b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
+  expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
+
 
 expect :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 expect exp = do
