@@ -20,7 +20,6 @@ data ElabError = ElabError
 data ErrorReason
   = FreeVariable QName
   | TypeMismatch (Set.Set (Caused (Equation (Value MName))))
-  | NoRuleToInfer
   | IllegalApplication (Type MName)
   | ResourceMismatch Gensym Usage Usage [Span]
   | TypedHole QName (Type MName)
@@ -32,7 +31,6 @@ instance Pretty ElabError where
     FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
     TypeMismatch eqns -> prettyErr span (fold (punctuate hardline
       (pretty "type mismatch" : map prettyEqn (toList eqns)))) (prettyCtx ctx)
-    NoRuleToInfer -> prettyErr span (pretty "no rule to infer type of term") (prettyCtx ctx)
     IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
     ResourceMismatch n pi used uses -> prettyErr span msg (prettyCtx ctx <> map prettys uses)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length uses)) <+> pretty "than required" <+> parens (pretty pi)
