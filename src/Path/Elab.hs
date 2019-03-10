@@ -138,7 +138,7 @@ throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type MName -> m (MName, Type MName)
 exists _ = do
   Context c <- ask
-  n <- M . Meta <$> gensym "_meta_"
+  n <- M <$> gensym "_meta_"
   pure (n, pure n $$* fmap (pure . qlocal . typedTerm) c)
 
 

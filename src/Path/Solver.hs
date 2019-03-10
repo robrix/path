@@ -71,7 +71,7 @@ simplify = execWriter . go
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch (Set.singleton q)))
         freshName = ((,) <*> pure) . qlocal <$> gensym ""
-        exists = pure . M . Meta <$> gensym "_meta_"
+        exists = pure . M <$> gensym "_meta_"
 
         stuck (M _ :$ _) = True
         stuck _          = False
@@ -91,7 +91,7 @@ solve cs
   . execState mempty
   . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Value MName) ::: Type MName)))
   $ do
-    stuck <- fmap fold . execState (mempty :: Map.Map Meta (Set.Set (Caused (Equation (Value MName) ::: Type MName)))) $ do
+    stuck <- fmap fold . execState (mempty :: Map.Map Gensym (Set.Set (Caused (Equation (Value MName) ::: Type MName)))) $ do
       modify (flip (foldl' (Seq.|>)) cs)
       step
     case Set.minView stuck of
@@ -130,7 +130,7 @@ solve cs
           modify (Map.insert m (v :@ c))
           cs <- gets (fromMaybe mempty . Map.lookup m)
           modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation (Value MName) ::: Type MName))))
-          modify (Map.delete @Meta @(Set.Set (Caused (Equation (Value MName) ::: Type MName))) m)
+          modify (Map.delete @Gensym @(Set.Set (Caused (Equation (Value MName) ::: Type MName))) m)
 
         solutions _S s
           | s:ss <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)

@@ -48,15 +48,6 @@ instance Pretty UName where
 instance PrettyPrec UName
 
 
-newtype Meta = Meta { unMeta :: Gensym }
-  deriving (Eq, Ord, Show)
-
-instance Pretty Meta where
-  pretty (Meta i) = pretty i
-
-instance PrettyPrec Meta
-
-
 data ModuleName
   = ModuleName String
   | ModuleName :. String
@@ -103,7 +94,7 @@ localNames = foldMap (\case { Q (Local v) -> Set.singleton v ; _ -> mempty })
 
 data MName
   = Q QName
-  | M Meta
+  | M Gensym
   deriving (Eq, Ord, Show)
 
 instance Pretty MName where
@@ -114,7 +105,7 @@ instance Pretty MName where
 qlocal :: Gensym -> MName
 qlocal = Q . Local
 
-metaNames :: Set.Set MName -> Set.Set Meta
+metaNames :: Set.Set MName -> Set.Set Gensym
 metaNames = foldMap (\case { M m -> Set.singleton m ; _ -> mempty })
 
 

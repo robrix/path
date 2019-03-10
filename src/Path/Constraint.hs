@@ -25,7 +25,7 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
 
 
 data Solution
-  = Meta := Value MName
+  = Gensym := Value MName
   deriving (Eq, Ord, Show)
 
 infix 5 :=
