@@ -28,10 +28,10 @@ instance Pretty Entry where
 instance PrettyPrec Entry
 
 
-newtype Scope = Scope { unScope :: Map.Map QName Entry }
+newtype Scope = Scope { unScope :: Map.Map Qual Entry }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
-lookup :: QName -> Scope -> Maybe Entry
+lookup :: Qual -> Scope -> Maybe Entry
 lookup q = Map.lookup q . unScope
 
 null :: Scope -> Bool
@@ -40,13 +40,13 @@ null = Map.null . unScope
 union :: Scope -> Scope -> Scope
 union = (<>)
 
-filter :: (QName -> Entry -> Bool) -> Scope -> Scope
+filter :: (Qual -> Entry -> Bool) -> Scope -> Scope
 filter = under . Map.filterWithKey
 
-insert :: QName -> Entry -> Scope -> Scope
+insert :: Qual -> Entry -> Scope -> Scope
 insert q = under . Map.insert q
 
-under :: (Map.Map QName Entry -> Map.Map QName Entry) -> Scope -> Scope
+under :: (Map.Map Qual Entry -> Map.Map Qual Entry) -> Scope -> Scope
 under = coerce
 
 instance Pretty Scope where

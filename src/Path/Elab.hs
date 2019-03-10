@@ -45,7 +45,7 @@ runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . run
           pure (res, apply subst tm ::: apply subst ty)
 
 infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
-      => Core.Core QName
+      => Core.Core Qual
       -> m (Value Meta ::: Type Meta)
 infer = \case
   Core.Type -> pure (Value.Type ::: Value.Type)
@@ -94,7 +94,7 @@ infer = \case
         lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
 check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
-      => Core.Core QName ::: Type Meta
+      => Core.Core Qual ::: Type Meta
       -> m (Value Meta ::: Type Meta)
 check = \case
   tm ::: ty@(Value.Pi Im pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
@@ -152,8 +152,8 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack ElabError)) sig
               , Member (State Scope) sig
               )
-           => Module QName (Core.Core QName)
-           -> m (Module QName (Resources, Value Meta ::: Type Meta))
+           => Module Qual (Core.Core Qual)
+           -> m (Module Qual (Resources, Value Meta ::: Type Meta))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -178,8 +178,8 @@ elabDecl :: ( Carrier sig m
             , Member (Reader Gensym) sig
             , Member (State Scope) sig
             )
-         => Decl QName (Core.Core QName)
-         -> m (Decl QName (Resources, Value Meta ::: Type Meta))
+         => Decl Qual (Core.Core Qual)
+         -> m (Decl Qual (Resources, Value Meta ::: Type Meta))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -191,8 +191,8 @@ elabDeclare :: ( Carrier sig m
                , Member (Reader Gensym) sig
                , Member (State Scope) sig
                )
-            => QName
-            -> Core.Core QName
+            => Qual
+            -> Core.Core Qual
             -> m (Resources, Value Meta ::: Type Meta)
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (ty ::: Value.Type)))
@@ -204,8 +204,8 @@ elabDefine :: ( Carrier sig m
               , Member (Reader Gensym) sig
               , Member (State Scope) sig
               )
-           => QName
-           -> Core.Core QName
+           => Qual
+           -> Core.Core Qual
            -> m (Resources, Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)

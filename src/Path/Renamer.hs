@@ -21,7 +21,7 @@ import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
-            -> m (Core QName)
+            -> m (Core Qual)
 resolveTerm = \case
   Surface.Var v -> pure <$> resolveName v
   Surface.Lam v b -> do
@@ -40,7 +40,7 @@ resolveTerm = \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl UName Surface.Surface -> m (Decl QName (Core QName))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl UName Surface.Surface -> m (Decl Qual (Core Qual))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -56,7 +56,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module UName Surface.Surface -> m (Module QName (Core QName))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module UName Surface.Surface -> m (Module Qual (Core Qual))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -64,7 +64,7 @@ resolveModule m = do
   pure (m { moduleDecls = decls })
   where amongImports q = any (flip inModule q . importModuleName) (moduleImports m)
 
-newtype Resolution = Resolution { unResolution :: Map.Map UName (NonEmpty QName) }
+newtype Resolution = Resolution { unResolution :: Map.Map UName (NonEmpty Qual) }
   deriving (Eq, Ord, Show)
 
 instance Semigroup Resolution where
@@ -77,10 +77,10 @@ insertLocal (Just n) m = Resolution . Map.insert n (Local m:|[]) . unResolution
 insertGlobal :: UName -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) . unResolution
 
-lookupName :: UName -> Resolution -> Maybe (NonEmpty QName)
+lookupName :: UName -> Resolution -> Maybe (NonEmpty Qual)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => UName -> m QName
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => UName -> m Qual
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
@@ -90,18 +90,18 @@ resolveName v = do
     Decl -> maybe (pure (Local n :| [])) pure res >>= unambiguous v s
     Defn -> maybe (throwError (FreeVariable v s)) pure res >>= unambiguous v s
 
-filterResolution :: (QName -> Bool) -> Resolution -> Resolution
+filterResolution :: (Qual -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
-unambiguous :: (Carrier sig m, Member (Error ResolveError) sig) => UName -> Span -> NonEmpty QName -> m QName
+unambiguous :: (Carrier sig m, Member (Error ResolveError) sig) => UName -> Span -> NonEmpty Qual -> m Qual
 unambiguous _ _ (q:|[]) = pure q
 unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 
 
 data ResolveError
   = FreeVariable UName Span
-  | AmbiguousName UName Span (NonEmpty QName)
+  | AmbiguousName UName Span (NonEmpty Qual)
 
 instance Pretty ResolveError where
   pretty = \case

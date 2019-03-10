@@ -76,7 +76,7 @@ joinT = gfoldT id (Lam . Scope) (:$) Type (\ p m t -> Pi p m t . Scope) id Ann (
 instance Ord a => FreeVariables a (Core a) where
   fvs = foldMap Set.singleton
 
-uses :: Gensym -> Core QName -> [Span]
+uses :: Gensym -> Core Qual -> [Span]
 uses n = run . runFresh . runReader (Root "pretty") . go Nothing
   where go span = \case
           Var n'

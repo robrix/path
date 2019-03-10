@@ -69,28 +69,28 @@ makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 type PackageName = String
 
 
-data QName
+data Qual
   = ModuleName :.: UName
   | Local Gensym
   deriving (Eq, Ord, Show)
 
-instance Pretty QName where
+instance Pretty Qual where
   pretty = \case
     _ :.: n -> pretty n
     Local n -> pretty n
 
-inModule :: ModuleName -> QName -> Bool
+inModule :: ModuleName -> Qual -> Bool
 inModule m (m' :.: _) = m == m'
 inModule _ _          = False
 
-prettyQName :: QName -> Doc
+prettyQName :: Qual -> Doc
 prettyQName = \case
   m :.: n -> pretty m <> dot <> pretty n
   Local n -> pretty n
 
 
 data Meta
-  = Qual QName
+  = Qual Qual
   | Meta Gensym
   deriving (Eq, Ord, Show)
 
