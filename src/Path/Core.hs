@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Core where
 
 import Data.Foldable (toList)
@@ -9,35 +9,35 @@ import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-data Core
-  = Head (Head QName)
-  | Lam Scope
-  | Core :$ Core
+data Core a
+  = Head (Head a)
+  | Lam (Scope a)
+  | Core a :$ Core a
   | Type
-  | Pi Plicity Usage Core Scope
-  | Hole QName
-  | Ann Span Core
-  deriving (Eq, Ord, Show)
+  | Pi Plicity Usage (Core a) (Scope a)
+  | Hole a
+  | Ann Span (Core a)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-newtype Scope = Scope Core
-  deriving (Eq, Ord, Show)
+newtype Scope a = Scope (Core a)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-free :: QName -> Core
+free :: a -> Core a
 free = Head . Free
 
-lam :: QName -> Core -> Core
+lam :: Eq a => a -> Core a -> Core a
 lam n b = Lam (bind n b)
 
-lams :: Foldable t => t QName -> Core -> Core
+lams :: (Eq a, Foldable t) => t a -> Core a -> Core a
 lams names body = foldr lam body names
 
-pi :: (QName, Plicity, Usage) ::: Core -> Core -> Core
+pi :: Eq a => (a, Plicity, Usage) ::: Core a -> Core a -> Core a
 pi ((n, p, u) ::: t) b = Pi p u t (bind n b)
 
-pis :: Foldable t => t ((QName, Plicity, Usage) ::: Core) -> Core -> Core
+pis :: (Eq a, Foldable t) => t ((a, Plicity, Usage) ::: Core a) -> Core a -> Core a
 pis names body = foldr pi body names
 
-instance FreeVariables QName Core where
+instance Ord a => FreeVariables a (Core a) where
   fvs = \case
     Head h -> fvs h
     Lam (Scope b) -> fvs b
@@ -47,7 +47,7 @@ instance FreeVariables QName Core where
     Hole v -> Set.singleton v
     Ann _ a -> fvs a
 
-uses :: Gensym -> Core -> [Span]
+uses :: Gensym -> Core QName -> [Span]
 uses n = go Nothing
   where go span = \case
           Head h
@@ -64,20 +64,20 @@ uses n = go Nothing
 
 
 -- | Bind occurrences of a 'Name' in a 'Core' term, producing a 'Scope' in which the 'Name' is bound.
-bind :: QName -> Core -> Scope
+bind :: Eq a => a -> Core a -> Scope a
 bind name = Scope . substIn (\ i v -> Head $ case v of
   Bound j -> Bound j
   Free  n -> if name == n then Bound i else Free n)
 
 -- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Core' term.
-instantiate :: Core -> Scope -> Core
+instantiate :: Core a -> Scope a -> Core a
 instantiate image (Scope b) = substIn (\ i v -> case v of
   Bound j -> if i == j then image else Head (Bound j)
   Free  n -> free n) b
 
-substIn :: (Int -> Head QName -> Core)
-        -> Core
-        -> Core
+substIn :: (Int -> Head a -> Core a)
+        -> Core a
+        -> Core a
 substIn var = go 0
   where go i (Head h)             = var i h
         go i (Lam (Scope b))      = Lam (Scope (go (succ i) b))
