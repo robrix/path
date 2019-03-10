@@ -75,14 +75,14 @@ instantiate image (Scope b) = substIn (\ i v -> case v of
   Bound j -> if i == j then image else Head (Bound j)
   Free  n -> free n) b
 
-substIn :: (Int -> Head a -> Core a)
+substIn :: (Int -> Head a -> Core b)
         -> Core a
-        -> Core a
+        -> Core b
 substIn var = go 0
   where go i (Head h)             = var i h
         go i (Lam (Scope b))      = Lam (Scope (go (succ i) b))
         go i (f :$ a)             = go i f :$ go i a
         go _ Type                 = Type
         go i (Pi p u t (Scope b)) = Pi p u (go i t) (Scope (go (succ i) b))
-        go _ (Hole q)             = Hole q
+        go i (Hole q)             = var i (Free q)
         go i (Ann s c)            = Ann s (go i c)
