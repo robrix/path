@@ -140,10 +140,10 @@ data a ::: b = a ::: b
 instance Bifunctor (:::) where
   bimap f g (a ::: b) = f a ::: g b
 
-typedTerm :: Typed a -> a
+typedTerm :: a ::: b -> a
 typedTerm (a ::: _) = a
 
-typedType :: Typed a -> Type
+typedType :: a ::: b -> b
 typedType (_ ::: t) = t
 
 infix 6 :::
