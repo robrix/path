@@ -50,14 +50,14 @@ simplify = execWriter . go
           q@((Lam b1 :===: Lam b2) ::: Pi _ _ t b) :@ cause -> do
             (_, n) <- freshName
             go ((instantiate n b1 :===: instantiate n b2) ::: instantiate t b :@ Via q cause)
-          q@((f1@(Q (_ :.: _)) :$ sp1 :===: f2@(Q (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
+          q@((f1@(Qual (_ :.: _)) :$ sp1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             t2 <- whnf (f2 :$ sp2)
             go ((t1 :===: t2) ::: ty :@ Via q cause)
-          q@((f1@(Q (_ :.: _)) :$ sp1 :===: t2) ::: ty) :@ cause -> do
+          q@((f1@(Qual (_ :.: _)) :$ sp1 :===: t2) ::: ty) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             go ((t1 :===: t2) ::: ty :@ Via q cause)
-          q@((t1 :===: f2@(Q (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
+          q@((t1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
             t2 <- whnf (f2 :$ sp2)
             go ((t1 :===: t2) ::: ty :@ Via q cause)
           q@((tm1 :===: Lam b2) ::: ty) :@ cause -> do

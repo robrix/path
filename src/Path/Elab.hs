@@ -56,8 +56,8 @@ infer = \case
   Core.Var n -> do
     t <- lookupVar n >>= whnf
     sigma <- ask
-    tell (Resources.singleton (Q n) sigma)
-    elabImplicits (pure (Q n) ::: t)
+    tell (Resources.singleton (Qual n) sigma)
+    elabImplicits (pure (Qual n) ::: t)
   f Core.:$ a -> do
     f' ::: fTy <- infer f
     (pi, t, b) <- whnf fTy >>= ensurePi
@@ -109,7 +109,7 @@ check = \case
     (_, m) <- exists ty
     pure (m ::: ty)
   Core.Ann ann tm ::: ty -> local (const ann) (check (tm ::: ty))
-  tm ::: ty@(Q (_ :.: _) Value.:$ _) -> do
+  tm ::: ty@(Qual (_ :.: _) Value.:$ _) -> do
    ty' <- whnf ty
    check (tm ::: ty')
   tm ::: ty -> do
