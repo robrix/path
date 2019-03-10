@@ -4,7 +4,7 @@ module Path.Constraint where
 import Data.Foldable (foldl')
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import qualified Data.Set as Set
-import Path.Name
+import Path.Name hiding (subst)
 import Path.Pretty
 import Path.Value
 import Text.Trifecta.Rendering (Span)

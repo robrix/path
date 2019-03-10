@@ -165,6 +165,10 @@ match :: Eq a => a -> a -> Incr a
 match x y | x == y    = Z
           | otherwise = S y
 
+subst :: a -> Incr a -> a
+subst a Z     = a
+subst _ (S a) = a
+
 
 data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
