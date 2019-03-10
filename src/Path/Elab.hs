@@ -30,6 +30,11 @@ import Path.Usage
 import Path.Value as Value hiding (Scope(..))
 import Text.Trifecta.Rendering (Span(..))
 
+expect :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
+expect exp = do
+  res <- goal >>= exists'
+  res <$ unify (exp :===: res)
+
 freshName :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Qual
 freshName s = Local <$> gensym s
 
