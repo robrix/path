@@ -44,10 +44,6 @@ runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . run
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
 
-newtype Elab m a = Elab { unElab :: ReaderC Span (ReaderC Usage (ReaderC Context (WriterC Resources (WriterC (Set.Set (Caused (Equation (Value Meta) ::: Type Meta))) (FreshC m))))) a }
-  deriving (Applicative, Functor, Monad)
-
-
 type' :: Applicative m => m (Value Meta ::: Type Meta)
 type' = pure (Value.Type ::: Value.Type)
 
