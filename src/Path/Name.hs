@@ -166,6 +166,9 @@ subst :: a -> Incr a -> a
 subst a Z     = a
 subst _ (S a) = a
 
+incr :: b -> (a -> b) -> Incr a -> b
+incr z s = \case { Z -> z ; S a -> s a }
+
 
 data a ::: b = a ::: b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
