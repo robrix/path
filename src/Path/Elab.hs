@@ -3,6 +3,7 @@ module Path.Elab where
 
 import Control.Effect
 import Control.Effect.Error
+import Control.Effect.Fail
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
@@ -101,6 +102,17 @@ elab = \case
   Core.Pi p m t b -> pi p m (elab t) (\ n -> elab (Core.instantiate (pure n) b))
   Core.Hole _ -> goal >>= exists'
   Core.Ann ann b -> local (const ann) (elab b)
+
+
+runElab' :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig, MonadFail m) => Maybe (Type Meta) -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (FreshC m))) (Value Meta ::: Type Meta) -> m (Value Qual ::: Type Qual)
+runElab' ty m = runFresh $ do
+  ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
+  (constraints, res) <- runWriter . runReader mempty . runReader ty' $ do
+    val <- exists' ty'
+    m' <- m
+    m' <$ unify (m' :===: val)
+  subst <- solver (foldMap hetToHom constraints)
+  substTyped subst res
 
 
 runElab :: ( Carrier sig m
