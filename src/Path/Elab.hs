@@ -27,7 +27,9 @@ import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
 import Path.Usage
-import Path.Value as Value hiding (Scope(..))
+import Path.Value (Type, Value(..), ($$), ($$*), bind, instantiate)
+import qualified Path.Value as Value
+import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..))
 
 assume :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Qual -> m (Value Meta ::: Type Meta)
@@ -88,6 +90,17 @@ goalIs ty = local (const ty)
 
 unify :: (Carrier sig m, Member (Reader Context) sig, Member (Writer (Set.Set HetConstraint)) sig) => Equation (Value Meta ::: Type Meta) -> m ()
 unify constraint = context >>= tell . Set.singleton . (:|-: constraint)
+
+
+elab :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Core.Core Qual -> m (Value Meta ::: Type Meta)
+elab = \case
+  Core.Var n -> assume n
+  Core.Lam b -> intro (\ n -> elab (Core.instantiate (pure n) b))
+  f Core.:$ a -> app (elab f) (elab a)
+  Core.Type -> type'
+  Core.Pi p m t b -> pi p m (elab t) (\ n -> elab (Core.instantiate (pure n) b))
+  Core.Hole _ -> goal >>= exists'
+  Core.Ann ann b -> local (const ann) (elab b)
 
 
 runElab :: ( Carrier sig m
