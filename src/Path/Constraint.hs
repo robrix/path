@@ -78,7 +78,7 @@ instance Substitutable Value where
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2
 
-instance Substitutable a => Substitutable (a ::: Type) where
+instance (Substitutable a, Substitutable b) => Substitutable (a ::: b) where
   apply subst (tm ::: ty) = apply subst tm ::: apply subst ty
 
 instance (Ord a, Substitutable a) => Substitutable (Set.Set a) where
