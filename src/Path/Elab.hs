@@ -54,7 +54,7 @@ infer = \case
     t' ::: _ <- check (t ::: Value.Type)
     b' ::: _ <- n ::: t' |- check (Core.instantiate (pure (Local n)) b ::: Value.Type)
     pure (Value.pi ((qlocal n, i, e) ::: t') b' ::: Value.Type)
-  Core.Var (Free n) -> do
+  Core.Var n -> do
     t <- lookupVar n >>= whnf
     sigma <- ask
     tell (Resources.singleton (Q n) sigma)
@@ -73,7 +73,6 @@ infer = \case
     (_, m) <- exists ty
     pure (m ::: ty)
   Core.Ann ann t -> local (const ann) (infer t)
-  _ -> throwElabError NoRuleToInfer
   where elabImplicits = \case
           tm ::: Value.Pi Im _ t b -> do
             (n, v) <- exists t
