@@ -70,8 +70,8 @@ simplify = execWriter . go
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch (Set.singleton q)))
-        freshName = ((,) <*> free) . qlocal <$> gensym ""
-        exists = free . M . Meta <$> gensym "_meta_"
+        freshName = ((,) <*> pure) . qlocal <$> gensym ""
+        exists = pure . M . Meta <$> gensym "_meta_"
 
         stuck (Free (M _) :$ _) = True
         stuck _                 = False

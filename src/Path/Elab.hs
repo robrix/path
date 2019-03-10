@@ -57,7 +57,7 @@ infer = \case
     t <- lookupVar n >>= whnf
     sigma <- ask
     tell (Resources.singleton (Q n) sigma)
-    elabImplicits (free (Q n) ::: t)
+    elabImplicits (pure (Q n) ::: t)
   f Core.:$ a -> do
     f' ::: fTy <- infer f
     (pi, t, b) <- whnf fTy >>= ensurePi
@@ -98,11 +98,11 @@ check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member 
       -> m (Value MName ::: Type MName)
 check = \case
   tm ::: ty@(Value.Pi Im pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
-    (res, e' ::: _) <- n ::: t |- listen (check (tm ::: instantiate (free (qlocal n)) b))
+    (res, e' ::: _) <- n ::: t |- listen (check (tm ::: instantiate (pure (qlocal n)) b))
     verifyResources tm n pi res
     pure (Value.lam (qlocal n) e' ::: ty)
   Core.Lam e ::: ty@(Value.Pi Ex pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
-    (res, e' ::: _) <- n ::: t |- listen (check (Core.instantiate (pure (Local n)) e ::: instantiate (free (qlocal n)) b))
+    (res, e' ::: _) <- n ::: t |- listen (check (Core.instantiate (pure (Local n)) e ::: instantiate (pure (qlocal n)) b))
     verifyResources (Core.Lam e) n pi res
     pure (Value.lam (qlocal n) e' ::: ty)
   Core.Hole _ ::: ty -> do
@@ -139,7 +139,7 @@ exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member 
 exists _ = do
   Context c <- ask
   n <- M . Meta <$> gensym "_meta_"
-  pure (n, free n $$* fmap (free . qlocal . typedTerm) c)
+  pure (n, pure n $$* fmap (pure . qlocal . typedTerm) c)
 
 
 type ModuleTable = Map.Map ModuleName Scope

@@ -5,6 +5,7 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
+import           Control.Monad (ap)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -40,7 +41,7 @@ instance PrettyPrec (Value MName) where
             Type -> pure (yellow (pretty "Type"))
             Pi ie pi t b -> do
               name <- gensym ""
-              let b' = instantiate (free (qlocal name)) b
+              let b' = instantiate (pure (qlocal name)) b
               if qlocal name `Set.member` fvs b' then do
                 t' <- go 0 t
                 b'' <- go 1 b'
@@ -71,8 +72,15 @@ instance Ord a => FreeVariables a (Value a) where
     Pi _ _ t (Scope b) -> fvs t <> fvs b
     v :$ sp -> fvs v <> foldMap fvs sp
 
-free :: a -> Value a
-free q = Free q :$ Nil
+instance Applicative Value where
+  pure = (:$ Nil) . Free
+  (<*>) = ap
+
+instance Monad Value where
+  a >>= f = substIn (const (\case
+    Free a' -> f a'
+    Bound i -> Bound i :$ Nil)) a
+
 
 lam :: Eq a => a -> Value a -> Value a
 lam n b = Lam (bind n b)
@@ -81,7 +89,7 @@ lams :: (Eq a, Foldable t) => t a -> Value a -> Value a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Value a -> m (a, Value a)
-unlam n (Lam b) = pure (n, instantiate (free n) b)
+unlam n (Lam b) = pure (n, instantiate (pure n) b)
 unlam _ _         = empty
 
 unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value MName -> m (Stack MName, Value MName)
@@ -99,7 +107,7 @@ pis :: (Eq a, Foldable t) => t ((a, Plicity, Usage) ::: Type a) -> Value a -> Va
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Value a -> m ((a, Plicity, Usage) ::: Type a, Value a)
-unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free n) b)
+unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (pure n) b)
 unpi _ _            = empty
 
 unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value MName -> m (Stack ((MName, Plicity, Usage) ::: Type MName), Value MName)
@@ -120,7 +128,7 @@ v $$* sp = foldl' ($$) v sp
 
 -- | Substitute occurrences of an 'MName' with a 'Value' within another 'Value'.
 --
---   prop> subst (Local (Root a)) (free (Local (Root b))) (Lam ($$ free (Local (Root a)))) == Lam ($$ free (Local (Root b)))
+--   prop> subst (Local (Root a)) (pure (Local (Root b))) (Lam ($$ pure (Local (Root a)))) == Lam ($$ pure (Local (Root b)))
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
@@ -146,7 +154,7 @@ bind name = Scope . substIn (\ i h -> (:$ Nil) $ case h of
 instantiate :: Value a -> Scope a -> Value a
 instantiate image (Scope b) = substIn (\ i h -> case h of
   Bound j -> if i == j then image else Bound j :$ Nil
-  Free n  -> free n) b
+  Free n  -> pure n) b
 
 substIn :: (Int -> Head a -> Value b)
         -> Value a
