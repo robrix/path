@@ -35,6 +35,14 @@ assume v = do
   _A <- lookupVar v
   expect (pure (Qual v) ::: _A)
 
+intro :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
+intro body = do
+  _A ::: _ <- exists' Type
+  x <- gensym "intro"
+  _B ::: _ <- x ::: _A |- exists' Type
+  u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
+  expect (Value.lam (qlocal x) u ::: Value.pi ((qlocal x, Ex, zero) ::: _A) _B)
+
 
 expect :: (Carrier sig m, Member (Reader Context) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 expect exp = do
