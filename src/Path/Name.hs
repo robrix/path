@@ -158,6 +158,10 @@ instance Pretty Operator where
 instance PrettyPrec Operator
 
 
+data Incr a = Z | S a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+
 data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
 
