@@ -11,6 +11,6 @@ import Path.Value as Value hiding (Scope(..))
 -- | Evaluate a 'Value' to weak head normal form.
 --
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
-whnf :: (Carrier sig m, Member (Reader Scope) sig) => Value MName -> m (Value MName)
+whnf :: (Carrier sig m, Member (Reader Scope) sig) => Value Meta -> m (Value Meta)
 whnf (Qual (m :.: n) Value.:$ sp) = asks (entryValue <=< Scope.lookup (m :.: n)) >>= maybe (pure (Qual (m :.: n) Value.:$ sp)) (whnf . ($$* sp))
 whnf v                            = pure v

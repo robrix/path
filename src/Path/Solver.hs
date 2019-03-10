@@ -31,8 +31,8 @@ simplify :: ( Carrier sig m
             , Member (Reader Gensym) sig
             , Member (Reader Scope) sig
             )
-         => Caused (Equation (Value MName) ::: Type MName)
-         -> m (Set.Set (Caused (Equation (Value MName) ::: Type MName)))
+         => Caused (Equation (Value Meta) ::: Type Meta)
+         -> m (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))
 simplify = execWriter . go
   where go = \case
           (tm1 :===: tm2) ::: _ :@ _ | tm1 == tm2 -> pure ()
@@ -82,16 +82,16 @@ solve :: ( Carrier sig m
          , Member (Reader Gensym) sig
          , Member (Reader Scope) sig
          )
-      => Set.Set (Caused (Equation (Value MName) ::: Type MName))
+      => Set.Set (Caused (Equation (Value Meta) ::: Type Meta))
       -> m [Caused Solution]
 solve cs
   = local (// "solve")
   . runFresh
   . fmap (map (uncurry toSolution) . Map.toList)
   . execState mempty
-  . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Value MName) ::: Type MName)))
+  . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Value Meta) ::: Type Meta)))
   $ do
-    stuck <- fmap fold . execState (mempty :: Map.Map Gensym (Set.Set (Caused (Equation (Value MName) ::: Type MName)))) $ do
+    stuck <- fmap fold . execState (mempty :: Map.Map Gensym (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) $ do
       modify (flip (foldl' (Seq.|>)) cs)
       step
     case Set.minView stuck of
@@ -129,8 +129,8 @@ solve cs
         solve (m := v :@ c) = do
           modify (Map.insert m (v :@ c))
           cs <- gets (fromMaybe mempty . Map.lookup m)
-          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation (Value MName) ::: Type MName))))
-          modify (Map.delete @Gensym @(Set.Set (Caused (Equation (Value MName) ::: Type MName))) m)
+          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation (Value Meta) ::: Type Meta))))
+          modify (Map.delete @Gensym @(Set.Set (Caused (Equation (Value Meta) ::: Type Meta))) m)
 
         solutions _S s
           | s:ss <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)

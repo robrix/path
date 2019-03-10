@@ -20,11 +20,11 @@ data ElabError = ElabError
 
 data ErrorReason
   = FreeVariable QName
-  | TypeMismatch (Set.Set (Caused (Equation (Value MName) ::: Type MName)))
-  | IllegalApplication (Type MName)
+  | TypeMismatch (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))
+  | IllegalApplication (Type Meta)
   | ResourceMismatch Gensym Usage Usage [Span]
-  | TypedHole QName (Type MName)
-  | InfiniteType QName (Type MName)
+  | TypedHole QName (Type Meta)
+  | InfiniteType QName (Type Meta)
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where

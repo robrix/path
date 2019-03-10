@@ -9,22 +9,22 @@ import Path.Name
 import Path.Pretty
 import Path.Value
 
-newtype Context = Context { unContext :: Stack (Gensym ::: Type MName) }
+newtype Context = Context { unContext :: Stack (Gensym ::: Type Meta) }
   deriving (Eq, Ord, Show)
 
 null :: Context -> Bool
 null = Prelude.null . unContext
 
-lookup :: Gensym -> Context -> Maybe (Type MName)
+lookup :: Gensym -> Context -> Maybe (Type Meta)
 lookup n = fmap typedType . Stack.find ((== n) . typedTerm) . unContext
 
-insert :: Gensym ::: Type MName -> Context -> Context
+insert :: Gensym ::: Type Meta -> Context -> Context
 insert t = Context . (:> t) . unContext
 
 union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (Gensym ::: Type MName -> Bool) -> Context -> Context
+filter :: (Gensym ::: Type Meta -> Bool) -> Context -> Context
 filter f = Context . Stack.filter f . unContext
 
 boundVars :: Context -> Set.Set Gensym

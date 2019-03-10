@@ -25,7 +25,7 @@ data Value a
 newtype Scope a = Scope (Value (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance PrettyPrec (Value MName) where
+instance PrettyPrec (Value Meta) where
   prettyPrec d = run . runFresh . runReader (Root "pretty") . go d
     where go d = \case
             Lam b -> do
@@ -59,7 +59,7 @@ instance PrettyPrec (Value MName) where
               sp' <- traverse (go 11) (toList sp)
               pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
 
-instance Pretty (Value MName) where
+instance Pretty (Value Meta) where
   pretty = prettyPrec 0
 
 instance Ord a => FreeVariables a (Value a) where
@@ -83,7 +83,7 @@ unlam :: Alternative m => a -> Value a -> m (a, Value a)
 unlam n (Lam b) = pure (n, instantiate (pure n) b)
 unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value MName -> m (Stack MName, Value MName)
+unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value Meta -> m (Stack Meta, Value Meta)
 unlams value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
@@ -101,7 +101,7 @@ unpi :: Alternative m => a -> Value a -> m ((a, Plicity, Usage) ::: Type a, Valu
 unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (pure n) b)
 unpi _ _            = empty
 
-unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value MName -> m (Stack ((MName, Plicity, Usage) ::: Type MName), Value MName)
+unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value Meta -> m (Stack ((Meta, Plicity, Usage) ::: Type Meta), Value Meta)
 unpis value = intro (Nil, value)
   where intro (names, value) = gensym "" >>= \ root -> case unpi (qlocal root) value of
           Just (name, body) -> intro (names :> name, body)
@@ -137,16 +137,16 @@ joinT :: Value (Value a) -> Value a
 joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pure Z) (fmap S))
 
 
--- | Substitute occurrences of an 'MName' with a 'Value' within another 'Value'.
+-- | Substitute occurrences of an 'Meta' with a 'Value' within another 'Value'.
 --
 --   prop> subst (Local (Root a)) (pure (Local (Root b))) (Lam ($$ pure (Local (Root a)))) == Lam ($$ pure (Local (Root b)))
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
-generalizeType :: Value MName -> Value MName
+generalizeType :: Value Meta -> Value Meta
 generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero) . qlocal) (localNames (fvs ty))) ty
 
-generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig) => Type MName -> Value MName -> m (Value MName)
+generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig) => Type Meta -> Value Meta -> m (Value Meta)
 generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
   (names, _) <- unpis ty
   pure (lams (fmap (\ ((n, _, _) ::: _) -> n) names) value)
@@ -155,7 +155,7 @@ generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
 type Type = Value
 
 
--- | Bind occurrences of an 'MName' in a 'Value' term, producing a 'Scope' in which the 'MName' is bound.
+-- | Bind occurrences of an 'Meta' in a 'Value' term, producing a 'Scope' in which the 'Meta' is bound.
 bind :: Eq a => a -> Value a -> Scope a
 bind name = Scope . fmap (match name)
 

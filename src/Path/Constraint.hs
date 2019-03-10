@@ -25,7 +25,7 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
 
 
 data Solution
-  = Gensym := Value MName
+  = Gensym := Value Meta
   deriving (Eq, Ord, Show)
 
 infix 5 :=
@@ -38,7 +38,7 @@ instance PrettyPrec Solution
 
 data Cause
   = Assert Span
-  | Via (Equation (Value MName) ::: Type MName) Cause
+  | Via (Equation (Value Meta) ::: Type Meta) Cause
   | Cause :<>: Cause
   deriving (Eq, Ord, Show)
 
@@ -71,7 +71,7 @@ class Substitutable t where
 instance Substitutable a => Substitutable (Caused a) where
   apply subst (a :@ c) = apply subst a :@ foldl' (flip (flip (<>) . cause)) c subst
 
-instance Substitutable (Value MName) where
+instance Substitutable (Value Meta) where
   apply []                 = id
   apply ((m := v :@ _):ss) = apply ss . substitute (Meta m) v
 

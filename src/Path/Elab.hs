@@ -37,16 +37,16 @@ runElab :: ( Carrier sig m
            , Member (Reader Scope) sig
            )
         => Usage
-        -> ReaderC Span (ReaderC Usage (ReaderC Context (WriterC Resources (WriterC (Set.Set (Caused (Equation (Value MName) ::: Type MName))) (FreshC m))))) (Value MName ::: Type MName)
-        -> m (Resources, Value MName ::: Type MName)
+        -> ReaderC Span (ReaderC Usage (ReaderC Context (WriterC Resources (WriterC (Set.Set (Caused (Equation (Value Meta) ::: Type Meta))) (FreshC m))))) (Value Meta ::: Type Meta)
+        -> m (Resources, Value Meta ::: Type Meta)
 runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty)
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
 
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value MName) ::: Type MName)))) sig)
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
       => Core.Core QName
-      -> m (Value MName ::: Type MName)
+      -> m (Value Meta ::: Type Meta)
 infer = \case
   Core.Type -> pure (Value.Type ::: Value.Type)
   Core.Pi i e t b -> gensym "" >>= \ n -> do
@@ -87,15 +87,15 @@ infer = \case
             (_, _B) <- exists _A
             let _B' = bind mA _B
             span <- ask
-            (More, _A, _B') <$ tell (Set.singleton ((t :===: Value.Pi Ex More _A _B') ::: (Type :: Type MName) :@ Assert span))
+            (More, _A, _B') <$ tell (Set.singleton ((t :===: Value.Pi Ex More _A _B') ::: (Type :: Type Meta) :@ Assert span))
           _ -> throwElabError (IllegalApplication t)
 
         lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
         lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
-check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value MName) ::: Type MName)))) sig)
-      => Core.Core QName ::: Type MName
-      -> m (Value MName ::: Type MName)
+check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
+      => Core.Core QName ::: Type Meta
+      -> m (Value Meta ::: Type Meta)
 check = \case
   tm ::: ty@(Value.Pi Im pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
     (res, e' ::: _) <- n ::: t |- listen (check (tm ::: instantiate (pure (qlocal n)) b))
@@ -127,7 +127,7 @@ check = \case
           v <$ tell (Set.fromList [ (v :===: tm1) ::: ty :@ Assert span
                                   , (v :===: tm2) ::: ty :@ Assert span ])
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Type MName -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Type Meta -> m a -> m a
 n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
@@ -135,7 +135,7 @@ infix 5 |-
 throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig) => ErrorReason -> m a
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
-exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type MName -> m (MName, Type MName)
+exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type Meta -> m (Meta, Type Meta)
 exists _ = do
   Context c <- ask
   n <- Meta <$> gensym "_meta_"
@@ -153,7 +153,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Module QName (Core.Core QName)
-           -> m (Module QName (Resources, Value MName ::: Type MName))
+           -> m (Module QName (Resources, Value Meta ::: Type Meta))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -179,7 +179,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             )
          => Decl QName (Core.Core QName)
-         -> m (Decl QName (Resources, Value MName ::: Type MName))
+         -> m (Decl QName (Resources, Value Meta ::: Type Meta))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -193,7 +193,7 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Core.Core QName
-            -> m (Resources, Value MName ::: Type MName)
+            -> m (Resources, Value Meta ::: Type Meta)
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
@@ -206,7 +206,7 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Core.Core QName
-           -> m (Resources, Value MName ::: Type MName)
+           -> m (Resources, Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
