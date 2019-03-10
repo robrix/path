@@ -31,10 +31,10 @@ lam n b = Lam (bind n b)
 lams :: Foldable t => t QName -> Core -> Core
 lams names body = foldr lam body names
 
-pi :: (Gensym, Plicity, Usage) ::: Core -> Core -> Core
-pi ((n, p, u) ::: t) b = Pi p u t (bind (Local n) b)
+pi :: (QName, Plicity, Usage) ::: Core -> Core -> Core
+pi ((n, p, u) ::: t) b = Pi p u t (bind n b)
 
-pis :: Foldable t => t ((Gensym, Plicity, Usage) ::: Core) -> Core -> Core
+pis :: Foldable t => t ((QName, Plicity, Usage) ::: Core) -> Core -> Core
 pis names body = foldr pi body names
 
 instance FreeVariables QName Core where

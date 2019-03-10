@@ -31,9 +31,9 @@ resolveTerm = \case
   Surface.Type -> pure Type
   Surface.Pi v ie u t b -> do
     n <- gensym ""
-    pi . ((n, ie, u) :::) <$> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
+    pi . ((Local n, ie, u) :::) <$> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
   (u, a) Surface.:-> b ->
-    pi <$> ((:::) . (, Ex, u) <$> ask <*> resolveTerm a) <*> resolveTerm b
+    pi <$> ((:::) . (, Ex, u) . Local <$> ask <*> resolveTerm a) <*> resolveTerm b
   Surface.Hole v -> Hole . (:.: v) <$> ask
   Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
