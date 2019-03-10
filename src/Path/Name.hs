@@ -161,6 +161,10 @@ instance PrettyPrec Operator
 data Incr a = Z | S a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+match :: Eq a => a -> a -> Incr a
+match x y | x == y    = Z
+          | otherwise = S y
+
 
 data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
