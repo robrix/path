@@ -71,10 +71,10 @@ simplify = execWriter . go
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch (Set.singleton q)))
         freshName = ((,) <*> pure) . qlocal <$> gensym ""
-        exists = pure . M <$> gensym "_meta_"
+        exists = pure . Meta <$> gensym "_meta_"
 
-        stuck (M _ :$ _) = True
-        stuck _          = False
+        stuck (Meta _ :$ _) = True
+        stuck _             = False
 
 solve :: ( Carrier sig m
          , Effect sig
@@ -120,8 +120,8 @@ solve cs
           Seq.EmptyL -> pure Nothing
           h Seq.:< q -> Just h <$ put q
 
-        pattern (M m :$ sp) = (,) m <$> traverse free sp
-        pattern _           = Nothing
+        pattern (Meta m :$ sp) = (,) m <$> traverse free sp
+        pattern _              = Nothing
 
         free (v :$ Nil) = Just v
         free _          = Nothing

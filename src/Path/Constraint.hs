@@ -73,7 +73,7 @@ instance Substitutable a => Substitutable (Caused a) where
 
 instance Substitutable (Value MName) where
   apply []                 = id
-  apply ((m := v :@ _):ss) = apply ss . substitute (M m) v
+  apply ((m := v :@ _):ss) = apply ss . substitute (Meta m) v
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2

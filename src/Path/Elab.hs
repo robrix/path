@@ -82,7 +82,7 @@ infer = \case
 
         ensurePi t = case t of
           Value.Pi _ pi t b -> pure (pi, t, b)
-          M _ Value.:$ _ -> do
+          Meta _ Value.:$ _ -> do
             (mA, _A) <- exists Value.Type
             (_, _B) <- exists _A
             let _B' = bind mA _B
@@ -138,7 +138,7 @@ throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type MName -> m (MName, Type MName)
 exists _ = do
   Context c <- ask
-  n <- M <$> gensym "_meta_"
+  n <- Meta <$> gensym "_meta_"
   pure (n, pure n $$* fmap (pure . qlocal . typedTerm) c)
 
 
