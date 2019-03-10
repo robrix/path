@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Core where
 
+import Control.Monad (ap)
 import Data.Foldable (toList)
 import qualified Data.Set as Set
 import Path.Name
@@ -22,8 +23,14 @@ data Core a
 newtype Scope a = Scope (Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-free :: a -> Core a
-free = Head . Free
+instance Applicative Core where
+  pure = Head . Free
+  (<*>) = ap
+
+instance Monad Core where
+  a >>= f = substIn (const (\case
+    Free n -> f n
+    Bound i -> Head (Bound i))) a
 
 lam :: Eq a => a -> Core a -> Core a
 lam n b = Lam (bind n b)
@@ -73,7 +80,7 @@ bind name = Scope . substIn (\ i v -> Head $ case v of
 instantiate :: Core a -> Scope a -> Core a
 instantiate image (Scope b) = substIn (\ i v -> case v of
   Bound j -> if i == j then image else Head (Bound j)
-  Free  n -> free n) b
+  Free  n -> pure n) b
 
 substIn :: (Int -> Head a -> Core b)
         -> Core a

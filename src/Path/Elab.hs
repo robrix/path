@@ -52,7 +52,7 @@ infer = \case
   Core.Type -> pure (Value.Type ::: Value.Type)
   Core.Pi i e t b -> gensym "" >>= \ n -> do
     t' ::: _ <- check (t ::: Value.Type)
-    b' ::: _ <- n ::: t' |- check (Core.instantiate (Core.free (Local n)) b ::: Value.Type)
+    b' ::: _ <- n ::: t' |- check (Core.instantiate (pure (Local n)) b ::: Value.Type)
     pure (Value.pi ((qlocal n, i, e) ::: t') b' ::: Value.Type)
   Core.Head (Free n) -> do
     t <- lookupVar n >>= whnf
@@ -66,7 +66,7 @@ infer = \case
     pure (f' $$ a' ::: instantiate a' b)
   Core.Lam b -> gensym "" >>= \ n -> do
     (_, t) <- exists Value.Type
-    e' ::: eTy <- n ::: t |- censor (Resources.delete (qlocal n)) (infer (Core.instantiate (Core.free (Local n)) b))
+    e' ::: eTy <- n ::: t |- censor (Resources.delete (qlocal n)) (infer (Core.instantiate (pure (Local n)) b))
     pure (Value.lam (qlocal n ::: t) e' ::: Value.pi ((qlocal n, Ex, More) ::: t) eTy)
   Core.Hole _ -> do
     (_, ty) <- exists Value.Type
@@ -104,7 +104,7 @@ check = \case
     verifyResources tm n pi res
     pure (Value.lam (qlocal n ::: t) e' ::: ty)
   Core.Lam e ::: ty@(Value.Pi Ex pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
-    (res, e' ::: _) <- n ::: t |- listen (check (Core.instantiate (Core.free (Local n)) e ::: instantiate (free (qlocal n ::: t)) b))
+    (res, e' ::: _) <- n ::: t |- listen (check (Core.instantiate (pure (Local n)) e ::: instantiate (free (qlocal n ::: t)) b))
     verifyResources (Core.Lam e) n pi res
     pure (Value.lam (qlocal n ::: t) e' ::: ty)
   Core.Hole _ ::: ty -> do

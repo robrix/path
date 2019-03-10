@@ -23,7 +23,7 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig
             => Surface.Surface
             -> m (Core QName)
 resolveTerm = \case
-  Surface.Var v -> Core.free <$> resolveName v
+  Surface.Var v -> pure <$> resolveName v
   Surface.Lam v b -> do
     n <- gensym ""
     local (insertLocal v n) (lam (Local n) <$> resolveTerm b)
