@@ -13,7 +13,7 @@ import           Text.Trifecta.Rendering (Span)
 
 data ElabError = ElabError
   { errorSpan    :: Span
-  , errorContext :: Context
+  , errorContext :: Context (Type Meta)
   , errorReason  :: ErrorReason
   }
   deriving (Eq, Ord, Show)
@@ -38,7 +38,7 @@ instance Pretty ElabError where
     TypedHole n ty -> prettyErr span msg (prettyCtx ctx)
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
-    where prettyCtx ctx = if Context.null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
+    where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: _ :@ cause) = fold (punctuate hardline
             ( pretty "expected:" <+> pretty expected
             : pretty "  actual:" <+> pretty actual

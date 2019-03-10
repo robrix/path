@@ -32,12 +32,12 @@ import qualified Path.Value as Value
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..))
 
-assume :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Qual -> m (Value Meta ::: Type Meta)
+assume :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Qual -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- lookupVar v
   expect (pure (Qual v) ::: _A)
 
-intro :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
+intro :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
 intro body = do
   _A ::: _ <- exists' Type
   x <- gensym "intro"
@@ -45,17 +45,17 @@ intro body = do
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
   expect (Value.lam (qlocal x) u ::: Value.pi ((qlocal x, Ex, zero) ::: _A) _B)
 
-type' :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta)
+type' :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta)
 type' = expect (Type ::: Type)
 
-pi :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Plicity -> Usage -> m (Value Meta ::: Type Meta) -> (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
+pi :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Plicity -> Usage -> m (Value Meta ::: Type Meta) -> (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
 pi p m t body = do
   t' ::: _ <- goalIs Type t
   x <- gensym "pi"
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
   expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
 
-app :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta)
+app :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta)
 app f a = do
   _A ::: _ <- exists' Type
   _B ::: _ <- exists' Type
@@ -65,7 +65,7 @@ app f a = do
   expect (f' Value.$$ a' ::: _B)
 
 
-expect :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
+expect :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 expect exp = do
   res <- goal >>= exists'
   res <$ unify (exp :===: res)
@@ -73,10 +73,10 @@ expect exp = do
 freshName :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Qual
 freshName s = Local <$> gensym s
 
-context :: (Carrier sig m, Member (Reader Context) sig) => m Context
+context :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => m (Context (Type Meta))
 context = ask
 
-exists' :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type Meta -> m (Value Meta ::: Type Meta)
+exists' :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig) => Type Meta -> m (Value Meta ::: Type Meta)
 exists' ty = do
   ctx <- context
   n <- Meta <$> gensym "meta"
@@ -88,11 +88,11 @@ goal = ask
 goalIs :: (Carrier sig m, Member (Reader (Type Meta)) sig) => Type Meta -> m a -> m a
 goalIs ty = local (const ty)
 
-unify :: (Carrier sig m, Member (Reader Context) sig, Member (Writer (Set.Set HetConstraint)) sig) => Equation (Value Meta ::: Type Meta) -> m ()
+unify :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig, Member (Writer (Set.Set HetConstraint)) sig) => Equation (Value Meta ::: Type Meta) -> m ()
 unify constraint = context >>= tell . Set.singleton . (:|-: constraint)
 
 
-elab :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Core.Core Qual -> m (Value Meta ::: Type Meta)
+elab :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Core.Core Qual -> m (Value Meta ::: Type Meta)
 elab = \case
   Core.Var n -> assume n
   Core.Lam b -> intro (\ n -> elab (Core.instantiate (pure n) b))
@@ -110,14 +110,14 @@ runElab :: ( Carrier sig m
            , Member (Reader Scope) sig
            )
         => Usage
-        -> ReaderC Span (ReaderC Usage (ReaderC Context (WriterC Resources (WriterC (Set.Set (Caused (Equation (Value Meta) ::: Type Meta))) (FreshC m))))) (Value Meta ::: Type Meta)
+        -> ReaderC Span (ReaderC Usage (ReaderC (Context (Type Meta)) (WriterC Resources (WriterC (Set.Set (Caused (Equation (Value Meta) ::: Type Meta))) (FreshC m))))) (Value Meta ::: Type Meta)
         -> m (Resources, Value Meta ::: Type Meta)
 runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty)
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
 
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
       => Core.Core Qual
       -> m (Value Meta ::: Type Meta)
 infer = \case
@@ -163,7 +163,7 @@ infer = \case
             (More, _A, _B') <$ tell (Set.singleton ((t :===: Value.Pi Ex More _A _B') ::: (Type :: Type Meta) :@ Assert span))
           _ -> throwElabError (IllegalApplication t)
 
-check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
+check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
       => Core.Core Qual ::: Type Meta
       -> m (Value Meta ::: Type Meta)
 check = \case
@@ -197,21 +197,21 @@ check = \case
           v <$ tell (Set.fromList [ (v :===: tm1) ::: ty :@ Assert span
                                   , (v :===: tm2) ::: ty :@ Assert span ])
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Type Meta -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
 n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
 
-throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig) => ErrorReason -> m a
+throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Span) sig) => ErrorReason -> m a
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
-exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type Meta -> m (Meta, Type Meta)
+exists :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig) => Type Meta -> m (Meta, Type Meta)
 exists _ = do
   Context c <- context
   n <- Meta <$> gensym "_meta_"
   pure (n, pure n $$* fmap (pure . qlocal . typedTerm) c)
 
-lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Qual -> m (Type Meta)
+lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Qual -> m (Type Meta)
 lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
 lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
