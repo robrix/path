@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Constraint where
 
 import Data.Foldable (foldl')
@@ -25,7 +25,7 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
 
 
 data Solution
-  = Meta := Value
+  = Meta := Value MName
   deriving (Eq, Ord, Show)
 
 infix 5 :=
@@ -38,7 +38,7 @@ instance PrettyPrec Solution
 
 data Cause
   = Assert Span
-  | Via (Equation Value) Cause
+  | Via (Equation (Value MName) ::: Type MName) Cause
   | Cause :<>: Cause
   deriving (Eq, Ord, Show)
 
@@ -71,14 +71,14 @@ class Substitutable t where
 instance Substitutable a => Substitutable (Caused a) where
   apply subst (a :@ c) = apply subst a :@ foldl' (flip (flip (<>) . cause)) c subst
 
-instance Substitutable Value where
+instance Substitutable (Value MName) where
   apply []                 = id
-  apply ((m := v :@ _):ss) = apply ss . subst (M m) v
+  apply ((m := v :@ _):ss) = apply ss . substitute (M m) v
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2
 
-instance Substitutable a => Substitutable (Typed a) where
+instance (Substitutable a, Substitutable b) => Substitutable (a ::: b) where
   apply subst (tm ::: ty) = apply subst tm ::: apply subst ty
 
 instance (Ord a, Substitutable a) => Substitutable (Set.Set a) where

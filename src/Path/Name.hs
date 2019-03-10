@@ -1,9 +1,10 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Name where
 
 import           Control.Effect
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
+import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -29,10 +30,6 @@ instance PrettyPrec Gensym
 root // s = root :/ (s, 0)
 
 infixl 6 //
-
-prime :: Gensym -> Gensym
-prime (root :/ (s, i)) = root :/ (s, succ i)
-prime root             = root :/ ("", 0)
 
 gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Gensym
 gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
@@ -156,6 +153,44 @@ instance Pretty Operator where
     where underscore = pretty '_'
 
 instance PrettyPrec Operator
+
+
+data Incr a = Z | S a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+match :: Eq a => a -> a -> Incr a
+match x y | x == y    = Z
+          | otherwise = S y
+
+subst :: a -> Incr a -> a
+subst a Z     = a
+subst _ (S a) = a
+
+incr :: b -> (a -> b) -> Incr a -> b
+incr z s = \case { Z -> z ; S a -> s a }
+
+
+data a ::: b = a ::: b
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Bifunctor (:::) where
+  bimap f g (a ::: b) = f a ::: g b
+
+typedTerm :: a ::: b -> a
+typedTerm (a ::: _) = a
+
+typedType :: a ::: b -> b
+typedType (_ ::: t) = t
+
+infix 6 :::
+
+instance (Pretty a, Pretty b) => Pretty (a ::: b) where
+  pretty (a ::: t) = pretty a <+> colon <+> pretty t
+
+instance (Pretty a, Pretty b) => PrettyPrec (a ::: b)
+
+instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a ::: b) where
+  fvs (a ::: b) = fvs a <> fvs b
 
 
 data Assoc = LAssoc | RAssoc | NonAssoc

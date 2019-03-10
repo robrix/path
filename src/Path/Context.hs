@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 module Path.Context where
 
 import Control.Arrow ((&&&))
@@ -8,22 +9,22 @@ import Path.Name
 import Path.Pretty
 import Path.Value
 
-newtype Context = Context { unContext :: Stack (Typed Gensym) }
+newtype Context = Context { unContext :: Stack (Gensym ::: Type MName) }
   deriving (Eq, Ord, Show)
 
 null :: Context -> Bool
 null = Prelude.null . unContext
 
-lookup :: Gensym -> Context -> Maybe Type
+lookup :: Gensym -> Context -> Maybe (Type MName)
 lookup n = fmap typedType . Stack.find ((== n) . typedTerm) . unContext
 
-insert :: Typed Gensym -> Context -> Context
+insert :: Gensym ::: Type MName -> Context -> Context
 insert t = Context . (:> t) . unContext
 
 union :: Context -> Context -> Context
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (Typed Gensym -> Bool) -> Context -> Context
+filter :: (Gensym ::: Type MName -> Bool) -> Context -> Context
 filter f = Context . Stack.filter f . unContext
 
 boundVars :: Context -> Set.Set Gensym

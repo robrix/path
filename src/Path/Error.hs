@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 module Path.Error where
 
 import           Data.Foldable (fold, toList)
@@ -19,12 +20,11 @@ data ElabError = ElabError
 
 data ErrorReason
   = FreeVariable QName
-  | TypeMismatch (Set.Set (Caused (Equation Value)))
-  | NoRuleToInfer
-  | IllegalApplication Type
+  | TypeMismatch (Set.Set (Caused (Equation (Value MName) ::: Type MName)))
+  | IllegalApplication (Type MName)
   | ResourceMismatch Gensym Usage Usage [Span]
-  | TypedHole QName Type
-  | InfiniteType QName Type
+  | TypedHole QName (Type MName)
+  | InfiniteType QName (Type MName)
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
@@ -32,7 +32,6 @@ instance Pretty ElabError where
     FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
     TypeMismatch eqns -> prettyErr span (fold (punctuate hardline
       (pretty "type mismatch" : map prettyEqn (toList eqns)))) (prettyCtx ctx)
-    NoRuleToInfer -> prettyErr span (pretty "no rule to infer type of term") (prettyCtx ctx)
     IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
     ResourceMismatch n pi used uses -> prettyErr span msg (prettyCtx ctx <> map prettys uses)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length uses)) <+> pretty "than required" <+> parens (pretty pi)
@@ -40,7 +39,7 @@ instance Pretty ElabError where
       where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
     where prettyCtx ctx = if Context.null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
-          prettyEqn (expected :===: actual :@ cause) = fold (punctuate hardline
+          prettyEqn ((expected :===: actual) ::: _ :@ cause) = fold (punctuate hardline
             ( pretty "expected:" <+> pretty expected
             : pretty "  actual:" <+> pretty actual
             : prettyCause cause))

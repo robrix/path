@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Solver where
 
 import           Control.Effect
@@ -7,8 +7,8 @@ import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>), when)
-import           Data.Foldable (fold, foldl', for_, toList)
+import           Control.Monad (when)
+import           Data.Foldable (fold, foldl')
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import           Data.Maybe (catMaybes, fromMaybe)
@@ -21,7 +21,6 @@ import           Path.Name
 import           Path.Plicity
 import           Path.Scope
 import           Path.Stack
-import           Path.Usage
 import           Path.Value hiding (Scope (..))
 import           Prelude hiding (pi)
 
@@ -32,89 +31,50 @@ simplify :: ( Carrier sig m
             , Member (Reader Gensym) sig
             , Member (Reader Scope) sig
             )
-         => Caused (Equation Value)
-         -> m (Set.Set (Caused (Equation Value)))
+         => Caused (Equation (Value MName) ::: Type MName)
+         -> m (Set.Set (Caused (Equation (Value MName) ::: Type MName)))
 simplify = execWriter . go
   where go = \case
-          tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
-          q@(Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2) :@ cause
+          (tm1 :===: tm2) ::: _ :@ _ | tm1 == tm2 -> pure ()
+          q@((Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2) ::: Type) :@ cause
             | p1 == p2, u1 == u2 -> do
-              (_, n) <- freshName t1
-              go (t1               :===: t2               :@ Via q cause)
-              go (instantiate n b1 :===: instantiate n b2 :@ Via q cause)
-          q@(Pi Im _ ty1 b1 :===: t2) :@ cause -> do
-            n <- exists ty1
-            go (instantiate n b1 :===: t2 :@ Via q cause)
-          q@(t1 :===: Pi Im _ ty2 b2) :@ cause -> do
-            n <- exists ty2
-            go (t1 :===: instantiate n b2 :@ Via q cause)
-          q@(Lam t1 b1 :===: Lam t2 b2) :@ cause -> do
-            (_, n) <- freshName t1
-            go (t1               :===: t2               :@ Via q cause)
-            go (instantiate n b1 :===: instantiate n b2 :@ Via q cause)
-          q@((f1 ::: tf1) :$ sp1 :===: (f2 ::: tf2) :$ sp2) :@ cause
-            | f1 == f2, length sp1 == length sp2 -> do
-              go (tf1 :===: tf2 :@ Via q cause)
-              for_ (zipWith (:===:) (toList sp1) (toList sp2)) (go . (:@ Via q cause))
-          q@(f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2) :@ cause -> do
+              (_, n) <- freshName
+              go ((t1               :===: t2              ) ::: Type :@ Via q cause)
+              go ((instantiate n b1 :===: instantiate n b2) ::: Type :@ Via q cause)
+          q@((Pi Im _ _ b1 :===: t2) ::: Type) :@ cause -> do
+            n <- exists
+            go ((instantiate n b1 :===: t2) ::: Type :@ Via q cause)
+          q@((t1 :===: Pi Im _ _ b2) ::: Type) :@ cause -> do
+            n <- exists
+            go ((t1 :===: instantiate n b2) ::: Type :@ Via q cause)
+          q@((Lam b1 :===: Lam b2) ::: Pi _ _ t b) :@ cause -> do
+            (_, n) <- freshName
+            go ((instantiate n b1 :===: instantiate n b2) ::: instantiate t b :@ Via q cause)
+          q@((f1@(Q (_ :.: _)) :$ sp1 :===: f2@(Q (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
             t2 <- whnf (f2 :$ sp2)
-            go (t1 :===: t2 :@ Via q cause)
-          q@(f1@(Free (Q (_ :.: _)) ::: _) :$ sp1 :===: t2) :@ cause -> do
+            go ((t1 :===: t2) ::: ty :@ Via q cause)
+          q@((f1@(Q (_ :.: _)) :$ sp1 :===: t2) ::: ty) :@ cause -> do
             t1 <- whnf (f1 :$ sp1)
-            go (t1 :===: t2 :@ Via q cause)
-          q@(t1 :===: f2@(Free (Q (_ :.: _)) ::: _) :$ sp2) :@ cause -> do
+            go ((t1 :===: t2) ::: ty :@ Via q cause)
+          q@((t1 :===: f2@(Q (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
             t2 <- whnf (f2 :$ sp2)
-            go (t1 :===: t2 :@ Via q cause)
-          q@(tm1 :===: Lam t2 b2) :@ cause -> do
-            t1 <- ensurePi cause tm1
-            (n, v) <- freshName t1
-            go (lam (qlocal n ::: t1) (tm1 $$ v) :===: Lam t2 b2 :@ Via q cause)
-          q@(Lam t1 b1 :===: tm2) :@ cause -> do
-            t2 <- ensurePi cause tm2
-            (n, v) <- freshName t2
-            go (Lam t1 b1 :===: lam (qlocal n ::: t2) (tm2 $$ v) :@ Via q cause)
-          q@(t1 :===: t2 :@ cause)
+            go ((t1 :===: t2) ::: ty :@ Via q cause)
+          q@((tm1 :===: Lam b2) ::: ty) :@ cause -> do
+            (n, v) <- freshName
+            go ((lam n (tm1 $$ v) :===: Lam b2) ::: ty :@ Via q cause)
+          q@((Lam b1 :===: tm2) ::: ty) :@ cause -> do
+            (n, v) <- freshName
+            go ((Lam b1 :===: lam n (tm2 $$ v)) ::: ty :@ Via q cause)
+          q@((t1 :===: t2) ::: _ :@ cause)
             | stuck t1                 -> tell (Set.singleton q)
             | stuck t2                 -> tell (Set.singleton q)
             | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch (Set.singleton q)))
-        freshName t = ((,) <*> free . (::: t) . qlocal) <$> gensym ""
-        exists t = free . (::: t) . M . Meta <$> gensym "_meta_"
+        freshName = ((,) <*> pure) . qlocal <$> gensym ""
+        exists = pure . M . Meta <$> gensym "_meta_"
 
-        typeof cause = infer
-          where infer Type = pure Type
-                infer (Pi _ _ t b) = do
-                  t' <- check (t ::: Type)
-                  (_, v) <- freshName t'
-                  Type <$ check (instantiate v b ::: Type)
-                infer (Lam t b) = do
-                  t' <- check (t ::: Type)
-                  (n, v) <- freshName t'
-                  pi ((n, Ex, More) ::: t') <$> infer (instantiate v b)
-                infer ((_ ::: ty) :$ sp) = pure (ty $$* sp)
-                check (tm ::: ty) = do
-                  ty' <- infer tm
-                  if ty == ty' then pure ty' else do
-                    m <- exists Type
-                    m <$ tell (Set.fromList [m :===: ty :@ cause, m :===: ty' :@ cause])
-
-        ensurePi cause = typeof cause >=> whnf >=> \case
-          Pi _ _ t _ -> pure t
-          (Free (M m) ::: ty) :$ sp -> do
-            m1 <- M . Meta <$> gensym "_meta_"
-            m2 <- M . Meta <$> gensym "_meta_"
-            (names, _) <- unpis ty
-            n <- gensym ""
-            let t1 = pis names (free (m1 ::: Type))
-                app ((n, _, _) ::: t) = free (qlocal n ::: t)
-                t2 = pis (names :> ((n, Im, Zero) ::: free (m1 ::: Type) $$* fmap app names)) Type
-                _A = free (m1 ::: t1) $$* sp
-                _B x = free (m2 ::: t2) $$* (sp:>x)
-            _A <$ tell (Set.singleton ((Free (M m) ::: ty) :$ sp :===: pi ((n, Im, More) ::: _A) (_B (free (qlocal n ::: _A))) :@ cause))
-          t | span :| _ <- spans cause -> throwError (ElabError span mempty (IllegalApplication t))
-
-        stuck ((Free (M _) ::: _) :$ _) = True
-        stuck _                         = False
+        stuck (M _ :$ _) = True
+        stuck _          = False
 
 solve :: ( Carrier sig m
          , Effect sig
@@ -122,16 +82,16 @@ solve :: ( Carrier sig m
          , Member (Reader Gensym) sig
          , Member (Reader Scope) sig
          )
-      => Set.Set (Caused (Equation Value))
+      => Set.Set (Caused (Equation (Value MName) ::: Type MName))
       -> m [Caused Solution]
 solve cs
   = local (// "solve")
   . runFresh
   . fmap (map (uncurry toSolution) . Map.toList)
   . execState mempty
-  . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
+  . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Value MName) ::: Type MName)))
   $ do
-    stuck <- fmap fold . execState (mempty :: Map.Map Meta (Set.Set (Caused (Equation Value)))) $ do
+    stuck <- fmap fold . execState (mempty :: Map.Map Meta (Set.Set (Caused (Equation (Value MName) ::: Type MName)))) $ do
       modify (flip (foldl' (Seq.|>)) cs)
       step
     case Set.minView stuck of
@@ -144,7 +104,7 @@ solve cs
             step
           Nothing -> pure ()
 
-        process _S q@(t1 :===: t2 :@ c)
+        process _S q@((t1 :===: t2) ::: _ :@ c)
           | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) = simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
           | Just (m, sp) <- pattern t1 = solve (m := lams sp t2 :@ c)
           | Just (m, sp) <- pattern t2 = solve (m := lams sp t1 :@ c)
@@ -160,17 +120,17 @@ solve cs
           Seq.EmptyL -> pure Nothing
           h Seq.:< q -> Just h <$ put q
 
-        pattern ((Free (M m) ::: _) :$ sp) = (,) m <$> traverse free sp
-        pattern _                          = Nothing
+        pattern (M m :$ sp) = (,) m <$> traverse free sp
+        pattern _           = Nothing
 
-        free ((Free v ::: t) :$ Nil) = Just (v ::: t)
-        free _                       = Nothing
+        free (v :$ Nil) = Just v
+        free _          = Nothing
 
         solve (m := v :@ c) = do
           modify (Map.insert m (v :@ c))
           cs <- gets (fromMaybe mempty . Map.lookup m)
-          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation Value))))
-          modify (Map.delete @Meta @(Set.Set (Caused (Equation Value))) m)
+          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation (Value MName) ::: Type MName))))
+          modify (Map.delete @Meta @(Set.Set (Caused (Equation (Value MName) ::: Type MName))) m)
 
         solutions _S s
           | s:ss <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)

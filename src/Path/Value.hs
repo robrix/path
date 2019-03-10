@@ -1,10 +1,11 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, TupleSections #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeOperators #-}
 module Path.Value where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
+import           Control.Monad (ap)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -14,30 +15,30 @@ import           Path.Stack as Stack
 import           Path.Usage
 import           Prelude hiding (pi)
 
-data Value
-  = Type                              -- ^ @'Type' : 'Type'@.
-  | Lam              Value Scope      -- ^ A lambda abstraction.
-  | Pi Plicity Usage Value Scope      -- ^ A ∏ type, with a 'Usage' annotation.
-  | Typed (Head MName) :$ Stack Value -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
-  deriving (Eq, Ord, Show)
+data Value a
+  = Type                                 -- ^ @'Type' : 'Type'@.
+  | Lam                        (Scope a) -- ^ A lambda abstraction.
+  | Pi Plicity Usage (Value a) (Scope a) -- ^ A ∏ type, with a 'Usage' annotation.
+  | a :$ Stack (Value a)                 -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-newtype Scope = Scope Value
-  deriving (Eq, Ord, Pretty, PrettyPrec, Show)
+newtype Scope a = Scope (Value (Incr a))
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance PrettyPrec Value where
+instance PrettyPrec (Value MName) where
   prettyPrec d = run . runFresh . runReader (Root "pretty") . go d
     where go d = \case
-            Lam t b -> do
-              (as, b') <- unlams (Lam t b)
+            Lam b -> do
+              (as, b') <- unlams (Lam b)
               b'' <- go 0 b'
               pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> b'') as))))
-              where var vs (n ::: _) rest
-                      | qlocal n `Set.member` vs = pretty n   <+> rest
-                      | otherwise                   = pretty '_' <+> rest
+              where var vs n rest
+                      | n `Set.member` vs = pretty n   <+> rest
+                      | otherwise         = pretty '_' <+> rest
             Type -> pure (yellow (pretty "Type"))
             Pi ie pi t b -> do
               name <- gensym ""
-              let b' = instantiate (free (qlocal name ::: t)) b
+              let b' = instantiate (pure (qlocal name)) b
               if qlocal name `Set.member` fvs b' then do
                 t' <- go 0 t
                 b'' <- go 1 b'
@@ -54,118 +55,110 @@ instance PrettyPrec Value where
                       | ie == Im  = prettyBraces True
                       | otherwise = prettyParens True
                     arrow = blue (pretty "->")
-            (f ::: _) :$ sp -> do
+            f :$ sp -> do
               sp' <- traverse (go 11) (toList sp)
               pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
 
-instance Pretty Value where
+instance Pretty (Value MName) where
   pretty = prettyPrec 0
 
-instance FreeVariables MName Value where
-  fvs = \case
-    Type -> mempty
-    Lam _ (Scope b) -> fvs b
-    Pi _ _ t (Scope b) -> fvs t <> fvs b
-    (v ::: _) :$ sp -> fvs v <> foldMap fvs sp
+instance Ord a => FreeVariables a (Value a) where
+  fvs = foldMap Set.singleton
 
-free :: Typed MName -> Value
-free (q ::: t) = (Free q ::: t) :$ Nil
+instance Applicative Value where
+  pure = (:$ Nil)
+  (<*>) = ap
 
-lam :: Typed MName -> Value -> Value
-lam (n ::: t) b = Lam t (bind n b)
+instance Monad Value where
+  a >>= f = joinT (fmap f a)
 
-lams :: Foldable t => t (Typed MName) -> Value -> Value
+
+lam :: Eq a => a -> Value a -> Value a
+lam n b = Lam (bind n b)
+
+lams :: (Eq a, Foldable t) => t a -> Value a -> Value a
 lams names body = foldr lam body names
 
-unlam :: Alternative m => Gensym -> Value -> m (Typed Gensym, Value)
-unlam n (Lam t b) = pure (n ::: t, instantiate (free (qlocal n ::: t)) b)
+unlam :: Alternative m => a -> Value a -> m (a, Value a)
+unlam n (Lam b) = pure (n, instantiate (pure n) b)
 unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack (Typed Gensym), Value)
+unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value MName -> m (Stack MName, Value MName)
 unlams value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
-          case unlam name value of
+          case unlam (qlocal name) value of
             Just (name, body) -> intro (names :> name, body)
             Nothing           -> pure (names, value)
 
-pi :: Typed (Gensym, Plicity, Usage) -> Value -> Value
-pi ((n, p, u) ::: t) b = Pi p u t (bind (qlocal n) b)
+pi :: Eq a => (a, Plicity, Usage) ::: Type a -> Value a -> Value a
+pi ((n, p, u) ::: t) b = Pi p u t (bind n b)
 
-pis :: Foldable t => t (Typed (Gensym, Plicity, Usage)) -> Value -> Value
+pis :: (Eq a, Foldable t) => t ((a, Plicity, Usage) ::: Type a) -> Value a -> Value a
 pis names body = foldr pi body names
 
-unpi :: Alternative m => Gensym -> Value -> m (Typed (Gensym, Plicity, Usage), Value)
-unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (free (qlocal n ::: t)) b)
+unpi :: Alternative m => a -> Value a -> m ((a, Plicity, Usage) ::: Type a, Value a)
+unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (pure n) b)
 unpi _ _            = empty
 
-unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value -> m (Stack (Typed (Gensym, Plicity, Usage)), Value)
+unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value MName -> m (Stack ((MName, Plicity, Usage) ::: Type MName), Value MName)
 unpis value = intro (Nil, value)
-  where intro (names, value) = gensym "" >>= \ root -> case unpi root value of
+  where intro (names, value) = gensym "" >>= \ root -> case unpi (qlocal root) value of
           Just (name, body) -> intro (names :> name, body)
           Nothing           -> pure (names, value)
 
-($$) :: Value -> Value -> Value
-Lam _ b    $$ v = instantiate v b
+($$) :: Value a -> Value a -> Value a
+Lam      b $$ v = instantiate v b
 Pi _ _ _ b $$ v = instantiate v b
 n :$ vs    $$ v = n :$ (vs :> v)
-f          $$ v = error ("illegal application of " <> show (plain (pretty f)) <> " to " <> show (plain (pretty v)))
+_          $$ _ = error "illegal application of Type"
 
-($$*) :: Foldable t => Value -> t Value -> Value
+($$*) :: Foldable t => Value a -> t (Value a) -> Value a
 v $$* sp = foldl' ($$) v sp
+
+
+gfoldT :: forall m n b
+       .  (forall a . n (Incr a) -> n a)
+       -> (forall a . m a -> Stack (n a) -> n a)
+       -> (forall a . n a)
+       -> (forall a . Plicity -> Usage -> n a -> n (Incr a) -> n a)
+       -> (forall a . Incr (m a) -> m (Incr a))
+       -> Value (m b)
+       -> n b
+gfoldT lam app ty pi dist = go
+  where go :: Type (m x) -> n x
+        go = \case
+          Lam (Scope b) -> lam (go (dist <$> b))
+          f :$ a -> app f (fmap go a)
+          Type -> ty
+          Pi p m t (Scope b) -> pi p m (go t) (go (dist <$> b))
+
+joinT :: Value (Value a) -> Value a
+joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pure Z) (fmap S))
 
 
 -- | Substitute occurrences of an 'MName' with a 'Value' within another 'Value'.
 --
---   prop> subst (Local (Root a)) (free (Local (Root b))) (Lam ($$ free (Local (Root a)))) == Lam ($$ free (Local (Root b)))
-subst :: MName -> Value -> Value -> Value
-subst name image = instantiate image . bind name
+--   prop> subst (Local (Root a)) (pure (Local (Root b))) (Lam ($$ pure (Local (Root a)))) == Lam ($$ pure (Local (Root b)))
+substitute :: Eq a => a -> Value a -> Value a -> Value a
+substitute name image = instantiate image . bind name
 
-generalizeType :: Value -> Value
-generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero)) (localNames (fvs ty))) ty
+generalizeType :: Value MName -> Value MName
+generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero) . qlocal) (localNames (fvs ty))) ty
 
-generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig) => Type -> Value -> m Value
+generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig) => Type MName -> Value MName -> m (Value MName)
 generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
   (names, _) <- unpis ty
-  pure (lams (fmap (\ ((n, _, _) ::: t) -> qlocal n ::: t) names) value)
+  pure (lams (fmap (\ ((n, _, _) ::: _) -> n) names) value)
 
 
 type Type = Value
 
-data Typed a = a ::: Type
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-typedTerm :: Typed a -> a
-typedTerm (a ::: _) = a
-
-typedType :: Typed a -> Type
-typedType (_ ::: t) = t
-
-infix 6 :::
-
-instance Pretty a => Pretty (Typed a) where
-  pretty (a ::: t) = pretty a <+> colon <+> pretty t
-
-instance Pretty a => PrettyPrec (Typed a)
-
 
 -- | Bind occurrences of an 'MName' in a 'Value' term, producing a 'Scope' in which the 'MName' is bound.
-bind :: MName -> Value -> Scope
-bind name = Scope . substIn (\ i (h ::: t) -> (:$ Nil) . (::: t) $ case h of
-  Bound j -> Bound j
-  Free n  -> if name == n then Bound i else Free n)
+bind :: Eq a => a -> Value a -> Scope a
+bind name = Scope . fmap (match name)
 
 -- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Value' term.
-instantiate :: Value -> Scope -> Value
-instantiate image (Scope b) = substIn (\ i (h ::: t) -> case h of
-  Bound j -> if i == j then image else (Bound j ::: t) :$ Nil
-  Free n  -> free (n ::: t)) b
-
-substIn :: (Int -> Typed (Head MName) -> Value)
-        -> Value
-        -> Value
-substIn var = go 0
-  where go _ Type                 = Type
-        go i (Lam    t (Scope b)) = Lam    (go i t) (Scope (go (succ i) b))
-        go i (Pi p u t (Scope b)) = Pi p u (go i t) (Scope (go (succ i) b))
-        go i ((head ::: t) :$ sp) = var i (head ::: go i t) $$* fmap (go i) sp
+instantiate :: Value a -> Scope a -> Value a
+instantiate t (Scope b) = b >>= subst t . fmap pure
