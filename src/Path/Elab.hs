@@ -38,16 +38,16 @@ runElab :: ( Carrier sig m
            , Member (Reader Scope) sig
            )
         => Usage
-        -> ReaderC Span (ReaderC Usage (ReaderC Context (WriterC Resources (WriterC (Set.Set (Caused (Equation Value))) (FreshC m))))) (Value ::: Type)
-        -> m (Resources, Value ::: Type)
+        -> ReaderC Span (ReaderC Usage (ReaderC Context (WriterC Resources (WriterC (Set.Set (Caused (Equation (Value MName)))) (FreshC m))))) (Value MName ::: Type MName)
+        -> m (Resources, Value MName ::: Type MName)
 runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty)
   where solveAndApply (eqns, (res, tm ::: ty)) = do
           subst <- solve eqns
           pure (res, apply subst tm ::: apply subst ty)
 
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation Value)))) sig)
+infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value MName))))) sig)
       => Core.Core
-      -> m (Value ::: Type)
+      -> m (Value MName ::: Type MName)
 infer = \case
   Core.Type -> pure (Value.Type ::: Value.Type)
   Core.Pi i e t b -> gensym "" >>= \ n -> do
@@ -95,9 +95,9 @@ infer = \case
         lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
         lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
-check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation Value)))) sig)
-      => Core.Core ::: Type
-      -> m (Value ::: Type)
+check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value MName))))) sig)
+      => Core.Core ::: Type MName
+      -> m (Value MName ::: Type MName)
 check = \case
   tm ::: ty@(Value.Pi Im pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
     (res, e' ::: _) <- n ::: t |- listen (check (tm ::: instantiate (free (qlocal n ::: t)) b))
@@ -129,7 +129,7 @@ check = \case
           v <$ tell (Set.fromList [ v :===: tm1 :@ Assert span
                                   , v :===: tm2 :@ Assert span ])
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Type -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Type MName -> m a -> m a
 n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
@@ -137,7 +137,7 @@ infix 5 |-
 throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Context) sig, Member (Reader Span) sig) => ErrorReason -> m a
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
-exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type -> m (MName, Type)
+exists :: (Carrier sig m, Member Fresh sig, Member (Reader Context) sig, Member (Reader Gensym) sig) => Type MName -> m (MName, Type MName)
 exists t = do
   Context c <- ask
   n <- M . Meta <$> gensym "_meta_"
@@ -155,7 +155,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Module QName Core.Core
-           -> m (Module QName (Resources, Value ::: Type))
+           -> m (Module QName (Resources, Value MName ::: Type MName))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -181,7 +181,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             )
          => Decl QName Core.Core
-         -> m (Decl QName (Resources, Value ::: Type))
+         -> m (Decl QName (Resources, Value MName ::: Type MName))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -195,7 +195,7 @@ elabDeclare :: ( Carrier sig m
                )
             => QName
             -> Core.Core
-            -> m (Resources, Value ::: Type)
+            -> m (Resources, Value MName ::: Type MName)
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (check (ty ::: Value.Type)))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
@@ -208,7 +208,7 @@ elabDefine :: ( Carrier sig m
               )
            => QName
            -> Core.Core
-           -> m (Resources, Value ::: Type)
+           -> m (Resources, Value MName ::: Type MName)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))

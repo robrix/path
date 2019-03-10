@@ -32,8 +32,8 @@ simplify :: ( Carrier sig m
             , Member (Reader Gensym) sig
             , Member (Reader Scope) sig
             )
-         => Caused (Equation Value)
-         -> m (Set.Set (Caused (Equation Value)))
+         => Caused (Equation (Value MName))
+         -> m (Set.Set (Caused (Equation (Value MName))))
 simplify = execWriter . go
   where go = \case
           tm1 :===: tm2 :@ _ | tm1 == tm2 -> pure ()
@@ -122,16 +122,16 @@ solve :: ( Carrier sig m
          , Member (Reader Gensym) sig
          , Member (Reader Scope) sig
          )
-      => Set.Set (Caused (Equation Value))
+      => Set.Set (Caused (Equation (Value MName)))
       -> m [Caused Solution]
 solve cs
   = local (// "solve")
   . runFresh
   . fmap (map (uncurry toSolution) . Map.toList)
   . execState mempty
-  . evalState (Seq.empty :: Seq.Seq (Caused (Equation Value)))
+  . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Value MName))))
   $ do
-    stuck <- fmap fold . execState (mempty :: Map.Map Meta (Set.Set (Caused (Equation Value)))) $ do
+    stuck <- fmap fold . execState (mempty :: Map.Map Meta (Set.Set (Caused (Equation (Value MName))))) $ do
       modify (flip (foldl' (Seq.|>)) cs)
       step
     case Set.minView stuck of
@@ -169,8 +169,8 @@ solve cs
         solve (m := v :@ c) = do
           modify (Map.insert m (v :@ c))
           cs <- gets (fromMaybe mempty . Map.lookup m)
-          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation Value))))
-          modify (Map.delete @Meta @(Set.Set (Caused (Equation Value))) m)
+          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation (Value MName)))))
+          modify (Map.delete @Meta @(Set.Set (Caused (Equation (Value MName)))) m)
 
         solutions _S s
           | s:ss <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
