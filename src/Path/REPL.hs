@@ -33,6 +33,7 @@ import Path.Renamer
 import Path.Resources
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
+import Path.Solver
 import Path.Stack
 import Path.Usage
 import Path.Value
@@ -157,11 +158,12 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resources, Value Meta ::: Type Meta)) (runError (runError (runError (runError loop))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @ErrInfo) pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resources, Value Meta ::: Type Meta)) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @SolverError) (either (print @ErrInfo) pure)))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< print @ResolveError)
           `catchError` (const loop <=< print @ElabError)
           `catchError` (const loop <=< print @ModuleError)
+          `catchError` (const loop <=< print @SolverError)
           `catchError` (const loop <=< print @ErrInfo)
         runCommand = \case
           Quit -> pure ()
