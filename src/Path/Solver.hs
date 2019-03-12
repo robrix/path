@@ -215,14 +215,6 @@ applyType subst ty = ty >>= \case
   Qual n -> pure (Qual n)
   Meta m -> fromMaybe (pure (Meta m)) (Map.lookup m subst)
 
-substTyped :: Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> Value Meta ::: Type Meta
-substTyped subst (val ::: ty) = substTy subst val ::: substTy subst ty
-
-substTy :: Map.Map Gensym (Type Meta) -> Type Meta -> Type Meta
-substTy subst = (=<<) $ \case
-  Qual n -> pure (Qual n)
-  Meta m -> maybe (pure (Meta m)) (substTy subst) (Map.lookup m subst)
-
 simplify' :: ( Carrier sig m
             , Effect sig
             , Member (Error SolverError) sig

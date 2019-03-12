@@ -105,12 +105,12 @@ elab = \case
 runElab :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig) => Usage -> Maybe (Type Meta) -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta) -> m (Resources, Value Meta ::: Type Meta)
 runElab sigma ty m = runFresh . runWriter $ do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
-  (constraints, res) <- runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
+  (constraints, tm ::: ty'') <- runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
     val <- exists' ty'
     m' <- m
     m' <$ unify (m' :===: val)
   subst <- solver (foldMap hetToHom constraints)
-  pure (substTyped subst res)
+  pure (applyType subst tm ::: applyType subst ty'')
 
 
 (|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
