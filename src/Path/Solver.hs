@@ -9,7 +9,7 @@ import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, join, unless, when)
-import           Data.Foldable (fold, foldl')
+import           Data.Foldable (fold, foldl', toList)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import           Data.Maybe (catMaybes, fromMaybe)
@@ -157,7 +157,7 @@ solver constraints = execState Map.empty $ do
       enqueueAll constraints
       step
     unless (null stuck) $ throwError (StuckConstraints stuck)
-  unless (null queue) $ fail ("stalled constraints: " ++ show queue)
+  unless (null queue) $ throwError (StalledConstraints queue)
 
 step :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => m ()
 step = do
@@ -272,6 +272,7 @@ data SolverError
   | UnblockableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
   | StuckConstraints (Set.Set HomConstraint)
+  | StalledConstraints Queue
   deriving (Eq, Ord, Show)
 
 instance Pretty SolverError where
@@ -280,6 +281,7 @@ instance Pretty SolverError where
     UnblockableConstraint (ctx :|-: eqn) -> prettyErr (Span mempty mempty mempty) (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     StuckConstraints constraints -> prettyErr (Span mempty mempty mempty) (pretty "stuck constraints") (map prettyConstraint (Set.toList constraints))
+    StalledConstraints queue -> prettyErr (Span mempty mempty mempty) (pretty "stalled constraints") (map prettyConstraint (toList queue))
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
             [ pretty "expected:" <+> pretty expected
