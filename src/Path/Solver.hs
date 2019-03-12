@@ -263,3 +263,8 @@ hetToHom (ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) = Set.fromList
   [ ctx :|-: (ty1 :===: ty2) ::: Type
   , ctx :|-: (tm1 :===: tm2) ::: ty1
   ]
+
+
+data SolverError
+  = UnsimplifiableConstraint HomConstraint
+  deriving (Eq, Ord, Show)
