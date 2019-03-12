@@ -7,7 +7,8 @@ import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
-import Control.Monad ((<=<), unless, when)
+import Control.Monad ((<=<))
+import Data.Bifunctor (bimap)
 import Data.Foldable (for_, toList)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -18,7 +19,6 @@ import Path.Constraint
 import Path.Context as Context
 import qualified Path.Core as Core
 import Path.Error
-import Path.Eval as Eval
 import Path.Module
 import Path.Name
 import Path.Plicity
@@ -27,7 +27,7 @@ import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
 import Path.Usage
-import Path.Value (Type, Value(..), ($$), ($$*), bind, instantiate)
+import Path.Value (Type, Value(..), ($$*))
 import qualified Path.Value as Value
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..))
@@ -103,110 +103,16 @@ elab = \case
   Core.Ann ann b -> local (const ann) (elab b)
 
 
-runElab' :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig) => Usage -> Maybe (Type Meta) -> ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (FreshC m)))) (Value Meta ::: Type Meta) -> m (Value Qual ::: Type Qual)
-runElab' sigma ty m = runFresh $ do
+runElab :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig) => Usage -> Maybe (Type Meta) -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta) -> m (Resources, Value Qual ::: Type Qual)
+runElab sigma ty m = runFresh . runWriter $ do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
-  (constraints, res) <- runWriter . runReader mempty . runReader ty' . runReader sigma $ do
+  (constraints, res) <- runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
     val <- exists' ty'
     m' <- m
     m' <$ unify (m' :===: val)
   subst <- solver (foldMap hetToHom constraints)
   substTyped subst res
 
-
-runElab :: ( Carrier sig m
-           , Effect sig
-           , Member (Error ElabError) sig
-           , Member (Reader Gensym) sig
-           , Member (Reader Scope) sig
-           )
-        => Usage
-        -> ReaderC Span (ReaderC Usage (ReaderC (Context (Type Meta)) (WriterC Resources (WriterC (Set.Set (Caused (Equation (Value Meta) ::: Type Meta))) (FreshC m))))) (Value Meta ::: Type Meta)
-        -> m (Resources, Value Meta ::: Type Meta)
-runElab sigma = local (// "elab") . solveAndApply <=< runFresh . runWriter . runWriter . runReader mempty . runReader sigma . runReader (Span mempty mempty mempty)
-  where solveAndApply (eqns, (res, tm ::: ty)) = do
-          subst <- solve eqns
-          pure (res, apply subst tm ::: apply subst ty)
-
-infer :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
-      => Core.Core Qual
-      -> m (Value Meta ::: Type Meta)
-infer = \case
-  Core.Type -> pure (Value.Type ::: Value.Type)
-  Core.Pi i e t b -> gensym "" >>= \ n -> do
-    t' ::: _ <- check (t ::: Value.Type)
-    b' ::: _ <- n ::: t' |- check (Core.instantiate (pure (Local n)) b ::: Value.Type)
-    pure (Value.pi ((qlocal n, i, e) ::: t') b' ::: Value.Type)
-  Core.Var n -> do
-    t <- lookupVar n >>= whnf
-    sigma <- ask
-    tell (Resources.singleton (Qual n) sigma)
-    elabImplicits (pure (Qual n) ::: t)
-  f Core.:$ a -> do
-    f' ::: fTy <- infer f
-    (pi, t, b) <- whnf fTy >>= ensurePi
-    a' ::: _ <- censor (Resources.mult pi) (check (a ::: t))
-    pure (f' $$ a' ::: instantiate a' b)
-  Core.Lam b -> gensym "" >>= \ n -> do
-    (_, t) <- exists Value.Type
-    e' ::: eTy <- n ::: t |- censor (Resources.delete (qlocal n)) (infer (Core.instantiate (pure (Local n)) b))
-    pure (Value.lam (qlocal n) e' ::: Value.pi ((qlocal n, Ex, More) ::: t) eTy)
-  Core.Hole _ -> do
-    (_, ty) <- exists Value.Type
-    (_, m) <- exists ty
-    pure (m ::: ty)
-  Core.Ann ann t -> local (const ann) (infer t)
-  where elabImplicits = \case
-          tm ::: Value.Pi Im _ t b -> do
-            (n, v) <- exists t
-            sigma <- ask
-            tell (Resources.singleton n sigma)
-            elabImplicits (tm $$ v ::: instantiate v b)
-          tm -> pure tm
-
-        ensurePi t = case t of
-          Value.Pi _ pi t b -> pure (pi, t, b)
-          Meta _ Value.:$ _ -> do
-            (mA, _A) <- exists Value.Type
-            (_, _B) <- exists _A
-            let _B' = bind mA _B
-            span <- ask
-            (More, _A, _B') <$ tell (Set.singleton ((t :===: Value.Pi Ex More _A _B') ::: (Type :: Type Meta) :@ Assert span))
-          _ -> throwElabError (IllegalApplication t)
-
-check :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader Usage) sig, Member (Writer Resources) sig, Member (Writer (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) sig)
-      => Core.Core Qual ::: Type Meta
-      -> m (Value Meta ::: Type Meta)
-check = \case
-  tm ::: ty@(Value.Pi Im pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
-    (res, e' ::: _) <- n ::: t |- listen (check (tm ::: instantiate (pure (qlocal n)) b))
-    verifyResources tm n pi res
-    pure (Value.lam (qlocal n) e' ::: ty)
-  Core.Lam e ::: ty@(Value.Pi Ex pi t b) -> gensym "" >>= \ n -> censor (Resources.delete (qlocal n)) $ do
-    (res, e' ::: _) <- n ::: t |- listen (check (Core.instantiate (pure (Local n)) e ::: instantiate (pure (qlocal n)) b))
-    verifyResources (Core.Lam e) n pi res
-    pure (Value.lam (qlocal n) e' ::: ty)
-  Core.Hole _ ::: ty -> do
-    (_, m) <- exists ty
-    pure (m ::: ty)
-  Core.Ann ann tm ::: ty -> local (const ann) (check (tm ::: ty))
-  tm ::: ty@(Qual (_ :.: _) Value.:$ _) -> do
-   ty' <- whnf ty
-   check (tm ::: ty')
-  tm ::: ty -> do
-    tm' ::: inferred <- infer tm
-    (tm' :::) <$> unify Value.Type (ty :===: inferred)
-  where verifyResources tm n pi br = do
-          let used = Resources.lookup (qlocal n) br
-          sigma <- ask
-          unless (sigma >< pi == More) . when (pi /= used) $
-            throwElabError (ResourceMismatch n pi used (Core.uses n tm))
-
-        unify ty (tm1 :===: tm2) = if tm1 == tm2 then pure tm1 else do
-          (_, v) <- exists ty
-          span <- ask
-          v <$ tell (Set.fromList [ (v :===: tm1) ::: ty :@ Assert span
-                                  , (v :===: tm2) ::: ty :@ Assert span ])
 
 (|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
 n ::: t |- m = local (Context.insert (n ::: t)) m
@@ -235,6 +141,7 @@ elabModule :: ( Carrier sig m
               , Member (Reader ModuleTable) sig
               , Member (Reader Gensym) sig
               , Member (State (Stack ElabError)) sig
+              , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
               )
            => Module Qual (Core.Core Qual)
@@ -242,11 +149,14 @@ elabModule :: ( Carrier sig m
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
-  decls <- for (moduleDecls m) (either ((Nothing <$) . logError) (pure . Just) <=< runError . elabDecl)
+  decls <- for (moduleDecls m) (either ((Nothing <$) . logElabError) (either ((Nothing <$) . logSolverError) (pure . Just)) <=< runError . runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
 
-logError :: (Carrier sig m, Member (State (Stack ElabError)) sig) => ElabError -> m ()
-logError = modify . flip (:>)
+logElabError :: (Carrier sig m, Member (State (Stack ElabError)) sig) => ElabError -> m ()
+logElabError = modify . flip (:>)
+
+logSolverError :: (Carrier sig m, Member (State (Stack SolverError)) sig) => SolverError -> m ()
+logSolverError = modify . flip (:>)
 
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig
@@ -260,6 +170,7 @@ importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (U
 elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error ElabError) sig
+            , Member (Error SolverError) sig
             , Member (Reader Gensym) sig
             , Member (State Scope) sig
             )
@@ -273,6 +184,7 @@ elabDecl = \case
 elabDeclare :: ( Carrier sig m
                , Effect sig
                , Member (Error ElabError) sig
+               , Member (Error SolverError) sig
                , Member (Reader Gensym) sig
                , Member (State Scope) sig
                )
@@ -280,12 +192,13 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core Qual
             -> m (Resources, Value Meta ::: Type Meta)
 elabDeclare name ty = do
-  elab <- runScope (runElab Zero (check (ty ::: Value.Type)))
+  elab <- fmap qualify <$> runScope (runElab Zero (Just Value.Type) (elab ty))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
 
 elabDefine :: ( Carrier sig m
               , Effect sig
               , Member (Error ElabError) sig
+              , Member (Error SolverError) sig
               , Member (Reader Gensym) sig
               , Member (State Scope) sig
               )
@@ -294,8 +207,11 @@ elabDefine :: ( Carrier sig m
            -> m (Resources, Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- runScope (runElab One (maybe (infer tm) (check . (tm :::)) ty))
+  elab <- fmap qualify <$> runScope (runElab One ty (elab tm))
   elab <$ modify (Scope.insert name (Defn (snd elab)))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
+
+qualify :: Value Qual ::: Type Qual -> Value Meta ::: Type Meta
+qualify = bimap (fmap Qual) (fmap Qual)

@@ -169,15 +169,15 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero . infer
-            print (generalizeType (typedType elab))
+            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero Nothing . elab
+            print (generalizeType (Qual <$> typedType elab))
             loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
-            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One . infer
-            runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
+            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One Nothing . elab
+            runScope (whnf (Qual <$> typedTerm elab)) >>= generalizeValue (generalizeType (Qual <$> typedType elab)) >>= print
             loop
           Show Bindings -> do
             scope <- get
@@ -212,11 +212,12 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule)))
-            if Prelude.null errs then
+            (solverErrs, (elabErrs, (scope, res))) <- runState Nil (runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule))))
+            if Prelude.null elabErrs && Prelude.null solverErrs then
               modify (Map.insert name scope)
             else do
-              for_ errs (print @ElabError)
+              for_ elabErrs (print @ElabError)
+              for_ solverErrs (print @SolverError)
               modify (name:)
             pure (Just res)
           put (moduleGraph (catMaybes checked))
