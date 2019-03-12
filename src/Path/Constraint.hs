@@ -8,7 +8,7 @@ import Path.Context
 import Path.Name
 import Path.Pretty
 import Path.Value
-import Text.Trifecta.Rendering (Span)
+import Text.Trifecta.Rendering (Span, Spanned(..))
 
 data Equation a
   = a :===: a
@@ -88,3 +88,6 @@ instance (Substitutable a, Substitutable b) => Substitutable (a ::: b) where
 
 instance (Ord a, Substitutable a) => Substitutable (Set.Set a) where
   apply subst = Set.map (apply subst)
+
+instance Substitutable a => Substitutable (Spanned a) where
+  apply subst (a :~ span) = apply subst a :~ span
