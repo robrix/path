@@ -3,7 +3,6 @@ module Path.Elab where
 
 import Control.Effect
 import Control.Effect.Error
-import Control.Effect.Fail
 import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
@@ -104,7 +103,7 @@ elab = \case
   Core.Ann ann b -> local (const ann) (elab b)
 
 
-runElab' :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig, MonadFail m) => Maybe (Type Meta) -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (FreshC m))) (Value Meta ::: Type Meta) -> m (Value Qual ::: Type Qual)
+runElab' :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig) => Maybe (Type Meta) -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (FreshC m))) (Value Meta ::: Type Meta) -> m (Value Qual ::: Type Qual)
 runElab' ty m = runFresh $ do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
   (constraints, res) <- runWriter . runReader mempty . runReader ty' $ do

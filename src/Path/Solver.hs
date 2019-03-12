@@ -3,7 +3,6 @@ module Path.Solver where
 
 import           Control.Effect
 import           Control.Effect.Error
-import           Control.Effect.Fail
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
@@ -25,7 +24,7 @@ import           Path.Pretty
 import           Path.Scope hiding (null)
 import           Path.Stack
 import           Path.Value as Value hiding (Scope (..))
-import           Prelude hiding (fail, pi)
+import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span(..))
 
 type Blocked = Map.Map Gensym (Set.Set HomConstraint)
@@ -150,7 +149,7 @@ solve cs
         throwMismatch qs c | span :| _ <- spans c = throwError (ElabError span mempty (TypeMismatch qs))
 
 
-solver :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, MonadFail m) => Set.Set HomConstraint -> m Substitution
+solver :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig) => Set.Set HomConstraint -> m Substitution
 solver constraints = execState Map.empty $ do
   queue <- execState (Seq.empty :: Queue) $ do
     stuck <- fmap fold . execState (Map.empty :: Blocked) $ do
@@ -159,7 +158,7 @@ solver constraints = execState Map.empty $ do
     unless (null stuck) $ throwError (StuckConstraints stuck)
   unless (null queue) $ throwError (StalledConstraints queue)
 
-step :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => m ()
+step :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => m ()
 step = do
   _S <- get
   dequeue >>= maybe (pure ()) (process _S >=> const step)
