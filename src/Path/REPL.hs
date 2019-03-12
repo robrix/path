@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
 import Control.Arrow ((&&&))
@@ -63,7 +63,7 @@ instance HFunctor Print where
 instance Effect Print where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-print :: (Carrier sig m, Member Print sig, PrettyPrec a) => a -> m ()
+print :: (PrettyPrec a, Carrier sig m, Member Print sig) => a -> m ()
 print s = send (Print (prettys s) (pure ()))
 
 
@@ -80,7 +80,7 @@ instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (Pr
     str <- lift (lift (TransC (getInputLine (cyan <> prompt <> plain))))
     res <- runError (traverse (parseString (whole c) (lineDelta l)) str)
     res <- case res of
-      Left  err -> Nothing <$ printParserError err
+      Left  err -> Nothing <$ prettyPrint @ErrInfo err
       Right res -> pure (join res)
     local increment (runREPLC (k res))
     where cyan = "\ESC[1;36m\STX"
@@ -157,12 +157,12 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resources, Value Meta ::: Type Meta)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resources, Value Meta ::: Type Meta)) (runError (runError (runError (runError loop))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @ErrInfo) pure))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
-          `catchError` (const loop <=< printResolveError)
-          `catchError` (const loop <=< printElabError)
-          `catchError` (const loop <=< printModuleError)
-          `catchError` (const loop <=< printParserError)
+          `catchError` (const loop <=< print @ResolveError)
+          `catchError` (const loop <=< print @ElabError)
+          `catchError` (const loop <=< print @ModuleError)
+          `catchError` (const loop <=< print @ErrInfo)
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
@@ -214,7 +214,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
-              for_ errs printElabError
+              for_ errs (print @ElabError)
               modify (name:)
             pure (Just res)
           put (moduleGraph (catMaybes checked))
@@ -224,12 +224,6 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
         runRenamer m = do
           res <- get
           runFresh (runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m)))
-        printResolveError err = print (err :: ResolveError)
-        printElabError    err = print (err :: ElabError)
-        printModuleError  err = print (err :: ModuleError)
-
-printParserError :: MonadIO m => ErrInfo -> m ()
-printParserError = prettyPrint
 
 basePackage :: Package
 basePackage = Package

@@ -25,7 +25,7 @@ import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, pu
 import Text.Trifecta.Rendering (Rendering(..), Span(..), render)
 import Text.Trifecta.Result (ErrInfo(..))
 
-prettyPrint :: (MonadIO m, PrettyPrec a) => a -> m ()
+prettyPrint :: (PrettyPrec a, MonadIO m) => a -> m ()
 prettyPrint = putDoc . prettyPrec 0
 
 prettys :: PrettyPrec a => a -> Doc
