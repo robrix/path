@@ -21,10 +21,12 @@ import           Path.Error
 import           Path.Eval
 import           Path.Name
 import           Path.Plicity
+import           Path.Pretty
 import           Path.Scope hiding (null)
 import           Path.Stack
 import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (fail, pi)
+import           Text.Trifecta.Rendering (Span(..))
 
 type Blocked = Map.Map Gensym (Set.Set HomConstraint)
 type Substitution = Map.Map Gensym (Value Meta)
@@ -268,3 +270,12 @@ hetToHom (ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) = Set.fromList
 data SolverError
   = UnsimplifiableConstraint HomConstraint
   deriving (Eq, Ord, Show)
+
+instance Pretty SolverError where
+  pretty (UnsimplifiableConstraint (ctx :|-: eqn)) = prettyErr (Span mempty mempty mempty) (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
+    where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
+          prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
+            [ pretty "expected:" <+> pretty expected
+            , pretty "  actual:" <+> pretty actual
+            , pretty " at type:" <+> pretty ty
+            ])
