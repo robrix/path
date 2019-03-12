@@ -164,7 +164,7 @@ step = do
   _S <- get
   dequeue >>= maybe (pure ()) (process _S >=> const step)
 
-process :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => Substitution -> HomConstraint -> m ()
+process :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Substitution -> HomConstraint -> m ()
 process _S c@(_ :|-: (tm1 :===: tm2) ::: _)
   | tm1 == tm2 = pure ()
   | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify' (applyConstraint s c) >>= enqueueAll
@@ -172,11 +172,11 @@ process _S c@(_ :|-: (tm1 :===: tm2) ::: _)
   | Just (m, sp) <- pattern tm2 = solve' (m := Value.lams sp tm1)
   | otherwise = block c
 
-block :: (Carrier sig m, Member (State Blocked) sig, MonadFail m) => HomConstraint -> m ()
+block :: (Carrier sig m, Member (Error SolverError) sig, Member (State Blocked) sig) => HomConstraint -> m ()
 block c = do
   let s = Set.singleton c
       mvars = metaNames (fvs c)
-  when (null mvars) $ fail ("cannot block constraint without metavars: " ++ show c)
+  when (null mvars) $ throwError (UnblockableConstraint c)
   modify (Map.unionWith (<>) (foldl' (\ m i -> Map.insertWith (<>) i s m) mempty mvars))
 
 enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t HomConstraint -> m ()
@@ -269,12 +269,14 @@ hetToHom (ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) = Set.fromList
 
 data SolverError
   = UnsimplifiableConstraint HomConstraint
+  | UnblockableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
   deriving (Eq, Ord, Show)
 
 instance Pretty SolverError where
   pretty = \case
     UnsimplifiableConstraint (ctx :|-: eqn) -> prettyErr (Span mempty mempty mempty) (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
+    UnblockableConstraint (ctx :|-: eqn) -> prettyErr (Span mempty mempty mempty) (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
