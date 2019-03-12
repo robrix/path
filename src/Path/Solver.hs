@@ -150,7 +150,7 @@ solve cs
         throwMismatch qs c | span :| _ <- spans c = throwError (ElabError span mempty (TypeMismatch qs))
 
 
-solver :: (Carrier sig m, Effect sig, Member Fresh sig, Member (Reader Gensym) sig, MonadFail m) => Set.Set HomConstraint -> m Substitution
+solver :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, MonadFail m) => Set.Set HomConstraint -> m Substitution
 solver constraints = execState Map.empty $ do
   queue <- execState (Seq.empty :: Queue) $ do
     stuck <- fmap fold . execState (Map.empty :: Blocked) $ do
@@ -159,12 +159,12 @@ solver constraints = execState Map.empty $ do
     unless (null stuck) $ fail ("stuck constraints: " ++ show stuck)
   unless (null queue) $ fail ("stalled constraints: " ++ show queue)
 
-step :: (Carrier sig m, Effect sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => m ()
+step :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => m ()
 step = do
   _S <- get
   dequeue >>= maybe (pure ()) (process _S >=> const step)
 
-process :: (Carrier sig m, Effect sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => Substitution -> HomConstraint -> m ()
+process :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig, MonadFail m) => Substitution -> HomConstraint -> m ()
 process _S c@(_ :|-: (tm1 :===: tm2) ::: _)
   | tm1 == tm2 = pure ()
   | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify' (applyConstraint s c) >>= enqueueAll
@@ -226,9 +226,9 @@ substTy subst = fmap (fmap join) . traverse $ \case
 
 simplify' :: ( Carrier sig m
             , Effect sig
+            , Member (Error SolverError) sig
             , Member Fresh sig
             , Member (Reader Gensym) sig
-            , MonadFail m
             )
          => HomConstraint
          -> m (Set.Set HomConstraint)
@@ -252,7 +252,7 @@ simplify' = execWriter . go
             go (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
           c@(_ :|-: (t1 :===: t2) ::: _)
             | stuck t1 || stuck t2 -> tell (Set.singleton c)
-            | otherwise            -> fail ("unsimplifiable constraint: " ++ show c)
+            | otherwise            -> throwError (UnsimplifiableConstraint c)
 
         exists _ = pure . Meta <$> gensym "_meta_"
 
