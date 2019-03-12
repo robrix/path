@@ -216,13 +216,13 @@ applyType subst ty = ty >>= \case
   Qual n -> pure (Qual n)
   Meta m -> fromMaybe (pure (Meta m)) (Map.lookup m subst)
 
-substTyped :: MonadFail m => Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> m (Value Qual ::: Type Qual)
+substTyped :: (Carrier sig m, Member (Error SolverError) sig) => Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> m (Value Qual ::: Type Qual)
 substTyped subst (val ::: ty) = (:::) <$> substTy subst val <*> substTy subst ty
 
-substTy :: MonadFail m => Map.Map Gensym (Type Meta) -> Type Meta -> m (Type Qual)
+substTy :: (Carrier sig m, Member (Error SolverError) sig) => Map.Map Gensym (Type Meta) -> Type Meta -> m (Type Qual)
 substTy subst = fmap (fmap join) . traverse $ \case
   Qual n -> pure (pure n)
-  Meta m -> maybe (fail ("unsolved metavariable " ++ show m)) (substTy subst) (Map.lookup m subst)
+  Meta m -> maybe (throwError (UnsolvedMetavariable m)) (substTy subst) (Map.lookup m subst)
 
 simplify' :: ( Carrier sig m
             , Effect sig
@@ -269,10 +269,13 @@ hetToHom (ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) = Set.fromList
 
 data SolverError
   = UnsimplifiableConstraint HomConstraint
+  | UnsolvedMetavariable Gensym
   deriving (Eq, Ord, Show)
 
 instance Pretty SolverError where
-  pretty (UnsimplifiableConstraint (ctx :|-: eqn)) = prettyErr (Span mempty mempty mempty) (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
+  pretty = \case
+    UnsimplifiableConstraint (ctx :|-: eqn) -> prettyErr (Span mempty mempty mempty) (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
+    UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
             [ pretty "expected:" <+> pretty expected
