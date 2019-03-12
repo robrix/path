@@ -110,7 +110,7 @@ runElab sigma ty m = runFresh . runWriter $ do
     m' <- m
     m' <$ unify (m' :===: val)
   subst <- solver (foldMap hetToHom constraints)
-  substTyped subst res
+  pure (substTyped subst res)
 
 
 (|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a

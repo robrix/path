@@ -7,7 +7,7 @@ import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>), guard, join, unless, when)
+import           Control.Monad ((>=>), guard, unless, when)
 import           Data.Foldable (fold, foldl', toList)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
@@ -215,13 +215,13 @@ applyType subst ty = ty >>= \case
   Qual n -> pure (Qual n)
   Meta m -> fromMaybe (pure (Meta m)) (Map.lookup m subst)
 
-substTyped :: Carrier sig m => Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
-substTyped subst (val ::: ty) = (:::) <$> substTy subst val <*> substTy subst ty
+substTyped :: Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> Value Meta ::: Type Meta
+substTyped subst (val ::: ty) = substTy subst val ::: substTy subst ty
 
-substTy :: Carrier sig m => Map.Map Gensym (Type Meta) -> Type Meta -> m (Type Meta)
-substTy subst = fmap (fmap join) . traverse $ \case
-  Qual n -> pure (pure (Qual n))
-  Meta m -> maybe (pure (pure (Meta m))) (substTy subst) (Map.lookup m subst)
+substTy :: Map.Map Gensym (Type Meta) -> Type Meta -> Type Meta
+substTy subst = (=<<) $ \case
+  Qual n -> pure (Qual n)
+  Meta m -> maybe (pure (Meta m)) (substTy subst) (Map.lookup m subst)
 
 simplify' :: ( Carrier sig m
             , Effect sig
