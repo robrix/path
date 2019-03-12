@@ -215,13 +215,13 @@ applyType subst ty = ty >>= \case
   Qual n -> pure (Qual n)
   Meta m -> fromMaybe (pure (Meta m)) (Map.lookup m subst)
 
-substTyped :: (Carrier sig m, Member (Error SolverError) sig) => Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
+substTyped :: Carrier sig m => Map.Map Gensym (Type Meta) -> Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 substTyped subst (val ::: ty) = (:::) <$> substTy subst val <*> substTy subst ty
 
-substTy :: (Carrier sig m, Member (Error SolverError) sig) => Map.Map Gensym (Type Meta) -> Type Meta -> m (Type Meta)
+substTy :: Carrier sig m => Map.Map Gensym (Type Meta) -> Type Meta -> m (Type Meta)
 substTy subst = fmap (fmap join) . traverse $ \case
   Qual n -> pure (pure (Qual n))
-  Meta m -> maybe (throwError (UnsolvedMetavariable m)) (substTy subst) (Map.lookup m subst)
+  Meta m -> maybe (pure (pure (Meta m))) (substTy subst) (Map.lookup m subst)
 
 simplify' :: ( Carrier sig m
             , Effect sig
