@@ -279,7 +279,7 @@ instance Pretty SolverError where
             , pretty "  actual:" <+> pretty actual
             , pretty " at type:" <+> pretty ty
             ])
-          prettyConstraint ((ctx :|-: eqn) :~ _) = nest 2 (vsep (prettyEqn eqn : prettyCtx ctx))
+          prettyConstraint ((ctx :|-: eqn) :~ _) = nest 2 (vsep (pretty eqn : prettyCtx ctx))
           firstSpan (_ :~ span :| _) = span
 
 instance PrettyPrec SolverError
