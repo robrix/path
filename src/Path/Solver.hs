@@ -25,7 +25,7 @@ import           Path.Scope hiding (null)
 import           Path.Stack
 import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (pi)
-import           Text.Trifecta.Rendering (Span(..))
+import           Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 type Blocked = Map.Map Gensym (Set.Set HomConstraint)
 type Substitution = Map.Map Gensym (Value Meta)
@@ -164,7 +164,7 @@ step = do
   dequeue >>= maybe (pure ()) (process _S >=> const step)
 
 process :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Substitution -> HomConstraint -> m ()
-process _S c@(_ :|-: (tm1 :===: tm2) ::: _)
+process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | tm1 == tm2 = pure ()
   | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify' (applyConstraint s c) >>= enqueueAll
   | Just (m, sp) <- pattern tm1 = solve' (m := Value.lams sp tm2)
@@ -205,7 +205,7 @@ solve' (m := v) = do
   modify (Map.delete m :: Blocked -> Blocked)
 
 applyConstraint :: Substitution -> HomConstraint -> HomConstraint
-applyConstraint subst (ctx :|-: (tm1 :===: tm2) ::: ty) = applyContext subst ctx :|-: (applyType subst tm1 :===: applyType subst tm2) ::: applyType subst ty
+applyConstraint subst ((ctx :|-: (tm1 :===: tm2) ::: ty) :~ span) = (applyContext subst ctx :|-: (applyType subst tm1 :===: applyType subst tm2) ::: applyType subst ty) :~ span
 
 applyContext :: Substitution -> Context (Type Meta) -> Context (Type Meta)
 applyContext = fmap . applyType
@@ -223,7 +223,7 @@ simplify' :: ( Carrier sig m
             )
          => HomConstraint
          -> m (Set.Set HomConstraint)
-simplify' = execWriter . go
+simplify' (constraint :~ span) = execWriter (go constraint)
   where go = \case
           _ :|-: (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
           ctx :|-: (Pi p1 _ t1 b1 :===: Pi p2 _ t2 b2) ::: Type
@@ -242,8 +242,8 @@ simplify' = execWriter . go
             n <- gensym "simplify"
             go (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
           c@(_ :|-: (t1 :===: t2) ::: _)
-            | stuck t1 || stuck t2 -> tell (Set.singleton c)
-            | otherwise            -> throwError (UnsimplifiableConstraint c)
+            | stuck t1 || stuck t2 -> tell (Set.singleton (c :~ span))
+            | otherwise            -> throwError (UnsimplifiableConstraint (c :~ span))
 
         exists _ = pure . Meta <$> gensym "_meta_"
 
@@ -251,10 +251,10 @@ simplify' = execWriter . go
         stuck _             = False
 
 hetToHom :: HetConstraint -> Set.Set HomConstraint
-hetToHom (ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) = Set.fromList
+hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
   -- FIXME: represent dependency of second on first
-  [ ctx :|-: (ty1 :===: ty2) ::: Type
-  , ctx :|-: (tm1 :===: tm2) ::: ty1
+  [ (ctx :|-: (ty1 :===: ty2) ::: Type) :~ span
+  , (ctx :|-: (tm1 :===: tm2) ::: ty1)  :~ span
   ]
 
 
@@ -268,8 +268,8 @@ data SolverError
 
 instance Pretty SolverError where
   pretty = \case
-    UnsimplifiableConstraint (ctx :|-: eqn) -> prettyErr (Span mempty mempty mempty) (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
-    UnblockableConstraint (ctx :|-: eqn) -> prettyErr (Span mempty mempty mempty) (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
+    UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
+    UnblockableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     StuckConstraints constraints -> prettyErr (Span mempty mempty mempty) (pretty "stuck constraints") (map prettyConstraint (Set.toList constraints))
     StalledConstraints queue -> prettyErr (Span mempty mempty mempty) (pretty "stalled constraints") (map prettyConstraint (toList queue))
@@ -279,6 +279,6 @@ instance Pretty SolverError where
             , pretty "  actual:" <+> pretty actual
             , pretty " at type:" <+> pretty ty
             ])
-          prettyConstraint (ctx :|-: eqn) = nest 2 (vsep (prettyEqn eqn : prettyCtx ctx))
+          prettyConstraint ((ctx :|-: eqn) :~ _) = nest 2 (vsep (prettyEqn eqn : prettyCtx ctx))
 
 instance PrettyPrec SolverError

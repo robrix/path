@@ -29,14 +29,14 @@ import Path.Usage
 import Path.Value (Type, Value(..), ($$*))
 import qualified Path.Value as Value
 import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span(..))
+import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 assume :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Qual -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- lookupVar v
   expect (pure (Qual v) ::: _A)
 
-intro :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
+intro :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
 intro body = do
   _A ::: _ <- exists' Type
   x <- gensym "intro"
@@ -44,17 +44,17 @@ intro body = do
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
   expect (Value.lam (qlocal x) u ::: Value.pi ((qlocal x, Ex, zero) ::: _A) _B)
 
-type' :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta)
+type' :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta)
 type' = expect (Type ::: Type)
 
-pi :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Plicity -> Usage -> m (Value Meta ::: Type Meta) -> (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
+pi :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Plicity -> Usage -> m (Value Meta ::: Type Meta) -> (Qual -> m (Value Meta ::: Type Meta)) -> m (Value Meta ::: Type Meta)
 pi p m t body = do
   t' ::: _ <- goalIs Type t
   x <- gensym "pi"
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
   expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
 
-app :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta)
+app :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta) -> m (Value Meta ::: Type Meta)
 app f a = do
   _A ::: _ <- exists' Type
   _B ::: _ <- exists' Type
@@ -64,7 +64,7 @@ app f a = do
   expect (f' Value.$$ a' ::: _B)
 
 
-expect :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
+expect :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 expect exp = do
   res <- goal >>= exists'
   res <$ unify (exp :===: res)
@@ -87,8 +87,8 @@ goal = ask
 goalIs :: (Carrier sig m, Member (Reader (Type Meta)) sig) => Type Meta -> m a -> m a
 goalIs ty = local (const ty)
 
-unify :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig, Member (Writer (Set.Set HetConstraint)) sig) => Equation (Value Meta ::: Type Meta) -> m ()
-unify constraint = context >>= tell . Set.singleton . (:|-: constraint)
+unify :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig, Member (Reader Span) sig, Member (Writer (Set.Set HetConstraint)) sig) => Equation (Value Meta ::: Type Meta) -> m ()
+unify constraint = (:~) <$> asks (:|-: constraint) <*> ask >>= tell . Set.singleton
 
 
 elab :: (Carrier sig m, Member (Error ElabError) sig, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (Reader (Type Meta)) sig, Member (Writer (Set.Set HetConstraint)) sig) => Core.Core Qual -> m (Value Meta ::: Type Meta)
