@@ -17,7 +17,8 @@ data Equation a
 infix 3 :===:
 
 instance Pretty a => Pretty (Equation a) where
-  pretty (t1 :===: t2) = flatAlt (align (space <+> pretty t1 </> pretty "≡" <+> pretty t2)) (pretty t1 <+> pretty "≡" <+> pretty t2)
+  pretty (t1 :===: t2) = flatAlt (align (space <+> pretty t1 </> eq <+> pretty t2)) (pretty t1 <+> eq <+> pretty t2)
+    where eq = magenta (pretty "≡")
 
 instance Pretty a => PrettyPrec (Equation a)
 
