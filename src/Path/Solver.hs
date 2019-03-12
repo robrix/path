@@ -288,3 +288,5 @@ instance Pretty SolverError where
             , pretty " at type:" <+> pretty ty
             ])
           prettyConstraint (ctx :|-: eqn) = nest 2 (vsep (prettyEqn eqn : prettyCtx ctx))
+
+instance PrettyPrec SolverError
