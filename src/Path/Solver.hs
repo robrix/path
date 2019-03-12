@@ -7,9 +7,9 @@ import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>), guard, unless, when)
+import           Control.Monad ((>=>), guard, when)
 import           Data.Foldable (fold, foldl', toList)
-import           Data.List.NonEmpty (NonEmpty (..))
+import           Data.List.NonEmpty (NonEmpty (..), nonEmpty)
 import qualified Data.Map as Map
 import           Data.Maybe (catMaybes, fromMaybe)
 import qualified Data.Sequence as Seq
@@ -155,8 +155,8 @@ solver constraints = execState Map.empty $ do
     stuck <- fmap fold . execState (Map.empty :: Blocked) $ do
       enqueueAll constraints
       step
-    unless (null stuck) $ throwError (StuckConstraints stuck)
-  unless (null queue) $ throwError (StalledConstraints queue)
+    maybe (pure ()) (throwError . StuckConstraints) (nonEmpty (toList stuck))
+  maybe (pure ()) (throwError . StalledConstraints) (nonEmpty (toList queue))
 
 step :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => m ()
 step = do
@@ -262,8 +262,8 @@ data SolverError
   = UnsimplifiableConstraint HomConstraint
   | UnblockableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
-  | StuckConstraints (Set.Set HomConstraint)
-  | StalledConstraints Queue
+  | StuckConstraints (NonEmpty HomConstraint)
+  | StalledConstraints (NonEmpty HomConstraint)
   deriving (Eq, Ord, Show)
 
 instance Pretty SolverError where
@@ -271,8 +271,8 @@ instance Pretty SolverError where
     UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
     UnblockableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
-    StuckConstraints constraints -> prettyErr (Span mempty mempty mempty) (pretty "stuck constraints") (map prettyConstraint (Set.toList constraints))
-    StalledConstraints queue -> prettyErr (Span mempty mempty mempty) (pretty "stalled constraints") (map prettyConstraint (toList queue))
+    StuckConstraints constraints -> prettyErr (firstSpan constraints) (pretty "stuck constraints") (map prettyConstraint (toList constraints))
+    StalledConstraints queue -> prettyErr (firstSpan queue) (pretty "stalled constraints") (map prettyConstraint (toList queue))
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
             [ pretty "expected:" <+> pretty expected
@@ -280,5 +280,6 @@ instance Pretty SolverError where
             , pretty " at type:" <+> pretty ty
             ])
           prettyConstraint ((ctx :|-: eqn) :~ _) = nest 2 (vsep (prettyEqn eqn : prettyCtx ctx))
+          firstSpan (_ :~ span :| _) = span
 
 instance PrettyPrec SolverError
