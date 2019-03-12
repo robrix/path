@@ -8,7 +8,6 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((<=<))
-import Data.Bifunctor (bimap)
 import Data.Foldable (for_, toList)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -103,7 +102,7 @@ elab = \case
   Core.Ann ann b -> local (const ann) (elab b)
 
 
-runElab :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig) => Usage -> Maybe (Type Meta) -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta) -> m (Resources, Value Qual ::: Type Qual)
+runElab :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig) => Usage -> Maybe (Type Meta) -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta) -> m (Resources, Value Meta ::: Type Meta)
 runElab sigma ty m = runFresh . runWriter $ do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
   (constraints, res) <- runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
@@ -192,7 +191,7 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core Qual
             -> m (Resources, Value Meta ::: Type Meta)
 elabDeclare name ty = do
-  elab <- fmap qualify <$> runScope (runElab Zero (Just Value.Type) (elab ty))
+  elab <- runScope (runElab Zero (Just Value.Type) (elab ty))
   elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
 
 elabDefine :: ( Carrier sig m
@@ -207,11 +206,8 @@ elabDefine :: ( Carrier sig m
            -> m (Resources, Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- fmap qualify <$> runScope (runElab One ty (elab tm))
+  elab <- runScope (runElab One ty (elab tm))
   elab <$ modify (Scope.insert name (Defn (snd elab)))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
-
-qualify :: Value Qual ::: Type Qual -> Value Meta ::: Type Meta
-qualify = bimap (fmap Qual) (fmap Qual)

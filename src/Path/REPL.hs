@@ -170,14 +170,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
           Help -> print helpDoc *> loop
           TypeOf tm -> do
             (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero Nothing . elab
-            print (generalizeType (Qual <$> typedType elab))
+            print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
             (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One Nothing . elab
-            runScope (whnf (Qual <$> typedTerm elab)) >>= generalizeValue (generalizeType (Qual <$> typedType elab)) >>= print
+            runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
             loop
           Show Bindings -> do
             scope <- get
