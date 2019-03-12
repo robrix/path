@@ -10,7 +10,7 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import           Path.Pretty
 import           Path.Usage
-import           Text.Trifecta.Rendering (Span)
+import           Text.Trifecta.Rendering (Span, Spanned(..))
 
 data Gensym
   = Root String
@@ -198,3 +198,6 @@ instance Ord v => FreeVariables v Usage where
 
 instance Ord v => FreeVariables v Span where
   fvs _ = mempty
+
+instance FreeVariables v a => FreeVariables v (Spanned a) where
+  fvs (a :~ _) = fvs a
