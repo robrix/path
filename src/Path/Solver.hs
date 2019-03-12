@@ -268,7 +268,7 @@ data SolverError
 
 instance Pretty SolverError where
   pretty = \case
-    UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" <+> prettyEqn eqn) (prettyCtx ctx)
+    UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx)
     UnblockableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     StuckConstraints constraints -> prettyErr (firstSpan constraints) (pretty "stuck constraints") (map prettyConstraint (toList constraints))
