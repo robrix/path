@@ -189,7 +189,15 @@ elab = \case
   Core.Ann ann b -> local (const ann) (elab b)
 
 
-runElab :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (Reader Gensym) sig) => Usage -> Maybe (Type Meta) -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta) -> m (Resources, Value Meta ::: Type Meta)
+runElab :: ( Carrier sig m
+           , Effect sig
+           , Member (Error SolverError) sig
+           , Member (Reader Gensym) sig
+           )
+        => Usage
+        -> Maybe (Type Meta)
+        -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta)
+        -> m (Resources, Value Meta ::: Type Meta)
 runElab sigma ty m = runFresh . runWriter $ do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
   (constraints, tm ::: ty'') <- runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
