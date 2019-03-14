@@ -149,7 +149,14 @@ solve cs
         throwMismatch qs c | span :| _ <- spans c = throwError (ElabError span mempty (TypeMismatch qs))
 
 
-solver :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig) => Set.Set HomConstraint -> m Substitution
+solver :: ( Carrier sig m
+          , Effect sig
+          , Member (Error SolverError) sig
+          , Member Fresh sig
+          , Member (Reader Gensym) sig
+          )
+       => Set.Set HomConstraint
+       -> m Substitution
 solver constraints = execState Map.empty $ do
   queue <- execState (Seq.empty :: Queue) $ do
     stuck <- fmap fold . execState (Map.empty :: Blocked) $ do
@@ -158,12 +165,32 @@ solver constraints = execState Map.empty $ do
     maybe (pure ()) (throwError . StuckConstraints) (nonEmpty (toList stuck))
   maybe (pure ()) (throwError . StalledConstraints) (nonEmpty (toList queue))
 
-step :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => m ()
+step :: ( Carrier sig m
+        , Effect sig
+        , Member (Error SolverError) sig
+        , Member Fresh sig
+        , Member (Reader Gensym) sig
+        , Member (State Blocked) sig
+        , Member (State Queue) sig
+        , Member (State Substitution) sig
+        )
+     => m ()
 step = do
   _S <- get
   dequeue >>= maybe (pure ()) (process _S >=> const step)
 
-process :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Substitution -> HomConstraint -> m ()
+process :: ( Carrier sig m
+           , Effect sig
+           , Member (Error SolverError) sig
+           , Member Fresh sig
+           , Member (Reader Gensym) sig
+           , Member (State Blocked) sig
+           , Member (State Queue) sig
+           , Member (State Substitution) sig
+           )
+        => Substitution
+        -> HomConstraint
+        -> m ()
 process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | tm1 == tm2 = pure ()
   | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify' (applyConstraint s c) >>= enqueueAll
