@@ -13,6 +13,7 @@ module Path.Pretty
 , prettyParens
 , prettyBraces
 , tabulate2
+, tracePrettyM
 , module PP
 ) where
 
@@ -21,6 +22,7 @@ import Control.Monad.IO.Class
 import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
+import System.IO.Unsafe
 import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
 import Text.Trifecta.Rendering (Rendering(..), Span(..), render)
 import Text.Trifecta.Result (ErrInfo(..))
@@ -114,3 +116,8 @@ prettyParens False = id
 prettyBraces :: Bool -> Doc -> Doc
 prettyBraces True = braces
 prettyBraces False = id
+
+
+-- | Debugging helper.
+tracePrettyM :: (Applicative m, PrettyPrec a) => a -> m ()
+tracePrettyM a = unsafePerformIO (prettyPrint a *> pure (pure ()))
