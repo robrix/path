@@ -26,7 +26,7 @@ import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
 import Path.Usage
-import Path.Value (Type, Value(..), ($$*))
+import Path.Value (Type, Value(..))
 import qualified Path.Value as Value
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
@@ -58,9 +58,9 @@ intro :: ( Carrier sig m
       => (Qual -> m (Value Meta ::: Type Meta))
       -> m (Value Meta ::: Type Meta)
 intro body = do
-  _A ::: _ <- exists' Type
+  _A ::: _ <- exists Type
   x <- gensym "intro"
-  _B ::: _ <- x ::: _A |- exists' Type
+  _B ::: _ <- x ::: _A |- exists Type
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
   expect (Value.lam (qlocal x) u ::: Value.pi ((qlocal x, Ex, zero) ::: _A) _B)
 
@@ -106,8 +106,8 @@ app :: ( Carrier sig m
     -> m (Value Meta ::: Type Meta)
     -> m (Value Meta ::: Type Meta)
 app f a = do
-  _A ::: _ <- exists' Type
-  _B ::: _ <- exists' Type
+  _A ::: _ <- exists Type
+  _B ::: _ <- exists Type
   x <- gensym "app"
   f' ::: _ <- goalIs (Value.pi ((qlocal x, Ex, zero) ::: _A) _B) f
   a' ::: _ <- goalIs _A a
@@ -125,7 +125,7 @@ expect :: ( Carrier sig m
        => Value Meta ::: Type Meta
        -> m (Value Meta ::: Type Meta)
 expect exp = do
-  res <- goal >>= exists'
+  res <- goal >>= exists
   res <$ unify (exp :===: res)
 
 freshName :: ( Carrier sig m
@@ -139,14 +139,14 @@ freshName s = Local <$> gensym s
 context :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => m (Context (Type Meta))
 context = ask
 
-exists' :: ( Carrier sig m
-           , Member Fresh sig
-           , Member (Reader (Context (Type Meta))) sig
-           , Member (Reader Gensym) sig
-           )
-        => Type Meta
-        -> m (Value Meta ::: Type Meta)
-exists' ty = do
+exists :: ( Carrier sig m
+          , Member Fresh sig
+          , Member (Reader (Context (Type Meta))) sig
+          , Member (Reader Gensym) sig
+          )
+       => Type Meta
+       -> m (Value Meta ::: Type Meta)
+exists ty = do
   ctx <- context
   n <- Meta <$> gensym "meta"
   pure (pure n Value.$$* map (pure . qlocal) (toList (Context.vars ctx)) ::: ty)
@@ -185,7 +185,7 @@ elab = \case
   f Core.:$ a -> app (elab f) (elab a)
   Core.Type -> type'
   Core.Pi p m t b -> pi p m (elab t) (\ n -> elab (Core.instantiate (pure n) b))
-  Core.Hole _ -> goal >>= exists'
+  Core.Hole _ -> goal >>= exists
   Core.Ann ann b -> local (const ann) (elab b)
 
 
@@ -193,7 +193,7 @@ runElab :: (Carrier sig m, Effect sig, Member (Error SolverError) sig, Member (R
 runElab sigma ty m = runFresh . runWriter $ do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
   (constraints, tm ::: ty'') <- runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
-    val <- exists' ty'
+    val <- exists ty'
     m' <- m
     m' <$ unify (m' :===: val)
   subst <- solver (foldMap hetToHom constraints)
@@ -207,12 +207,6 @@ infix 5 |-
 
 throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Span) sig) => ErrorReason -> m a
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
-
-exists :: (Carrier sig m, Member Fresh sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Gensym) sig) => Type Meta -> m (Meta, Type Meta)
-exists _ = do
-  Context c <- context
-  n <- Meta <$> gensym "_meta_"
-  pure (n, pure n $$* fmap (pure . qlocal . typedTerm) c)
 
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Qual -> m (Type Meta)
 lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
