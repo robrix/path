@@ -97,7 +97,7 @@ data Meta
 instance Pretty Meta where
   pretty = \case
     Qual q -> pretty q
-    Meta m -> pretty m
+    Meta m -> pretty '?' <> pretty m
 
 qlocal :: Gensym -> Meta
 qlocal = Qual . Local
