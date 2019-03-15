@@ -8,14 +8,12 @@ import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, unless, when)
 import           Data.Foldable (fold, foldl', toList)
 import           Data.List (intersperse)
-import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
 import           Path.Context as Context
-import           Path.Error
 import           Path.Eval
 import           Path.Name
 import           Path.Plicity
@@ -29,58 +27,6 @@ import           Text.Trifecta.Rendering (Span(..), Spanned(..))
 type Blocked = Map.Map Gensym (Set.Set HomConstraint)
 type Substitution = Map.Map Gensym (Value Meta)
 type Queue = Seq.Seq HomConstraint
-
-simplify :: ( Carrier sig m
-            , Effect sig
-            , Member (Error ElabError) sig
-            , Member Naming sig
-            , Member (Reader Scope) sig
-            )
-         => Caused (Equation (Value Meta) ::: Type Meta)
-         -> m (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))
-simplify = execWriter . go
-  where go = \case
-          (tm1 :===: tm2) ::: _ :@ _ | tm1 == tm2 -> pure ()
-          q@((Pi p1 u1 t1 b1 :===: Pi p2 u2 t2 b2) ::: Type) :@ cause
-            | p1 == p2, u1 == u2 -> do
-              (_, n) <- freshName
-              go ((t1               :===: t2              ) ::: Type :@ Via q cause)
-              go ((instantiate n b1 :===: instantiate n b2) ::: Type :@ Via q cause)
-          q@((Pi Im _ _ b1 :===: t2) ::: Type) :@ cause -> do
-            n <- exists
-            go ((instantiate n b1 :===: t2) ::: Type :@ Via q cause)
-          q@((t1 :===: Pi Im _ _ b2) ::: Type) :@ cause -> do
-            n <- exists
-            go ((t1 :===: instantiate n b2) ::: Type :@ Via q cause)
-          q@((Lam b1 :===: Lam b2) ::: Pi _ _ t b) :@ cause -> do
-            (_, n) <- freshName
-            go ((instantiate n b1 :===: instantiate n b2) ::: instantiate t b :@ Via q cause)
-          q@((f1@(Qual (_ :.: _)) :$ sp1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
-            t1 <- whnf (f1 :$ sp1)
-            t2 <- whnf (f2 :$ sp2)
-            go ((t1 :===: t2) ::: ty :@ Via q cause)
-          q@((f1@(Qual (_ :.: _)) :$ sp1 :===: t2) ::: ty) :@ cause -> do
-            t1 <- whnf (f1 :$ sp1)
-            go ((t1 :===: t2) ::: ty :@ Via q cause)
-          q@((t1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty) :@ cause -> do
-            t2 <- whnf (f2 :$ sp2)
-            go ((t1 :===: t2) ::: ty :@ Via q cause)
-          q@((tm1 :===: Lam b2) ::: ty) :@ cause -> do
-            (n, v) <- freshName
-            go ((lam n (tm1 $$ v) :===: Lam b2) ::: ty :@ Via q cause)
-          q@((Lam b1 :===: tm2) ::: ty) :@ cause -> do
-            (n, v) <- freshName
-            go ((Lam b1 :===: lam n (tm2 $$ v)) ::: ty :@ Via q cause)
-          q@((t1 :===: t2) ::: _ :@ cause)
-            | stuck t1                 -> tell (Set.singleton q)
-            | stuck t2                 -> tell (Set.singleton q)
-            | span :| _ <- spans cause -> throwError (ElabError span mempty (TypeMismatch (Set.singleton q)))
-        freshName = ((,) <*> pure) . qlocal <$> gensym ""
-        exists = pure . Meta <$> gensym "_meta_"
-
-        stuck (Meta _ :$ _) = True
-        stuck _             = False
-
 
 solver :: ( Carrier sig m
           , Effect sig
