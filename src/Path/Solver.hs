@@ -5,7 +5,7 @@ import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>), guard, unless, when)
+import           Control.Monad ((>=>), guard, unless)
 import           Data.Foldable (fold, foldl', toList)
 import           Data.List (intersperse)
 import qualified Data.Map as Map
@@ -75,11 +75,10 @@ process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | Just (m, sp) <- pattern tm2 = solve m (Value.lams sp tm1)
   | otherwise = block c
 
-block :: (Carrier sig m, Member (Error SolverError) sig, Member (State Blocked) sig) => HomConstraint -> m ()
+block :: (Carrier sig m, Member (State Blocked) sig) => HomConstraint -> m ()
 block c = do
   let s = Set.singleton c
       mvars = metaNames (fvs c)
-  when (null mvars) $ throwError (UnblockableConstraint c)
   modify (Map.unionWith (<>) (Map.fromListWith (<>) (flip (,) s <$> toList mvars)))
 
 enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t HomConstraint -> m ()
@@ -169,7 +168,6 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
 
 data SolverError
   = UnsimplifiableConstraint HomConstraint
-  | UnblockableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
   | BlockedConstraints [HomConstraint]
   | StalledConstraints [HomConstraint]
@@ -178,7 +176,6 @@ data SolverError
 instance Pretty SolverError where
   pretty = \case
     UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx)
-    UnblockableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     BlockedConstraints constraints -> fold (intersperse hardline (map blocked constraints))
       where blocked ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" </> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) (toList (metaNames (fvs eqn))))) (prettyCtx ctx)
