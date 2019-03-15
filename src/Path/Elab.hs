@@ -199,13 +199,25 @@ runElab :: ( Carrier sig m
         -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta)
         -> m (Resources, Value Meta ::: Type Meta)
 runElab sigma ty m = runFresh . runWriter $ do
+  (constraints, tm ::: ty'') <- runElab' sigma ty m
+  subst <- solver (foldMap hetToHom constraints)
+  pure (applyType subst tm ::: applyType subst ty'')
+
+runElab' :: ( Carrier sig m
+            , Effect sig
+            , Member Fresh sig
+            , Member (Reader Gensym) sig
+            )
+         => Usage
+         -> Maybe (Type Meta)
+         -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) m)))) (Value Meta ::: Type Meta)
+         -> m (Set.Set HetConstraint, Value Meta ::: Type Meta)
+runElab' sigma ty m = do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
-  (constraints, tm ::: ty'') <- runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
+  runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
     val <- exists ty'
     m' <- m
     m' <$ unify (m' :===: val)
-  subst <- solver (foldMap hetToHom constraints)
-  pure (applyType subst tm ::: applyType subst ty'')
 
 
 (|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
