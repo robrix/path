@@ -137,7 +137,7 @@ joinT :: Value (Value a) -> Value a
 joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pure Z) (fmap S))
 
 
--- | Substitute occurrences of an 'Meta' with a 'Value' within another 'Value'.
+-- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
 --
 --   prop> subst (Local (Root a)) (pure (Local (Root b))) (Lam ($$ pure (Local (Root a)))) == Lam ($$ pure (Local (Root b)))
 substitute :: Eq a => a -> Value a -> Value a -> Value a
