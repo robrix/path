@@ -47,19 +47,6 @@ spans = flip go []
         go (l :<>: r)    = go l . toList . go r
 
 
-data Caused a
-  = a :@ Cause
-  deriving (Eq, Ord, Show)
-
-infix 0 :@
-
-instance FreeVariables v a => FreeVariables v (Caused a) where
-  fvs (a :@ _) = fvs a
-
-cause :: Caused a -> Cause
-cause (_ :@ cause) = cause
-
-
 type Substitution = Map.Map Gensym (Value Meta)
 
 class Substitutable t where
