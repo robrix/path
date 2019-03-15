@@ -21,7 +21,6 @@ import Path.Error
 import Path.Module
 import Path.Name
 import Path.Plicity
-import Path.Resources as Resources
 import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
@@ -196,9 +195,9 @@ runElab :: ( Carrier sig m
            )
         => Usage
         -> Maybe (Type Meta)
-        -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (WriterC Resources (FreshC m)))))) (Value Meta ::: Type Meta)
-        -> m (Resources, Value Meta ::: Type Meta)
-runElab sigma ty m = runFresh . runWriter $ do
+        -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (FreshC m))))) (Value Meta ::: Type Meta)
+        -> m (Value Meta ::: Type Meta)
+runElab sigma ty m = runFresh $ do
   (constraints, tm ::: ty'') <- runElab' sigma ty m
   subst <- solver (foldMap hetToHom constraints)
   pure (applyType subst tm ::: applyType subst ty'')
@@ -245,7 +244,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Module Qual (Core.Core Qual)
-           -> m (Module Qual (Resources, Value Meta ::: Type Meta))
+           -> m (Module Qual (Value Meta ::: Type Meta))
 elabModule m = do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -275,7 +274,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             )
          => Decl Qual (Core.Core Qual)
-         -> m (Decl Qual (Resources, Value Meta ::: Type Meta))
+         -> m (Decl Qual (Value Meta ::: Type Meta))
 elabDecl = \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -290,10 +289,10 @@ elabDeclare :: ( Carrier sig m
                )
             => Qual
             -> Core.Core Qual
-            -> m (Resources, Value Meta ::: Type Meta)
+            -> m (Value Meta ::: Type Meta)
 elabDeclare name ty = do
   elab <- runScope (runElab Zero (Just Value.Type) (elab ty))
-  elab <$ modify (Scope.insert name (Decl (typedTerm (snd elab))))
+  elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
 
 elabDefine :: ( Carrier sig m
               , Effect sig
@@ -304,11 +303,11 @@ elabDefine :: ( Carrier sig m
               )
            => Qual
            -> Core.Core Qual
-           -> m (Resources, Value Meta ::: Type Meta)
+           -> m (Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
   elab <- runScope (runElab One ty (elab tm))
-  elab <$ modify (Scope.insert name (Defn (snd elab)))
+  elab <$ modify (Scope.insert name (Defn elab))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m

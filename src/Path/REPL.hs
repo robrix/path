@@ -30,7 +30,6 @@ import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
-import Path.Resources
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
 import Path.Solver
@@ -158,7 +157,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resources, Value Meta ::: Type Meta)) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @SolverError) (either (print @ErrInfo) pure)))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Value Meta ::: Type Meta)) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @SolverError) (either (print @ErrInfo) pure)))))
   where loop = (prompt "λ: " >>= maybe loop runCommand)
           `catchError` (const loop <=< print @ResolveError)
           `catchError` (const loop <=< print @ElabError)
@@ -169,14 +168,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero Nothing . elab
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero Nothing . elab
             print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
-            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One Nothing . elab
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One Nothing . elab
             runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
             loop
           Show Bindings -> do
@@ -185,7 +184,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph Qual (Resources, Value Meta ::: Type Meta))
+            let ms = modules (graph :: ModuleGraph Qual (Value Meta ::: Type Meta))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -195,7 +194,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Resou
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module Qual (Resources, Value Meta ::: Type Meta)) of
+            case m :: Maybe (Module Qual (Value Meta ::: Type Meta)) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
