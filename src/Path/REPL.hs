@@ -34,7 +34,6 @@ import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
 import Path.Solver
 import Path.Stack
-import Path.Usage
 import Path.Value
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (handle)
@@ -168,14 +167,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Value
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero Nothing . elab
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Nothing . elab
             print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One Nothing . elab
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Nothing . elab
             runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
             loop
           Show Bindings -> do

@@ -193,12 +193,11 @@ runElab :: ( Carrier sig m
            , Member (Error SolverError) sig
            , Member (Reader Gensym) sig
            )
-        => Usage
-        -> Maybe (Type Meta)
-        -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (FreshC m))))) (Value Meta ::: Type Meta)
+        => Maybe (Type Meta)
+        -> ReaderC Span (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) (FreshC m)))) (Value Meta ::: Type Meta)
         -> m (Value Meta ::: Type Meta)
-runElab sigma ty m = runFresh $ do
-  (constraints, tm ::: ty'') <- runElab' sigma ty m
+runElab ty m = runFresh $ do
+  (constraints, tm ::: ty'') <- runElab' ty m
   subst <- solver (foldMap hetToHom constraints)
   pure (applyType subst tm ::: applyType subst ty'')
 
@@ -207,13 +206,12 @@ runElab' :: ( Carrier sig m
             , Member Fresh sig
             , Member (Reader Gensym) sig
             )
-         => Usage
-         -> Maybe (Type Meta)
-         -> ReaderC Span (ReaderC Usage (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) m)))) (Value Meta ::: Type Meta)
+         => Maybe (Type Meta)
+         -> ReaderC Span (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) m))) (Value Meta ::: Type Meta)
          -> m (Set.Set HetConstraint, Value Meta ::: Type Meta)
-runElab' sigma ty m = do
+runElab'  ty m = do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
-  runWriter . runReader mempty . runReader ty' . runReader sigma . runReader (Span mempty mempty mempty) $ do
+  runWriter . runReader mempty . runReader ty' . runReader (Span mempty mempty mempty) $ do
     val <- exists ty'
     m' <- m
     m' <$ unify (m' :===: val)
@@ -291,7 +289,7 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core Qual
             -> m (Value Meta ::: Type Meta)
 elabDeclare name ty = do
-  elab <- runScope (runElab Zero (Just Value.Type) (elab ty))
+  elab <- runScope (runElab (Just Value.Type) (elab ty))
   elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
 
 elabDefine :: ( Carrier sig m
@@ -306,7 +304,7 @@ elabDefine :: ( Carrier sig m
            -> m (Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- runScope (runElab One ty (elab tm))
+  elab <- runScope (runElab ty (elab tm))
   elab <$ modify (Scope.insert name (Defn elab))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
