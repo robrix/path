@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Constraint where
 
-import Data.Foldable (foldl')
 import Data.List.NonEmpty (NonEmpty(..), toList)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import Path.Context
 import Path.Name
@@ -75,14 +75,16 @@ cause (_ :@ cause) = cause
 type Substitution = Map.Map Gensym (Value Meta)
 
 class Substitutable t where
-  apply :: [Caused Solution] -> t -> t
+  apply :: Substitution -> t -> t
 
-instance Substitutable a => Substitutable (Caused a) where
-  apply subst (a :@ c) = apply subst a :@ foldl' (flip (flip (<>) . cause)) c subst
+unMeta :: Meta -> Maybe Gensym
+unMeta (Meta n) = Just n
+unMeta _        = Nothing
 
 instance Substitutable (Value Meta) where
-  apply []                 = id
-  apply ((m := v :@ _):ss) = apply ss . substitute (Meta m) v
+  apply subst val = do
+    var <- val
+    fromMaybe (pure var) (unMeta var >>= (subst Map.!?))
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2
