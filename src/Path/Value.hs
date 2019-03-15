@@ -139,7 +139,7 @@ joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pur
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
 --
---   prop> subst (Local (Root a)) (pure (Local (Root b))) (Lam ($$ pure (Local (Root a)))) == Lam ($$ pure (Local (Root b)))
+--   prop> substitute a (pure b) (Lam (Scope (pure (S a)))) == Lam (Scope (pure (S b)))
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
