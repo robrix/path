@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
 import           Control.Effect
@@ -7,7 +7,6 @@ import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.Sum
 import           Data.Bifunctor
-import           Data.Coerce
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -38,15 +37,19 @@ gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym
 gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
 
 
-data Naming (m :: * -> *) k
+data Naming m k
   = Gensym String (Gensym -> k)
-  deriving (Functor)
+  | forall a . Namespace String (m a) (a -> k)
+
+deriving instance Functor (Naming m)
 
 instance HFunctor Naming where
-  hmap _ = coerce
+  hmap _ (Gensym    s   k) = Gensym s k
+  hmap f (Namespace s m k) = Namespace s (f m) k
 
 instance Effect Naming where
-  handle state handler = coerce . fmap (handler . (<$ state))
+  handle state handler (Gensym    s   k) = Gensym s (handler . (<$ state) . k)
+  handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
 
 
 runNaming :: Functor m => Gensym -> NamingC m a -> m a
@@ -56,8 +59,9 @@ newtype NamingC m a = NamingC { runNamingC :: FreshC (ReaderC Gensym m) a }
   deriving (Applicative, Functor, Monad)
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
-  eff (L (Gensym s k)) = NamingC ((:/) <$> ask <*> ((,) s <$> fresh)) >>= k
-  eff (R other)        = NamingC (eff (R (R (handleCoercible other))))
+  eff (L (Gensym    s   k)) = NamingC ((:/) <$> ask <*> ((,) s <$> fresh)) >>= k
+  eff (L (Namespace s m k)) = NamingC (local (// s) (runNamingC m)) >>= k
+  eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
 
 data User
