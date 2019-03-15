@@ -193,6 +193,7 @@ runSolver :: ( Carrier sig m
              , Member (Error SolverError) sig
              , Member Fresh sig
              , Member (Reader Gensym) sig
+             , Member (Reader Scope) sig
              )
           => Set.Set HetConstraint
           -> Value Meta ::: Type Meta

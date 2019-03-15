@@ -154,6 +154,7 @@ solver :: ( Carrier sig m
           , Member (Error SolverError) sig
           , Member Fresh sig
           , Member (Reader Gensym) sig
+          , Member (Reader Scope) sig
           )
        => Set.Set HomConstraint
        -> m Substitution
@@ -170,6 +171,7 @@ step :: ( Carrier sig m
         , Member (Error SolverError) sig
         , Member Fresh sig
         , Member (Reader Gensym) sig
+        , Member (Reader Scope) sig
         , Member (State Blocked) sig
         , Member (State Queue) sig
         , Member (State Substitution) sig
@@ -184,6 +186,7 @@ process :: ( Carrier sig m
            , Member (Error SolverError) sig
            , Member Fresh sig
            , Member (Reader Gensym) sig
+           , Member (Reader Scope) sig
            , Member (State Blocked) sig
            , Member (State Queue) sig
            , Member (State Substitution) sig
@@ -247,6 +250,7 @@ simplify' :: ( Carrier sig m
             , Member (Error SolverError) sig
             , Member Fresh sig
             , Member (Reader Gensym) sig
+            , Member (Reader Scope) sig
             )
          => HomConstraint
          -> m (Set.Set HomConstraint)
@@ -268,6 +272,16 @@ simplify' (constraint :~ span) = execWriter (go constraint)
           ctx :|-: (Lam f1 :===: Lam f2) ::: Pi _ _ t b -> do
             n <- gensym "simplify"
             go (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
+          ctx :|-: (f1@(Qual (_ :.: _)) :$ sp1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty -> do
+            t1 <- whnf (f1 :$ sp1)
+            t2 <- whnf (f2 :$ sp2)
+            go (ctx :|-: (t1 :===: t2) ::: ty)
+          ctx :|-: (f1@(Qual (_ :.: _)) :$ sp1 :===: t2) ::: ty -> do
+            t1 <- whnf (f1 :$ sp1)
+            go (ctx :|-: (t1 :===: t2) ::: ty)
+          ctx :|-: (t1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty -> do
+            t2 <- whnf (f2 :$ sp2)
+            go (ctx :|-: (t1 :===: t2) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)
             | stuck t1 || stuck t2 -> tell (Set.singleton (c :~ span))
             | otherwise            -> throwError (UnsimplifiableConstraint (c :~ span))
