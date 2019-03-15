@@ -9,7 +9,6 @@ import           Control.Monad ((>=>), guard, unless)
 import           Data.Foldable (fold, foldl', toList)
 import           Data.List (intersperse)
 import qualified Data.Map as Map
-import           Data.Maybe (fromMaybe)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
@@ -24,7 +23,7 @@ import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span(..), Spanned(..))
 
-type Blocked = Map.Map Gensym (Set.Set HomConstraint)
+type Blocked = Set.Set HomConstraint
 type Queue = Seq.Seq HomConstraint
 
 solver :: ( Carrier sig m
@@ -36,10 +35,10 @@ solver :: ( Carrier sig m
        => Set.Set HomConstraint
        -> m Substitution
 solver constraints = execState Map.empty $ do
-  (queue, blocked) <- runState (Seq.empty :: Queue) . execState (Map.empty :: Blocked) $ do
+  (queue, blocked) <- runState (Seq.empty :: Queue) . execState (Set.empty :: Blocked) $ do
     enqueueAll constraints
     step
-  unless (null blocked) (throwError (BlockedConstraints (Map.toList blocked >>= traverse toList)))
+  unless (null blocked) (throwError (BlockedConstraints (toList blocked)))
   unless (null queue)   (throwError (StalledConstraints (toList queue)))
 
 step :: ( Carrier sig m
@@ -76,9 +75,7 @@ process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | otherwise = block c
 
 block :: (Carrier sig m, Member (State Blocked) sig) => HomConstraint -> m ()
-block c = modify (Map.unionWith (<>) (Map.fromListWith (<>) (flip (,) s <$> toList mvars)))
-  where s = Set.singleton c
-        mvars = metaNames (fvs c)
+block c = modify (Set.insert c)
 
 enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t HomConstraint -> m ()
 enqueueAll = modify . flip (foldl' (Seq.|>))
@@ -102,9 +99,12 @@ distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
 solve :: (Carrier sig m, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Gensym -> Value Meta -> m ()
 solve m v = do
   modify (Map.insert m v . fmap (apply (Map.singleton m v)))
-  cs <- gets (fromMaybe Set.empty . Map.lookup m)
-  enqueueAll cs
-  modify (Map.delete m :: Blocked -> Blocked)
+  (unblocked, blocked) <- gets (Set.partition (isBlockedOn (Meta m)))
+  enqueueAll unblocked
+  put blocked
+
+isBlockedOn :: Meta -> HomConstraint -> Bool
+isBlockedOn m = Set.member m . fvs
 
 simplify :: ( Carrier sig m
             , Effect sig
@@ -168,7 +168,7 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
 data SolverError
   = UnsimplifiableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
-  | BlockedConstraints [(Gensym, HomConstraint)]
+  | BlockedConstraints [HomConstraint]
   | StalledConstraints [HomConstraint]
   deriving (Eq, Ord, Show)
 
@@ -176,8 +176,8 @@ instance Pretty SolverError where
   pretty = \case
     UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
-    BlockedConstraints constraints -> fold (intersperse hardline (map blocked constraints))
-      where blocked (m, (ctx :|-: eqn) :~ span) = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavar" <+> pretty (Meta m)) (prettyCtx ctx)
+    BlockedConstraints constraints -> fold (intersperse hardline (constraints >>= fmap . blocked <*> toList . fvs))
+      where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavar" <+> pretty (m :: Meta)) (prettyCtx ctx)
     StalledConstraints constraints -> fold (intersperse hardline (map stalled constraints))
       where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
