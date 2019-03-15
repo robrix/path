@@ -80,7 +80,7 @@ block c = do
   let s = Set.singleton c
       mvars = metaNames (fvs c)
   when (null mvars) $ throwError (UnblockableConstraint c)
-  modify (Map.unionWith (<>) (foldl' (\ m i -> Map.insertWith (<>) i s m) mempty mvars))
+  modify (Map.unionWith (<>) (Map.fromListWith (<>) (flip (,) s <$> toList mvars)))
 
 enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t HomConstraint -> m ()
 enqueueAll = modify . flip (foldl' (Seq.|>))
