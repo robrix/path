@@ -194,7 +194,7 @@ instance Pretty SolverError where
     UnblockableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     BlockedConstraints constraints -> fold (intersperse hardline (map blocked constraints))
-      where blocked ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "blocked constraint" </> pretty eqn) (prettyCtx ctx)
+      where blocked ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" </> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) (toList (metaNames (fvs eqn))))) (prettyCtx ctx)
     StalledConstraints constraints -> fold (intersperse hardline (map stalled constraints))
       where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
