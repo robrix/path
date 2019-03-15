@@ -3,15 +3,13 @@ module Path.Solver where
 
 import           Control.Effect
 import           Control.Effect.Error
-import           Control.Effect.Fresh
-import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, when)
 import           Data.Foldable (fold, foldl', toList)
 import           Data.List.NonEmpty (NonEmpty (..), nonEmpty)
 import qualified Data.Map as Map
-import           Data.Maybe (catMaybes, fromMaybe)
+import           Data.Maybe (fromMaybe)
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
@@ -82,71 +80,6 @@ simplify = execWriter . go
 
         stuck (Meta _ :$ _) = True
         stuck _             = False
-
-solve :: ( Carrier sig m
-         , Effect sig
-         , Member (Error ElabError) sig
-         , Member (Reader Gensym) sig
-         , Member (Reader Scope) sig
-         )
-      => Set.Set (Caused (Equation (Value Meta) ::: Type Meta))
-      -> m [Caused Solution]
-solve cs
-  = local (// "solve")
-  . runFresh
-  . fmap (map (uncurry toSolution) . Map.toList)
-  . execState mempty
-  . evalState (Seq.empty :: Seq.Seq (Caused (Equation (Value Meta) ::: Type Meta)))
-  $ do
-    stuck <- fmap fold . execState (mempty :: Map.Map Gensym (Set.Set (Caused (Equation (Value Meta) ::: Type Meta)))) $ do
-      modify (flip (foldl' (Seq.|>)) cs)
-      step
-    case Set.minView stuck of
-      Nothing     -> pure ()
-      Just (c, _) -> throwMismatch stuck (cause c)
-  where step = dequeue >>= \case
-          Just q -> do
-            _S <- get
-            process _S q
-            step
-          Nothing -> pure ()
-
-        process _S q@((t1 :===: t2) ::: _ :@ c)
-          | Just s <- solutions _S (metaNames (fvs t1 <> fvs t2)) = simplify (apply s q) >>= modify . flip (foldl' (Seq.|>))
-          | Just (m, sp) <- pattern t1 = solve (m := lams sp t2 :@ c)
-          | Just (m, sp) <- pattern t2 = solve (m := lams sp t1 :@ c)
-          | otherwise = enqueue q
-
-        enqueue q = do
-          let s = Set.singleton q
-              mvars = metaNames (fvs q)
-          when (Prelude.null mvars) (throwMismatch (Set.singleton q) (cause q))
-          modify (Map.unionWith (<>) (foldl' (\ m i -> Map.insertWith (<>) i s m) mempty mvars))
-
-        dequeue = gets Seq.viewl >>= \case
-          Seq.EmptyL -> pure Nothing
-          h Seq.:< q -> Just h <$ put q
-
-        pattern (Meta m :$ sp) = (,) m <$> traverse free sp
-        pattern _              = Nothing
-
-        free (v :$ Nil) = Just v
-        free _          = Nothing
-
-        solve (m := v :@ c) = do
-          modify (Map.insert m (v :@ c))
-          cs <- gets (fromMaybe mempty . Map.lookup m)
-          modify (flip (foldl' (Seq.|>)) (cs :: Set.Set (Caused (Equation (Value Meta) ::: Type Meta))))
-          modify (Map.delete @Gensym @(Set.Set (Caused (Equation (Value Meta) ::: Type Meta))) m)
-
-        solutions _S s
-          | s:ss <- catMaybes (solution _S <$> Set.toList s) = Just (s:ss)
-          | otherwise                                        = Nothing
-        solution _S m = toSolution m <$> Map.lookup m _S
-
-        toSolution m (v :@ c) = m := v :@ c
-
-        throwMismatch qs c | span :| _ <- spans c = throwError (ElabError span mempty (TypeMismatch qs))
 
 
 solver :: ( Carrier sig m
