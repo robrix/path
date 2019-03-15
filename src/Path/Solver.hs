@@ -36,12 +36,11 @@ solver :: ( Carrier sig m
        => Set.Set HomConstraint
        -> m Substitution
 solver constraints = execState Map.empty $ do
-  queue <- execState (Seq.empty :: Queue) $ do
-    blocked <- fmap fold . execState (Map.empty :: Blocked) $ do
-      enqueueAll constraints
-      step
-    unless (null blocked) (throwError (BlockedConstraints (toList blocked)))
-  unless (null queue) (throwError (StalledConstraints (toList queue)))
+  (queue, blocked) <- runState (Seq.empty :: Queue) . fmap fold . execState (Map.empty :: Blocked) $ do
+    enqueueAll constraints
+    step
+  unless (null blocked) (throwError (BlockedConstraints (toList blocked)))
+  unless (null queue)   (throwError (StalledConstraints (toList queue)))
 
 step :: ( Carrier sig m
         , Effect sig
