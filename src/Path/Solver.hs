@@ -72,8 +72,8 @@ process :: ( Carrier sig m
 process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | tm1 == tm2 = pure ()
   | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify (apply s c) >>= enqueueAll
-  | Just (m, sp) <- pattern tm1 = solve (m := Value.lams sp tm2)
-  | Just (m, sp) <- pattern tm2 = solve (m := Value.lams sp tm1)
+  | Just (m, sp) <- pattern tm1 = solve m (Value.lams sp tm2)
+  | Just (m, sp) <- pattern tm2 = solve m (Value.lams sp tm1)
   | otherwise = block c
 
 block :: (Carrier sig m, Member (Error SolverError) sig, Member (State Blocked) sig) => HomConstraint -> m ()
@@ -102,8 +102,8 @@ free _          = Nothing
 distinct :: (Foldable t, Ord a) => t a -> Maybe (t a)
 distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
 
-solve :: (Carrier sig m, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Solution -> m ()
-solve (m := v) = do
+solve :: (Carrier sig m, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Gensym -> Value Meta -> m ()
+solve m v = do
   modify (Map.insert m v . fmap (apply (Map.singleton m v)))
   cs <- gets (fromMaybe Set.empty . Map.lookup m)
   enqueueAll cs
