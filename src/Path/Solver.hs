@@ -142,10 +142,10 @@ simplify (constraint :~ span) = execWriter (go constraint)
           ctx :|-: (t1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty -> do
             t2 <- whnf (f2 :$ sp2)
             go (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (tm1 :===: Lam b2) ::: ty | False -> do
+          ctx :|-: (tm1 :===: Lam b2) ::: ty@(Pi _ _ _ _) -> do
             n <- gensym "simplify"
             go (ctx :|-: (lam (qlocal n) (tm1 $$ pure (qlocal n)) :===: Lam b2) ::: ty)
-          ctx :|-: (Lam b1 :===: tm2) ::: ty | False -> do
+          ctx :|-: (Lam b1 :===: tm2) ::: ty@(Pi _ _ _ _) -> do
             n <- gensym "simplify"
             go (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)
