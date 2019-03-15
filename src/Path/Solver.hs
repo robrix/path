@@ -76,10 +76,9 @@ process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | otherwise = block c
 
 block :: (Carrier sig m, Member (State Blocked) sig) => HomConstraint -> m ()
-block c = do
-  let s = Set.singleton c
-      mvars = metaNames (fvs c)
-  modify (Map.unionWith (<>) (Map.fromListWith (<>) (flip (,) s <$> toList mvars)))
+block c = modify (Map.unionWith (<>) (Map.fromListWith (<>) (flip (,) s <$> toList mvars)))
+  where s = Set.singleton c
+        mvars = metaNames (fvs c)
 
 enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t HomConstraint -> m ()
 enqueueAll = modify . flip (foldl' (Seq.|>))
