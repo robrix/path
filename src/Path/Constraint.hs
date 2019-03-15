@@ -100,3 +100,6 @@ instance Substitutable a => Substitutable (Spanned a) where
 
 instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
+
+instance Substitutable a => Substitutable (Contextual a) where
+  apply subst (ctx :|-: a) = apply subst ctx :|-: apply subst a
