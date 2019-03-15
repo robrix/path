@@ -64,7 +64,7 @@ newtype NamingC m a = NamingC { runNamingC :: FreshC (ReaderC Gensym m) a }
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
   eff (L (Gensym    s   k)) = NamingC ((:/) <$> ask <*> ((,) s <$> fresh)) >>= k
-  eff (L (Namespace s m k)) = NamingC (local (// s) (runNamingC m)) >>= k
+  eff (L (Namespace s m k)) = NamingC (resetFresh (local (// s) (runNamingC m))) >>= k
   eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
 
