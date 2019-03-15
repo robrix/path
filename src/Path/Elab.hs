@@ -189,7 +189,7 @@ runSolver :: ( Carrier sig m
           -> m (Value Meta ::: Type Meta)
 runSolver constraints (tm ::: ty) = do
   subst <- solver (foldMap hetToHom constraints)
-  pure (applyType subst tm ::: applyType subst ty)
+  pure (apply subst tm ::: apply subst ty)
 
 runElab :: ( Carrier sig m
            , Effect sig

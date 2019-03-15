@@ -71,7 +71,7 @@ process :: ( Carrier sig m
         -> m ()
 process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | tm1 == tm2 = pure ()
-  | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify (applyConstraint s c) >>= enqueueAll
+  | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify (apply s c) >>= enqueueAll
   | Just (m, sp) <- pattern tm1 = solve (m := Value.lams sp tm2)
   | Just (m, sp) <- pattern tm2 = solve (m := Value.lams sp tm1)
   | otherwise = block c
@@ -104,21 +104,10 @@ distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
 
 solve :: (Carrier sig m, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Solution -> m ()
 solve (m := v) = do
-  modify (Map.insert m v . fmap (applyType (Map.singleton m v)))
+  modify (Map.insert m v . fmap (apply (Map.singleton m v)))
   cs <- gets (fromMaybe Set.empty . Map.lookup m)
   enqueueAll cs
   modify (Map.delete m :: Blocked -> Blocked)
-
-applyConstraint :: Substitution -> HomConstraint -> HomConstraint
-applyConstraint subst ((ctx :|-: (tm1 :===: tm2) ::: ty) :~ span) = (applyContext subst ctx :|-: (applyType subst tm1 :===: applyType subst tm2) ::: applyType subst ty) :~ span
-
-applyContext :: Substitution -> Context (Type Meta) -> Context (Type Meta)
-applyContext = fmap . applyType
-
-applyType :: Substitution -> Type Meta -> Type Meta
-applyType subst ty = ty >>= \case
-  Qual n -> pure (Qual n)
-  Meta m -> fromMaybe (pure (Meta m)) (Map.lookup m subst)
 
 simplify :: ( Carrier sig m
             , Effect sig
