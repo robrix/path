@@ -8,7 +8,7 @@ import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, unless, when)
 import           Data.Foldable (fold, foldl', toList)
 import           Data.List (intersperse)
-import           Data.List.NonEmpty (NonEmpty (..), nonEmpty)
+import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
 import qualified Data.Sequence as Seq
@@ -96,7 +96,7 @@ solver constraints = execState Map.empty $ do
       enqueueAll constraints
       step
     unless (null stuck) (throwError (StuckConstraints (toList stuck)))
-  maybe (pure ()) (throwError . StalledConstraints) (nonEmpty (toList queue))
+  unless (null queue) (throwError (StalledConstraints (toList queue)))
 
 step :: ( Carrier sig m
         , Effect sig
@@ -233,7 +233,7 @@ data SolverError
   | UnblockableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
   | StuckConstraints [HomConstraint]
-  | StalledConstraints (NonEmpty HomConstraint)
+  | StalledConstraints [HomConstraint]
   deriving (Eq, Ord, Show)
 
 instance Pretty SolverError where
@@ -243,14 +243,13 @@ instance Pretty SolverError where
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     StuckConstraints constraints -> fold (intersperse hardline (map stuck constraints))
       where stuck ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stuck constraint" </> pretty eqn) (prettyCtx ctx)
-    StalledConstraints queue -> prettyErr (firstSpan queue) (pretty "stalled constraints") (map prettyConstraint (toList queue))
+    StalledConstraints constraints -> fold (intersperse hardline (map stalled constraints))
+      where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
             [ pretty "expected:" <+> pretty expected
             , pretty "  actual:" <+> pretty actual
             , pretty " at type:" <+> pretty ty
             ])
-          prettyConstraint ((ctx :|-: eqn) :~ _) = nest 2 (vsep (pretty eqn : prettyCtx ctx))
-          firstSpan (_ :~ span :| _) = span
 
 instance PrettyPrec SolverError
