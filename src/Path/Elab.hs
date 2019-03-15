@@ -263,7 +263,7 @@ elabDecl :: ( Carrier sig m
             )
          => Decl Qual (Core.Core Qual)
          -> m (Decl Qual (Value Meta ::: Type Meta))
-elabDecl = \case
+elabDecl = namespace . show . declName <*> \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
   Doc docs     d  -> Doc docs <$> elabDecl d
