@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Constraint where
 
-import Data.List.NonEmpty (NonEmpty(..), toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
@@ -9,7 +8,7 @@ import Path.Context
 import Path.Name
 import Path.Pretty
 import Path.Value
-import Text.Trifecta.Rendering (Span, Spanned(..))
+import Text.Trifecta.Rendering (Spanned(..))
 
 data Equation a
   = a :===: a
@@ -29,22 +28,6 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
 
 type HetConstraint = Spanned (Contextual (Equation (Value Meta ::: Type Meta)))
 type HomConstraint = Spanned (Contextual (Equation (Value Meta) ::: Type Meta))
-
-
-data Cause
-  = Assert Span
-  | Via (Equation (Value Meta) ::: Type Meta) Cause
-  | Cause :<>: Cause
-  deriving (Eq, Ord, Show)
-
-instance Semigroup Cause where
-  (<>) = (:<>:)
-
-spans :: Cause -> NonEmpty Span
-spans = flip go []
-  where go (Assert span) = (span :|)
-        go (Via _ cause) = go cause
-        go (l :<>: r)    = go l . toList . go r
 
 
 type Substitution = Map.Map Gensym (Value Meta)
