@@ -36,10 +36,10 @@ solver :: ( Carrier sig m
        => Set.Set HomConstraint
        -> m Substitution
 solver constraints = execState Map.empty $ do
-  (queue, blocked) <- runState (Seq.empty :: Queue) . fmap fold . execState (Map.empty :: Blocked) $ do
+  (queue, blocked) <- runState (Seq.empty :: Queue) . execState (Map.empty :: Blocked) $ do
     enqueueAll constraints
     step
-  unless (null blocked) (throwError (BlockedConstraints (toList blocked)))
+  unless (null blocked) (throwError (BlockedConstraints (Map.toList blocked >>= traverse toList)))
   unless (null queue)   (throwError (StalledConstraints (toList queue)))
 
 step :: ( Carrier sig m
@@ -168,7 +168,7 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
 data SolverError
   = UnsimplifiableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
-  | BlockedConstraints [HomConstraint]
+  | BlockedConstraints [(Gensym, HomConstraint)]
   | StalledConstraints [HomConstraint]
   deriving (Eq, Ord, Show)
 
@@ -177,7 +177,7 @@ instance Pretty SolverError where
     UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
     BlockedConstraints constraints -> fold (intersperse hardline (map blocked constraints))
-      where blocked ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" </> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) (toList (metaNames (fvs eqn))))) (prettyCtx ctx)
+      where blocked (m, (ctx :|-: eqn) :~ span) = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavar" <+> pretty (Meta m)) (prettyCtx ctx)
     StalledConstraints constraints -> fold (intersperse hardline (map stalled constraints))
       where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
