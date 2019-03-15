@@ -3,6 +3,7 @@ module Path.Constraint where
 
 import Data.Foldable (foldl')
 import Data.List.NonEmpty (NonEmpty(..), toList)
+import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Context
 import Path.Name
@@ -70,6 +71,8 @@ instance FreeVariables v a => FreeVariables v (Caused a) where
 cause :: Caused a -> Cause
 cause (_ :@ cause) = cause
 
+
+type Substitution = Map.Map Gensym (Value Meta)
 
 class Substitutable t where
   apply :: [Caused Solution] -> t -> t

@@ -25,7 +25,6 @@ import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 type Blocked = Map.Map Gensym (Set.Set HomConstraint)
-type Substitution = Map.Map Gensym (Value Meta)
 type Queue = Seq.Seq HomConstraint
 
 solver :: ( Carrier sig m
