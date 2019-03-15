@@ -2,8 +2,6 @@
 module Path.Core where
 
 import Control.Effect
-import Control.Effect.Fresh
-import Control.Effect.Reader hiding (Local)
 import Control.Monad (ap)
 import Data.Foldable (toList)
 import qualified Data.Set as Set
@@ -77,7 +75,7 @@ instance Ord a => FreeVariables a (Core a) where
   fvs = foldMap Set.singleton
 
 uses :: Gensym -> Core Qual -> [Span]
-uses n = run . runFresh . runReader (Root "pretty") . go Nothing
+uses n = run . runNaming (Root "pretty") . go Nothing
   where go span = \case
           Var n'
             | Local n == n' -> pure (toList span)

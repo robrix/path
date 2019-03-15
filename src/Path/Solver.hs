@@ -32,8 +32,7 @@ type Queue = Seq.Seq HomConstraint
 simplify :: ( Carrier sig m
             , Effect sig
             , Member (Error ElabError) sig
-            , Member Fresh sig
-            , Member (Reader Gensym) sig
+            , Member Naming sig
             , Member (Reader Scope) sig
             )
          => Caused (Equation (Value Meta) ::: Type Meta)
@@ -85,8 +84,7 @@ simplify = execWriter . go
 solver :: ( Carrier sig m
           , Effect sig
           , Member (Error SolverError) sig
-          , Member Fresh sig
-          , Member (Reader Gensym) sig
+          , Member Naming sig
           , Member (Reader Scope) sig
           )
        => Set.Set HomConstraint
@@ -102,8 +100,7 @@ solver constraints = execState Map.empty $ do
 step :: ( Carrier sig m
         , Effect sig
         , Member (Error SolverError) sig
-        , Member Fresh sig
-        , Member (Reader Gensym) sig
+        , Member Naming sig
         , Member (Reader Scope) sig
         , Member (State Blocked) sig
         , Member (State Queue) sig
@@ -117,8 +114,7 @@ step = do
 process :: ( Carrier sig m
            , Effect sig
            , Member (Error SolverError) sig
-           , Member Fresh sig
-           , Member (Reader Gensym) sig
+           , Member Naming sig
            , Member (Reader Scope) sig
            , Member (State Blocked) sig
            , Member (State Queue) sig
@@ -181,8 +177,7 @@ applyType subst ty = ty >>= \case
 simplify' :: ( Carrier sig m
             , Effect sig
             , Member (Error SolverError) sig
-            , Member Fresh sig
-            , Member (Reader Gensym) sig
+            , Member Naming sig
             , Member (Reader Scope) sig
             )
          => HomConstraint

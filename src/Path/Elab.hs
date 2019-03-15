@@ -32,9 +32,8 @@ import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 assume :: ( Carrier sig m
           , Member (Error ElabError) sig
-          , Member Fresh sig
+          , Member Naming sig
           , Member (Reader (Context (Type Meta))) sig
-          , Member (Reader Gensym) sig
           , Member (Reader Scope) sig
           , Member (Reader Span) sig
           , Member (Reader (Type Meta)) sig
@@ -47,9 +46,8 @@ assume v = do
   expect (pure (Qual v) ::: _A)
 
 intro :: ( Carrier sig m
-         , Member Fresh sig
+         , Member Naming sig
          , Member (Reader (Context (Type Meta))) sig
-         , Member (Reader Gensym) sig
          , Member (Reader Span) sig
          , Member (Reader (Type Meta)) sig
          , Member (Writer (Set.Set HetConstraint)) sig
@@ -64,9 +62,8 @@ intro body = do
   expect (Value.lam (qlocal x) u ::: Value.pi ((qlocal x, Ex, zero) ::: _A) _B)
 
 type' :: ( Carrier sig m
-         , Member Fresh sig
+         , Member Naming sig
          , Member (Reader (Context (Type Meta))) sig
-         , Member (Reader Gensym) sig
          , Member (Reader Span) sig
          , Member (Reader (Type Meta)) sig
          , Member (Writer (Set.Set HetConstraint)) sig
@@ -75,9 +72,8 @@ type' :: ( Carrier sig m
 type' = expect (Type ::: Type)
 
 pi :: ( Carrier sig m
-      , Member Fresh sig
+      , Member Naming sig
       , Member (Reader (Context (Type Meta))) sig
-      , Member (Reader Gensym) sig
       , Member (Reader Span) sig
       , Member (Reader (Type Meta)) sig
       , Member (Writer (Set.Set HetConstraint)) sig
@@ -94,9 +90,8 @@ pi p m t body = do
   expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
 
 app :: ( Carrier sig m
-       , Member Fresh sig
+       , Member Naming sig
        , Member (Reader (Context (Type Meta))) sig
-       , Member (Reader Gensym) sig
        , Member (Reader Span) sig
        , Member (Reader (Type Meta)) sig
        , Member (Writer (Set.Set HetConstraint)) sig
@@ -114,9 +109,8 @@ app f a = do
 
 
 expect :: ( Carrier sig m
-          , Member Fresh sig
+          , Member Naming sig
           , Member (Reader (Context (Type Meta))) sig
-          , Member (Reader Gensym) sig
           , Member (Reader Span) sig
           , Member (Reader (Type Meta)) sig
           , Member (Writer (Set.Set HetConstraint)) sig
@@ -128,8 +122,7 @@ expect exp = do
   res <$ unify (exp :===: res)
 
 freshName :: ( Carrier sig m
-             , Member Fresh sig
-             , Member (Reader Gensym) sig
+             , Member Naming sig
              )
           => String
           -> m Qual
@@ -139,9 +132,8 @@ context :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => m (Cont
 context = ask
 
 exists :: ( Carrier sig m
-          , Member Fresh sig
+          , Member Naming sig
           , Member (Reader (Context (Type Meta))) sig
-          , Member (Reader Gensym) sig
           )
        => Type Meta
        -> m (Value Meta ::: Type Meta)
@@ -168,9 +160,8 @@ unify constraint = (:~) <$> asks (:|-: constraint) <*> ask >>= tell . Set.single
 
 elab :: ( Carrier sig m
         , Member (Error ElabError) sig
-        , Member Fresh sig
+        , Member Naming sig
         , Member (Reader (Context (Type Meta))) sig
-        , Member (Reader Gensym) sig
         , Member (Reader Scope) sig
         , Member (Reader Span) sig
         , Member (Reader (Type Meta)) sig
@@ -191,8 +182,7 @@ elab = \case
 runSolver :: ( Carrier sig m
              , Effect sig
              , Member (Error SolverError) sig
-             , Member Fresh sig
-             , Member (Reader Gensym) sig
+             , Member Naming sig
              , Member (Reader Scope) sig
              )
           => Set.Set HetConstraint
@@ -204,8 +194,7 @@ runSolver constraints (tm ::: ty) = do
 
 runElab :: ( Carrier sig m
            , Effect sig
-           , Member Fresh sig
-           , Member (Reader Gensym) sig
+           , Member Naming sig
            )
         => Maybe (Type Meta)
         -> ReaderC Span (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) m))) (Value Meta ::: Type Meta)
@@ -236,8 +225,8 @@ type ModuleTable = Map.Map ModuleName Scope
 elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error ModuleError) sig
+              , Member Naming sig
               , Member (Reader ModuleTable) sig
-              , Member (Reader Gensym) sig
               , Member (State (Stack ElabError)) sig
               , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
@@ -269,7 +258,7 @@ elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error ElabError) sig
             , Member (Error SolverError) sig
-            , Member (Reader Gensym) sig
+            , Member Naming sig
             , Member (State Scope) sig
             )
          => Decl Qual (Core.Core Qual)
@@ -283,7 +272,7 @@ elabDeclare :: ( Carrier sig m
                , Effect sig
                , Member (Error ElabError) sig
                , Member (Error SolverError) sig
-               , Member (Reader Gensym) sig
+               , Member Naming sig
                , Member (State Scope) sig
                )
             => Qual
@@ -297,7 +286,7 @@ elabDefine :: ( Carrier sig m
               , Effect sig
               , Member (Error ElabError) sig
               , Member (Error SolverError) sig
-              , Member (Reader Gensym) sig
+              , Member Naming sig
               , Member (State Scope) sig
               )
            => Qual

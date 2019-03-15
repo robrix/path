@@ -19,7 +19,7 @@ import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
+resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
             -> m (Core Qual)
 resolveTerm = \case
@@ -33,14 +33,14 @@ resolveTerm = \case
     n <- gensym ""
     pi . ((Local n, ie, u) :::) <$> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
   (u, a) Surface.:-> b ->
-    pi <$> ((:::) . (, Ex, u) . Local <$> ask <*> resolveTerm a) <*> resolveTerm b
+    pi <$> ((:::) . (, Ex, u) . Local <$> gensym "" <*> resolveTerm a) <*> resolveTerm b
   Surface.Hole v -> Hole . (:.: v) <$> ask
   Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader ModuleName) sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qual (Core Qual))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qual (Core Qual))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
@@ -56,7 +56,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Fresh sig, Member (Reader Gensym) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qual (Core Qual))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qual (Core Qual))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -80,12 +80,12 @@ insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) .
 lookupName :: User -> Resolution -> Maybe (NonEmpty Qual)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member (Reader Mode) sig, Member (Reader Gensym) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => User -> m Qual
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => User -> m Qual
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
   s <- ask
-  n <- ask
+  n <- gensym ""
   case mode of
     Decl -> maybe (pure (Local n :| [])) pure res >>= unambiguous v s
     Defn -> maybe (throwError (FreeVariable v s)) pure res >>= unambiguous v s

@@ -3,8 +3,6 @@ module Path.Value where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect
-import           Control.Effect.Fresh
-import           Control.Effect.Reader hiding (Local)
 import           Control.Monad (ap)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
@@ -26,7 +24,7 @@ newtype Scope a = Scope (Value (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance PrettyPrec (Value Meta) where
-  prettyPrec d = run . runFresh . runReader (Root "pretty") . go d
+  prettyPrec d = run . runNaming (Root "pretty") . go d
     where go d = \case
             Lam b -> do
               (as, b') <- unlams (Lam b)
@@ -83,7 +81,7 @@ unlam :: Alternative m => a -> Value a -> m (a, Value a)
 unlam n (Lam b) = pure (n, instantiate (pure n) b)
 unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value Meta -> m (Stack Meta, Value Meta)
+unlams :: (Carrier sig m, Member Naming sig) => Value Meta -> m (Stack Meta, Value Meta)
 unlams value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
@@ -101,7 +99,7 @@ unpi :: Alternative m => a -> Value a -> m ((a, Plicity, Usage) ::: Type a, Valu
 unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (pure n) b)
 unpi _ _            = empty
 
-unpis :: (Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => Value Meta -> m (Stack ((Meta, Plicity, Usage) ::: Type Meta), Value Meta)
+unpis :: (Carrier sig m, Member Naming sig) => Value Meta -> m (Stack ((Meta, Plicity, Usage) ::: Type Meta), Value Meta)
 unpis value = intro (Nil, value)
   where intro (names, value) = gensym "" >>= \ root -> case unpi (qlocal root) value of
           Just (name, body) -> intro (names :> name, body)
@@ -146,8 +144,8 @@ substitute name image = instantiate image . bind name
 generalizeType :: Value Meta -> Value Meta
 generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero) . qlocal) (localNames (fvs ty))) ty
 
-generalizeValue :: (Carrier sig m, Effect sig, Member (Reader Gensym) sig) => Type Meta -> Value Meta -> m (Value Meta)
-generalizeValue ty value = runFresh . local (// "generalizeValue") $ do
+generalizeValue :: (Carrier sig m, Member Naming sig) => Type Meta -> Value Meta -> m (Value Meta)
+generalizeValue ty value = namespace "generalizeValue" $ do
   (names, _) <- unpis ty
   pure (lams (fmap (\ ((n, _, _) ::: _) -> n) names) value)
 

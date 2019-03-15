@@ -34,9 +34,9 @@ root // s = root :/ (s, 0)
 
 infixl 6 //
 
-gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Gensym
-gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
 
+gensym :: (Carrier sig m, Member Naming sig) => String -> m Gensym
+gensym s = send (Gensym s pure)
 
 namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
 namespace s m = send (Namespace s m pure)
