@@ -233,7 +233,7 @@ elabModule :: ( Carrier sig m
               )
            => Module Qual (Core.Core Qual)
            -> m (Module Qual (Value Meta ::: Type Meta))
-elabModule m = do
+elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
   decls <- for (moduleDecls m) (either ((Nothing <$) . logElabError) (either ((Nothing <$) . logSolverError) (pure . Just)) <=< runError . runError . elabDecl)
