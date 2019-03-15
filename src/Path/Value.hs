@@ -139,7 +139,7 @@ joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pur
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
 --
---   prop> substitute a (pure b) (Lam (Scope (pure (S a)))) == Lam (Scope (pure (S b)))
+--   prop> substitute a (pure b) (Lam (Scope (pure (S a)))) === Lam (Scope (pure (S b)))
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
@@ -162,3 +162,7 @@ bind name = Scope . fmap (match name)
 -- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Value' term.
 instantiate :: Value a -> Scope a -> Value a
 instantiate t (Scope b) = b >>= subst t . fmap pure
+
+
+-- $setup
+-- >>> import Test.QuickCheck
