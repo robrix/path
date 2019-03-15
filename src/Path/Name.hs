@@ -1,10 +1,13 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
 import           Control.Effect
+import           Control.Effect.Carrier
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.Sum
 import           Data.Bifunctor
+import           Data.Coerce
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -33,6 +36,28 @@ infixl 6 //
 
 gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Gensym
 gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
+
+
+data Naming (m :: * -> *) k
+  = Gensym String (Gensym -> k)
+  deriving (Functor)
+
+instance HFunctor Naming where
+  hmap _ = coerce
+
+instance Effect Naming where
+  handle state handler = coerce . fmap (handler . (<$ state))
+
+
+runNaming :: Functor m => Gensym -> NamingC m a -> m a
+runNaming root = runReader root . runFresh . runNamingC
+
+newtype NamingC m a = NamingC { runNamingC :: FreshC (ReaderC Gensym m) a }
+  deriving (Applicative, Functor, Monad)
+
+instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
+  eff (L (Gensym s k)) = NamingC ((:/) <$> ask <*> ((,) s <$> fresh)) >>= k
+  eff (R other)        = NamingC (eff (R (R (handleCoercible other))))
 
 
 data User
