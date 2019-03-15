@@ -5,7 +5,6 @@ import Control.Arrow ((&&&))
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
-import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum as Effect
@@ -167,14 +166,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Value
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runFresh . (uncurry runSolver <=< runElab Nothing . elab)
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
             print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runFresh . (uncurry runSolver <=< runElab Nothing . elab)
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
             runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
             loop
           Show Bindings -> do
@@ -210,7 +209,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Value
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (solverErrs, (elabErrs, (scope, res))) <- runState Nil (runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule))))
+            (solverErrs, (elabErrs, (scope, res))) <- runState Nil (runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule))))
             if Prelude.null elabErrs && Prelude.null solverErrs then
               modify (Map.insert name scope)
             else do
@@ -224,7 +223,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Value
         failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
         runRenamer m = do
           res <- get
-          runFresh (runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m)))
+          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m))
 
 basePackage :: Package
 basePackage = Package

@@ -3,7 +3,6 @@ module Path.Elab where
 
 import Control.Effect
 import Control.Effect.Error
-import Control.Effect.Fresh
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
@@ -279,7 +278,7 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core Qual
             -> m (Value Meta ::: Type Meta)
 elabDeclare name ty = do
-  elab <- runScope (runFresh (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver))
+  elab <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
   elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
 
 elabDefine :: ( Carrier sig m
@@ -294,14 +293,13 @@ elabDefine :: ( Carrier sig m
            -> m (Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
-  elab <- runFresh $ do
-    (constraints, res) <- runScope . runElab ty $ do
-      ty' <- maybe (typedTerm <$> exists Type) pure ty
-      val <- exists ty'
-      modify (Scope.insert name (Defn val))
-      m' <- elab tm
-      m' <$ unify (m' :===: val)
-    runScope (runSolver constraints res)
+  (constraints, res) <- runScope . runElab ty $ do
+    ty' <- maybe (typedTerm <$> exists Type) pure ty
+    val <- exists ty'
+    modify (Scope.insert name (Defn val))
+    m' <- elab tm
+    m' <$ unify (m' :===: val)
+  elab <- runScope (runSolver constraints res)
   elab <$ modify (Scope.insert name (Defn elab))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
