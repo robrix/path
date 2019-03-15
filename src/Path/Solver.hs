@@ -72,7 +72,7 @@ process :: ( Carrier sig m
         -> m ()
 process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | tm1 == tm2 = pure ()
-  | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify' (applyConstraint s c) >>= enqueueAll
+  | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify (applyConstraint s c) >>= enqueueAll
   | Just (m, sp) <- pattern tm1 = solve (m := Value.lams sp tm2)
   | Just (m, sp) <- pattern tm2 = solve (m := Value.lams sp tm1)
   | otherwise = block c
@@ -121,7 +121,7 @@ applyType subst ty = ty >>= \case
   Qual n -> pure (Qual n)
   Meta m -> fromMaybe (pure (Meta m)) (Map.lookup m subst)
 
-simplify' :: ( Carrier sig m
+simplify :: ( Carrier sig m
             , Effect sig
             , Member (Error SolverError) sig
             , Member Naming sig
@@ -129,7 +129,7 @@ simplify' :: ( Carrier sig m
             )
          => HomConstraint
          -> m (Set.Set HomConstraint)
-simplify' (constraint :~ span) = execWriter (go constraint)
+simplify (constraint :~ span) = execWriter (go constraint)
   where go = \case
           _ :|-: (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
           ctx :|-: (Pi p1 _ t1 b1 :===: Pi p2 _ t2 b2) ::: Type
