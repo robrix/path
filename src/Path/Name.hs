@@ -37,6 +37,9 @@ gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym
 gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
 
 
+namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
+namespace s m = send (Namespace s m pure)
+
 data Naming m k
   = Gensym String (Gensym -> k)
   | forall a . Namespace String (m a) (a -> k)
