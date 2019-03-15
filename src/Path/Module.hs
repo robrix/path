@@ -35,6 +35,11 @@ data Decl v a
   | Doc String (Decl v a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+declName :: Decl v a -> v
+declName (Declare v _) = v
+declName (Define  v _) = v
+declName (Doc _ d)     = declName d
+
 
 newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
   deriving (Eq, Ord, Show)
