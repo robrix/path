@@ -97,3 +97,6 @@ instance (Ord a, Substitutable a) => Substitutable (Set.Set a) where
 
 instance Substitutable a => Substitutable (Spanned a) where
   apply subst (a :~ span) = apply subst a :~ span
+
+instance Substitutable a => Substitutable (Context a) where
+  apply subst = fmap (apply subst)
