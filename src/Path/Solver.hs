@@ -5,8 +5,9 @@ import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad ((>=>), guard, when)
+import           Control.Monad ((>=>), guard, unless, when)
 import           Data.Foldable (fold, foldl', toList)
+import           Data.List (intersperse)
 import           Data.List.NonEmpty (NonEmpty (..), nonEmpty)
 import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
@@ -94,7 +95,7 @@ solver constraints = execState Map.empty $ do
     stuck <- fmap fold . execState (Map.empty :: Blocked) $ do
       enqueueAll constraints
       step
-    maybe (pure ()) (throwError . StuckConstraints) (nonEmpty (toList stuck))
+    unless (null stuck) (throwError (StuckConstraints (toList stuck)))
   maybe (pure ()) (throwError . StalledConstraints) (nonEmpty (toList queue))
 
 step :: ( Carrier sig m
@@ -231,7 +232,7 @@ data SolverError
   = UnsimplifiableConstraint HomConstraint
   | UnblockableConstraint HomConstraint
   | UnsolvedMetavariable Gensym
-  | StuckConstraints (NonEmpty HomConstraint)
+  | StuckConstraints [HomConstraint]
   | StalledConstraints (NonEmpty HomConstraint)
   deriving (Eq, Ord, Show)
 
@@ -240,7 +241,8 @@ instance Pretty SolverError where
     UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx)
     UnblockableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "cannot block constraint without metavars" <+> prettyEqn eqn) (prettyCtx ctx)
     UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> pretty meta) []
-    StuckConstraints constraints -> prettyErr (firstSpan constraints) (pretty "stuck constraints") (map prettyConstraint (toList constraints))
+    StuckConstraints constraints -> fold (intersperse hardline (map stuck constraints))
+      where stuck ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stuck constraint" </> pretty eqn) (prettyCtx ctx)
     StalledConstraints queue -> prettyErr (firstSpan queue) (pretty "stalled constraints") (map prettyConstraint (toList queue))
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
