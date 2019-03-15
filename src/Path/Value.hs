@@ -142,7 +142,10 @@ substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
 generalizeType :: Value Meta -> Value Meta
-generalizeType ty = pis (Set.map ((::: Type) . (, Im, Zero) . Meta) (metaNames (fvs ty))) ty
+generalizeType ty = pis (foldMap f (fvs ty)) ty
+  where f name
+          | Qual (_ :.: _) <- name = Set.empty
+          | otherwise              = Set.singleton ((name, Im, Zero) ::: Type)
 
 generalizeValue :: (Carrier sig m, Member Naming sig) => Type Meta -> Value Meta -> m (Value Meta)
 generalizeValue ty value = namespace "generalizeValue" $ do
