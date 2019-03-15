@@ -31,18 +31,6 @@ type HetConstraint = Spanned (Contextual (Equation (Value Meta ::: Type Meta)))
 type HomConstraint = Spanned (Contextual (Equation (Value Meta) ::: Type Meta))
 
 
-data Solution
-  = Gensym := Value Meta
-  deriving (Eq, Ord, Show)
-
-infix 5 :=
-
-instance Pretty Solution where
-  pretty (m := v) = green (pretty m) <+> align (pretty "=" <+> pretty v)
-
-instance PrettyPrec Solution
-
-
 data Cause
   = Assert Span
   | Via (Equation (Value Meta) ::: Type Meta) Cause
