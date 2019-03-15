@@ -3,8 +3,8 @@ module Path.Name where
 
 import           Control.Effect
 import           Control.Effect.Carrier
-import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.State
 import           Control.Effect.Sum
 import           Control.Monad.IO.Class
 import           Data.Bifunctor
@@ -57,14 +57,14 @@ instance Effect Naming where
 
 
 runNaming :: Functor m => Gensym -> NamingC m a -> m a
-runNaming root = runReader root . runFresh . runNamingC
+runNaming root = runReader root . evalState 0 . runNamingC
 
-newtype NamingC m a = NamingC { runNamingC :: FreshC (ReaderC Gensym m) a }
+newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC Gensym m) a }
   deriving (Applicative, Functor, Monad, MonadIO)
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
-  eff (L (Gensym    s   k)) = NamingC ((:/) <$> ask <*> ((,) s <$> fresh)) >>= k
-  eff (L (Namespace s m k)) = NamingC (resetFresh (local (// s) (runNamingC m))) >>= k
+  eff (L (Gensym    s   k)) = NamingC (StateC (\ i -> (:/ (s, i)) <$> ask >>= runState (succ i) . runNamingC . k))
+  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (// s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
   eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
 
