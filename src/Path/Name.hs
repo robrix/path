@@ -6,6 +6,7 @@ import           Control.Effect.Carrier
 import           Control.Effect.Fresh
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.Sum
+import           Control.Monad.IO.Class
 import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
@@ -59,7 +60,7 @@ runNaming :: Functor m => Gensym -> NamingC m a -> m a
 runNaming root = runReader root . runFresh . runNamingC
 
 newtype NamingC m a = NamingC { runNamingC :: FreshC (ReaderC Gensym m) a }
-  deriving (Applicative, Functor, Monad)
+  deriving (Applicative, Functor, Monad, MonadIO)
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
   eff (L (Gensym    s   k)) = NamingC ((:/) <$> ask <*> ((,) s <$> fresh)) >>= k
