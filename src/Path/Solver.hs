@@ -150,7 +150,7 @@ simplify (constraint :~ span) = execWriter (go constraint)
             go (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (c :~ span))
-            | otherwise            -> throwError (UnsimplifiableConstraint (c :~ span))
+            | otherwise                -> throwError (UnsimplifiableConstraint (c :~ span))
 
         exists _ = pure . Meta <$> gensym "_meta_"
 
