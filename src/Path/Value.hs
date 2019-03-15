@@ -37,7 +37,7 @@ instance PrettyPrec (Value Meta) where
             Pi ie pi t b -> do
               name <- gensym ""
               let b' = instantiate (pure (qlocal name)) b
-              if qlocal name `Set.member` fvs b' then do
+              if ie == Im || qlocal name `Set.member` fvs b' then do
                 t' <- go 0 t
                 b'' <- go 1 b'
                 pure (prettyParens (d > 1) (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b''))
