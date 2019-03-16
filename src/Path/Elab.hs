@@ -215,8 +215,8 @@ throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Qual -> m (Type Meta)
-lookupVar (Global n) = asks (Scope.lookup (Global n)) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . entryType)
-lookupVar (Local  n) = asks (Context.lookup n)        >>= maybe (throwElabError (FreeVariable (Local n))) pure
+lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . entryType)
+lookupVar (Local  n) = asks (Context.lookup n) >>= maybe (throwElabError (FreeVariable (Local  n))) pure
 
 
 type ModuleTable = Map.Map ModuleName Scope
@@ -279,7 +279,7 @@ elabDeclare :: ( Carrier sig m
             -> m (Value Meta ::: Type Meta)
 elabDeclare name ty = do
   elab <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
-  elab <$ modify (Scope.insert (Global name) (Decl (Value.generalizeType (typedTerm elab))))
+  elab <$ modify (Scope.insert name (Decl (Value.generalizeType (typedTerm elab))))
 
 elabDefine :: ( Carrier sig m
               , Effect sig
@@ -292,16 +292,16 @@ elabDefine :: ( Carrier sig m
            -> Core.Core Qual
            -> m (Value Meta ::: Type Meta)
 elabDefine name tm = do
-  ty <- gets (fmap entryType . Scope.lookup (Global name))
+  ty <- gets (fmap entryType . Scope.lookup name)
   (constraints, res) <- runScope . runElab ty $ do
     ty' <- maybe (typedTerm <$> exists Type) pure ty
     val <- exists ty'
-    modify (Scope.insert (Global name) (Defn val))
+    modify (Scope.insert name (Defn val))
     m' <- elab tm
     m' <$ unify (m' :===: val)
   tm ::: ty <- runScope (runSolver constraints res)
   tm' <- Value.generalizeValue (tm ::: ty)
-  (tm' ::: ty) <$ modify (Scope.insert (Global name) (Defn (tm' ::: ty)))
+  (tm' ::: ty) <$ modify (Scope.insert name (Defn (tm' ::: ty)))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
