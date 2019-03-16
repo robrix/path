@@ -16,11 +16,11 @@ data ElabError = ElabError
   deriving (Eq, Ord, Show)
 
 data ErrorReason
-  = FreeVariable Name
+  = FreeVariable (Name Gensym)
   | IllegalApplication (Type Meta)
   | ResourceMismatch Gensym Usage Usage [Span]
-  | TypedHole Name (Type Meta)
-  | InfiniteType Name (Type Meta)
+  | TypedHole (Name Gensym) (Type Meta)
+  | InfiniteType (Name Gensym) (Type Meta)
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where

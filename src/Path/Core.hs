@@ -64,7 +64,7 @@ joinT :: Core (Core a) -> Core a
 joinT = gfoldT id (Lam . Scope) (:$) Type (\ p m t -> Pi p m t . Scope) id Ann (incr (pure Z) (fmap S))
 
 
-uses :: Gensym -> Core Name -> [Span]
+uses :: Gensym -> Core (Name Gensym) -> [Span]
 uses n = run . runNaming (Root "pretty") . go Nothing
   where go span = \case
           Var n'
