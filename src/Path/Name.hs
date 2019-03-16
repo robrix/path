@@ -69,13 +69,13 @@ instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) whe
 
 
 data User
-  = User String
+  = Id String
   | Op Operator
   deriving (Eq, Ord, Show)
 
 instance Pretty User where
   pretty = \case
-    User s -> pretty s
+    Id s  -> pretty s
     Op op -> pretty op
 
 instance PrettyPrec User
