@@ -150,7 +150,9 @@ generalizeType ty = pis (foldMap f (fvs ty)) ty
 generalizeValue :: (Carrier sig m, Member Naming sig) => Value Meta ::: Type Meta -> m (Value Meta)
 generalizeValue (value ::: ty) = namespace "generalizeValue" $ do
   (names, _) <- unpis ty
-  pure (lams (fmap (\ ((n, _, _) ::: _) -> n) names) value)
+  pure (lams (foldr (\case
+    ((n, Im, _) ::: _) -> (n :)
+    _                  -> id) [] names) value)
 
 
 type Type = Value
