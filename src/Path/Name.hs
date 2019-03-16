@@ -141,7 +141,7 @@ prettyQName = \case
 
 
 data Meta
-  = Name (Name Gensym)
+  = Name (Name Local)
   | Meta Gensym
   deriving (Eq, Ord, Show)
 
@@ -151,9 +151,9 @@ instance Pretty Meta where
     Meta m -> pretty '?' <> pretty m
 
 qlocal :: Gensym -> Meta
-qlocal = Name . Local
+qlocal = Name . Local . Gen
 
-localNames :: Set.Set Meta -> Set.Set Gensym
+localNames :: Set.Set Meta -> Set.Set Local
 localNames = foldMap (\case { Name (Local v) -> Set.singleton v ; _ -> mempty })
 
 metaNames :: Set.Set Meta -> Set.Set Gensym

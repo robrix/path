@@ -7,7 +7,7 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((<=<))
-import Data.Foldable (for_, toList)
+import Data.Foldable (for_)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -38,7 +38,7 @@ assume :: ( Carrier sig m
           , Member (Reader (Type Meta)) sig
           , Member (Writer (Set.Set HetConstraint)) sig
           )
-       => Name Gensym
+       => Name Local
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- lookupVar v
@@ -51,14 +51,15 @@ intro :: ( Carrier sig m
          , Member (Reader (Type Meta)) sig
          , Member (Writer (Set.Set HetConstraint)) sig
          )
-      => (Name Gensym -> m (Value Meta ::: Type Meta))
+      => Maybe User
+      -> (Name Local -> m (Value Meta ::: Type Meta))
       -> m (Value Meta ::: Type Meta)
-intro body = do
+intro x body = do
   _A ::: _ <- exists Type
-  x <- gensym "intro"
+  x <- maybe (Gen <$> gensym "intro") (pure . User) x
   _B ::: _ <- x ::: _A |- exists Type
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
-  expect (Value.lam (qlocal x) u ::: Value.pi ((qlocal x, Ex, zero) ::: _A) _B)
+  expect (Value.lam (Name (Local x)) u ::: Value.pi ((Name (Local x), Ex, zero) ::: _A) _B)
 
 type' :: ( Carrier sig m
          , Member Naming sig
@@ -77,16 +78,17 @@ pi :: ( Carrier sig m
       , Member (Reader (Type Meta)) sig
       , Member (Writer (Set.Set HetConstraint)) sig
       )
-   => Plicity
+   => Maybe User
+   -> Plicity
    -> Usage
    -> m (Value Meta ::: Type Meta)
-   -> (Name Gensym -> m (Value Meta ::: Type Meta))
+   -> (Name Local -> m (Value Meta ::: Type Meta))
    -> m (Value Meta ::: Type Meta)
-pi p m t body = do
+pi x p m t body = do
   t' ::: _ <- goalIs Type t
-  x <- gensym "pi"
+  x <- maybe (Gen <$> gensym "pi") (pure . User) x
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
-  expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
+  expect (Value.pi ((Name (Local x), p, m) ::: t') b' ::: Type)
 
 app :: ( Carrier sig m
        , Member Naming sig
@@ -124,8 +126,8 @@ freshName :: ( Carrier sig m
              , Member Naming sig
              )
           => String
-          -> m (Name Gensym)
-freshName s = Local <$> gensym s
+          -> m (Name Local)
+freshName s = Local . Gen <$> gensym s
 
 context :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => m (Context (Type Meta))
 context = ask
@@ -139,7 +141,7 @@ exists :: ( Carrier sig m
 exists ty = do
   ctx <- context
   n <- Meta <$> gensym "meta"
-  pure (pure n Value.$$* map (pure . qlocal) (toList (Context.vars ctx)) ::: ty)
+  pure (pure n Value.$$* fmap (pure . Name . Local) (Context.vars ctx) ::: ty)
 
 goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
 goal = ask
@@ -166,14 +168,14 @@ elab :: ( Carrier sig m
         , Member (Reader (Type Meta)) sig
         , Member (Writer (Set.Set HetConstraint)) sig
         )
-     => Core.Core (Name Gensym)
+     => Core.Core
      -> m (Value Meta ::: Type Meta)
 elab = \case
   Core.Var n -> assume n
-  Core.Lam b -> intro (\ n -> elab (Core.instantiate (pure n) b))
+  Core.Lam n b -> intro n (const (elab b))
   f Core.:$ a -> app (elab f) (elab a)
   Core.Type -> type'
-  Core.Pi p m t b -> pi p m (elab t) (\ n -> elab (Core.instantiate (pure n) b))
+  Core.Pi n p m t b -> pi n p m (elab t) (const (elab b))
   Core.Hole _ -> goal >>= exists
   Core.Ann ann b -> local (const ann) (elab b)
 
@@ -206,7 +208,7 @@ runElab ty m = do
     m' <$ unify (m' :===: val)
 
 
-(|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Local ::: Type Meta -> m a -> m a
 n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
@@ -214,7 +216,7 @@ infix 5 |-
 throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Span) sig) => ErrorReason -> m a
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
-lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name Gensym -> m (Type Meta)
+lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name Local -> m (Type Meta)
 lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . entryType)
 lookupVar (Local  n) = asks (Context.lookup n) >>= maybe (throwElabError (FreeVariable (Local  n))) pure
 
@@ -230,7 +232,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
               )
-           => Module Qualified (Core.Core (Name Gensym))
+           => Module Qualified Core.Core
            -> m (Module Qualified (Value Meta ::: Type Meta))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
@@ -260,7 +262,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Decl Qualified (Core.Core (Name Gensym))
+         => Decl Qualified Core.Core
          -> m (Decl Qualified (Value Meta ::: Type Meta))
 elabDecl = namespace . show . declName <*> \case
   Declare name ty -> Declare name <$> elabDeclare name ty
@@ -275,7 +277,7 @@ elabDeclare :: ( Carrier sig m
                , Member (State Scope) sig
                )
             => Qualified
-            -> Core.Core (Name Gensym)
+            -> Core.Core
             -> m (Value Meta ::: Type Meta)
 elabDeclare name ty = do
   elab <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
@@ -289,7 +291,7 @@ elabDefine :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Qualified
-           -> Core.Core (Name Gensym)
+           -> Core.Core
            -> m (Value Meta ::: Type Meta)
 elabDefine name tm = do
   ty <- gets (fmap entryType . Scope.lookup name)
