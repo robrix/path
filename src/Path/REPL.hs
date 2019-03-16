@@ -174,7 +174,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qual (Value
             loop
           Eval tm -> do
             elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
-            runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
+            runScope (whnf (typedTerm elab)) >>= generalizeValue . (::: generalizeType (typedType elab)) >>= print
             loop
           Show Bindings -> do
             scope <- get

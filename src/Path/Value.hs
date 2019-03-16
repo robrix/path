@@ -147,8 +147,8 @@ generalizeType ty = pis (foldMap f (fvs ty)) ty
           | Qual (_ :.: _) <- name = Set.empty
           | otherwise              = Set.singleton ((name, Im, Zero) ::: Type)
 
-generalizeValue :: (Carrier sig m, Member Naming sig) => Type Meta -> Value Meta -> m (Value Meta)
-generalizeValue ty value = namespace "generalizeValue" $ do
+generalizeValue :: (Carrier sig m, Member Naming sig) => Value Meta ::: Type Meta -> m (Value Meta)
+generalizeValue (value ::: ty) = namespace "generalizeValue" $ do
   (names, _) <- unpis ty
   pure (lams (fmap (\ ((n, _, _) ::: _) -> n) names) value)
 
