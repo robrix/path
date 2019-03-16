@@ -24,15 +24,28 @@ resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming si
             -> m Core
 resolveTerm = \case
   Surface.Var v -> Var <$> resolveName v
-  Surface.Lam (Just v) b -> local (insertLocal v) (Lam (Just v) <$> resolveTerm b)
+  Surface.Lam (Just v) b -> do
+    res <- asks (lookupName v)
+    let v' = case res of
+          Just (Local (User v'):|[]) -> prime v'
+          _ -> v
+    local (insertLocal v v') (Lam (Just v') <$> resolveTerm b)
   Surface.Lam _ b -> Lam Nothing <$> resolveTerm b
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
-  Surface.Pi (Just v) ie u t b -> Pi (Just v) ie u <$> resolveTerm t <*> local (insertLocal v) (resolveTerm b)
+  Surface.Pi (Just v) ie u t b -> do
+    res <- asks (lookupName v)
+    let v' = case res of
+          Just (Local (User v'):|[]) -> prime v'
+          _ -> v
+    Pi (Just v') ie u <$> resolveTerm t <*> local (insertLocal v v') (resolveTerm b)
   Surface.Pi _ ie u t b -> Pi Nothing ie u <$> resolveTerm t <*> resolveTerm b
   (u, a) Surface.:-> b -> Pi Nothing Ex u <$> resolveTerm a <*> resolveTerm b
   Surface.Hole v -> pure (Hole v)
   Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
+  where prime (Id s) = Id (s <> "ʹ")
+        prime (Op o) = Op o
+
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
@@ -67,8 +80,8 @@ newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name L
 instance Semigroup Resolution where
   Resolution m1 <> Resolution m2 = Resolution (Map.unionWith (fmap nub . (<>)) m1 m2)
 
-insertLocal :: User -> Resolution -> Resolution
-insertLocal n = Resolution . Map.insert n (Local (User n):|[]) . unResolution
+insertLocal :: User -> User -> Resolution -> Resolution
+insertLocal n n' = Resolution . Map.insert n (Local (User n'):|[]) . unResolution
 
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution
