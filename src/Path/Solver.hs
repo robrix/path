@@ -113,6 +113,9 @@ simplify :: ( Carrier sig m
             , Member (Error SolverError) sig
             , Member Naming sig
             , Member (Reader Scope) sig
+            , Member (State Blocked) sig
+            , Member (State Queue) sig
+            , Member (State Substitution) sig
             )
          => HomConstraint
          -> m (Set.Set HomConstraint)
@@ -151,6 +154,8 @@ simplify (constraint :~ span) = execWriter (go constraint)
             n <- gensym "simplify"
             go (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)
+            | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
+            | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
             | blocked t1 || blocked t2 -> tell (Set.singleton (c :~ span))
             | otherwise                -> throwError (UnsimplifiableConstraint (c :~ span))
 
