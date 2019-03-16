@@ -4,7 +4,6 @@ module Path.Core where
 import Control.Effect
 import Control.Monad (ap)
 import Data.Foldable (toList)
-import qualified Data.Set as Set
 import Path.Name
 import Path.Plicity
 import Path.Usage
@@ -70,9 +69,6 @@ gfoldT var lam app ty pi hole ann dist = go
 joinT :: Core (Core a) -> Core a
 joinT = gfoldT id (Lam . Scope) (:$) Type (\ p m t -> Pi p m t . Scope) id Ann (incr (pure Z) (fmap S))
 
-
-instance Ord a => FreeVariables a (Core a) where
-  fvs = foldMap Set.singleton
 
 uses :: Gensym -> Core Name -> [Span]
 uses n = run . runNaming (Root "pretty") . go Nothing
