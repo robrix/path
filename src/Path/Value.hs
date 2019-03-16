@@ -144,8 +144,8 @@ substitute name image = instantiate image . bind name
 generalizeType :: Value Meta -> Value Meta
 generalizeType ty = pis (foldMap f (fvs ty)) ty
   where f name
-          | Qual (_ :.: _) <- name = Set.empty
-          | otherwise              = Set.singleton ((name, Im, Zero) ::: Type)
+          | Qual (Global (_ :.: _)) <- name = Set.empty
+          | otherwise                       = Set.singleton ((name, Im, Zero) ::: Type)
 
 generalizeValue :: (Carrier sig m, Member Naming sig) => Value Meta ::: Type Meta -> m (Value Meta)
 generalizeValue (value ::: ty) = namespace "generalizeValue" $ do

@@ -137,14 +137,14 @@ simplify (constraint :~ span) = execWriter (go constraint)
           ctx :|-: (Lam f1 :===: Lam f2) ::: Pi _ _ t b -> do
             n <- gensym "simplify"
             go (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
-          ctx :|-: (f1@(Qual (_ :.: _)) :$ sp1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty -> do
+          ctx :|-: (f1@(Qual (Global _)) :$ sp1 :===: f2@(Qual (Global _)) :$ sp2) ::: ty -> do
             t1 <- whnf (f1 :$ sp1)
             t2 <- whnf (f2 :$ sp2)
             go (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (f1@(Qual (_ :.: _)) :$ sp1 :===: t2) ::: ty -> do
+          ctx :|-: (f1@(Qual (Global _)) :$ sp1 :===: t2) ::: ty -> do
             t1 <- whnf (f1 :$ sp1)
             go (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (t1 :===: f2@(Qual (_ :.: _)) :$ sp2) ::: ty -> do
+          ctx :|-: (t1 :===: f2@(Qual (Global _)) :$ sp2) ::: ty -> do
             t2 <- whnf (f2 :$ sp2)
             go (ctx :|-: (t1 :===: t2) ::: ty)
           ctx :|-: (tm1 :===: Lam b2) ::: ty@(Pi _ _ _ _) -> do

@@ -215,8 +215,8 @@ throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Qual -> m (Type Meta)
-lookupVar (m :.: n) = asks (Scope.lookup (m :.: n)) >>= maybe (throwElabError (FreeVariable (m :.: n))) (pure . entryType)
-lookupVar (Local n) = asks (Context.lookup n)       >>= maybe (throwElabError (FreeVariable (Local n))) pure
+lookupVar (Global n) = asks (Scope.lookup (Global n)) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . entryType)
+lookupVar (Local  n) = asks (Context.lookup n)        >>= maybe (throwElabError (FreeVariable (Local n))) pure
 
 
 type ModuleTable = Map.Map ModuleName Scope

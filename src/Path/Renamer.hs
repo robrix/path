@@ -34,7 +34,7 @@ resolveTerm = \case
     pi . ((Local n, ie, u) :::) <$> resolveTerm t <*> local (insertLocal v n) (resolveTerm b)
   (u, a) Surface.:-> b ->
     pi <$> ((:::) . (, Ex, u) . Local <$> gensym "" <*> resolveTerm a) <*> resolveTerm b
-  Surface.Hole v -> Hole . (:.: v) <$> ask
+  Surface.Hole v -> Hole . Global . (:.: v) <$> ask
   Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
 data Mode = Decl | Defn
@@ -46,14 +46,14 @@ resolveDecl = \case
     res <- get
     moduleName <- ask
     ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm (generalize res ty)))
-    Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
+    Declare (Global (moduleName :.: n)) ty' <$ modify (insertGlobal n moduleName)
     where generalize res ty = foldr bind ty (fvs ty Set.\\ Map.keysSet (unResolution res))
           bind n = Surface.Pi (Just n) Im Zero Surface.Type -- FIXME: insert metavariables for the type
   Define n tm -> do
     res <- get
     moduleName <- ask
     tm' <- runReader (res :: Resolution) (runReader Defn (resolveTerm tm))
-    Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
+    Define (Global (moduleName :.: n)) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
 resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qual (Core Qual))
@@ -75,7 +75,7 @@ insertLocal Nothing  _ = id
 insertLocal (Just n) m = Resolution . Map.insert n (Local m:|[]) . unResolution
 
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
-insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (m:.:n:|[]) . unResolution
+insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution
 
 lookupName :: User -> Resolution -> Maybe (NonEmpty Qual)
 lookupName n = Map.lookup n . unResolution
