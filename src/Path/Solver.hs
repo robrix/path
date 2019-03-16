@@ -189,9 +189,8 @@ instance Pretty SolverError where
       where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
           prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
-            [ pretty "expected:" <+> pretty expected
-            , pretty "  actual:" <+> pretty actual
-            , pretty " at type:" <+> pretty ty
+            [ pretty "expected:" <+> pretty (expected ::: ty)
+            , pretty "  actual:" <+> pretty (actual ::: ty)
             ])
 
 instance PrettyPrec SolverError
