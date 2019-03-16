@@ -29,7 +29,7 @@ instance PrettyPrec (Value Meta) where
             Lam b -> do
               (as, b') <- unlams (Lam b)
               b'' <- go 0 b'
-              pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (line <> cyan dot <+> b'') as))))
+              pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> b'') as))))
               where var vs n rest
                       | n `Set.member` vs = pretty n   <+> rest
                       | otherwise         = pretty '_' <+> rest
