@@ -230,8 +230,8 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
               )
-           => Module Qual (Core.Core Qual)
-           -> m (Module Qual (Value Meta ::: Type Meta))
+           => Module Qualified (Core.Core Qual)
+           -> m (Module Qualified (Value Meta ::: Type Meta))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -260,8 +260,8 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Decl Qual (Core.Core Qual)
-         -> m (Decl Qual (Value Meta ::: Type Meta))
+         => Decl Qualified (Core.Core Qual)
+         -> m (Decl Qualified (Value Meta ::: Type Meta))
 elabDecl = namespace . show . declName <*> \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -274,12 +274,12 @@ elabDeclare :: ( Carrier sig m
                , Member Naming sig
                , Member (State Scope) sig
                )
-            => Qual
+            => Qualified
             -> Core.Core Qual
             -> m (Value Meta ::: Type Meta)
 elabDeclare name ty = do
   elab <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
-  elab <$ modify (Scope.insert name (Decl (Value.generalizeType (typedTerm elab))))
+  elab <$ modify (Scope.insert (Global name) (Decl (Value.generalizeType (typedTerm elab))))
 
 elabDefine :: ( Carrier sig m
               , Effect sig
@@ -288,20 +288,20 @@ elabDefine :: ( Carrier sig m
               , Member Naming sig
               , Member (State Scope) sig
               )
-           => Qual
+           => Qualified
            -> Core.Core Qual
            -> m (Value Meta ::: Type Meta)
 elabDefine name tm = do
-  ty <- gets (fmap entryType . Scope.lookup name)
+  ty <- gets (fmap entryType . Scope.lookup (Global name))
   (constraints, res) <- runScope . runElab ty $ do
     ty' <- maybe (typedTerm <$> exists Type) pure ty
     val <- exists ty'
-    modify (Scope.insert name (Defn val))
+    modify (Scope.insert (Global name) (Defn val))
     m' <- elab tm
     m' <$ unify (m' :===: val)
   tm ::: ty <- runScope (runSolver constraints res)
   tm' <- Value.generalizeValue (tm ::: ty)
-  (tm' ::: ty) <$ modify (Scope.insert name (Defn (tm' ::: ty)))
+  (tm' ::: ty) <$ modify (Scope.insert (Global name) (Defn (tm' ::: ty)))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m

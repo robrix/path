@@ -40,23 +40,23 @@ resolveTerm = \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qual (Core Qual))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified (Core Qual))
 resolveDecl = \case
   Declare n ty -> do
     res <- get
     moduleName <- ask
     ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm (generalize res ty)))
-    Declare (Global (moduleName :.: n)) ty' <$ modify (insertGlobal n moduleName)
+    Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
     where generalize res ty = foldr bind ty (fvs ty Set.\\ Map.keysSet (unResolution res))
           bind n = Surface.Pi (Just n) Im Zero Surface.Type -- FIXME: insert metavariables for the type
   Define n tm -> do
     res <- get
     moduleName <- ask
     tm' <- runReader (res :: Resolution) (runReader Defn (resolveTerm tm))
-    Define (Global (moduleName :.: n)) tm' <$ modify (insertGlobal n moduleName)
+    Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qual (Core Qual))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core Qual))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
