@@ -106,6 +106,8 @@ solve m v = do
 isBlockedOn :: Meta -> HomConstraint -> Bool
 isBlockedOn m = Set.member m . fvs
 
+-- FIXME: we need constraint dependencies to ensure that we e.g. δ-reduce a type like Either L R and solve the π type unification constraint before we try to solve whatever we typed using it
+
 simplify :: ( Carrier sig m
             , Effect sig
             , Member (Error SolverError) sig
