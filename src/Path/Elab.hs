@@ -122,13 +122,6 @@ expect exp = do
   res <- goal >>= exists
   res <$ unify (exp :===: res)
 
-freshName :: ( Carrier sig m
-             , Member Naming sig
-             )
-          => String
-          -> m (Name Local)
-freshName s = Local . Gen <$> gensym s
-
 context :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => m (Context (Type Meta))
 context = ask
 
