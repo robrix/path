@@ -110,41 +110,41 @@ instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
 
 
-data Qual
+data Name
   = Global Qualified
   | Local Gensym
   deriving (Eq, Ord, Show)
 
-instance Pretty Qual where
+instance Pretty Name where
   pretty = \case
     Global (_ :.: n) -> pretty n
     Local         n  -> pretty n
 
-inModule :: ModuleName -> Qual -> Bool
+inModule :: ModuleName -> Name -> Bool
 inModule m (Global (m' :.: _)) = m == m'
 inModule _ _                   = False
 
-prettyQName :: Qual -> Doc
+prettyQName :: Name -> Doc
 prettyQName = \case
   Global n -> pretty n
   Local  n -> pretty n
 
 
 data Meta
-  = Qual Qual
+  = Name Name
   | Meta Gensym
   deriving (Eq, Ord, Show)
 
 instance Pretty Meta where
   pretty = \case
-    Qual q -> pretty q
+    Name q -> pretty q
     Meta m -> pretty '?' <> pretty m
 
 qlocal :: Gensym -> Meta
-qlocal = Qual . Local
+qlocal = Name . Local
 
 localNames :: Set.Set Meta -> Set.Set Gensym
-localNames = foldMap (\case { Qual (Local v) -> Set.singleton v ; _ -> mempty })
+localNames = foldMap (\case { Name (Local v) -> Set.singleton v ; _ -> mempty })
 
 metaNames :: Set.Set Meta -> Set.Set Gensym
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
