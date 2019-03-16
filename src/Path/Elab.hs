@@ -279,7 +279,7 @@ elabDeclare :: ( Carrier sig m
             -> m (Value Meta ::: Type Meta)
 elabDeclare name ty = do
   elab <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
-  elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
+  elab <$ modify (Scope.insert name (Decl (Value.generalizeType (typedTerm elab))))
 
 elabDefine :: ( Carrier sig m
               , Effect sig
@@ -299,8 +299,9 @@ elabDefine name tm = do
     modify (Scope.insert name (Defn val))
     m' <- elab tm
     m' <$ unify (m' :===: val)
-  elab <- runScope (runSolver constraints res)
-  elab <$ modify (Scope.insert name (Defn elab))
+  tm ::: ty <- runScope (runSolver constraints res)
+  tm' <- Value.generalizeValue (tm ::: ty)
+  (tm' ::: ty) <$ modify (Scope.insert name (Defn (tm' ::: ty)))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
