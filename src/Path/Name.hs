@@ -110,6 +110,16 @@ instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
 
 
+data Local
+  = Gen Gensym
+  | User User
+  deriving (Eq, Ord, Show)
+
+instance Pretty Local where
+  pretty = \case
+    Gen n -> pretty n
+    User u -> pretty u
+
 data Name a
   = Global Qualified
   | Local a
