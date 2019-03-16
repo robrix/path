@@ -33,14 +33,8 @@ instance Monad Core where
 lam :: Eq a => a -> Core a -> Core a
 lam n b = Lam (bind n b)
 
-lams :: (Eq a, Foldable t) => t a -> Core a -> Core a
-lams names body = foldr lam body names
-
 pi :: Eq a => (a, Plicity, Usage) ::: Core a -> Core a -> Core a
 pi ((n, p, u) ::: t) b = Pi p u t (bind n b)
-
-pis :: (Eq a, Foldable t) => t ((a, Plicity, Usage) ::: Core a) -> Core a -> Core a
-pis names body = foldr pi body names
 
 
 gfoldT :: forall m n b
