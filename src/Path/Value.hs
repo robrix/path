@@ -164,6 +164,10 @@ generalizeValue (value ::: ty) = namespace "generalizeValue" $ do
     _                  -> id) [] names) value)
 
 
+weaken :: Value (Name Gensym) -> Value Meta
+weaken = fmap (Name . fmap Gen)
+
+
 type Type = Value
 
 
