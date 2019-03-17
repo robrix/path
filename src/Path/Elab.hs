@@ -189,13 +189,14 @@ runSolver constraints (tm ::: ty) = do
 runElab :: ( Carrier sig m
            , Effect sig
            , Member Naming sig
+           , Member (Reader Span) sig
            )
         => Maybe (Type Meta)
-        -> ReaderC Span (ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) m))) (Value Meta ::: Type Meta)
+        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) m)) (Value Meta ::: Type Meta)
         -> m (Set.Set HetConstraint, Value Meta ::: Type Meta)
 runElab ty m = do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
-  runWriter . runReader mempty . runReader ty' . runReader (Span mempty mempty mempty) $ do
+  runWriter . runReader mempty . runReader ty' $ do
     val <- exists ty'
     m' <- m
     m' <$ unify (m' :===: val)
@@ -264,6 +265,7 @@ elabDeclare :: ( Carrier sig m
                , Member (Error ElabError) sig
                , Member (Error SolverError) sig
                , Member Naming sig
+               , Member (Reader Span) sig
                , Member (State Scope) sig
                )
             => Qualified
@@ -279,6 +281,7 @@ elabDefine :: ( Carrier sig m
               , Member (Error ElabError) sig
               , Member (Error SolverError) sig
               , Member Naming sig
+              , Member (Reader Span) sig
               , Member (State Scope) sig
               )
            => Qualified

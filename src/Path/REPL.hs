@@ -160,14 +160,14 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> do
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runSpan . runScope . (uncurry runSolver <=< runElab Nothing . elab)
             print (generalizeType (typedType elab))
             loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
+            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runSpan . runScope . (uncurry runSolver <=< runElab Nothing . elab)
             runScope (whnf (typedTerm elab)) >>= runError . generalizeValue . (::: generalizeType (typedType elab)) >>= either (throwError . UnsolvedMetavariable) pure >>= print
             loop
           Show Bindings -> do
@@ -215,9 +215,12 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         runDeps = evalState ([] :: [ModuleName])
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
+        runSpan m = do
+          line <- askLine
+          runReader (Span (lineDelta line) (lineDelta line) mempty) m
         runRenamer m = do
           res <- get
-          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m))
+          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runSpan m))
 
 basePackage :: Package
 basePackage = Package
