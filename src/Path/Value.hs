@@ -24,38 +24,41 @@ newtype Scope a = Scope (Value (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance PrettyPrec (Value Meta) where
-  prettyPrec d = run . runNaming (Root "pretty") . go d
-    where go d = \case
-            Lam b -> do
-              (as, b') <- unlams (Lam b)
-              b'' <- go 0 b'
-              pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> b'') as))))
-              where var vs n rest
-                      | n `Set.member` vs = pretty n   <+> rest
-                      | otherwise         = pretty '_' <+> rest
-            Type -> pure (yellow (pretty "Type"))
-            Pi ie pi t b -> do
-              name <- gensym ""
-              let b' = instantiate (pure (qlocal name)) b
-              if ie == Im || qlocal name `Set.member` fvs b' then do
-                t' <- go 0 t
-                b'' <- go 1 b'
-                pure (prettyParens (d > 1) (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b''))
-              else do
-                t' <- go 2 t
-                b'' <- go 1 b'
-                pure (prettyParens (d > 1) (withPi (t' <+> arrow <+> b'')))
-              where withPi
-                      | ie == Ex, pi == More = id
-                      | ie == Im, pi == Zero = id
-                      | otherwise  = (pretty pi <+>)
-                    withIe
-                      | ie == Im  = prettyBraces True
-                      | otherwise = prettyParens True
-                    arrow = blue (pretty "->")
-            f :$ sp -> do
-              sp' <- traverse (go 11) (toList sp)
-              pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
+  prettyPrec = prettyValue qlocal
+
+prettyValue :: (Ord name, Pretty name) => (Gensym -> name) -> Int -> Value name -> Doc
+prettyValue localName d = run . runNaming (Root "pretty") . go d
+  where go d = \case
+          Lam b -> do
+            (as, b') <- unlams localName (Lam b)
+            b'' <- go 0 b'
+            pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> b'') as))))
+            where var vs n rest
+                    | n `Set.member` vs = pretty n   <+> rest
+                    | otherwise         = pretty '_' <+> rest
+          Type -> pure (yellow (pretty "Type"))
+          Pi ie pi t b -> do
+            name <- gensym ""
+            let b' = instantiate (pure (localName name)) b
+            if ie == Im || localName name `Set.member` fvs b' then do
+              t' <- go 0 t
+              b'' <- go 1 b'
+              pure (prettyParens (d > 1) (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b''))
+            else do
+              t' <- go 2 t
+              b'' <- go 1 b'
+              pure (prettyParens (d > 1) (withPi (t' <+> arrow <+> b'')))
+            where withPi
+                    | ie == Ex, pi == More = id
+                    | ie == Im, pi == Zero = id
+                    | otherwise  = (pretty pi <+>)
+                  withIe
+                    | ie == Im  = prettyBraces True
+                    | otherwise = prettyParens True
+                  arrow = blue (pretty "->")
+          f :$ sp -> do
+            sp' <- traverse (go 11) (toList sp)
+            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
 
 instance Pretty (Value Meta) where
   pretty = prettyPrec 0
@@ -81,11 +84,11 @@ unlam :: Alternative m => a -> Value a -> m (a, Value a)
 unlam n (Lam b) = pure (n, instantiate (pure n) b)
 unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Naming sig) => Value Meta -> m (Stack Meta, Value Meta)
-unlams value = intro (Nil, value)
+unlams :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack name, Value name)
+unlams localName value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
-          case unlam (qlocal name) value of
+          case unlam (localName name) value of
             Just (name, body) -> intro (names :> name, body)
             Nothing           -> pure (names, value)
 
