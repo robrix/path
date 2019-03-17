@@ -20,7 +20,6 @@ import Path.Error
 import Path.Module
 import Path.Name
 import Path.Plicity
-import Path.Pretty
 import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
@@ -271,7 +270,6 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core
             -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elabDeclare name ty = do
-  tracePrettyM $ pretty "elaborating declaration" <+> pretty name
   tm ::: ty <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
   let elab = (Value.generalizeType tm ::: Value.generalizeType ty)
   elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
@@ -287,16 +285,12 @@ elabDefine :: ( Carrier sig m
            -> Core.Core
            -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elabDefine name tm = do
-  tracePrettyM $ pretty "elaborating definition" <+> pretty name
   ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name)
   (constraints, res) <- runScope (runElab ty (elab tm))
   tm ::: ty <- runScope (runSolver constraints res)
   let ty' = Value.generalizeType ty
   tm' <- runError (Value.generalizeValue (tm ::: ty')) >>= either (throwError . UnsolvedMetavariable) pure
-  tracePrettyM $ pretty "inserting definition" <+> pretty name
-  modify (Scope.insert name (Defn (tm' ::: ty')))
-  tracePrettyM $ pretty "inserted definition" <+> pretty name
-  pure (tm' ::: ty')
+  (tm' ::: ty') <$ modify (Scope.insert name (Defn (tm' ::: ty')))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
