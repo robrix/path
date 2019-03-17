@@ -230,14 +230,11 @@ elabModule :: ( Carrier sig m
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
-  decls <- for (moduleDecls m) (either ((Nothing <$) . logElabError) (either ((Nothing <$) . logSolverError) (pure . Just)) <=< runError . runError . elabDecl)
+  decls <- for (moduleDecls m) (either ((Nothing <$) . logError @ElabError) (either ((Nothing <$) . logError @SolverError) (pure . Just)) <=< runError . runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
 
-logElabError :: (Carrier sig m, Member (State (Stack ElabError)) sig) => ElabError -> m ()
-logElabError = modify . flip (:>)
-
-logSolverError :: (Carrier sig m, Member (State (Stack SolverError)) sig) => SolverError -> m ()
-logSolverError = modify . flip (:>)
+logError :: (Member (State (Stack error)) sig, Carrier sig m) => error -> m ()
+logError = modify . flip (:>)
 
 importModule :: ( Carrier sig m
                 , Member (Error ModuleError) sig
