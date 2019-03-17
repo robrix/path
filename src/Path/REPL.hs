@@ -24,7 +24,7 @@ import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Delta(..), ErrInfo, Parser, parseFile, parseString, whole)
+import Path.Parser (Delta(..), ErrInfo, parseFile, parseString, whole)
 import Path.Parser.Module (module')
 import Path.Parser.REPL (command)
 import Path.Pretty
@@ -39,52 +39,44 @@ import System.Console.Haskeline hiding (handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.Trifecta.Rendering (Span(..))
 
-data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
+data REPL (m :: * -> *) k
+  = Prompt String (Maybe String -> k)
+  | Print Doc k
+  | AskLine (Line -> k)
   deriving (Functor)
 
-instance HFunctor (Prompt cmd) where
+instance HFunctor REPL where
   hmap _ = coerce
 
-instance Effect (Prompt cmd) where
+instance Effect REPL where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member (Prompt cmd) sig) => String -> m (Maybe cmd)
+
+prompt :: (Carrier sig m, Member REPL sig) => String -> m (Maybe String)
 prompt p = send (Prompt p pure)
 
-
-data Print (m :: * -> *) k = Print Doc k
-  deriving (Functor)
-
-instance HFunctor Print where
-  hmap _ = coerce
-
-instance Effect Print where
-  handle state handler = coerce . fmap (handler . (<$ state))
-
-print :: (PrettyPrec a, Carrier sig m, Member Print sig) => a -> m ()
+print :: (PrettyPrec a, Carrier sig m, Member REPL sig) => a -> m ()
 print s = send (Print (prettys s) (pure ()))
 
+askLine :: (Carrier sig m, Member REPL sig) => m Line
+askLine = send (AskLine pure)
 
-runREPL :: MonadException m => Parser (Maybe cmd) -> Prefs -> Settings m -> REPLC cmd m a -> m a
-runREPL parser prefs settings = runInputTWithPrefs prefs settings . runTransC . runReader (Line 0) . runReader parser . runREPLC
 
-newtype REPLC cmd m a = REPLC { runREPLC :: ReaderC (Parser (Maybe cmd)) (ReaderC Line (TransC InputT m)) a }
+runREPL :: MonadException m => Prefs -> Settings m -> REPLC m a -> m a
+runREPL prefs settings = runInputTWithPrefs prefs settings . runTransC . runReader (Line 0) . runREPLC
+
+newtype REPLC m a = REPLC { runREPLC :: ReaderC Line (TransC InputT m) a }
   deriving (Applicative, Functor, Monad, MonadIO)
 
-instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
+instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
   eff (L (Prompt prompt k)) = REPLC $ do
-    c <- ask
-    l <- ask
-    str <- lift (lift (TransC (getInputLine (cyan <> prompt <> plain))))
-    res <- runError (traverse (parseString (whole c) (lineDelta l)) str)
-    res <- case res of
-      Left  err -> Nothing <$ prettyPrint @ErrInfo err
-      Right res -> pure (join res)
-    local increment (runREPLC (k res))
+    str <- lift (TransC (getInputLine (cyan <> prompt <> plain)))
+    local increment (runREPLC (k str))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
-  eff (R (L (Print text k))) = putDoc text *> k
-  eff (R (R other)) = REPLC (eff (R (R (handleCoercible other))))
+  eff (L (Print text k)) = putDoc text *> k
+  eff (L (AskLine k)) = REPLC ask >>= k
+  eff (R other) = REPLC (eff (R (handleCoercible other)))
 
 newtype TransC t (m :: * -> *) a = TransC { runTransC :: t m a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadTrans)
@@ -128,7 +120,7 @@ repl packageSources = liftIO $ do
         }
   createDirectoryIfMissing True settingsDir
   runM (runControlIOC runM
-       (runREPL command prefs settings
+       (runREPL prefs settings
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Scope.Scope)
        (evalState (Resolution mempty)
@@ -146,8 +138,7 @@ lineDelta (Line l) = Lines l 0 0 0
 script :: ( Carrier sig m
           , Effect sig
           , Member Naming sig
-          , Member Print sig
-          , Member (Prompt Command) sig
+          , Member REPL sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           , Member (State Scope.Scope) sig
@@ -156,12 +147,18 @@ script :: ( Carrier sig m
        => [FilePath]
        -> m ()
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym))) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @SolverError) (either (print @ErrInfo) pure)))))
-  where loop = (prompt "λ: " >>= maybe loop runCommand)
+  where loop = (prompt "λ: " >>= parseCommand)
           `catchError` (const loop <=< print @ResolveError)
           `catchError` (const loop <=< print @ElabError)
           `catchError` (const loop <=< print @ModuleError)
           `catchError` (const loop <=< print @SolverError)
           `catchError` (const loop <=< print @ErrInfo)
+        parseCommand str = do
+          l <- askLine
+          res <- runError (traverse (parseString (whole command) (lineDelta l)) str)
+          case res of
+            Left  err -> prettyPrint @ErrInfo err
+            Right res -> maybe loop runCommand (join res)
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
