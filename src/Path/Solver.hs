@@ -3,6 +3,7 @@ module Path.Solver where
 
 import           Control.Effect
 import           Control.Effect.Error
+import           Control.Effect.Reader
 import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, unless)
@@ -13,11 +14,10 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
 import           Path.Context as Context
-import           Path.Eval
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
-import           Path.Scope hiding (null)
+import           Path.Scope as Scope hiding (null)
 import           Path.Stack
 import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (pi)
@@ -119,40 +119,40 @@ simplify :: ( Carrier sig m
             )
          => HomConstraint
          -> m (Set.Set HomConstraint)
-simplify (constraint :~ span) = execWriter (go constraint)
-  where go = \case
+simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constraint)
+  where go scope = \case
           _ :|-: (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
           ctx :|-: (Pi p1 _ t1 b1 :===: Pi p2 _ t2 b2) ::: Type
             | p1 == p2 -> do
-              go (ctx :|-: (t1 :===: t2) ::: Type)
+              go scope (ctx :|-: (t1 :===: t2) ::: Type)
               n <- gensym "simplify"
               -- FIXME: this should insert some sort of dependency
-              go (Context.insert (Gen n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
+              go scope (Context.insert (Gen n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
           ctx :|-: (Pi Im _ t1 b1 :===: tm2) ::: Type -> do
             n <- exists t1
-            go (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
+            go scope (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
           ctx :|-: (tm1 :===: Pi Im _ t2 b2) ::: Type -> do
             n <- exists t2
-            go (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
+            go scope (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
           ctx :|-: (Lam f1 :===: Lam f2) ::: Pi _ _ t b -> do
             n <- gensym "simplify"
-            go (Context.insert (Gen n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
-          ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty -> do
-            t1 <- whnf (f1 :$ sp1)
-            t2 <- whnf (f2 :$ sp2)
-            go (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: t2) ::: ty -> do
-            t1 <- whnf (f1 :$ sp1)
-            go (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty -> do
-            t2 <- whnf (f2 :$ sp2)
-            go (ctx :|-: (t1 :===: t2) ::: ty)
+            go scope (Context.insert (Gen n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
+          ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
+            | Just t1 <- whnf scope (f1 :$ sp1)
+            , Just t2 <- whnf scope (f2 :$ sp2) -> do
+              go scope (ctx :|-: (t1 :===: t2) ::: ty)
+          ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: t2) ::: ty
+            | Just t1 <- whnf scope (f1 :$ sp1) -> do
+              go scope (ctx :|-: (t1 :===: t2) ::: ty)
+          ctx :|-: (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
+            | Just t2 <- whnf scope (f2 :$ sp2) -> do
+              go scope (ctx :|-: (t1 :===: t2) ::: ty)
           ctx :|-: (tm1 :===: Lam b2) ::: ty@(Pi _ _ _ _) -> do
             n <- gensym "simplify"
-            go (ctx :|-: (lam (qlocal n) (tm1 $$ pure (qlocal n)) :===: Lam b2) ::: ty)
+            go scope (ctx :|-: (lam (qlocal n) (tm1 $$ pure (qlocal n)) :===: Lam b2) ::: ty)
           ctx :|-: (Lam b1 :===: tm2) ::: ty@(Pi _ _ _ _) -> do
             n <- gensym "simplify"
-            go (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
+            go scope (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)
             | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
             | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
@@ -163,6 +163,14 @@ simplify (constraint :~ span) = execWriter (go constraint)
 
         blocked (Meta _ :$ _) = True
         blocked _             = False
+
+        whnf :: Scope -> Value Meta -> Maybe (Value Meta)
+        whnf scope (Name (Global n) Value.:$ sp) = do
+          entry <- Scope.lookup n scope
+          val <- entryValue entry
+          let val' = weaken val $$* sp
+          maybe (pure val') pure (whnf scope val')
+        whnf _ _ = Nothing
 
 hetToHom :: HetConstraint -> Set.Set HomConstraint
 hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
