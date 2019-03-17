@@ -89,7 +89,7 @@ lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Value a -> m (a, Value a)
 unlam n (Lam b) = pure (n, instantiate (pure n) b)
-unlam _ _         = empty
+unlam _ _       = empty
 
 unlams :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack name, Value name)
 unlams localName value = intro (Nil, value)
