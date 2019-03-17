@@ -174,7 +174,7 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
 
 data SolverError
   = UnsimplifiableConstraint HomConstraint
-  | UnsolvedMetavariable Gensym
+  | UnsolvedMetavariable Meta
   | BlockedConstraints [HomConstraint]
   | StalledConstraints [HomConstraint]
   deriving (Eq, Ord, Show)
