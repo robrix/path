@@ -52,5 +52,10 @@ data Contextual a = Context (Type Meta) :|-: a
 
 infixr 1 :|-:
 
+instance Pretty a => Pretty (Contextual a) where
+  pretty (ctx :|-: a) = pretty a <> hardline <> pretty ctx
+
+instance Pretty a => PrettyPrec (Contextual a)
+
 instance FreeVariables Meta a => FreeVariables Meta (Contextual a) where
   fvs (ctx :|-: b) = fvs ctx <> fvs b
