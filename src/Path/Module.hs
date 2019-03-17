@@ -30,15 +30,15 @@ data Import = Import { importModuleName :: ModuleName, importAnn :: Span }
   deriving (Eq, Ord, Show)
 
 data Decl v a
-  = Declare v a
-  | Define v a
-  | Doc String (Decl v a)
+  = Declare v a Span
+  | Define v a Span
+  | Doc String (Decl v a) Span
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 declName :: Decl v a -> v
-declName (Declare v _) = v
-declName (Define  v _) = v
-declName (Doc _ d)     = declName d
+declName (Declare v _ _) = v
+declName (Define  v _ _) = v
+declName (Doc _ d _)     = declName d
 
 
 newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }

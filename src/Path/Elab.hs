@@ -256,9 +256,9 @@ elabDecl :: ( Carrier sig m
          => Decl Qualified Core.Core
          -> m (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabDecl = namespace . show . declName <*> \case
-  Declare name ty -> Declare name <$> elabDeclare name ty
-  Define  name tm -> Define  name <$> elabDefine  name tm
-  Doc docs     d  -> Doc docs <$> elabDecl d
+  Declare name ty span -> Declare name <$> elabDeclare name ty <*> pure span
+  Define  name tm span -> Define  name <$> elabDefine  name tm <*> pure span
+  Doc docs     d  span -> Doc docs <$> elabDecl d <*> pure span
 
 elabDeclare :: ( Carrier sig m
                , Effect sig
