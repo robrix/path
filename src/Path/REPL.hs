@@ -167,8 +167,9 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
           Eval tm -> do
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runSpan . runScope . (uncurry runSolver <=< runElab Nothing . elab)
-            runScope (whnf (typedTerm elab)) >>= runError . generalizeValue . (::: generalizeType (typedType elab)) >>= either (throwError . UnsolvedMetavariable) pure >>= print
+            runSpan $ do
+              elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
+              runScope (whnf (typedTerm elab)) >>= runError . generalizeValue . (::: generalizeType (typedType elab)) >>= either (throwError <=< (UnsolvedMetavariable <$> ask <*>) . pure) pure >>= print
             loop
           Show Bindings -> do
             scope <- get

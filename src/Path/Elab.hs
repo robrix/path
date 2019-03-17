@@ -292,7 +292,7 @@ elabDefine name tm = do
   (constraints, res) <- runScope (runElab ty (elab tm))
   tm ::: ty <- runScope (runSolver constraints res)
   let ty' = Value.generalizeType ty
-  tm' <- runError (Value.generalizeValue (tm ::: ty')) >>= either (throwError . UnsolvedMetavariable) pure
+  tm' <- runError (Value.generalizeValue (tm ::: ty')) >>= either (throwError <=< (UnsolvedMetavariable <$> ask <*>) . pure) pure
   (tm' ::: ty') <$ modify (Scope.insert name (Defn (tm' ::: ty')))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a

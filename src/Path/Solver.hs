@@ -182,7 +182,7 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
 
 data SolverError
   = UnsimplifiableConstraint HomConstraint
-  | UnsolvedMetavariable Meta
+  | UnsolvedMetavariable Span Meta
   | BlockedConstraints [HomConstraint]
   | StalledConstraints [HomConstraint]
   deriving (Eq, Ord, Show)
@@ -190,7 +190,7 @@ data SolverError
 instance Pretty SolverError where
   pretty = \case
     UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx)
-    UnsolvedMetavariable meta -> prettyErr (Span mempty mempty mempty) (pretty "unsolved metavariable" <+> squotes (pretty meta)) []
+    UnsolvedMetavariable span meta -> prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty meta)) []
     BlockedConstraints constraints -> fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints))
       where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
     StalledConstraints constraints -> fold (intersperse hardline (map stalled constraints))
