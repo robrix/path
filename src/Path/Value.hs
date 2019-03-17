@@ -3,6 +3,7 @@ module Path.Value where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect
+import           Control.Effect.Error
 import           Control.Monad (ap)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
@@ -169,6 +170,13 @@ weaken = fmap weakenName
 
 weakenName :: Name Gensym -> Meta
 weakenName = Name . fmap Gen
+
+strengthen :: (Carrier sig m, Member (Error Meta) sig) => Value Meta -> m (Value (Name Gensym))
+strengthen = traverse $ \case
+  Meta m -> throwError (Meta m)
+  Name (Global q) -> pure (Global q)
+  Name (Local (Gen n)) -> pure (Local n)
+  Name (Local (User s)) -> throwError (Name (Local (User s)))
 
 
 type Type = Value
