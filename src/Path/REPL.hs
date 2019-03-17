@@ -147,7 +147,7 @@ script :: ( Carrier sig m
        => [FilePath]
        -> m ()
 script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym))) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @SolverError) (either (print @ErrInfo) pure)))))
-  where loop = (prompt "λ: " >>= parseCommand >>= either (prettyPrint @ErrInfo) (maybe loop runCommand . join))
+  where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @ResolveError)
           `catchError` (const loop <=< print @ElabError)
           `catchError` (const loop <=< print @ModuleError)
@@ -155,7 +155,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           `catchError` (const loop <=< print @ErrInfo)
         parseCommand str = do
           l <- askLine
-          runError (traverse (parseString (whole command) (lineDelta l)) str)
+          traverse (parseString (whole command) (lineDelta l)) str
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
