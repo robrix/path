@@ -4,7 +4,7 @@ module Path.Value where
 import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
-import           Control.Monad (ap)
+import           Control.Monad ((<=<), ap)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -109,8 +109,8 @@ unpi :: Alternative m => a -> Value a -> m ((a, Plicity, Usage) ::: Type a, Valu
 unpi n (Pi p u t b) = pure ((n, p, u) ::: t, instantiate (pure n) b)
 unpi _ _            = empty
 
-unpis :: (Carrier sig m, Member Naming sig) => Value Meta -> m (Stack ((Meta, Plicity, Usage) ::: Type Meta), Value Meta)
-unpis value = intro (Nil, value)
+unpis :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack ((name, Plicity, Usage) ::: Type name), Value name)
+unpis qlocal value = intro (Nil, value)
   where intro (names, value) = gensym "" >>= \ root -> case unpi (qlocal root) value of
           Just (name, body) -> intro (names :> name, body)
           Nothing           -> pure (names, value)
@@ -151,17 +151,17 @@ joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pur
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
-generalizeType :: Value Meta -> Value Meta
-generalizeType ty = pis (foldMap f (fvs ty)) ty
+generalizeType :: Value Meta -> Value (Name Gensym)
+generalizeType ty = pis (foldMap f (fvs ty)) ty >>= \case { Name (Global n) -> pure (Global n) ; _ -> undefined }
   where f name
           | Name (Global (_ :.: _)) <- name = Set.empty
           | otherwise                       = Set.singleton ((name, Im, Zero) ::: Type)
 
-generalizeValue :: (Carrier sig m, Member Naming sig) => Value Meta ::: Type Meta -> m (Value Meta)
-generalizeValue (value ::: ty) = namespace "generalizeValue" $ do
-  (names, _) <- unpis ty
+generalizeValue :: (Carrier sig m, Member (Error Meta) sig, Member Naming sig) => Value Meta ::: Type (Name Gensym) -> m (Value (Name Gensym))
+generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
+  (names, _) <- unpis Local ty
   pure (lams (foldr (\case
-    ((n, Im, _) ::: _) -> (n :)
+    ((n, Im, _) ::: _) -> (weakenName n :)
     _                  -> id) [] names) value)
 
 

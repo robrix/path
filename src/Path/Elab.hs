@@ -20,6 +20,7 @@ import Path.Error
 import Path.Module
 import Path.Name
 import Path.Plicity
+import Path.Pretty
 import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
@@ -210,7 +211,7 @@ throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name Local -> m (Type Meta)
-lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . entryType)
+lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . Value.weaken . entryType)
 lookupVar (Local  n) = asks (Context.lookup n) >>= maybe (throwElabError (FreeVariable (Local  n))) pure
 
 
@@ -226,7 +227,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Module Qualified Core.Core
-           -> m (Module Qualified (Value Meta ::: Type Meta))
+           -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -253,7 +254,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             )
          => Decl Qualified Core.Core
-         -> m (Decl Qualified (Value Meta ::: Type Meta))
+         -> m (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabDecl = namespace . show . declName <*> \case
   Declare name ty -> Declare name <$> elabDeclare name ty
   Define  name tm -> Define  name <$> elabDefine  name tm
@@ -268,10 +269,12 @@ elabDeclare :: ( Carrier sig m
                )
             => Qualified
             -> Core.Core
-            -> m (Value Meta ::: Type Meta)
+            -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elabDeclare name ty = do
-  elab <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
-  elab <$ modify (Scope.insert name (Decl (Value.generalizeType (typedTerm elab))))
+  tracePrettyM $ pretty "elaborating declaration" <+> pretty name
+  tm ::: ty <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
+  let elab = (Value.generalizeType tm ::: Value.generalizeType ty)
+  elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
 
 elabDefine :: ( Carrier sig m
               , Effect sig
@@ -282,18 +285,18 @@ elabDefine :: ( Carrier sig m
               )
            => Qualified
            -> Core.Core
-           -> m (Value Meta ::: Type Meta)
+           -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elabDefine name tm = do
-  ty <- gets (fmap entryType . Scope.lookup name)
-  (constraints, res) <- runScope . runElab ty $ do
-    ty' <- maybe (typedTerm <$> exists Type) pure ty
-    val <- exists ty'
-    modify (Scope.insert name (Defn val))
-    m' <- elab tm
-    m' <$ unify (m' :===: val)
+  tracePrettyM $ pretty "elaborating definition" <+> pretty name
+  ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name)
+  (constraints, res) <- runScope (runElab ty (elab tm))
   tm ::: ty <- runScope (runSolver constraints res)
-  tm' <- Value.generalizeValue (tm ::: ty)
-  (tm' ::: ty) <$ modify (Scope.insert name (Defn (tm' ::: ty)))
+  let ty' = Value.generalizeType ty
+  tm' <- runError (Value.generalizeValue (tm ::: ty')) >>= either (throwError . UnsolvedMetavariable) pure
+  tracePrettyM $ pretty "inserting definition" <+> pretty name
+  modify (Scope.insert name (Defn (tm' ::: ty')))
+  tracePrettyM $ pretty "inserted definition" <+> pretty name
+  pure (tm' ::: ty')
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
