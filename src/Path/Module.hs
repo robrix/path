@@ -40,6 +40,11 @@ declName (Declare v _ _) = v
 declName (Define  v _ _) = v
 declName (Doc _ d _)     = declName d
 
+declSpan :: Decl v a -> Span
+declSpan (Declare _ _ span) = span
+declSpan (Define  _ _ span) = span
+declSpan (Doc     _ _ span) = span
+
 
 newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
   deriving (Eq, Ord, Show)
