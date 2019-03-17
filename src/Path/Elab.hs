@@ -254,7 +254,7 @@ elabDecl :: ( Carrier sig m
             )
          => Decl Qualified Core.Core
          -> m (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
-elabDecl = namespace . show . declName <*> \case
+elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ case decl of
   Declare name ty span -> Declare name <$> elabDeclare name ty <*> pure span
   Define  name tm span -> Define  name <$> elabDefine  name tm <*> pure span
   Doc docs     d  span -> Doc docs <$> elabDecl d <*> pure span
