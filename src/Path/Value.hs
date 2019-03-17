@@ -26,6 +26,9 @@ newtype Scope a = Scope (Value (Incr a))
 instance PrettyPrec (Value Meta) where
   prettyPrec = prettyValue qlocal
 
+instance PrettyPrec (Value (Name Gensym)) where
+  prettyPrec = prettyValue Local
+
 prettyValue :: (Ord name, Pretty name) => (Gensym -> name) -> Int -> Value name -> Doc
 prettyValue localName d = run . runNaming (Root "pretty") . go d
   where go d = \case
@@ -61,6 +64,9 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
             pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
 
 instance Pretty (Value Meta) where
+  pretty = prettyPrec 0
+
+instance Pretty (Value (Name Gensym)) where
   pretty = prettyPrec 0
 
 instance Ord a => FreeVariables a (Value a) where
