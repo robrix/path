@@ -42,7 +42,7 @@ assume :: ( Carrier sig m
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- lookupVar v
-  expect (pure (Value.weakenName v) ::: _A)
+  expect (pure (Name v) ::: _A)
 
 intro :: ( Carrier sig m
          , Member Naming sig
