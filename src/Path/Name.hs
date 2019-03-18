@@ -32,7 +32,7 @@ instance PrettyPrec Gensym
 prettyGensym :: Gensym -> Doc
 prettyGensym = \case
   Root s -> pretty s
-  _ :/ (s, i) -> pretty s <> prettyVar i
+  _ :/ (s, i) -> pretty s <> pretty i
 
 (//) :: Gensym -> String -> Gensym
 root // s = root :/ (s, 0)
