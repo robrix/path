@@ -56,7 +56,7 @@ intro :: ( Carrier sig m
       -> m (Value Meta ::: Type Meta)
 intro x body = do
   _A ::: _ <- exists Type
-  x <- maybe (Gen <$> gensym "intro") (pure . User) x
+  x <- Gen <$> gensym (maybe "intro" show x)
   _B ::: _ <- x ::: _A |- exists Type
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
   expect (Value.lam (Name (Local x)) u ::: Value.pi ((Name (Local x), Ex, zero) ::: _A) _B)
@@ -86,7 +86,7 @@ pi :: ( Carrier sig m
    -> m (Value Meta ::: Type Meta)
 pi x p m t body = do
   t' ::: _ <- goalIs Type t
-  x <- maybe (Gen <$> gensym "pi") (pure . User) x
+  x <- Gen <$> gensym (maybe "pi" show x)
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
   expect (Value.pi ((Name (Local x), p, m) ::: t') b' ::: Type)
 
