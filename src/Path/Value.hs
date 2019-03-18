@@ -157,7 +157,7 @@ generalizeType ty = pis (foldMap f (fvs ty)) ty >>= \case { Name (Global n) -> p
           | Name (Global (_ :.: _)) <- name = Set.empty
           | otherwise                       = Set.singleton ((name, Im, Zero) ::: Type)
 
-generalizeValue :: (Carrier sig m, Member (Error Meta) sig, Member Naming sig) => Value Meta ::: Type (Name Gensym) -> m (Value (Name Gensym))
+generalizeValue :: (Carrier sig m, Member (Error Gensym) sig, Member Naming sig) => Value Meta ::: Type (Name Gensym) -> m (Value (Name Gensym))
 generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
   (names, _) <- unpis Local ty
   pure (lams (foldr (\case
@@ -168,9 +168,9 @@ generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
 weaken :: Value (Name Gensym) -> Value Meta
 weaken = fmap Name
 
-strengthen :: (Carrier sig m, Member (Error Meta) sig) => Value Meta -> m (Value (Name Gensym))
+strengthen :: (Carrier sig m, Member (Error Gensym) sig) => Value Meta -> m (Value (Name Gensym))
 strengthen = traverse $ \case
-  Meta m -> throwError (Meta m)
+  Meta m -> throwError m
   Name (Global q) -> pure (Global q)
   Name (Local n) -> pure (Local n)
 
