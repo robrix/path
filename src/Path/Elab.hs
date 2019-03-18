@@ -59,7 +59,7 @@ intro x body = do
   x <- gensym (maybe "intro" show x)
   _B ::: _ <- x ::: _A |- exists Type
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
-  expect (Value.lam (Name (Local (Gen x))) u ::: Value.pi ((Name (Local (Gen x)), Ex, zero) ::: _A) _B)
+  expect (Value.lam (Name (Local x)) u ::: Value.pi ((Name (Local x), Ex, zero) ::: _A) _B)
 
 type' :: ( Carrier sig m
          , Member Naming sig
@@ -88,7 +88,7 @@ pi x p m t body = do
   t' ::: _ <- goalIs Type t
   x <- gensym (maybe "pi" show x)
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
-  expect (Value.pi ((Name (Local (Gen x)), p, m) ::: t') b' ::: Type)
+  expect (Value.pi ((Name (Local x), p, m) ::: t') b' ::: Type)
 
 app :: ( Carrier sig m
        , Member Naming sig
@@ -134,7 +134,7 @@ exists :: ( Carrier sig m
 exists ty = do
   ctx <- context
   n <- Meta <$> gensym "meta"
-  pure (pure n Value.$$* fmap (pure . Name . Local . Gen) (Context.vars ctx) ::: ty)
+  pure (pure n Value.$$* fmap (pure . Name . Local) (Context.vars ctx) ::: ty)
 
 goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
 goal = ask
