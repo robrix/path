@@ -115,28 +115,28 @@ instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
 
 
-data Name a
+data Name
   = Global Qualified
-  | Local a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+  | Local Gensym
+  deriving (Eq, Ord, Show)
 
-instance Pretty a => Pretty (Name a) where
+instance Pretty Name where
   pretty = \case
     Global (_ :.: n) -> pretty n
     Local         n  -> pretty n
 
-inModule :: ModuleName -> Name a -> Bool
+inModule :: ModuleName -> Name -> Bool
 inModule m (Global (m' :.: _)) = m == m'
 inModule _ _                   = False
 
-prettyQName :: Pretty a => Name a -> Doc
+prettyQName :: Name -> Doc
 prettyQName = \case
   Global n -> pretty n
   Local  n -> pretty n
 
 
 data Meta
-  = Name (Name Gensym)
+  = Name Name
   | Meta Gensym
   deriving (Eq, Ord, Show)
 

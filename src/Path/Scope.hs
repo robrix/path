@@ -9,15 +9,15 @@ import Path.Pretty
 import Path.Value hiding (Scope(..))
 
 data Entry
-  = Decl (Type (Name Gensym))
-  | Defn (Value (Name Gensym) ::: Type (Name Gensym))
+  = Decl (Type Name)
+  | Defn (Value Name ::: Type Name)
   deriving (Eq, Ord, Show)
 
-entryType :: Entry -> Type (Name Gensym)
+entryType :: Entry -> Type Name
 entryType (Decl        ty)  = ty
 entryType (Defn (_ ::: ty)) = ty
 
-entryValue :: Entry -> Maybe (Value (Name Gensym))
+entryValue :: Entry -> Maybe (Value Name)
 entryValue (Defn (v ::: _)) = Just v
 entryValue _                = Nothing
 

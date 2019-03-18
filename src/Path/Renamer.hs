@@ -21,7 +21,7 @@ import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
-            -> m (Core (Name Gensym))
+            -> m (Core Name)
 resolveTerm = \case
   Surface.Var v -> Var <$> resolveName v
   Surface.Lam v b -> do
@@ -42,7 +42,7 @@ resolveTerm = \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified (Core (Name Gensym)))
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified (Core Name))
 resolveDecl = \case
   Declare n ty span -> do
     res <- get
@@ -58,7 +58,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' span <$ modify (insertGlobal n moduleName)
   Doc t d span -> Doc t <$> resolveDecl d <*> pure span
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core (Name Gensym)))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core Name))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -66,7 +66,7 @@ resolveModule m = do
   pure (m { moduleDecls = decls })
   where amongImports q = any (flip inModule q . importModuleName) (moduleImports m)
 
-newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Gensym)) }
+newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty Name) }
   deriving (Eq, Ord, Show)
 
 instance Semigroup Resolution where
@@ -79,10 +79,10 @@ insertLocal Nothing  _  = id
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution
 
-lookupName :: User -> Resolution -> Maybe (NonEmpty (Name Gensym))
+lookupName :: User -> Resolution -> Maybe (NonEmpty Name)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => User -> m (Name Gensym)
+resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => User -> m Name
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
@@ -92,18 +92,18 @@ resolveName v = do
     Defn -> maybe (throwError (FreeVariable v s)) pure res
   unambiguous v s res
 
-filterResolution :: (Name Gensym -> Bool) -> Resolution -> Resolution
+filterResolution :: (Name -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
-unambiguous :: (Carrier sig m, Member (Error ResolveError) sig) => User -> Span -> NonEmpty (Name Gensym) -> m (Name Gensym)
+unambiguous :: (Carrier sig m, Member (Error ResolveError) sig) => User -> Span -> NonEmpty Name -> m Name
 unambiguous _ _ (q:|[]) = pure q
 unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 
 
 data ResolveError
   = FreeVariable User Span
-  | AmbiguousName User Span (NonEmpty (Name Gensym))
+  | AmbiguousName User Span (NonEmpty Name)
 
 instance Pretty ResolveError where
   pretty = \case

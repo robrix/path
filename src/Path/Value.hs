@@ -27,7 +27,7 @@ newtype Scope a = Scope (Value (Incr a))
 instance PrettyPrec (Value Meta) where
   prettyPrec = prettyValue qlocal
 
-instance PrettyPrec (Value (Name Gensym)) where
+instance PrettyPrec (Value Name) where
   prettyPrec = prettyValue Local
 
 prettyValue :: (Ord name, Pretty name) => (Gensym -> name) -> Int -> Value name -> Doc
@@ -67,7 +67,7 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
 instance Pretty (Value Meta) where
   pretty = prettyPrec 0
 
-instance Pretty (Value (Name Gensym)) where
+instance Pretty (Value Name) where
   pretty = prettyPrec 0
 
 instance Ord a => FreeVariables a (Value a) where
@@ -151,13 +151,13 @@ joinT = gfoldT (Lam . Scope) ($$*) Type (\ p m t -> Pi p m t . Scope) (incr (pur
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
-generalizeType :: Value Meta -> Value (Name Gensym)
+generalizeType :: Value Meta -> Value Name
 generalizeType ty = pis (foldMap f (fvs ty)) ty >>= \case { Name (Global n) -> pure (Global n) ; _ -> undefined }
   where f name
           | Name (Global (_ :.: _)) <- name = Set.empty
           | otherwise                       = Set.singleton ((name, Im, Zero) ::: Type)
 
-generalizeValue :: (Carrier sig m, Member (Error Gensym) sig, Member Naming sig) => Value Meta ::: Type (Name Gensym) -> m (Value (Name Gensym))
+generalizeValue :: (Carrier sig m, Member (Error Gensym) sig, Member Naming sig) => Value Meta ::: Type Name -> m (Value Name)
 generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
   (names, _) <- unpis Local ty
   pure (lams (foldr (\case
@@ -165,10 +165,10 @@ generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
     _                  -> id) [] names) value)
 
 
-weaken :: Value (Name Gensym) -> Value Meta
+weaken :: Value Name -> Value Meta
 weaken = fmap Name
 
-strengthen :: (Carrier sig m, Member (Error Gensym) sig) => Value Meta -> m (Value (Name Gensym))
+strengthen :: (Carrier sig m, Member (Error Gensym) sig) => Value Meta -> m (Value Name)
 strengthen = traverse $ \case
   Meta m -> throwError m
   Name (Global q) -> pure (Global q)

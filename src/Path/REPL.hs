@@ -146,7 +146,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym))) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @SolverError) (either (print @ErrInfo) pure)))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @ModuleError) (either (print @SolverError) (either (print @ErrInfo) pure)))))
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @ResolveError)
           `catchError` (const loop <=< print @ElabError)
@@ -177,7 +177,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
+            let ms = modules (graph :: ModuleGraph Qualified (Value Name ::: Type Name))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -187,7 +187,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym))) of
+            case m :: Maybe (Module Qualified (Value Name ::: Type Name)) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))

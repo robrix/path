@@ -38,7 +38,7 @@ assume :: ( Carrier sig m
           , Member (Reader (Type Meta)) sig
           , Member (Writer (Set.Set HetConstraint)) sig
           )
-       => Name Gensym
+       => Name
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- lookupVar v
@@ -52,7 +52,7 @@ intro :: ( Carrier sig m
          , Member (Writer (Set.Set HetConstraint)) sig
          )
       => Maybe User
-      -> (Name Gensym -> m (Value Meta ::: Type Meta))
+      -> (Name -> m (Value Meta ::: Type Meta))
       -> m (Value Meta ::: Type Meta)
 intro x body = do
   _A ::: _ <- exists Type
@@ -82,7 +82,7 @@ pi :: ( Carrier sig m
    -> Plicity
    -> Usage
    -> m (Value Meta ::: Type Meta)
-   -> (Name Gensym -> m (Value Meta ::: Type Meta))
+   -> (Name -> m (Value Meta ::: Type Meta))
    -> m (Value Meta ::: Type Meta)
 pi x p m t body = do
   t' ::: _ <- goalIs Type t
@@ -161,7 +161,7 @@ elab :: ( Carrier sig m
         , Member (Reader (Type Meta)) sig
         , Member (Writer (Set.Set HetConstraint)) sig
         )
-     => Core.Core (Name Gensym)
+     => Core.Core Name
      -> m (Value Meta ::: Type Meta)
 elab = \case
   Core.Var n -> assume n
@@ -210,7 +210,7 @@ infix 5 |-
 throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Span) sig) => ErrorReason -> m a
 throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
 
-lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name Gensym -> m (Type Meta)
+lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name -> m (Type Meta)
 lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . Value.weaken . entryType)
 lookupVar (Local  n) = asks (Context.lookup n) >>= maybe (throwElabError (FreeVariable (Local  n))) pure
 
@@ -226,8 +226,8 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
               )
-           => Module Qualified (Core.Core (Name Gensym))
-           -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
+           => Module Qualified (Core.Core Name)
+           -> m (Module Qualified (Value Name ::: Type Name))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -253,8 +253,8 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Decl Qualified (Core.Core (Name Gensym))
-         -> m (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
+         => Decl Qualified (Core.Core Name)
+         -> m (Decl Qualified (Value Name ::: Type Name))
 elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ case decl of
   Declare name ty span -> Declare name <$> elabDeclare name ty <*> pure span
   Define  name tm span -> Define  name <$> elabDefine  name tm <*> pure span
@@ -269,8 +269,8 @@ elabDeclare :: ( Carrier sig m
                , Member (State Scope) sig
                )
             => Qualified
-            -> Core.Core (Name Gensym)
-            -> m (Value (Name Gensym) ::: Type (Name Gensym))
+            -> Core.Core Name
+            -> m (Value Name ::: Type Name)
 elabDeclare name ty = do
   tm ::: ty <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
   let elab = (Value.generalizeType tm ::: Value.generalizeType ty)
@@ -285,8 +285,8 @@ elabDefine :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Qualified
-           -> Core.Core (Name Gensym)
-           -> m (Value (Name Gensym) ::: Type (Name Gensym))
+           -> Core.Core Name
+           -> m (Value Name ::: Type Name)
 elabDefine name tm = do
   ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name)
   (constraints, res) <- runScope (runElab ty (elab tm))
