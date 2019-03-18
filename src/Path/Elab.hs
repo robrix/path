@@ -161,14 +161,14 @@ elab :: ( Carrier sig m
         , Member (Reader (Type Meta)) sig
         , Member (Writer (Set.Set HetConstraint)) sig
         )
-     => Core.Core
+     => Core.Core (Name Local)
      -> m (Value Meta ::: Type Meta)
 elab = \case
   Core.Var n -> assume n
-  Core.Lam n b -> intro n (const (elab b))
+  Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ a -> app (elab f) (elab a)
   Core.Type -> type'
-  Core.Pi n p m t b -> pi n p m (elab t) (const (elab b))
+  Core.Pi n p m t b -> pi n p m (elab t) (\ n' -> elab (Core.instantiate (pure n') b))
   Core.Hole _ -> goal >>= exists
   Core.Ann ann b -> local (const ann) (elab b)
 
@@ -226,7 +226,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
               )
-           => Module Qualified Core.Core
+           => Module Qualified (Core.Core (Name Local))
            -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
@@ -253,7 +253,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Decl Qualified Core.Core
+         => Decl Qualified (Core.Core (Name Local))
          -> m (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ case decl of
   Declare name ty span -> Declare name <$> elabDeclare name ty <*> pure span
@@ -269,7 +269,7 @@ elabDeclare :: ( Carrier sig m
                , Member (State Scope) sig
                )
             => Qualified
-            -> Core.Core
+            -> Core.Core (Name Local)
             -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elabDeclare name ty = do
   tm ::: ty <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
@@ -285,7 +285,7 @@ elabDefine :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Qualified
-           -> Core.Core
+           -> Core.Core (Name Local)
            -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elabDefine name tm = do
   ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name)

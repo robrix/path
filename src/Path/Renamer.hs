@@ -21,7 +21,7 @@ import Text.Trifecta.Rendering (Span)
 
 resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
-            -> m Core
+            -> m (Core (Name Local))
 resolveTerm = \case
   Surface.Var v -> Var <$> resolveName v
   Surface.Lam (Just v) b -> do
@@ -29,8 +29,10 @@ resolveTerm = \case
     let v' = case res of
           Just (Local (User v'):|[]) -> prime v'
           _ -> v
-    local (insertLocal v v') (Lam (Just v') <$> resolveTerm b)
-  Surface.Lam _ b -> Lam Nothing <$> resolveTerm b
+    local (insertLocal v v') (Lam (Just v') . bind (Local (User v')) <$> resolveTerm b)
+  Surface.Lam _ b -> do
+    v <- gensym "lam"
+    Lam Nothing . bind (Local (Gen v)) <$> resolveTerm b
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi (Just v) ie u t b -> do
@@ -38,10 +40,14 @@ resolveTerm = \case
     let v' = case res of
           Just (Local (User v'):|[]) -> prime v'
           _ -> v
-    Pi (Just v') ie u <$> resolveTerm t <*> local (insertLocal v v') (resolveTerm b)
-  Surface.Pi _ ie u t b -> Pi Nothing ie u <$> resolveTerm t <*> resolveTerm b
-  (u, a) Surface.:-> b -> Pi Nothing Ex u <$> resolveTerm a <*> resolveTerm b
-  Surface.Hole v -> pure (Hole v)
+    Pi (Just v') ie u <$> resolveTerm t <*> local (insertLocal v v') (bind (Local (User v')) <$> resolveTerm b)
+  Surface.Pi _ ie u t b -> do
+    v <- gensym "pi"
+    Pi Nothing ie u <$> resolveTerm t <*> (bind (Local (Gen v)) <$> resolveTerm b)
+  (u, a) Surface.:-> b -> do
+    v <- gensym "pi"
+    Pi Nothing Ex u <$> resolveTerm a <*> (bind (Local (Gen v)) <$> resolveTerm b)
+  Surface.Hole v -> Hole <$> resolveName v
   Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
   where prime (Id s) = Id (s <> "ʹ")
         prime (Op o) = Op o
@@ -50,7 +56,7 @@ resolveTerm = \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified Core)
+resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified (Core (Name Local)))
 resolveDecl = \case
   Declare n ty span -> do
     res <- get
@@ -66,7 +72,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' span <$ modify (insertGlobal n moduleName)
   Doc t d span -> Doc t <$> resolveDecl d <*> pure span
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified Core)
+resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core (Name Local)))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
