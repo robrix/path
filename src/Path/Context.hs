@@ -9,22 +9,22 @@ import Path.Name
 import Path.Pretty
 import Path.Value
 
-newtype Context a = Context { unContext :: Stack (Local ::: a) }
+newtype Context a = Context { unContext :: Stack (Gensym ::: a) }
   deriving (Eq, Foldable, Functor, Monoid, Ord, Semigroup, Show, Traversable)
 
-lookup :: Local -> Context a -> Maybe a
+lookup :: Gensym -> Context a -> Maybe a
 lookup n = fmap typedType . Stack.find ((== n) . typedTerm) . unContext
 
-insert :: Local ::: a -> Context a -> Context a
+insert :: Gensym ::: a -> Context a -> Context a
 insert t = Context . (:> t) . unContext
 
 union :: Context a -> Context a -> Context a
 union (Context c1) (Context c2) = Context (c1 <> c2)
 
-filter :: (Local ::: a -> Bool) -> Context a -> Context a
+filter :: (Gensym ::: a -> Bool) -> Context a -> Context a
 filter f = Context . Stack.filter f . unContext
 
-boundVars :: Context a -> Set.Set Local
+boundVars :: Context a -> Set.Set Gensym
 boundVars = foldMap (Set.singleton . typedTerm) . unContext
 
 nub :: Context a -> Context a
@@ -34,7 +34,7 @@ nub = Context . go mempty . unContext
           | typedTerm last `Set.member` v = go v init
           | otherwise                     = go (Set.insert (typedTerm last) v) init :> last
 
-vars :: Context a -> Stack Local
+vars :: Context a -> Stack Gensym
 vars = fmap typedTerm . unContext
 
 

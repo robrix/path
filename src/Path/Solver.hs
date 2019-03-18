@@ -127,7 +127,7 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
               go scope (ctx :|-: (t1 :===: t2) ::: Type)
               n <- gensym "simplify"
               -- FIXME: this should insert some sort of dependency
-              go scope (Context.insert (Gen n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
+              go scope (Context.insert (n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
           ctx :|-: (Pi Im _ t1 b1 :===: tm2) ::: Type -> do
             n <- exists t1
             go scope (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
@@ -136,7 +136,7 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
             go scope (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
           ctx :|-: (Lam f1 :===: Lam f2) ::: Pi _ _ t b -> do
             n <- gensym "simplify"
-            go scope (Context.insert (Gen n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
+            go scope (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
           ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
             , Just t2 <- whnf scope (f2 :$ sp2) -> do
