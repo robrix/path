@@ -53,7 +53,7 @@ data Contextual a = Context (Type Meta) :|-: a
 infixr 1 :|-:
 
 instance Pretty a => Pretty (Contextual a) where
-  pretty (ctx :|-: a) = pretty a <> hardline <> pretty ctx
+  pretty (ctx :|-: a) = pretty a </> pretty ctx
 
 instance Pretty a => PrettyPrec (Contextual a)
 
