@@ -123,7 +123,7 @@ data Name
 instance Pretty Name where
   pretty = \case
     Global (_ :.: n) -> pretty n
-    Local         n  -> pretty '_' <> pretty n
+    Local         n  -> pretty '_' <> prettyGensym n
 
 inModule :: ModuleName -> Name -> Bool
 inModule m (Global (m' :.: _)) = m == m'
@@ -132,7 +132,7 @@ inModule _ _                   = False
 prettyQName :: Name -> Doc
 prettyQName = \case
   Global n -> pretty n
-  Local  n -> pretty '_' <> pretty n
+  Local  n -> pretty '_' <> prettyGensym n
 
 
 data Meta
