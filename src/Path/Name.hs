@@ -117,7 +117,7 @@ data Local
 
 instance Pretty Local where
   pretty = \case
-    Gen n -> pretty n
+    Gen n -> pretty '_' <> pretty n
     User u -> pretty u
 
 data Name a
