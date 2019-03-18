@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE LambdaCase #-}
 module Path.Core where
 
 import Data.Foldable (toList)
