@@ -165,6 +165,13 @@ data Operator
 betweenOp :: String -> String -> Operator
 betweenOp a b = Closed (a :| []) b
 
+showOperator :: Operator -> String
+showOperator = \case
+  Prefix (f:|fs) -> f <> " _ " <> concatMap (\ a -> a <> " _") fs
+  Postfix (f:|fs) -> "_ " <> f <> " " <> concatMap (\ a -> "_ " <> a) fs
+  Infix (f:|fs) -> "_ " <> f <> " _ " <> concatMap (\ a -> a <> " _") fs
+  Closed fs ff -> foldr (\ a rest -> a <> " _ " <> rest) ff fs
+
 instance Pretty Operator where
   pretty = \case
     Prefix (f:|fs) -> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
