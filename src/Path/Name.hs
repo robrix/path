@@ -85,6 +85,10 @@ instance Pretty User where
 
 instance PrettyPrec User
 
+showUser :: User -> String
+showUser (Id s) = s
+showUser (Op o) = showOperator o
+
 
 data ModuleName
   = ModuleName String
