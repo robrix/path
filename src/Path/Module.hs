@@ -106,3 +106,10 @@ loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleNa
 
 unknownModule :: (Carrier sig m, Member (Error Doc) sig) => Import -> m a
 unknownModule (Import name span) = throwError (prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) [])
+
+cyclicImport :: (Carrier sig m, Member (Error Doc) sig) => NonEmpty Import -> m a
+cyclicImport (Import name span :| [])    = throwError (prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) [])
+cyclicImport (Import name span :| names) = throwError (vsep
+  ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
+  : foldr ((:) . whichImports) [ whichImports (Import name span) ] names))
+  where whichImports (Import name span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
