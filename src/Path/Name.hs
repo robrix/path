@@ -175,7 +175,7 @@ showOperator = \case
   Prefix (f:|fs) -> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
   Postfix (f:|fs) -> underscore <+> pretty f <+> hsep (map (\ a -> underscore <+> pretty a) fs)
   Infix (f:|fs) -> underscore <+> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
-  Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) ff fs
+  Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
   where hsep []     = ""
         hsep [a]    = a
         hsep (a:as) = a <+> hsep as
