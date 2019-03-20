@@ -13,7 +13,7 @@ import Text.Trifecta
 import Text.Trifecta.Indentation
 
 parseModule :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => FilePath -> m (Module.Module User Surface)
-parseModule = flip parseFile <*> module'
+parseModule = flip parseFile <*> whole . module'
 
 
 module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module User Surface)
