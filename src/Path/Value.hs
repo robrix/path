@@ -102,6 +102,7 @@ unlams localName value = intro (Nil, value)
 pi :: Eq a => (a, Plicity, Usage) ::: Type a -> Value a -> Value a
 pi ((n, p, u) ::: t) b = Pi p u t (bind n b)
 
+-- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t ((a, Plicity, Usage) ::: Type a) -> Value a -> Value a
 pis names body = foldr pi body names
 
