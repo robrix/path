@@ -177,7 +177,7 @@ renderOperator :: Monoid m => m -> (String -> m) -> Operator -> m
 renderOperator space pretty = \case
   Prefix (f:|fs) -> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
   Postfix (f:|fs) -> underscore <+> pretty f <+> hsep (map (\ a -> underscore <+> pretty a) fs)
-  Infix (f:|fs) -> underscore <+> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
+  Infix (f:|fs) -> underscore <+> pretty f <+> hsep (underscore : map (\ a -> pretty a <+> underscore) fs)
   Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
   where hsep []     = mempty
         hsep [a]    = a
