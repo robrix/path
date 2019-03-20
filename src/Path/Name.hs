@@ -186,12 +186,7 @@ renderOperator space pretty = \case
         underscore = pretty "_"
 
 instance Pretty Operator where
-  pretty = \case
-    Prefix (f:|fs) -> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
-    Postfix (f:|fs) -> underscore <+> pretty f <+> hsep (map (\ a -> underscore <+> pretty a) fs)
-    Infix (f:|fs) -> underscore <+> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
-    Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
-    where underscore = pretty '_'
+  pretty = renderOperator space pretty
 
 instance PrettyPrec Operator
 
