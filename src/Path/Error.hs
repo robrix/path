@@ -17,7 +17,6 @@ data ElabError = ElabError
 
 data ErrorReason
   = FreeVariable Name
-  | IllegalApplication (Type Meta)
   | ResourceMismatch Gensym Usage Usage [Span]
   | InfiniteType Name (Type Meta)
   deriving (Eq, Ord, Show)
@@ -25,7 +24,6 @@ data ErrorReason
 instance Pretty ElabError where
   pretty (ElabError span ctx reason) = case reason of
     FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
-    IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
     ResourceMismatch n pi used uses -> prettyErr span msg (prettyCtx ctx <> map prettys uses)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length uses)) <+> pretty "than required" <+> parens (pretty pi)
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
