@@ -19,8 +19,7 @@ data ErrorReason
   deriving (Eq, Ord, Show)
 
 instance Pretty ElabError where
-  pretty (ElabError span ctx reason) = case reason of
-    FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
-    where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
+  pretty (ElabError span _ reason) = case reason of
+    FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) []
 
 instance PrettyPrec ElabError
