@@ -171,10 +171,10 @@ betweenOp :: String -> String -> Operator
 betweenOp a b = Closed (a :| []) b
 
 showOperator :: Operator -> String
-showOperator = renderOperator "_" " " id
+showOperator = renderOperator " " id
 
-renderOperator :: Monoid m => m -> m -> (String -> m) -> Operator -> m
-renderOperator underscore space pretty = \case
+renderOperator :: Monoid m => m -> (String -> m) -> Operator -> m
+renderOperator space pretty = \case
   Prefix (f:|fs) -> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
   Postfix (f:|fs) -> underscore <+> pretty f <+> hsep (map (\ a -> underscore <+> pretty a) fs)
   Infix (f:|fs) -> underscore <+> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
@@ -183,6 +183,7 @@ renderOperator underscore space pretty = \case
         hsep [a]    = a
         hsep (a:as) = a <+> hsep as
         s <+> t = s <> space <> t
+        underscore = pretty "_"
 
 instance Pretty Operator where
   pretty = \case
