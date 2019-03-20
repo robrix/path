@@ -10,6 +10,7 @@ import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Path.Core as Core
+import Path.Error
 import Path.Module
 import Path.Name
 import Path.Plicity
@@ -19,7 +20,7 @@ import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-resolveTerm :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
+resolveTerm :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
             -> m (Core Name)
 resolveTerm = \case
@@ -42,7 +43,7 @@ resolveTerm = \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified (Core Name))
+resolveDecl :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified (Core Name))
 resolveDecl = \case
   Declare n ty span -> do
     res <- get
@@ -58,7 +59,7 @@ resolveDecl = \case
     Define (moduleName :.: n) tm' span <$ modify (insertGlobal n moduleName)
   Doc t d span -> Doc t <$> resolveDecl d <*> pure span
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core Name))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core Name))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -82,38 +83,22 @@ insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:
 lookupName :: User -> Resolution -> Maybe (NonEmpty Name)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error ResolveError) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => User -> m Name
+resolveName :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => User -> m Name
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
-  s <- ask
   res <- case mode of
     Decl -> maybe ((:| []) . Local <$> gensym "") pure res
-    Defn -> maybe (throwError (FreeVariable v s)) pure res
-  unambiguous v s res
+    Defn -> maybe (freeVariable v)                pure res
+  unambiguous v res
 
 filterResolution :: (Name -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
-unambiguous :: (Carrier sig m, Member (Error ResolveError) sig) => User -> Span -> NonEmpty Name -> m Name
-unambiguous _ _ (q:|[]) = pure q
-unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
-
-
-data ResolveError
-  = FreeVariable User Span
-  | AmbiguousName User Span (NonEmpty Name)
-  deriving (Eq, Ord, Show)
-
-instance Pretty ResolveError where
-  pretty = \case
-    FreeVariable name span -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) []
-    AmbiguousName name span sources -> prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep
-      ( pretty "it could refer to"
-      : map prettyQName (toList sources)))]
-
-instance PrettyPrec ResolveError
+unambiguous :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Name -> m Name
+unambiguous _ (q:|[]) = pure q
+unambiguous v (q:|qs) = ambiguousName v (q :| qs)
 
 
 ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Name -> m a

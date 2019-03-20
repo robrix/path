@@ -146,9 +146,8 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError (runError (runError loop))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @Doc) (either (print @SolverError) pure))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError (runError loop)) >>= either (print @ElabError) (either (print @Doc) (either (print @SolverError) pure)))
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
-          `catchError` (const loop <=< print @ResolveError)
           `catchError` (const loop <=< print @ElabError)
           `catchError` (const loop <=< print @Doc)
           `catchError` (const loop <=< print @SolverError)
