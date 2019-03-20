@@ -24,8 +24,8 @@ import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Delta(..), ErrInfo, parseFile, parseString, whole)
-import Path.Parser.Module (module')
+import Path.Parser (Delta(..), ErrInfo, parseString, whole)
+import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
@@ -196,7 +196,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         reload = do
           put (Resolution mempty)
           let n = length packageSources
-          sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph
+          sorted <- traverse parseModule packageSources >>= loadOrder . moduleGraph
 
           checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
             let name    = moduleName m
