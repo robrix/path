@@ -19,7 +19,6 @@ data ErrorReason
   = FreeVariable Name
   | IllegalApplication (Type Meta)
   | ResourceMismatch Gensym Usage Usage [Span]
-  | TypedHole Name (Type Meta)
   | InfiniteType Name (Type Meta)
   deriving (Eq, Ord, Show)
 
@@ -29,8 +28,6 @@ instance Pretty ElabError where
     IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
     ResourceMismatch n pi used uses -> prettyErr span msg (prettyCtx ctx <> map prettys uses)
       where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length uses)) <+> pretty "than required" <+> parens (pretty pi)
-    TypedHole n ty -> prettyErr span msg (prettyCtx ctx)
-      where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
     InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
     where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
 
