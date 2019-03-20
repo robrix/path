@@ -202,6 +202,9 @@ instance PrettyPrec SolverError
 unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => HomConstraint -> m a
 unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx))
 
+unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig) => Span -> Gensym -> m a
+unsolvedMetavariable span meta = throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta))) [])
+
 
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
 prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
