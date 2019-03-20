@@ -4,6 +4,7 @@ module Path.Parser
 , Inner(..)
 , parseFile
 , parseString
+, parseError
 , whole
 , keyword
 , identifier
@@ -20,6 +21,7 @@ import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class
 import qualified Data.HashSet as HashSet
+import Path.Pretty (Doc)
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.LookAhead
@@ -52,6 +54,9 @@ parseString p = fmap toError . Trifecta.parseString (runInner (evalIndentationPa
 toError :: (Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
 toError (Success a) = pure a
 toError (Failure e) = throwError e
+
+parseError :: (Carrier sig m, Member (Error Doc) sig) => ErrInfo -> m a
+parseError err = throwError (_errDoc err)
 
 
 indentst :: IndentationState
