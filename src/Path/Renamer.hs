@@ -114,3 +114,11 @@ instance Pretty ResolveError where
       : map prettyQName (toList sources)))]
 
 instance PrettyPrec ResolveError
+
+
+ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Name -> m a
+ambiguousName name sources = do
+  span <- ask
+  throwError (prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep
+    ( pretty "it could refer to"
+    : map prettyQName (toList sources)))])
