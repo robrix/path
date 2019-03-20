@@ -102,3 +102,7 @@ loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleNa
             for_ (moduleImports m) loop
             modify (Set.insert (importModuleName n))
             modify (m :)
+
+
+unknownModule :: (Carrier sig m, Member (Error Doc) sig) => Import -> m a
+unknownModule (Import name span) = throwError (prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) [])
