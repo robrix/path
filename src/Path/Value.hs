@@ -47,7 +47,7 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
             if ie == Im || localName name `Set.member` fvs b' then do
               t' <- go 0 t
               b'' <- go 1 b'
-              pure (prettyParens (d > 1) (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b''))
+              pure (prettyParens (d > 1) (withIe (pretty (localName name) <+> colon <+> withPi t') <+> arrow <+> b''))
             else do
               t' <- go 2 t
               b'' <- go 1 b'
