@@ -24,7 +24,7 @@ import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Delta(..), ErrInfo, parseString, whole)
+import Path.Parser (Delta(..), parseString, whole)
 import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
@@ -146,13 +146,12 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError (runError (runError (runError loop)))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @Doc) (either (print @SolverError) (either (print @ErrInfo) pure)))))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError (runError (runError loop))) >>= either (print @ResolveError) (either (print @ElabError) (either (print @Doc) (either (print @SolverError) pure))))
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @ResolveError)
           `catchError` (const loop <=< print @ElabError)
           `catchError` (const loop <=< print @Doc)
           `catchError` (const loop <=< print @SolverError)
-          `catchError` (const loop <=< print @ErrInfo)
         parseCommand str = do
           l <- askLine
           traverse (parseString (whole command) (lineDelta l)) str

@@ -7,7 +7,7 @@ import Control.Monad (join)
 import Data.Version (showVersion)
 import Options.Applicative as Options
 import Path.Package
-import Path.Parser (ErrInfo, parseFile, whole)
+import Path.Parser (parseFile, whole)
 import Path.Parser.Package as Parser (package)
 import Path.Pretty
 import Path.REPL
@@ -25,7 +25,7 @@ argumentsParser = info
 
 options :: Parser (IO ())
 options
-  =   flag' (either (prettyPrint @ErrInfo) repl =<<) (short 'i' <> long "interactive" <> help "run interactively")
+  =   flag' (either (prettyPrint @Doc) repl =<<) (short 'i' <> long "interactive" <> help "run interactively")
   <*> (pure . Right <$> some source <|> parsePackage <$> strOption (long "package-path" <> metavar "FILE" <> help "source file"))
   where parsePackage = fmap (fmap packageSources) . runM . runError . parseFile (whole Parser.package)
 

@@ -45,15 +45,15 @@ instance TokenParsing Inner where
   token p = whiteSpace *> p
 
 
-parseFile :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => Parser a -> FilePath -> m a
+parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => Parser a -> FilePath -> m a
 parseFile p = toError <=< parseFromFileEx (runInner (evalIndentationParserT p indentst))
 
-parseString :: (Carrier sig m, Member (Error ErrInfo) sig) => Parser a -> Delta -> String -> m a
+parseString :: (Carrier sig m, Member (Error Doc) sig) => Parser a -> Delta -> String -> m a
 parseString p = fmap toError . Trifecta.parseString (runInner (evalIndentationParserT p indentst))
 
-toError :: (Carrier sig m, Member (Error ErrInfo) sig) => Result a -> m a
+toError :: (Carrier sig m, Member (Error Doc) sig) => Result a -> m a
 toError (Success a) = pure a
-toError (Failure e) = throwError e
+toError (Failure e) = parseError e
 
 parseError :: (Carrier sig m, Member (Error Doc) sig) => ErrInfo -> m a
 parseError err = throwError (_errDoc err)

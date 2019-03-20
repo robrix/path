@@ -8,11 +8,12 @@ import qualified Path.Module as Module
 import Path.Name
 import Path.Parser
 import Path.Parser.Term
+import Path.Pretty (Doc)
 import Path.Surface
 import Text.Trifecta
 import Text.Trifecta.Indentation
 
-parseModule :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => FilePath -> m (Module.Module User Surface)
+parseModule :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => FilePath -> m (Module.Module User Surface)
 parseModule = flip parseFile <*> whole . module'
 
 
