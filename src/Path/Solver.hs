@@ -195,10 +195,15 @@ instance Pretty SolverError where
       where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
     StalledConstraints constraints -> fold (intersperse hardline (map stalled constraints))
       where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
-    where prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
-          prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
-            [ pretty "expected:" <+> pretty (expected ::: ty)
-            , pretty "  actual:" <+> pretty (actual ::: ty)
-            ])
 
 instance PrettyPrec SolverError
+
+
+prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
+prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
+
+prettyEqn :: (Pretty a, Pretty b) => (Equation a ::: b) -> Doc
+prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
+  [ pretty "expected:" <+> pretty (expected ::: ty)
+  , pretty "  actual:" <+> pretty (actual ::: ty)
+  ])
