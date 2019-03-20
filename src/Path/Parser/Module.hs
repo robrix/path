@@ -1,6 +1,9 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Parser.Module where
 
 import Control.Applicative ((<**>), Alternative(..))
+import Control.Effect
+import Control.Monad.IO.Class
 import qualified Path.Module as Module
 import Path.Name
 import Path.Parser
@@ -8,6 +11,10 @@ import Path.Parser.Term
 import Path.Surface
 import Text.Trifecta
 import Text.Trifecta.Indentation
+
+parseModule :: (Carrier sig m, Member (Error ErrInfo) sig, MonadIO m) => FilePath -> m (Module.Module User Surface)
+parseModule = flip parseFile <*> module'
+
 
 module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module User Surface)
 module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
