@@ -104,6 +104,7 @@ unambiguous v s (q:|qs) = throwError (AmbiguousName v s (q :| qs))
 data ResolveError
   = FreeVariable User Span
   | AmbiguousName User Span (NonEmpty Name)
+  deriving (Eq, Ord, Show)
 
 instance Pretty ResolveError where
   pretty = \case
