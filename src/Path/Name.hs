@@ -81,7 +81,7 @@ data User
 instance Pretty User where
   pretty = \case
     Id s  -> pretty s
-    Op op -> pretty op
+    Op op -> parens (pretty op)
 
 instance PrettyPrec User
 
