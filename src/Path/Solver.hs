@@ -205,6 +205,10 @@ unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (
 unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig) => Span -> Gensym -> m a
 unsolvedMetavariable span meta = throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta))) [])
 
+blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
+blockedConstraints constraints = throwError (fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints)))
+  where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
+
 
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
 prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
