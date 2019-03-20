@@ -199,6 +199,10 @@ instance Pretty SolverError where
 instance PrettyPrec SolverError
 
 
+unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => HomConstraint -> m a
+unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx))
+
+
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
 prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
 
