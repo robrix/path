@@ -161,8 +161,8 @@ generalizeValue :: (Carrier sig m, Member (Error Gensym) sig, Member Naming sig)
 generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
   (names, _) <- unpis Local ty
   pure (lams (foldr (\case
-    ((n, Im, _) ::: _) -> (Name n :)
-    _                  -> id) [] names) value)
+    (n, Im, _) ::: _ -> (Name n :)
+    _                -> id) [] names) value)
 
 
 weaken :: Value Name -> Value Meta
