@@ -88,7 +88,7 @@ resolveName v = do
   mode <- ask
   s <- ask
   res <- case mode of
-    Decl -> maybe (gensym "" >>= \ n -> pure (Local n :| [])) pure res
+    Decl -> maybe ((:| []) . Local <$> gensym "") pure res
     Defn -> maybe (throwError (FreeVariable v s)) pure res
   unambiguous v s res
 
