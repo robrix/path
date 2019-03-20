@@ -209,6 +209,10 @@ blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint]
 blockedConstraints constraints = throwError (fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints)))
   where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
 
+stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
+stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
+  where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
+
 
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
 prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
