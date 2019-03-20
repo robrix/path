@@ -19,7 +19,6 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Elab
-import Path.Error
 import Path.Eval
 import Path.Module as Module
 import Path.Name
@@ -146,9 +145,8 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError (runError loop)) >>= either (print @ElabError) (either (print @Doc) (either (print @SolverError) pure)))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError loop) >>= either (print @Doc) (either (print @SolverError) pure))
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
-          `catchError` (const loop <=< print @ElabError)
           `catchError` (const loop <=< print @Doc)
           `catchError` (const loop <=< print @SolverError)
         parseCommand str = do
@@ -206,7 +204,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             if Prelude.null elabErrs && Prelude.null solverErrs then
               modify (Map.insert name scope)
             else do
-              for_ elabErrs (print @ElabError)
+              for_ elabErrs (print @Doc)
               for_ solverErrs (print @SolverError)
               modify (name:)
             pure (Just res)

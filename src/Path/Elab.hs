@@ -31,7 +31,7 @@ import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 assume :: ( Carrier sig m
-          , Member (Error ElabError) sig
+          , Member (Error Doc) sig
           , Member Naming sig
           , Member (Reader (Context (Type Meta))) sig
           , Member (Reader Scope) sig
@@ -154,7 +154,7 @@ unify constraint = (:~) <$> asks (:|-: constraint) <*> ask >>= tell . Set.single
 
 
 elab :: ( Carrier sig m
-        , Member (Error ElabError) sig
+        , Member (Error Doc) sig
         , Member Naming sig
         , Member (Reader (Context (Type Meta))) sig
         , Member (Reader Scope) sig
@@ -208,12 +208,9 @@ n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
 
-throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Span) sig) => ErrorReason -> m a
-throwElabError reason = ElabError <$> ask <*> pure reason >>= throwError
-
-lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name -> m (Type Meta)
-lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . Value.weaken . entryType)
-lookupVar (Local  n) = asks (Context.lookup n) >>= maybe (throwElabError (FreeVariable (Local  n))) pure
+lookupVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name -> m (Type Meta)
+lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (freeVariable (Global n)) (pure . Value.weaken . entryType)
+lookupVar (Local  n) = asks (Context.lookup n) >>= maybe (freeVariable (Local  n)) pure
 
 
 type ModuleTable = Map.Map ModuleName Scope
@@ -223,7 +220,7 @@ elabModule :: ( Carrier sig m
               , Member (Error Doc) sig
               , Member Naming sig
               , Member (Reader ModuleTable) sig
-              , Member (State (Stack ElabError)) sig
+              , Member (State (Stack Doc)) sig
               , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
               )
@@ -232,7 +229,7 @@ elabModule :: ( Carrier sig m
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
-  decls <- for (moduleDecls m) (either ((Nothing <$) . logError @ElabError) (either ((Nothing <$) . logError @SolverError) (pure . Just)) <=< runError . runError . elabDecl)
+  decls <- for (moduleDecls m) (either ((Nothing <$) . logError @Doc) (either ((Nothing <$) . logError @SolverError) (pure . Just)) <=< runError . runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
 
 logError :: (Member (State (Stack error)) sig, Carrier sig m) => error -> m ()
@@ -249,7 +246,7 @@ importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (unknownModule
 
 elabDecl :: ( Carrier sig m
             , Effect sig
-            , Member (Error ElabError) sig
+            , Member (Error Doc) sig
             , Member (Error SolverError) sig
             , Member Naming sig
             , Member (State Scope) sig
@@ -263,7 +260,7 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
 
 elabDeclare :: ( Carrier sig m
                , Effect sig
-               , Member (Error ElabError) sig
+               , Member (Error Doc) sig
                , Member (Error SolverError) sig
                , Member Naming sig
                , Member (Reader Span) sig
@@ -279,7 +276,7 @@ elabDeclare name ty = do
 
 elabDefine :: ( Carrier sig m
               , Effect sig
-              , Member (Error ElabError) sig
+              , Member (Error Doc) sig
               , Member (Error SolverError) sig
               , Member Naming sig
               , Member (Reader Span) sig
