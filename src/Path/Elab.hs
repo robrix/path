@@ -20,6 +20,7 @@ import Path.Error
 import Path.Module
 import Path.Name
 import Path.Plicity
+import Path.Pretty
 import Path.Scope as Scope
 import Path.Semiring
 import Path.Solver
@@ -219,7 +220,7 @@ type ModuleTable = Map.Map ModuleName Scope
 
 elabModule :: ( Carrier sig m
               , Effect sig
-              , Member (Error ModuleError) sig
+              , Member (Error Doc) sig
               , Member Naming sig
               , Member (Reader ModuleTable) sig
               , Member (State (Stack ElabError)) sig
@@ -238,12 +239,12 @@ logError :: (Member (State (Stack error)) sig, Carrier sig m) => error -> m ()
 logError = modify . flip (:>)
 
 importModule :: ( Carrier sig m
-                , Member (Error ModuleError) sig
+                , Member (Error Doc) sig
                 , Member (Reader ModuleTable) sig
                 )
              => Import
              -> m Scope
-importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (throwError (UnknownModule n)) pure
+importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (unknownModule n) pure
 
 
 elabDecl :: ( Carrier sig m

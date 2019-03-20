@@ -55,11 +55,11 @@ moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 modules :: ModuleGraph v a -> [Module v a]
 modules = Map.elems . unModuleGraph
 
-lookupModule :: (Carrier sig m, Member (Error ModuleError) sig) => ModuleGraph v a -> Import -> m (Module v a)
-lookupModule g i = maybe (throwError (UnknownModule i)) pure (Map.lookup (importModuleName i) (unModuleGraph g))
+lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph v a -> Import -> m (Module v a)
+lookupModule g i = maybe (unknownModule i) pure (Map.lookup (importModuleName i) (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig) => ModuleGraph v a -> Import -> m ()
-cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= throwError . CyclicImport . fromMaybe (m :| [])
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph v a -> Import -> m ()
+cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (importModuleName n))
           if notVisited then do
@@ -68,24 +68,8 @@ cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m
           else
             pure (n :| [])
 
-data ModuleError
-  = UnknownModule Import
-  | CyclicImport (NonEmpty Import)
-  deriving (Eq, Ord, Show)
 
-instance Pretty ModuleError where
-  pretty = \case
-    UnknownModule (Import name span) -> prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) []
-    CyclicImport (Import name span :| []) -> prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) []
-    CyclicImport (Import name span :| names) -> vsep
-      ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
-      : foldr ((:) . whichImports) [ whichImports (Import name span) ] names)
-    where whichImports (Import name span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
-
-instance PrettyPrec ModuleError
-
-
-loadOrder :: (Carrier sig m, Effect sig, Member (Error ModuleError) sig) => ModuleGraph v a -> m [Module v a]
+loadOrder :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph v a -> m [Module v a]
 loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.elems (unModuleGraph g)) loopM)))
   where loopM m = do
           visited <- gets (Set.member (moduleName m))
