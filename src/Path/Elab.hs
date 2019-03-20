@@ -207,8 +207,8 @@ n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
 
-throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Span) sig) => ErrorReason -> m a
-throwElabError reason = ElabError <$> ask <*> ask <*> pure reason >>= throwError
+throwElabError :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader Span) sig) => ErrorReason -> m a
+throwElabError reason = ElabError <$> ask <*> pure reason >>= throwError
 
 lookupVar :: (Carrier sig m, Member (Error ElabError) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name -> m (Type Meta)
 lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (throwElabError (FreeVariable (Global n))) (pure . Value.weaken . entryType)
