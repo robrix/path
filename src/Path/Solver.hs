@@ -21,7 +21,7 @@ import           Path.Scope as Scope hiding (null)
 import           Path.Stack
 import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (pi)
-import           Text.Trifecta.Rendering (Span(..), Spanned(..))
+import           Text.Trifecta.Rendering (Spanned(..))
 
 type Blocked = Set.Set HomConstraint
 type Queue = Seq.Seq HomConstraint
@@ -182,11 +182,6 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
 
 unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => HomConstraint -> m a
 unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx))
-
-unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Gensym -> m a
-unsolvedMetavariable meta = do
-  span <- ask
-  throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta))) [])
 
 blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
 blockedConstraints constraints = throwError (fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints)))

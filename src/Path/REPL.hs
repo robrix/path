@@ -30,7 +30,6 @@ import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
-import Path.Solver
 import Path.Stack
 import Path.Value
 import Prelude hiding (print)
@@ -164,7 +163,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Eval tm -> do
             runSpan $ do
               elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
-              runScope (whnf (typedTerm elab)) >>= runError . generalizeValue . (::: generalizeType (typedType elab)) >>= either unsolvedMetavariable pure >>= print
+              runScope (whnf (typedTerm elab)) >>= generalizeValue . (::: generalizeType (typedType elab)) >>= print
             loop
           Show Bindings -> do
             scope <- get
