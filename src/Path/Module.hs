@@ -55,6 +55,7 @@ moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 modules :: ModuleGraph v a -> [Module v a]
 modules = Map.elems . unModuleGraph
 
+
 lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph v a -> Import -> m (Module v a)
 lookupModule g i = maybe (unknownModule i) pure (Map.lookup (importModuleName i) (unModuleGraph g))
 
