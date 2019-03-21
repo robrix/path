@@ -145,10 +145,9 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError (runError loop) >>= either (print @Doc) (either (print @SolverError) pure))
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError loop >>= either (print @Doc) pure)
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
-          `catchError` (const loop <=< print @SolverError)
         parseCommand str = do
           l <- askLine
           traverse (parseString (whole command) (lineDelta l)) str
@@ -165,7 +164,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Eval tm -> do
             runSpan $ do
               elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab Nothing . elab)
-              runScope (whnf (typedTerm elab)) >>= runError . generalizeValue . (::: generalizeType (typedType elab)) >>= either (throwError <=< (UnsolvedMetavariable <$> ask <*>) . pure) pure >>= print
+              runScope (whnf (typedTerm elab)) >>= runError . generalizeValue . (::: generalizeType (typedType elab)) >>= either unsolvedMetavariable pure >>= print
             loop
           Show Bindings -> do
             scope <- get
@@ -200,12 +199,11 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (solverErrs, (elabErrs, (scope, res))) <- runState Nil (runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule))))
-            if Prelude.null elabErrs && Prelude.null solverErrs then
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule)))
+            if Prelude.null errs then
               modify (Map.insert name scope)
             else do
-              for_ elabErrs (print @Doc)
-              for_ solverErrs (print @SolverError)
+              for_ errs (print @Doc)
               modify (name:)
             pure (Just res)
           put (moduleGraph (catMaybes checked))

@@ -28,7 +28,7 @@ type Queue = Seq.Seq HomConstraint
 
 solver :: ( Carrier sig m
           , Effect sig
-          , Member (Error SolverError) sig
+          , Member (Error Doc) sig
           , Member Naming sig
           , Member (Reader Scope) sig
           )
@@ -38,12 +38,12 @@ solver constraints = execState Map.empty $ do
   (queue, blocked) <- runState (Seq.empty :: Queue) . execState (Set.empty :: Blocked) $ do
     enqueueAll constraints
     step
-  unless (null blocked) (throwError (BlockedConstraints (toList blocked)))
-  unless (null queue)   (throwError (StalledConstraints (toList queue)))
+  unless (null blocked) (blockedConstraints (toList blocked))
+  unless (null queue)   (stalledConstraints (toList queue))
 
 step :: ( Carrier sig m
         , Effect sig
-        , Member (Error SolverError) sig
+        , Member (Error Doc) sig
         , Member Naming sig
         , Member (Reader Scope) sig
         , Member (State Blocked) sig
@@ -57,7 +57,7 @@ step = do
 
 process :: ( Carrier sig m
            , Effect sig
-           , Member (Error SolverError) sig
+           , Member (Error Doc) sig
            , Member Naming sig
            , Member (Reader Scope) sig
            , Member (State Blocked) sig
@@ -110,7 +110,7 @@ isBlockedOn m = Set.member m . fvs
 
 simplify :: ( Carrier sig m
             , Effect sig
-            , Member (Error SolverError) sig
+            , Member (Error Doc) sig
             , Member Naming sig
             , Member (Reader Scope) sig
             , Member (State Blocked) sig
@@ -157,7 +157,7 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
             | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
             | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
             | blocked t1 || blocked t2 -> tell (Set.singleton (c :~ span))
-            | otherwise                -> throwError (UnsimplifiableConstraint (c :~ span))
+            | otherwise                -> unsimplifiableConstraint (c :~ span)
 
         exists _ = pure . Meta <$> gensym ""
 
@@ -180,30 +180,13 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
   ]
 
 
-data SolverError
-  = UnsimplifiableConstraint HomConstraint
-  | UnsolvedMetavariable Span Gensym
-  | BlockedConstraints [HomConstraint]
-  | StalledConstraints [HomConstraint]
-  deriving (Eq, Ord, Show)
-
-instance Pretty SolverError where
-  pretty = \case
-    UnsimplifiableConstraint ((ctx :|-: eqn) :~ span) -> prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx)
-    UnsolvedMetavariable span meta -> prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta))) []
-    BlockedConstraints constraints -> fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints))
-      where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
-    StalledConstraints constraints -> fold (intersperse hardline (map stalled constraints))
-      where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
-
-instance PrettyPrec SolverError
-
-
 unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => HomConstraint -> m a
 unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx))
 
-unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig) => Span -> Gensym -> m a
-unsolvedMetavariable span meta = throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta))) [])
+unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Gensym -> m a
+unsolvedMetavariable meta = do
+  span <- ask
+  throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta))) [])
 
 blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
 blockedConstraints constraints = throwError (fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints)))

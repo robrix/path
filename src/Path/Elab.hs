@@ -176,7 +176,7 @@ elab = \case
 
 runSolver :: ( Carrier sig m
              , Effect sig
-             , Member (Error SolverError) sig
+             , Member (Error Doc) sig
              , Member Naming sig
              , Member (Reader Scope) sig
              )
@@ -221,7 +221,6 @@ elabModule :: ( Carrier sig m
               , Member Naming sig
               , Member (Reader ModuleTable) sig
               , Member (State (Stack Doc)) sig
-              , Member (State (Stack SolverError)) sig
               , Member (State Scope) sig
               )
            => Module Qualified (Core.Core Name)
@@ -229,7 +228,7 @@ elabModule :: ( Carrier sig m
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
-  decls <- for (moduleDecls m) (either ((Nothing <$) . logError @Doc) (either ((Nothing <$) . logError @SolverError) (pure . Just)) <=< runError . runError . elabDecl)
+  decls <- for (moduleDecls m) (either ((Nothing <$) . logError @Doc) (pure . Just) <=< runError . elabDecl)
   pure m { moduleDecls = catMaybes decls }
 
 logError :: (Member (State (Stack error)) sig, Carrier sig m) => error -> m ()
@@ -247,7 +246,6 @@ importModule n = asks (Map.lookup (importModuleName n)) >>= maybe (unknownModule
 elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error Doc) sig
-            , Member (Error SolverError) sig
             , Member Naming sig
             , Member (State Scope) sig
             )
@@ -261,7 +259,6 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
 elabDeclare :: ( Carrier sig m
                , Effect sig
                , Member (Error Doc) sig
-               , Member (Error SolverError) sig
                , Member Naming sig
                , Member (Reader Span) sig
                , Member (State Scope) sig
@@ -277,7 +274,6 @@ elabDeclare name ty = do
 elabDefine :: ( Carrier sig m
               , Effect sig
               , Member (Error Doc) sig
-              , Member (Error SolverError) sig
               , Member Naming sig
               , Member (Reader Span) sig
               , Member (State Scope) sig
@@ -290,7 +286,7 @@ elabDefine name tm = do
   (constraints, res) <- runScope (runElab ty (elab tm))
   tm ::: ty <- runScope (runSolver constraints res)
   let ty' = Value.generalizeType ty
-  tm' <- runError (Value.generalizeValue (tm ::: ty')) >>= either (throwError <=< (UnsolvedMetavariable <$> ask <*>) . pure) pure
+  tm' <- runError (Value.generalizeValue (tm ::: ty')) >>= either unsolvedMetavariable pure
   (tm' ::: ty') <$ modify (Scope.insert name (Defn (tm' ::: ty')))
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
