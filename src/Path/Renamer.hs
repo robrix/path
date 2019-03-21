@@ -2,10 +2,8 @@
 module Path.Renamer where
 
 import Control.Effect
-import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
-import Data.Foldable (toList)
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -99,11 +97,3 @@ filterResolution f = Resolution . Map.mapMaybe matches . unResolution
 unambiguous :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Name -> m Name
 unambiguous _ (q:|[]) = pure q
 unambiguous v (q:|qs) = ambiguousName v (q :| qs)
-
-
-ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Name -> m a
-ambiguousName name sources = do
-  span <- ask
-  throwError (prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep
-    ( pretty "it could refer to"
-    : map prettyQName (toList sources)))])

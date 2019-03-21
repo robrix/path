@@ -2,18 +2,17 @@
 module Path.Solver where
 
 import           Control.Effect
-import           Control.Effect.Error
 import           Control.Effect.Reader
 import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, unless)
-import           Data.Foldable (fold, foldl', toList)
-import           Data.List (intersperse)
+import           Data.Foldable (foldl', toList)
 import qualified Data.Map as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
 import           Path.Context as Context
+import           Path.Error
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
@@ -178,25 +177,3 @@ hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
   [ (ctx :|-: (ty1 :===: ty2) ::: Type) :~ span
   , (ctx :|-: (tm1 :===: tm2) ::: ty1)  :~ span
   ]
-
-
-unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => HomConstraint -> m a
-unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx))
-
-blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
-blockedConstraints constraints = throwError (fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints)))
-  where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
-
-stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
-stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
-  where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
-
-
-prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
-prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
-
-prettyEqn :: (Pretty a, Pretty b) => (Equation a ::: b) -> Doc
-prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
-  [ pretty "expected:" <+> pretty (expected ::: ty)
-  , pretty "  actual:" <+> pretty (actual ::: ty)
-  ])
