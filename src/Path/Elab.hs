@@ -229,10 +229,10 @@ elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
   decls <- for (moduleDecls m) $ \ decl ->
-    (Just <$> elabDecl decl) `catchError` ((Nothing <$) . logError @Doc)
+    (Just <$> elabDecl decl) `catchError` ((Nothing <$) . logError)
   pure m { moduleDecls = catMaybes decls }
 
-logError :: (Member (State (Stack error)) sig, Carrier sig m) => error -> m ()
+logError :: (Member (State (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = modify . flip (:>)
 
 importModule :: ( Carrier sig m
