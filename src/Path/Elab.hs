@@ -228,7 +228,8 @@ elabModule :: ( Carrier sig m
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
-  decls <- for (moduleDecls m) (either ((Nothing <$) . logError @Doc) (pure . Just) <=< runError . elabDecl)
+  decls <- for (moduleDecls m) $ \ decl ->
+    (Just <$> elabDecl decl) `catchError` ((Nothing <$) . logError @Doc)
   pure m { moduleDecls = catMaybes decls }
 
 logError :: (Member (State (Stack error)) sig, Carrier sig m) => error -> m ()
