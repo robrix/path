@@ -135,7 +135,7 @@ exists :: ( Carrier sig m
 exists ty = do
   ctx <- context
   n <- Meta <$> gensym "meta"
-  pure (pure n Value.$$* fmap (pure . Name . Local) (Context.vars ctx) ::: ty)
+  pure (pure n Value.$$* (pure . Name . Local <$> Context.vars ctx) ::: ty)
 
 goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
 goal = ask
