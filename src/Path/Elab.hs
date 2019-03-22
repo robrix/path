@@ -89,7 +89,7 @@ pi x p m t body = do
   t' ::: _ <- goalIs Type t
   x <- gensym (maybe "_" showUser x)
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
-  expect (Value.pi ((Name (Local x), p, m) ::: t') b' ::: Type)
+  expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
 
 app :: ( Carrier sig m
        , Member Naming sig
