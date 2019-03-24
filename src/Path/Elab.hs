@@ -1,7 +1,8 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Elab where
 
 import Control.Effect
+import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
@@ -175,6 +176,35 @@ elab = \case
   Core.Pi n p m t b -> pi n p m (elab t) (\ n' -> elab (Core.instantiate (pure n') b))
   Core.Hole _ -> goal >>= exists
   Core.Ann ann b -> local (const ann) (elab b)
+
+
+data Elab m k
+  = Exists (Type Meta) (Value Meta ::: Type Meta -> k)
+  | Goal (Type Meta -> k)
+  | forall a . GoalIs (Type Meta) (m a) (a -> k)
+  | Have Name (Type Meta -> k)
+  | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
+  | Unify (Equation (Value Meta ::: Type Meta)) k
+
+deriving instance Functor (Elab m)
+
+instance HFunctor Elab where
+  hmap f = \case
+    Exists t   k -> Exists t       k
+    Goal       k -> Goal           k
+    GoalIs t m k -> GoalIs t (f m) k
+    Have   n   k -> Have   n       k
+    Bind   b m k -> Bind   b (f m) k
+    Unify  q   k -> Unify  q       k
+
+instance Effect Elab where
+  handle state handler = \case
+    Exists t   k -> Exists t                        (handler . (<$ state) . k)
+    Goal       k -> Goal                            (handler . (<$ state) . k)
+    GoalIs t m k -> GoalIs t (handler (m <$ state)) (handler . fmap k)
+    Have   n   k -> Have   n                        (handler . (<$ state) . k)
+    Bind   b m k -> Bind   b (handler (m <$ state)) (handler . fmap k)
+    Unify  q   k -> Unify  q                        (handler (k <$ state))
 
 
 runSolver :: ( Carrier sig m
