@@ -157,6 +157,9 @@ unify (tm1 ::: ty1 :===: tm2 ::: ty2) = do
     , (context :|-: (tm1 :===: tm2) ::: ty1)        :~ span
     ])
 
+spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
+spanIs span = local (const span)
+
 
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
@@ -176,7 +179,7 @@ elab = \case
   Core.Type -> type'
   Core.Pi n p m t b -> pi n p m (elab t) (\ n' -> elab (Core.instantiate (pure n') b))
   Core.Hole _ -> goal >>= exists
-  Core.Ann ann b -> local (const ann) (elab b)
+  Core.Ann ann b -> spanIs ann (elab b)
 
 
 data Elab m k
