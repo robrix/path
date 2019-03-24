@@ -103,6 +103,15 @@ unify :: (Carrier sig m, Member Elab sig)
       -> m ()
 unify q = send (Unify q (pure ()))
 
+(|-) :: (Carrier sig m, Member Elab sig) => Gensym ::: Type Meta -> m a -> m a
+b |- m = send (Bind b m pure)
+
+infix 5 |-
+
+have :: (Carrier sig m, Member Elab sig) => Name -> m (Maybe (Type Meta))
+have n = send (Have n pure)
+
+
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
@@ -191,15 +200,6 @@ runSolver constraints (tm ::: ty) = do
 
 inferredType :: (Carrier sig m, Member Naming sig) => Maybe (Type Meta) -> m (Type Meta)
 inferredType = maybe (pure . Meta <$> gensym "meta") pure
-
-
-(|-) :: (Carrier sig m, Member Elab sig) => Gensym ::: Type Meta -> m a -> m a
-b |- m = send (Bind b m pure)
-
-infix 5 |-
-
-have :: (Carrier sig m, Member Elab sig) => Name -> m (Maybe (Type Meta))
-have n = send (Have n pure)
 
 
 type ModuleTable = Map.Map ModuleName Scope
