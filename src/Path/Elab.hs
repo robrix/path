@@ -253,8 +253,8 @@ runSolver constraints (tm ::: ty) = do
   pure (apply subst tm ::: apply subst ty)
 
 runElab :: Type Meta
-        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) (Value Meta ::: Type Meta)
-        -> m (Set.Set Constraint, Value Meta ::: Type Meta)
+        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) a
+        -> m (Set.Set Constraint, a)
 runElab ty m = runWriter (runReader mempty (runReader ty m))
 
 inferredType :: (Carrier sig m, Member Naming sig) => Maybe (Type Meta) -> m (Type Meta)
