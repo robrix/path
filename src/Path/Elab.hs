@@ -6,6 +6,7 @@ import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
+import Control.Effect.Sum
 import Control.Effect.Writer
 import Control.Monad ((<=<))
 import Data.Foldable (for_)
@@ -205,6 +206,30 @@ instance Effect Elab where
     Have   n   k -> Have   n                        (handler . (<$ state) . k)
     Bind   b m k -> Bind   b (handler (m <$ state)) (handler . fmap k)
     Unify  q   k -> Unify  q                        (handler (k <$ state))
+
+
+newtype ElabC m a = ElabC { runElabC :: ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) a }
+  deriving (Applicative, Functor, Monad)
+
+instance (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
+  eff (L (Exists ty k)) = do
+    ctx <- ElabC ask
+    n <- Meta <$> gensym "meta"
+    k (pure n Value.$$* (pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))) ::: ty)
+  eff (L (Goal k)) = ElabC ask >>= k
+  eff (L (GoalIs ty m k)) = ElabC (local (const ty) (runElabC m)) >>= k
+  eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= maybe (freeVariable (Global n)) (k . Value.weaken . entryType)
+  eff (L (Have (Local  n) k)) = ElabC (asks (Context.lookup n)) >>= maybe (freeVariable (Local  n)) k
+  eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
+  eff (L (Unify (tm1 ::: ty1 :===: tm2 ::: ty2) k)) = ElabC $ do
+    span <- ask
+    context <- ask
+    tell (Set.fromList
+      [ (context :|-: (ty1 :===: ty2) ::: Value.Type) :~ span
+      , (context :|-: (tm1 :===: tm2) ::: ty1)        :~ span
+      ])
+    runElabC k
+  eff (R other) = ElabC (eff (R (R (R (handleCoercible other)))))
 
 
 runSolver :: ( Carrier sig m
