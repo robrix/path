@@ -42,7 +42,7 @@ assume :: ( Carrier sig m
        => Name
        -> m (Value Meta ::: Type Meta)
 assume v = do
-  _A <- lookupVar v
+  _A <- have v
   expect (pure (Name v) ::: _A)
 
 intro :: ( Carrier sig m
@@ -211,9 +211,9 @@ n ::: t |- m = local (Context.insert (n ::: t)) m
 
 infix 5 |-
 
-lookupVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name -> m (Type Meta)
-lookupVar (Global n) = asks (Scope.lookup   n) >>= maybe (freeVariable (Global n)) (pure . Value.weaken . entryType)
-lookupVar (Local  n) = asks (Context.lookup n) >>= maybe (freeVariable (Local  n)) pure
+have :: (Carrier sig m, Member (Error Doc) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name -> m (Type Meta)
+have (Global n) = asks (Scope.lookup   n) >>= maybe (freeVariable (Global n)) (pure . Value.weaken . entryType)
+have (Local  n) = asks (Context.lookup n) >>= maybe (freeVariable (Local  n)) pure
 
 
 type ModuleTable = Map.Map ModuleName Scope
