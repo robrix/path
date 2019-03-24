@@ -148,6 +148,11 @@ instance Effect Elab where
     Unify  q   k -> Unify  q                        (handler (k <$ state))
 
 
+runElab :: Type Meta
+        -> ElabC m a
+        -> m (Set.Set Constraint, a)
+runElab ty = runWriter . runReader mempty . runReader ty . runElabC
+
 newtype ElabC m a = ElabC { runElabC :: ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) a }
   deriving (Applicative, Functor, Monad)
 
@@ -183,11 +188,6 @@ runSolver :: ( Carrier sig m
 runSolver constraints (tm ::: ty) = do
   subst <- solver constraints
   pure (apply subst tm ::: apply subst ty)
-
-runElab :: Type Meta
-        -> ElabC m a
-        -> m (Set.Set Constraint, a)
-runElab ty = runWriter . runReader mempty . runReader ty . runElabC
 
 inferredType :: (Carrier sig m, Member Naming sig) => Maybe (Type Meta) -> m (Type Meta)
 inferredType = maybe (pure . Meta <$> gensym "meta") pure
