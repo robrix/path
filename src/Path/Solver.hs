@@ -170,11 +170,3 @@ solve m v = do
 
 isBlockedOn :: Meta -> HomConstraint -> Bool
 isBlockedOn m = Set.member m . fvs
-
-
-hetToHom :: HetConstraint -> Set.Set HomConstraint
-hetToHom ((ctx :|-: tm1 ::: ty1 :===: tm2 ::: ty2) :~ span) = Set.fromList
-  -- FIXME: represent dependency of second on first
-  [ (ctx :|-: (ty1 :===: ty2) ::: Type) :~ span
-  , (ctx :|-: (tm1 :===: tm2) ::: ty1)  :~ span
-  ]
