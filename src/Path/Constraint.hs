@@ -26,7 +26,7 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
   fvs (a1 :===: a2) = fvs a1 <> fvs a2
 
 
-type HomConstraint = Spanned (Contextual (Equation (Value Meta) ::: Type Meta))
+type Constraint = Spanned (Contextual (Equation (Value Meta) ::: Type Meta))
 
 
 type Substitution = Map.Map Gensym (Value Meta)

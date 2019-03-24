@@ -37,7 +37,7 @@ assume :: ( Carrier sig m
           , Member (Reader Scope) sig
           , Member (Reader Span) sig
           , Member (Reader (Type Meta)) sig
-          , Member (Writer (Set.Set HomConstraint)) sig
+          , Member (Writer (Set.Set Constraint)) sig
           )
        => Name
        -> m (Value Meta ::: Type Meta)
@@ -50,7 +50,7 @@ intro :: ( Carrier sig m
          , Member (Reader (Context (Type Meta))) sig
          , Member (Reader Span) sig
          , Member (Reader (Type Meta)) sig
-         , Member (Writer (Set.Set HomConstraint)) sig
+         , Member (Writer (Set.Set Constraint)) sig
          )
       => Maybe User
       -> (Name -> m (Value Meta ::: Type Meta))
@@ -67,7 +67,7 @@ type' :: ( Carrier sig m
          , Member (Reader (Context (Type Meta))) sig
          , Member (Reader Span) sig
          , Member (Reader (Type Meta)) sig
-         , Member (Writer (Set.Set HomConstraint)) sig
+         , Member (Writer (Set.Set Constraint)) sig
          )
       => m (Value Meta ::: Type Meta)
 type' = expect (Type ::: Type)
@@ -77,7 +77,7 @@ pi :: ( Carrier sig m
       , Member (Reader (Context (Type Meta))) sig
       , Member (Reader Span) sig
       , Member (Reader (Type Meta)) sig
-      , Member (Writer (Set.Set HomConstraint)) sig
+      , Member (Writer (Set.Set Constraint)) sig
       )
    => Maybe User
    -> Plicity
@@ -96,7 +96,7 @@ app :: ( Carrier sig m
        , Member (Reader (Context (Type Meta))) sig
        , Member (Reader Span) sig
        , Member (Reader (Type Meta)) sig
-       , Member (Writer (Set.Set HomConstraint)) sig
+       , Member (Writer (Set.Set Constraint)) sig
        )
     => m (Value Meta ::: Type Meta)
     -> m (Value Meta ::: Type Meta)
@@ -115,7 +115,7 @@ expect :: ( Carrier sig m
           , Member (Reader (Context (Type Meta))) sig
           , Member (Reader Span) sig
           , Member (Reader (Type Meta)) sig
-          , Member (Writer (Set.Set HomConstraint)) sig
+          , Member (Writer (Set.Set Constraint)) sig
           )
        => Value Meta ::: Type Meta
        -> m (Value Meta ::: Type Meta)
@@ -146,7 +146,7 @@ goalIs ty = local (const ty)
 unify :: ( Carrier sig m
          , Member (Reader (Context (Type Meta))) sig
          , Member (Reader Span) sig
-         , Member (Writer (Set.Set HomConstraint)) sig
+         , Member (Writer (Set.Set Constraint)) sig
          )
       => Equation (Value Meta ::: Type Meta)
       -> m ()
@@ -166,7 +166,7 @@ elab :: ( Carrier sig m
         , Member (Reader Scope) sig
         , Member (Reader Span) sig
         , Member (Reader (Type Meta)) sig
-        , Member (Writer (Set.Set HomConstraint)) sig
+        , Member (Writer (Set.Set Constraint)) sig
         )
      => Core.Core Name
      -> m (Value Meta ::: Type Meta)
@@ -186,7 +186,7 @@ runSolver :: ( Carrier sig m
              , Member Naming sig
              , Member (Reader Scope) sig
              )
-          => Set.Set HomConstraint
+          => Set.Set Constraint
           -> Value Meta ::: Type Meta
           -> m (Value Meta ::: Type Meta)
 runSolver constraints (tm ::: ty) = do
@@ -199,8 +199,8 @@ runElab :: ( Carrier sig m
            , Member (Reader Span) sig
            )
         => Maybe (Type Meta)
-        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HomConstraint) m)) (Value Meta ::: Type Meta)
-        -> m (Set.Set HomConstraint, Value Meta ::: Type Meta)
+        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) (Value Meta ::: Type Meta)
+        -> m (Set.Set Constraint, Value Meta ::: Type Meta)
 runElab ty m = do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
   runWriter . runReader mempty . runReader ty' $ do

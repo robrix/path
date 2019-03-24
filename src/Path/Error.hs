@@ -26,14 +26,14 @@ ambiguousName name sources = do
     : map prettyQName (toList sources)))])
 
 
-unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => HomConstraint -> m a
+unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => Constraint -> m a
 unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx))
 
-blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
+blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Constraint] -> m a
 blockedConstraints constraints = throwError (fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints)))
   where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
 
-stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [HomConstraint] -> m a
+stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Constraint] -> m a
 stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
   where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
 

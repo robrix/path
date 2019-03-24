@@ -22,8 +22,8 @@ import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Spanned(..))
 
-type Blocked = Set.Set HomConstraint
-type Queue = Seq.Seq HomConstraint
+type Blocked = Set.Set Constraint
+type Queue = Seq.Seq Constraint
 
 -- FIXME: we need constraint dependencies to ensure that we e.g. δ-reduce a type like Either L R and solve the π type unification constraint before we try to solve whatever we typed using it
 
@@ -36,8 +36,8 @@ simplify :: ( Carrier sig m
             , Member (State Queue) sig
             , Member (State Substitution) sig
             )
-         => HomConstraint
-         -> m (Set.Set HomConstraint)
+         => Constraint
+         -> m (Set.Set Constraint)
 simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constraint)
   where go scope = \case
           _ :|-: (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
@@ -97,7 +97,7 @@ solver :: ( Carrier sig m
           , Member Naming sig
           , Member (Reader Scope) sig
           )
-       => Set.Set HomConstraint
+       => Set.Set Constraint
        -> m Substitution
 solver constraints = execState Map.empty $ do
   (queue, blocked) <- runState (Seq.empty :: Queue) . execState (Set.empty :: Blocked) $ do
@@ -130,7 +130,7 @@ process :: ( Carrier sig m
            , Member (State Substitution) sig
            )
         => Substitution
-        -> HomConstraint
+        -> Constraint
         -> m ()
 process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | tm1 == tm2 = pure ()
@@ -139,13 +139,13 @@ process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
   | Just (m, sp) <- pattern tm2 = solve m (Value.lams sp tm1)
   | otherwise = block c
 
-block :: (Carrier sig m, Member (State Blocked) sig) => HomConstraint -> m ()
+block :: (Carrier sig m, Member (State Blocked) sig) => Constraint -> m ()
 block c = modify (Set.insert c)
 
-enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t HomConstraint -> m ()
+enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t Constraint -> m ()
 enqueueAll = modify . flip (foldl' (Seq.|>))
 
-dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe HomConstraint)
+dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe Constraint)
 dequeue = gets Seq.viewl >>= \case
   Seq.EmptyL -> pure Nothing
   h Seq.:< q -> Just h <$ put q
@@ -168,5 +168,5 @@ solve m v = do
   enqueueAll unblocked
   put blocked
 
-isBlockedOn :: Meta -> HomConstraint -> Bool
+isBlockedOn :: Meta -> Constraint -> Bool
 isBlockedOn m = Set.member m . fvs
