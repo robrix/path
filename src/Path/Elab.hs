@@ -155,10 +155,7 @@ newtype ElabC m a = ElabC { runElabC :: ReaderC (Type Meta) (ReaderC (Context (T
   deriving (Applicative, Functor, Monad)
 
 instance (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
-  eff (L (Exists ty k)) = do
-    ctx <- ElabC ask
-    n <- Meta <$> gensym "meta"
-    k (pure n Value.$$* (pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))) ::: ty)
+  eff (L (Exists ty k)) = meta ty >>= k
   eff (L (Goal k)) = ElabC ask >>= k
   eff (L (GoalIs ty m k)) = ElabC (local (const ty) (runElabC m)) >>= k
   eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= maybe (freeVariable (Global n)) (k . Value.weaken . entryType)
@@ -175,6 +172,11 @@ instance (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, 
   eff (L (SpanIs s m k)) = ElabC (local (const s) (runElabC m)) >>= k
   eff (R other) = ElabC (eff (R (R (R (handleCoercible other)))))
 
+meta :: (Carrier sig m, Effect sig, Member Naming sig) => Type Meta -> ElabC m (Value Meta ::: Type Meta)
+meta ty = ElabC $ do
+  ctx <- ask
+  n <- Meta <$> gensym "meta"
+  pure (pure n Value.$$* (pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))) ::: ty)
 
 runSolver :: ( Carrier sig m
              , Effect sig
