@@ -252,17 +252,13 @@ runSolver constraints (tm ::: ty) = do
   subst <- solver constraints
   pure (apply subst tm ::: apply subst ty)
 
-runElab :: ( Carrier sig m
-           , Effect sig
-           , Member Naming sig
-           , Member (Reader Span) sig
-           )
-        => Maybe (Type Meta)
+runElab :: Type Meta
         -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) (Value Meta ::: Type Meta)
         -> m (Set.Set Constraint, Value Meta ::: Type Meta)
-runElab ty m = do
-  ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
-  runWriter (runReader mempty (runReader ty' m))
+runElab ty m = runWriter (runReader mempty (runReader ty m))
+
+inferredType :: (Carrier sig m, Member Naming sig) => Maybe (Type Meta) -> m (Type Meta)
+inferredType = maybe (pure . Meta <$> gensym "meta") pure
 
 
 (|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
@@ -330,7 +326,7 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core Name
             -> m (Value Name ::: Type Name)
 elabDeclare name ty = do
-  tm ::: ty <- runScope (runElab (Just Value.Type) (elab ty) >>= uncurry runSolver)
+  tm ::: ty <- runScope (runElab Value.Type (elab ty) >>= uncurry runSolver)
   let elab = (Value.generalizeType tm ::: Value.generalizeType ty)
   elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
 
@@ -345,7 +341,7 @@ elabDefine :: ( Carrier sig m
            -> Core.Core Name
            -> m (Value Name ::: Type Name)
 elabDefine name tm = do
-  ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name)
+  ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name) >>= inferredType
   (constraints, res) <- runScope (runElab ty (elab tm))
   tm ::: ty <- runScope (runSolver constraints res)
   let ty' = Value.generalizeType ty
