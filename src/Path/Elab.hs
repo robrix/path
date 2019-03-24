@@ -32,28 +32,14 @@ import qualified Path.Value as Value
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
-assume :: ( Carrier sig m
-          , Member (Error Doc) sig
-          , Member Naming sig
-          , Member (Reader (Context (Type Meta))) sig
-          , Member (Reader Scope) sig
-          , Member (Reader Span) sig
-          , Member (Reader (Type Meta)) sig
-          , Member (Writer (Set.Set Constraint)) sig
-          )
+assume :: (Carrier sig m, Member Elab sig)
        => Name
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- have v
   expect (pure (Name v) ::: _A)
 
-intro :: ( Carrier sig m
-         , Member Naming sig
-         , Member (Reader (Context (Type Meta))) sig
-         , Member (Reader Span) sig
-         , Member (Reader (Type Meta)) sig
-         , Member (Writer (Set.Set Constraint)) sig
-         )
+intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
       => Maybe User
       -> (Name -> m (Value Meta ::: Type Meta))
       -> m (Value Meta ::: Type Meta)
@@ -64,23 +50,11 @@ intro x body = do
   u ::: _ <- x ::: _A |- goalIs _B (body (Local x))
   expect (Value.lam (Name (Local x)) u ::: Value.pi ((Name (Local x), Ex, zero) ::: _A) _B)
 
-type' :: ( Carrier sig m
-         , Member Naming sig
-         , Member (Reader (Context (Type Meta))) sig
-         , Member (Reader Span) sig
-         , Member (Reader (Type Meta)) sig
-         , Member (Writer (Set.Set Constraint)) sig
-         )
+type' :: (Carrier sig m, Member Elab sig)
       => m (Value Meta ::: Type Meta)
 type' = expect (Type ::: Type)
 
-pi :: ( Carrier sig m
-      , Member Naming sig
-      , Member (Reader (Context (Type Meta))) sig
-      , Member (Reader Span) sig
-      , Member (Reader (Type Meta)) sig
-      , Member (Writer (Set.Set Constraint)) sig
-      )
+pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    => Maybe User
    -> Plicity
    -> Usage
@@ -93,13 +67,7 @@ pi x p m t body = do
   b' ::: _ <- x ::: t' |- goalIs Type (body (Local x))
   expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
 
-app :: ( Carrier sig m
-       , Member Naming sig
-       , Member (Reader (Context (Type Meta))) sig
-       , Member (Reader Span) sig
-       , Member (Reader (Type Meta)) sig
-       , Member (Writer (Set.Set Constraint)) sig
-       )
+app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     => m (Value Meta ::: Type Meta)
     -> m (Value Meta ::: Type Meta)
     -> m (Value Meta ::: Type Meta)
@@ -112,64 +80,33 @@ app f a = do
   expect (f' Value.$$ a' ::: _B)
 
 
-expect :: ( Carrier sig m
-          , Member Naming sig
-          , Member (Reader (Context (Type Meta))) sig
-          , Member (Reader Span) sig
-          , Member (Reader (Type Meta)) sig
-          , Member (Writer (Set.Set Constraint)) sig
-          )
+expect :: (Carrier sig m, Member Elab sig)
        => Value Meta ::: Type Meta
        -> m (Value Meta ::: Type Meta)
 expect exp = do
   res <- goal >>= exists
   res <$ unify (exp :===: res)
 
-exists :: ( Carrier sig m
-          , Member Naming sig
-          , Member (Reader (Context (Type Meta))) sig
-          )
+exists :: (Carrier sig m, Member Elab sig)
        => Type Meta
        -> m (Value Meta ::: Type Meta)
-exists ty = do
-  ctx <- ask
-  n <- Meta <$> gensym "meta"
-  pure (pure n Value.$$* (pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))) ::: ty)
+exists ty = send (Exists ty pure)
 
-goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
-goal = ask
+goal :: (Carrier sig m, Member Elab sig) => m (Type Meta)
+goal = send (Goal pure)
 
-goalIs :: (Carrier sig m, Member (Reader (Type Meta)) sig) => Type Meta -> m a -> m a
-goalIs ty = local (const ty)
+goalIs :: (Carrier sig m, Member Elab sig) => Type Meta -> m a -> m a
+goalIs ty m = send (GoalIs ty m pure)
 
-unify :: ( Carrier sig m
-         , Member (Reader (Context (Type Meta))) sig
-         , Member (Reader Span) sig
-         , Member (Writer (Set.Set Constraint)) sig
-         )
+unify :: (Carrier sig m, Member Elab sig)
       => Equation (Value Meta ::: Type Meta)
       -> m ()
-unify (tm1 ::: ty1 :===: tm2 ::: ty2) = do
-  span <- ask
-  context <- ask
-  tell (Set.fromList
-    [ (context :|-: (ty1 :===: ty2) ::: Value.Type) :~ span
-    , (context :|-: (tm1 :===: tm2) ::: ty1)        :~ span
-    ])
+unify q = send (Unify q (pure ()))
 
-spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
-spanIs span = local (const span)
+spanIs :: (Carrier sig m, Member Elab sig) => Span -> m a -> m a
+spanIs span m = send (SpanIs span m pure)
 
-
-elab :: ( Carrier sig m
-        , Member (Error Doc) sig
-        , Member Naming sig
-        , Member (Reader (Context (Type Meta))) sig
-        , Member (Reader Scope) sig
-        , Member (Reader Span) sig
-        , Member (Reader (Type Meta)) sig
-        , Member (Writer (Set.Set Constraint)) sig
-        )
+elab :: (Carrier sig m, Member Elab sig, Member Naming sig)
      => Core.Core Name
      -> m (Value Meta ::: Type Meta)
 elab = \case
@@ -253,22 +190,21 @@ runSolver constraints (tm ::: ty) = do
   pure (apply subst tm ::: apply subst ty)
 
 runElab :: Type Meta
-        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) a
+        -> ElabC m a
         -> m (Set.Set Constraint, a)
-runElab ty m = runWriter (runReader mempty (runReader ty m))
+runElab ty = runWriter . runReader mempty . runReader ty . runElabC
 
 inferredType :: (Carrier sig m, Member Naming sig) => Maybe (Type Meta) -> m (Type Meta)
 inferredType = maybe (pure . Meta <$> gensym "meta") pure
 
 
-(|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
-n ::: t |- m = local (Context.insert (n ::: t)) m
+(|-) :: (Carrier sig m, Member Elab sig) => Gensym ::: Type Meta -> m a -> m a
+b |- m = send (Bind b m pure)
 
 infix 5 |-
 
-have :: (Carrier sig m, Member (Error Doc) sig, Member (Reader (Context (Type Meta))) sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Name -> m (Type Meta)
-have (Global n) = asks (Scope.lookup   n) >>= maybe (freeVariable (Global n)) (pure . Value.weaken . entryType)
-have (Local  n) = asks (Context.lookup n) >>= maybe (freeVariable (Local  n)) pure
+have :: (Carrier sig m, Member Elab sig) => Name -> m (Type Meta)
+have n = send (Have n pure)
 
 
 type ModuleTable = Map.Map ModuleName Scope
