@@ -32,11 +32,11 @@ import qualified Path.Value as Value
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
-assume :: (Carrier sig m, Member Elab sig)
+assume :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member (Reader Span) sig)
        => Name
        -> m (Value Meta ::: Type Meta)
 assume v = do
-  _A <- have v
+  _A <- have v >>= maybe (freeVariable v) pure
   expect (pure (Name v) ::: _A)
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
@@ -106,7 +106,7 @@ unify q = send (Unify q (pure ()))
 spanIs :: (Carrier sig m, Member Elab sig) => Span -> m a -> m a
 spanIs span m = send (SpanIs span m pure)
 
-elab :: (Carrier sig m, Member Elab sig, Member Naming sig)
+elab :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig)
      => Core.Core Name
      -> m (Value Meta ::: Type Meta)
 elab = \case
@@ -123,7 +123,7 @@ data Elab m k
   = Exists (Type Meta) (Value Meta ::: Type Meta -> k)
   | Goal (Type Meta -> k)
   | forall a . GoalIs (Type Meta) (m a) (a -> k)
-  | Have Name (Type Meta -> k)
+  | Have Name (Maybe (Type Meta) -> k)
   | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
   | Unify (Equation (Value Meta ::: Type Meta)) k
   | forall a . SpanIs Span (m a) (a -> k)
@@ -154,12 +154,12 @@ instance Effect Elab where
 newtype ElabC m a = ElabC { runElabC :: ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) a }
   deriving (Applicative, Functor, Monad)
 
-instance (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
+instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
   eff (L (Exists ty k)) = meta ty >>= k
   eff (L (Goal k)) = ElabC ask >>= k
   eff (L (GoalIs ty m k)) = ElabC (local (const ty) (runElabC m)) >>= k
-  eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= maybe (freeVariable (Global n)) (k . Value.weaken . entryType)
-  eff (L (Have (Local  n) k)) = ElabC (asks (Context.lookup n)) >>= maybe (freeVariable (Local  n)) k
+  eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= k . fmap (Value.weaken . entryType)
+  eff (L (Have (Local  n) k)) = ElabC (asks (Context.lookup n)) >>= k
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
   eff (L (Unify (tm1 ::: ty1 :===: tm2 ::: ty2) k)) = ElabC $ do
     span <- ask
@@ -205,7 +205,7 @@ b |- m = send (Bind b m pure)
 
 infix 5 |-
 
-have :: (Carrier sig m, Member Elab sig) => Name -> m (Type Meta)
+have :: (Carrier sig m, Member Elab sig) => Name -> m (Maybe (Type Meta))
 have n = send (Have n pure)
 
 
