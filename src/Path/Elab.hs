@@ -123,9 +123,6 @@ expect exp = do
   res <- goal >>= exists
   res <$ unify (exp :===: res)
 
-context :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => m (Context (Type Meta))
-context = ask
-
 exists :: ( Carrier sig m
           , Member Naming sig
           , Member (Reader (Context (Type Meta))) sig
@@ -133,9 +130,9 @@ exists :: ( Carrier sig m
        => Type Meta
        -> m (Value Meta ::: Type Meta)
 exists ty = do
-  ctx <- context
+  ctx <- ask
   n <- Meta <$> gensym "meta"
-  pure (pure n Value.$$* (pure . Name . Local <$> Context.vars ctx) ::: ty)
+  pure (pure n Value.$$* (pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))) ::: ty)
 
 goal :: (Carrier sig m, Member (Reader (Type Meta)) sig) => m (Type Meta)
 goal = ask
