@@ -262,10 +262,7 @@ runElab :: ( Carrier sig m
         -> m (Set.Set Constraint, Value Meta ::: Type Meta)
 runElab ty m = do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
-  runWriter . runReader mempty . runReader ty' $ do
-    val <- exists ty'
-    m' <- m
-    m' <$ unify (m' :===: val)
+  runWriter (runReader mempty (runReader ty' m))
 
 
 (|-) :: (Carrier sig m, Member (Reader (Context (Type Meta))) sig) => Gensym ::: Type Meta -> m a -> m a
