@@ -103,8 +103,8 @@ unify :: (Carrier sig m, Member Elab sig)
       -> m ()
 unify q = send (Unify q (pure ()))
 
-spanIs :: (Carrier sig m, Member Elab sig) => Span -> m a -> m a
-spanIs span m = send (SpanIs span m pure)
+spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
+spanIs span = local (const span)
 
 elab :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig)
      => Core.Core Name
@@ -126,7 +126,6 @@ data Elab m k
   | Have Name (Maybe (Type Meta) -> k)
   | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
   | Unify (Equation (Value Meta ::: Type Meta)) k
-  | forall a . SpanIs Span (m a) (a -> k)
 
 deriving instance Functor (Elab m)
 
@@ -138,7 +137,6 @@ instance HFunctor Elab where
     Have   n   k -> Have   n       k
     Bind   b m k -> Bind   b (f m) k
     Unify  q   k -> Unify  q       k
-    SpanIs s m k -> SpanIs s (f m) k
 
 instance Effect Elab where
   handle state handler = \case
@@ -148,7 +146,6 @@ instance Effect Elab where
     Have   n   k -> Have   n                        (handler . (<$ state) . k)
     Bind   b m k -> Bind   b (handler (m <$ state)) (handler . fmap k)
     Unify  q   k -> Unify  q                        (handler (k <$ state))
-    SpanIs s m k -> SpanIs s (handler (m <$ state)) (handler . fmap k)
 
 
 newtype ElabC m a = ElabC { runElabC :: ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m)) a }
@@ -169,7 +166,6 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
       , (context :|-: (tm1 :===: tm2) ::: ty1)        :~ span
       ])
     runElabC k
-  eff (L (SpanIs s m k)) = ElabC (local (const s) (runElabC m)) >>= k
   eff (R other) = ElabC (eff (R (R (R (handleCoercible other)))))
 
 meta :: (Carrier sig m, Effect sig, Member Naming sig) => Type Meta -> ElabC m (Value Meta ::: Type Meta)
