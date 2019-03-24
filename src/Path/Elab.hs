@@ -263,7 +263,7 @@ elabDeclare :: ( Carrier sig m
             -> m (Value Name ::: Type Name)
 elabDeclare name ty = do
   tm ::: ty <- runScope (runElab Value.Type (elab ty) >>= uncurry runSolver)
-  let elab = (Value.generalizeType tm ::: Value.generalizeType ty)
+  let elab = Value.generalizeType tm ::: Value.generalizeType ty
   elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
 
 elabDefine :: ( Carrier sig m
