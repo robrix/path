@@ -37,7 +37,7 @@ assume :: ( Carrier sig m
           , Member (Reader Scope) sig
           , Member (Reader Span) sig
           , Member (Reader (Type Meta)) sig
-          , Member (Writer (Set.Set HetConstraint)) sig
+          , Member (Writer (Set.Set HomConstraint)) sig
           )
        => Name
        -> m (Value Meta ::: Type Meta)
@@ -50,7 +50,7 @@ intro :: ( Carrier sig m
          , Member (Reader (Context (Type Meta))) sig
          , Member (Reader Span) sig
          , Member (Reader (Type Meta)) sig
-         , Member (Writer (Set.Set HetConstraint)) sig
+         , Member (Writer (Set.Set HomConstraint)) sig
          )
       => Maybe User
       -> (Name -> m (Value Meta ::: Type Meta))
@@ -67,7 +67,7 @@ type' :: ( Carrier sig m
          , Member (Reader (Context (Type Meta))) sig
          , Member (Reader Span) sig
          , Member (Reader (Type Meta)) sig
-         , Member (Writer (Set.Set HetConstraint)) sig
+         , Member (Writer (Set.Set HomConstraint)) sig
          )
       => m (Value Meta ::: Type Meta)
 type' = expect (Type ::: Type)
@@ -77,7 +77,7 @@ pi :: ( Carrier sig m
       , Member (Reader (Context (Type Meta))) sig
       , Member (Reader Span) sig
       , Member (Reader (Type Meta)) sig
-      , Member (Writer (Set.Set HetConstraint)) sig
+      , Member (Writer (Set.Set HomConstraint)) sig
       )
    => Maybe User
    -> Plicity
@@ -96,7 +96,7 @@ app :: ( Carrier sig m
        , Member (Reader (Context (Type Meta))) sig
        , Member (Reader Span) sig
        , Member (Reader (Type Meta)) sig
-       , Member (Writer (Set.Set HetConstraint)) sig
+       , Member (Writer (Set.Set HomConstraint)) sig
        )
     => m (Value Meta ::: Type Meta)
     -> m (Value Meta ::: Type Meta)
@@ -115,7 +115,7 @@ expect :: ( Carrier sig m
           , Member (Reader (Context (Type Meta))) sig
           , Member (Reader Span) sig
           , Member (Reader (Type Meta)) sig
-          , Member (Writer (Set.Set HetConstraint)) sig
+          , Member (Writer (Set.Set HomConstraint)) sig
           )
        => Value Meta ::: Type Meta
        -> m (Value Meta ::: Type Meta)
@@ -146,11 +146,17 @@ goalIs ty = local (const ty)
 unify :: ( Carrier sig m
          , Member (Reader (Context (Type Meta))) sig
          , Member (Reader Span) sig
-         , Member (Writer (Set.Set HetConstraint)) sig
+         , Member (Writer (Set.Set HomConstraint)) sig
          )
       => Equation (Value Meta ::: Type Meta)
       -> m ()
-unify constraint = (:~) <$> asks (:|-: constraint) <*> ask >>= tell . Set.singleton
+unify (tm1 ::: ty1 :===: tm2 ::: ty2) = do
+  span <- ask
+  context <- ask
+  tell (Set.fromList
+    [ (context :|-: (ty1 :===: ty2) ::: Value.Type) :~ span
+    , (context :|-: (tm1 :===: tm2) ::: ty1)        :~ span
+    ])
 
 
 elab :: ( Carrier sig m
@@ -160,7 +166,7 @@ elab :: ( Carrier sig m
         , Member (Reader Scope) sig
         , Member (Reader Span) sig
         , Member (Reader (Type Meta)) sig
-        , Member (Writer (Set.Set HetConstraint)) sig
+        , Member (Writer (Set.Set HomConstraint)) sig
         )
      => Core.Core Name
      -> m (Value Meta ::: Type Meta)
@@ -180,11 +186,11 @@ runSolver :: ( Carrier sig m
              , Member Naming sig
              , Member (Reader Scope) sig
              )
-          => Set.Set HetConstraint
+          => Set.Set HomConstraint
           -> Value Meta ::: Type Meta
           -> m (Value Meta ::: Type Meta)
 runSolver constraints (tm ::: ty) = do
-  subst <- solver (foldMap hetToHom constraints)
+  subst <- solver constraints
   pure (apply subst tm ::: apply subst ty)
 
 runElab :: ( Carrier sig m
@@ -193,8 +199,8 @@ runElab :: ( Carrier sig m
            , Member (Reader Span) sig
            )
         => Maybe (Type Meta)
-        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HetConstraint) m)) (Value Meta ::: Type Meta)
-        -> m (Set.Set HetConstraint, Value Meta ::: Type Meta)
+        -> ReaderC (Type Meta) (ReaderC (Context (Type Meta)) (WriterC (Set.Set HomConstraint) m)) (Value Meta ::: Type Meta)
+        -> m (Set.Set HomConstraint, Value Meta ::: Type Meta)
 runElab ty m = do
   ty' <- maybe (pure . Meta <$> gensym "meta") pure ty
   runWriter . runReader mempty . runReader ty' $ do
