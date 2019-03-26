@@ -47,6 +47,7 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
               go scope (Context.insert (n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
+          -- FIXME: eta-expand the other side instead
           ctx :|-: (Pi Im _ t1 b1 :===: tm2) ::: Type -> do
             n <- exists t1
             go scope (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
