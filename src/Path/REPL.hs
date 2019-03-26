@@ -19,6 +19,7 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Elab
+import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
@@ -211,8 +212,6 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           ty <- inferredType Nothing
           tm' <- runRenamer (runReader Defn (resolveTerm tm))
           runScope (define ty (elab tm'))
-        whnf (Global n :$ sp) = asks (Scope.entryValue <=< Scope.lookup n) >>= maybe (pure (Global n :$ sp)) (whnf . ($$* sp))
-        whnf v                = pure v
 
 basePackage :: Package
 basePackage = Package
