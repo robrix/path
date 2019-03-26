@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase #-}
 module Path.Stack where
 
-import Data.Foldable (foldl', toList)
+import Data.Foldable (toList)
 import Path.Pretty
 import Prelude hiding (filter, lookup)
 
@@ -24,9 +24,6 @@ instance Pretty a => Pretty (Stack a) where
 
 instance Pretty a => PrettyPrec (Stack a)
 
-
-fromList :: [a] -> Stack a
-fromList = foldl' (:>) Nil
 
 find :: (a -> Bool) -> Stack a -> Maybe a
 find p = \case
