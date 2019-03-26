@@ -167,19 +167,6 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     runElabC k
   eff (R other) = ElabC (eff (R (R (handleCoercible other))))
 
-runSolver :: ( Carrier sig m
-             , Effect sig
-             , Member (Error Doc) sig
-             , Member Naming sig
-             , Member (Reader Scope) sig
-             )
-          => Set.Set Constraint
-          -> Value Meta
-          -> m (Value Meta)
-runSolver constraints tm = do
-  subst <- solver constraints
-  pure (apply subst tm)
-
 inferredType :: (Carrier sig m, Member Naming sig) => Maybe (Type Meta) -> m (Type Meta)
 inferredType = maybe (pure . Meta <$> gensym "meta") pure
 
@@ -245,8 +232,9 @@ declare :: ( Carrier sig m
         => ElabC m (Value Meta ::: Type Meta)
         -> m (Value Name)
 declare ty = do
-  ty' <- runElab (goalIs Type ty) >>= uncurry runSolver
-  pure (Value.generalizeType ty')
+  (constraints, ty') <- runElab (goalIs Type ty)
+  subst <- solver constraints
+  pure (Value.generalizeType (apply subst ty'))
 
 define :: ( Carrier sig m
           , Effect sig
