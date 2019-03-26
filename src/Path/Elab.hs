@@ -19,6 +19,7 @@ import Path.Constraint
 import Path.Context as Context
 import qualified Path.Core as Core
 import Path.Error
+import Path.Eval
 import Path.Module
 import Path.Name
 import Path.Plicity
@@ -256,7 +257,8 @@ define ty tm = do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
   let ty' = Value.generalizeType (apply subst ty)
-  (::: ty') <$> Value.generalizeValue (apply subst tm' ::: ty')
+  ty'' <- whnf ty'
+  (::: ty') <$> Value.generalizeValue (apply subst tm' ::: ty'')
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
