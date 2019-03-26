@@ -248,7 +248,11 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
     ty' <- runScope (declare (elab ty))
     modify (Scope.insert name (Decl ty'))
     pure (Declare name (ty' ::: Value.Type) span)
-  Define  name tm span -> Define  name <$> elabDefine  name tm <*> pure span
+  Define  name tm span -> do
+    ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name) >>= inferredType
+    elab <- runScope (define ty (elab tm))
+    modify (Scope.insert name (Defn elab))
+    pure (Define name elab span)
   Doc docs     d  span -> Doc docs <$> elabDecl d <*> pure span
 
 declare :: ( Carrier sig m
@@ -262,21 +266,6 @@ declare :: ( Carrier sig m
 declare ty = do
   ty' <- runElab Value.Type ty >>= uncurry runSolver
   pure (Value.generalizeType ty')
-
-elabDefine :: ( Carrier sig m
-              , Effect sig
-              , Member (Error Doc) sig
-              , Member Naming sig
-              , Member (Reader Span) sig
-              , Member (State Scope) sig
-              )
-           => Qualified
-           -> Core.Core Name
-           -> m (Value Name ::: Type Name)
-elabDefine name tm = do
-  ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name) >>= inferredType
-  elab <- runScope (define ty (elab tm))
-  elab <$ modify (Scope.insert name (Defn elab))
 
 define :: ( Carrier sig m
           , Effect sig
