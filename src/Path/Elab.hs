@@ -37,7 +37,13 @@ assume :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member (Reade
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- have v >>= maybe (freeVariable v) pure
-  pure (pure (Name v) ::: _A)
+  instantiateImplicits (pure (Name v) ::: _A)
+
+instantiateImplicits :: (Carrier sig m, Member Elab sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
+instantiateImplicits (val ::: Value.Pi Im _ t b) = do
+  v <- exists t
+  instantiateImplicits (val Value.$$ v ::: Value.instantiate v b)
+instantiateImplicits (val ::: ty) = pure (val ::: ty)
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
       => Maybe User
