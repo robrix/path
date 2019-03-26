@@ -37,7 +37,6 @@ assume :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member (Reade
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- have v >>= maybe (freeVariable v) pure
-  -- FIXME: ???
   pure (pure (Name v) ::: _A)
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
