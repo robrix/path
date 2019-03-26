@@ -18,6 +18,7 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
+import Path.Constraint (Substitutable(..))
 import Path.Elab
 import Path.Eval
 import Path.Module as Module
@@ -30,6 +31,7 @@ import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
+import Path.Solver (solver)
 import Path.Stack
 import Path.Value
 import Prelude hiding (print)
@@ -156,7 +158,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           TypeOf tm -> do
             ty <- inferredType Nothing
             elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runSpan . runScope . (uncurry runSolver <=< runElab ty . elab)
-            print (generalizeType (typedType elab))
+            print (generalizeType elab)
             loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
@@ -164,8 +166,13 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Eval tm -> do
             runSpan $ do
               ty <- inferredType Nothing
-              elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . (uncurry runSolver <=< runElab ty . elab)
-              runScope (whnf (typedTerm elab)) >>= generalizeValue . (::: generalizeType (typedType elab)) >>= print
+              tm' <- runRenamer (runReader Defn (resolveTerm tm))
+              (tm'', ty') <- runScope $ do
+                (constraints, tm'') <- runElab ty (elab tm')
+                subst <- solver constraints
+                tm''' <- whnf (apply subst tm'')
+                pure (tm''', apply subst ty)
+              generalizeValue (tm'' ::: generalizeType ty') >>= print
             loop
           Show Bindings -> do
             scope <- get
