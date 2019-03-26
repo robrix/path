@@ -41,6 +41,9 @@ simplify :: ( Carrier sig m
 simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constraint)
   where go scope = \case
           _ :|-: (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
+          _ :|-: (t1 :===: t2) ::: _
+            | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
+            | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
           ctx :|-: (Pi p1 _ t1 b1 :===: Pi p2 _ t2 b2) ::: Type
             | p1 == p2 -> do
               go scope (ctx :|-: (t1 :===: t2) ::: Type)
@@ -74,8 +77,6 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
             n <- gensym "lam"
             go scope (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)
-            | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
-            | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
             | blocked t1 || blocked t2 -> tell (Set.singleton (c :~ span))
             | otherwise                -> unsimplifiableConstraint (c :~ span)
 
