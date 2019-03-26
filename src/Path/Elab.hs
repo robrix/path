@@ -37,7 +37,8 @@ assume :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member (Reade
        -> m (Value Meta)
 assume v = do
   _A <- have v >>= maybe (freeVariable v) pure
-  expect (pure (Name v) ::: _A)
+  -- FIXME: ???
+  pure (pure (Name v))
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
       => Maybe User
@@ -48,11 +49,7 @@ intro x body = do
   x <- gensym (maybe "_" showUser x)
   _B <- x ::: _A |- exists Type
   u <- x ::: _A |- goalIs _B (body (Local x))
-  expect (Value.lam (Name (Local x)) u ::: Value.pi ((Name (Local x), Ex, zero) ::: _A) _B)
-
-type' :: (Carrier sig m, Member Elab sig)
-      => m (Value Meta)
-type' = expect (Type ::: Type)
+  pure (Value.lam (Name (Local x)) u)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    => Maybe User
@@ -65,7 +62,7 @@ pi x p m t body = do
   t' <- goalIs Type t
   x <- gensym (maybe "_" showUser x)
   b' <- x ::: t' |- goalIs Type (body (Local x))
-  expect (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
+  pure (Value.pi ((qlocal x, p, m) ::: t') b')
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     => m (Value Meta)
@@ -77,24 +74,13 @@ app f a = do
   x <- gensym "app"
   f' <- goalIs (Value.pi ((qlocal x, Ex, zero) ::: _A) _B) f
   a' <- goalIs _A a
-  expect (f' Value.$$ a' ::: _B)
+  pure (f' Value.$$ a')
 
-
-expect :: (Carrier sig m, Member Elab sig)
-       => Value Meta ::: Type Meta
-       -> m (Value Meta)
-expect exp = do
-  ty <- goal
-  res <- exists ty
-  res <$ unify (exp :===: res ::: ty)
 
 exists :: (Carrier sig m, Member Elab sig)
        => Type Meta
        -> m (Value Meta)
 exists ty = send (Exists ty pure)
-
-goal :: (Carrier sig m, Member Elab sig) => m (Type Meta)
-goal = send (Goal pure)
 
 goalIs :: (Carrier sig m, Member Elab sig) => Type Meta -> m a -> m a
 goalIs ty m = send (GoalIs ty m pure)
@@ -123,15 +109,16 @@ elab = \case
   Core.Var n -> assume n
   Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ a -> app (elab f) (elab a)
-  Core.Type -> type'
+  Core.Type -> pure Type
   Core.Pi n p m t b -> pi n p m (elab t) (\ n' -> elab (Core.instantiate (pure n') b))
-  Core.Hole _ -> goal >>= exists
+  Core.Hole _ -> do
+    ty <- exists Type
+    exists ty
   Core.Ann ann b -> spanIs ann (elab b)
 
 
 data Elab m k
   = Exists (Type Meta) (Value Meta -> k)
-  | Goal (Type Meta -> k)
   | forall a . GoalIs (Type Meta) (m a) (a -> k)
   | Have Name (Maybe (Type Meta) -> k)
   | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
@@ -142,7 +129,6 @@ deriving instance Functor (Elab m)
 instance HFunctor Elab where
   hmap f = \case
     Exists t   k -> Exists t       k
-    Goal       k -> Goal           k
     GoalIs t m k -> GoalIs t (f m) k
     Have   n   k -> Have   n       k
     Bind   b m k -> Bind   b (f m) k
@@ -151,7 +137,6 @@ instance HFunctor Elab where
 instance Effect Elab where
   handle state handler = \case
     Exists t   k -> Exists t                        (handler . (<$ state) . k)
-    Goal       k -> Goal                            (handler . (<$ state) . k)
     GoalIs t m k -> GoalIs t (handler (m <$ state)) (handler . fmap k)
     Have   n   k -> Have   n                        (handler . (<$ state) . k)
     Bind   b m k -> Bind   b (handler (m <$ state)) (handler . fmap k)
@@ -172,7 +157,6 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     ctx <- ElabC ask
     n <- Meta <$> gensym "meta"
     k (pure n Value.$$* (pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))))
-  eff (L (Goal k)) = ElabC ask >>= k
   eff (L (GoalIs ty m k)) = ElabC (local (const ty) (runElabC m)) >>= k
   eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= k . fmap (Value.weaken . entryType)
   eff (L (Have (Local  n) k)) = ElabC (asks (Context.lookup n)) >>= k
