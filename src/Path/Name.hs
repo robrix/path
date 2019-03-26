@@ -116,6 +116,8 @@ data Qualified
   = ModuleName :.: User
   deriving (Eq, Ord, Show)
 
+infixl 5 :.:
+
 instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
 
