@@ -244,23 +244,12 @@ elabDecl :: ( Carrier sig m
          => Decl Qualified (Core.Core Name)
          -> m (Decl Qualified (Value Name ::: Type Name))
 elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ case decl of
-  Declare name ty span -> Declare name <$> elabDeclare name ty <*> pure span
+  Declare name ty span -> do
+    ty' <- runScope (declare (elab ty))
+    modify (Scope.insert name (Decl ty'))
+    pure (Declare name (ty' ::: Value.Type) span)
   Define  name tm span -> Define  name <$> elabDefine  name tm <*> pure span
   Doc docs     d  span -> Doc docs <$> elabDecl d <*> pure span
-
-elabDeclare :: ( Carrier sig m
-               , Effect sig
-               , Member (Error Doc) sig
-               , Member Naming sig
-               , Member (Reader Span) sig
-               , Member (State Scope) sig
-               )
-            => Qualified
-            -> Core.Core Name
-            -> m (Value Name ::: Type Name)
-elabDeclare name ty = do
-  ty' <- runScope (declare (elab ty))
-  (ty' ::: Value.Type) <$ modify (Scope.insert name (Decl ty'))
 
 declare :: ( Carrier sig m
            , Effect sig
