@@ -42,10 +42,3 @@ filter keep = \case
     | keep a    -> filter keep as :> a
     | otherwise -> filter keep as
   Nil           -> Nil
-
-alignWith :: (a -> b -> c) -> Stack a -> Stack b -> (Maybe (Either (Stack a) (Stack b)), Stack c)
-alignWith f = go
-  where go Nil       Nil       = (Nothing, Nil)
-        go (as :> a) Nil       = (Just (Left  (as :> a)), Nil)
-        go Nil       (bs :> b) = (Just (Right (bs :> b)), Nil)
-        go (as :> a) (bs :> b) = (:> f a b) <$> go as bs
