@@ -275,13 +275,24 @@ elabDefine :: ( Carrier sig m
            -> m (Value Name ::: Type Name)
 elabDefine name tm = do
   ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name) >>= inferredType
-  (subst, tm') <- runScope $ do
-    (constraints, tm') <- runElab ty (elab tm)
-    subst <- solver constraints
-    pure (subst, tm')
+  elab <- runScope (define ty (elab tm))
+  elab <$ modify (Scope.insert name (Defn elab))
+
+define :: ( Carrier sig m
+          , Effect sig
+          , Member (Error Doc) sig
+          , Member Naming sig
+          , Member (Reader Scope) sig
+          , Member (Reader Span) sig
+          )
+       => Value Meta
+       -> ElabC m (Value Meta)
+       -> m (Value Name ::: Type Name)
+define ty tm = do
+  (constraints, tm') <- runElab ty tm
+  subst <- solver constraints
   let ty' = Value.generalizeType (apply subst ty)
-  tm'' <- Value.generalizeValue (apply subst tm' ::: ty')
-  (tm'' ::: ty') <$ modify (Scope.insert name (Defn (tm'' ::: ty')))
+  (::: ty') <$> Value.generalizeValue (apply subst tm' ::: ty')
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
