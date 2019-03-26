@@ -201,8 +201,7 @@ match x y | x == y    = Z
           | otherwise = S y
 
 subst :: a -> Incr a -> a
-subst a Z     = a
-subst _ (S a) = a
+subst a = incr a id
 
 incr :: b -> (a -> b) -> Incr a -> b
 incr z s = \case { Z -> z ; S a -> s a }
