@@ -152,20 +152,11 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
-          TypeOf tm -> do
-            ty <- inferredType Nothing
-            elab <- runRenamer (runReader Defn (resolveTerm tm)) >>= runSpan . runScope . (uncurry runSolver <=< runElab ty . elab)
-            print (generalizeType elab)
-            loop
+          TypeOf tm -> elaborate tm >>= print . typedType >> loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
-          Eval tm -> do
-            runSpan $ do
-              ty <- inferredType Nothing
-              tm' <- runRenamer (runReader Defn (resolveTerm tm))
-              runScope (define ty (elab tm') >>= whnf . typedTerm) >>= print
-            loop
+          Eval tm -> elaborate tm >>= runScope . whnf . typedTerm >>= print >> loop
           Show Bindings -> do
             scope <- get
             unless (Scope.null scope) $ print (scope :: Scope.Scope)
@@ -216,6 +207,10 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         runRenamer m = do
           res <- get
           runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runSpan m))
+        elaborate tm = runSpan $ do
+          ty <- inferredType Nothing
+          tm' <- runRenamer (runReader Defn (resolveTerm tm))
+          runScope (define ty (elab tm'))
         whnf (Global n :$ sp) = asks (Scope.entryValue <=< Scope.lookup n) >>= maybe (pure (Global n :$ sp)) (whnf . ($$* sp))
         whnf v                = pure v
 
