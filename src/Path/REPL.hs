@@ -18,9 +18,7 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Path.Constraint (Substitutable(..))
 import Path.Elab
-import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
@@ -31,7 +29,6 @@ import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
-import Path.Solver (solver)
 import Path.Stack
 import Path.Value
 import Prelude hiding (print)
@@ -167,12 +164,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             runSpan $ do
               ty <- inferredType Nothing
               tm' <- runRenamer (runReader Defn (resolveTerm tm))
-              (tm'', ty') <- runScope $ do
-                (constraints, tm'') <- runElab ty (elab tm')
-                subst <- solver constraints
-                tm''' <- whnf (apply subst tm'')
-                pure (tm''', apply subst ty)
-              generalizeValue (tm'' ::: generalizeType ty') >>= print
+              runScope (define ty (elab tm') >>= whnf . typedTerm) >>= print
             loop
           Show Bindings -> do
             scope <- get
@@ -224,6 +216,8 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         runRenamer m = do
           res <- get
           runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runSpan m))
+        whnf (Global n :$ sp) = asks (Scope.entryValue <=< Scope.lookup n) >>= maybe (pure (Global n :$ sp)) (whnf . ($$* sp))
+        whnf v                = pure v
 
 basePackage :: Package
 basePackage = Package
