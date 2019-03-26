@@ -259,9 +259,20 @@ elabDeclare :: ( Carrier sig m
             -> Core.Core Name
             -> m (Value Name ::: Type Name)
 elabDeclare name ty = do
-  tm <- runScope (runElab Value.Type (elab ty) >>= uncurry runSolver)
-  let elab = Value.generalizeType tm ::: Value.Type
-  elab <$ modify (Scope.insert name (Decl (typedTerm elab)))
+  ty' <- runScope (declare (elab ty))
+  (ty' ::: Value.Type) <$ modify (Scope.insert name (Decl ty'))
+
+declare :: ( Carrier sig m
+           , Effect sig
+           , Member (Error Doc) sig
+           , Member Naming sig
+           , Member (Reader Scope) sig
+           )
+        => ElabC m (Value Meta)
+        -> m (Value Name)
+declare ty = do
+  ty' <- runElab Value.Type ty >>= uncurry runSolver
+  pure (Value.generalizeType ty')
 
 elabDefine :: ( Carrier sig m
               , Effect sig
