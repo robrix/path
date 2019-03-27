@@ -223,7 +223,15 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
     modify (Scope.insert name (Decl ty'))
     pure (Declare name (ty' ::: Value.Type) span)
   Define  name tm span -> do
-    ty <- gets (fmap Value.weaken . fmap entryType . Scope.lookup name) >>= inferredType
+    ty <- gets (fmap entryType . Scope.lookup name)
+    tm ::: ty <- case ty of
+      Just ty -> do
+        ty' <- runScope (whnf ty)
+        (names, _) <- Value.unpis Local ty'
+        pure (foldr (\case
+          (n, Im, _) ::: _ -> Core.lam n
+          _                -> id) tm names ::: Value.weaken ty)
+      Nothing -> (tm :::) <$> inferredType Nothing
     elab <- runScope (define ty (elab tm))
     modify (Scope.insert name (Defn elab))
     pure (Define name elab span)
@@ -257,8 +265,7 @@ define ty tm = do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
   let ty' = Value.generalizeType (apply subst ty)
-  ty'' <- whnf ty'
-  (::: ty') <$> Value.generalizeValue (apply subst tm' ::: ty'')
+  pure (Value.generalizeType (apply subst tm') ::: ty')
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
