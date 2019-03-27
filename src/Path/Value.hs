@@ -8,6 +8,7 @@ import           Control.Effect.Reader hiding (Local)
 import           Control.Monad ((<=<), ap)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
+import           Data.Traversable (for)
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
@@ -172,16 +173,16 @@ weaken :: Value Name -> Value Meta
 weaken = fmap Name
 
 strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value Meta -> m (Value Name)
-strengthen = traverse $ \case
-  Meta m -> unsolvedMetavariable m
+strengthen ty = for ty $ \case
+  Meta m -> unsolvedMetavariable m ty
   Name (Global q) -> pure (Global q)
   Name (Local n) -> pure (Local n)
 
 
-unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Gensym -> m a
-unsolvedMetavariable meta = do
+unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Gensym -> Value Meta -> m a
+unsolvedMetavariable meta ty = do
   span <- ask
-  throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta))) [])
+  throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta)) <+> pretty "in type" <+> pretty ty) [])
 
 
 type Type = Value
