@@ -28,6 +28,12 @@ instance Applicative Core where
 instance Monad Core where
   a >>= f = joinT (fmap f a)
 
+lam :: Eq a => a -> Core a -> Core a
+lam n b = Lam Nothing (bind n b)
+
+lams :: (Eq a, Foldable t) => t a -> Core a -> Core a
+lams names body = foldr lam body names
+
 
 gfoldT :: forall m n b
        .  (forall a . m a -> n a)
