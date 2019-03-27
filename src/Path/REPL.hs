@@ -201,7 +201,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           put (moduleGraph (catMaybes checked))
         runDeps = evalState ([] :: [ModuleName])
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
-        failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
+        failedDep m = all @[] (`notElem` map importModuleName (moduleImports m))
         runSpan m = do
           line <- askLine
           runReader (Span (lineDelta line) (lineDelta line) mempty) m
