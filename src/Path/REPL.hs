@@ -160,7 +160,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Eval tm -> elaborate tm >>= runScope . whnf . typedTerm >>= print >> loop
           Show Bindings -> do
             scope <- get
-            unless (Scope.null scope) $ print (scope :: Scope.Scope)
+            unless (Scope.null scope) $ print scope
             loop
           Show Modules -> do
             graph <- get
