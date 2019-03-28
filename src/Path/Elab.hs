@@ -265,7 +265,7 @@ define ty tm = do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
   let ty' = Value.generalizeType (apply subst ty)
-  pure (Value.generalizeType (apply subst tm') ::: ty')
+  (::: ty') <$> Value.strengthen (apply subst tm')
 
 runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
 runScope m = get >>= flip runReader m
