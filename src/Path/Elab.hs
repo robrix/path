@@ -119,7 +119,7 @@ elab = \case
   Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ a -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
-  Core.Pi n p m t b -> pi n p m (elab t) (\ n' -> elab (Core.instantiate (pure n') b))
+  Core.Pi (p :< (n, m, t)) b -> pi n p m (elab t) (\ n' -> elab (Core.instantiate (pure n') b))
   Core.Hole _ -> do
     ty <- exists Type
     (::: ty) <$> exists ty
