@@ -12,7 +12,7 @@ data Surface
   | Lam (Maybe User) Surface
   | Surface :$ Surface
   | Type
-  | Pi (Maybe User) Plicity Usage Surface Surface
+  | Pi (Plicit (Maybe User, Usage, Surface)) Surface
   | Hole User
   | (Usage, Surface) :-> Surface
   | Ann Span Surface
@@ -25,8 +25,8 @@ instance FreeVariables User Surface where
     Lam Nothing  b -> fvs b
     f :$ a -> fvs f <> fvs a
     Type -> Set.empty
-    Pi (Just v) _ _ t b -> fvs t <> Set.delete v (fvs b)
-    Pi Nothing  _ _ t b -> fvs t <> fvs b
+    Pi (_ :< (Just v,  _, t)) b -> fvs t <> Set.delete v (fvs b)
+    Pi (_ :< (Nothing, _, t)) b -> fvs t <> fvs b
     Hole v -> Set.singleton v
     (_, a) :-> b -> fvs a <> fvs b
     Ann _ a -> fvs a

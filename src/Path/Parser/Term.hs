@@ -25,10 +25,10 @@ application = atom `chainl1` pure (:$) <?> "function application"
 type' = ann (Type <$ keyword "Type")
 
 piType = ann (do
-  (p, (v, mult, ty)) <- plicity ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  (Pi (Just v) p (fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult) ty) <$> functionType) <?> "dependent function type"
-  where plicity m = (,) Im <$> braces m
-                <|> (,) Ex <$> parens m
+  p :< (v, mult, ty) <- plicity ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  Pi (p :< (Just v, fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult, ty)) <$> functionType) <?> "dependent function type"
+  where plicity m = (Im :<) <$> braces m
+                <|> (Ex :<) <$> parens m
 
 functionType = (,) <$> multiplicity <*> application <**> (flip (:->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)

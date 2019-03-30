@@ -28,7 +28,7 @@ resolveTerm = \case
     local (insertLocal v v') (Lam v . bind (Local v') <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
-  Surface.Pi v ie u t b -> do
+  Surface.Pi (ie :< (v, u, t)) b -> do
     v' <- gensym (maybe "lam" show v)
     Pi . (ie :<) . (v, u,) <$> resolveTerm t <*> local (insertLocal v v') (bind (Local v') <$> resolveTerm b)
   (u, a) Surface.:-> b -> do
@@ -49,7 +49,7 @@ resolveDecl = \case
     ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm (generalize res ty)))
     Declare (moduleName :.: n) ty' span <$ modify (insertGlobal n moduleName)
     where generalize res ty = foldr bind ty (fvs ty Set.\\ Map.keysSet (unResolution res))
-          bind n = Surface.Pi (Just n) Im Zero Surface.Type -- FIXME: insert metavariables for the type
+          bind n = Surface.Pi (Im :< (Just n, Zero, Surface.Type)) -- FIXME: insert metavariables for the type
   Define n tm span -> do
     res <- get
     moduleName <- ask
