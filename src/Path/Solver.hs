@@ -56,7 +56,7 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
           ctx :|-: (tm1 :===: Pi (Im :< (_, t2)) b2) ::: Type -> do
             n <- exists t2
             go scope (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
-          ctx :|-: (Lam f1 :===: Lam f2) ::: Pi (_ :< (_, t)) b -> do
+          ctx :|-: (Lam _ f1 :===: Lam _ f2) ::: Pi (_ :< (_, t)) b -> do
             n <- gensym "lam"
             go scope (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
           ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
@@ -69,12 +69,12 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
           ctx :|-: (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t2 <- whnf scope (f2 :$ sp2) -> do
               go scope (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (tm1 :===: Lam b2) ::: ty@(Pi (_ :< (_, _)) _) -> do
+          ctx :|-: (tm1 :===: Lam p2 b2) ::: ty@(Pi (_ :< (_, _)) _) -> do
             n <- gensym "lam"
-            go scope (ctx :|-: (lam (qlocal n) (tm1 $$ pure (qlocal n)) :===: Lam b2) ::: ty)
-          ctx :|-: (Lam b1 :===: tm2) ::: ty@(Pi (_ :< (_, _)) _) -> do
+            go scope (ctx :|-: (lam (p2 :< qlocal n) (tm1 $$ (p2 :< pure (qlocal n))) :===: Lam p2 b2) ::: ty)
+          ctx :|-: (Lam p1 b1 :===: tm2) ::: ty@(Pi (_ :< (_, _)) _) -> do
             n <- gensym "lam"
-            go scope (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
+            go scope (ctx :|-: (Lam p1 b1 :===: lam (p1 :< qlocal n) (tm2 $$ (p1 :< pure (qlocal n)))) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (c :~ span))
             | otherwise                -> unsimplifiableConstraint (c :~ span)
@@ -150,8 +150,8 @@ dequeue = gets Seq.viewl >>= \case
   Seq.EmptyL -> pure Nothing
   h Seq.:< q -> Just h <$ put q
 
-pattern :: Type Meta -> Maybe (Gensym, Stack Meta)
-pattern (Meta m :$ sp) = (,) m <$> (traverse free sp >>= distinct)
+pattern :: Type Meta -> Maybe (Gensym, Stack (Plicit Meta))
+pattern (Meta m :$ sp) = (,) m <$> (traverse (traverse free) sp >>= distinct)
 pattern _              = Nothing
 
 free :: Type a -> Maybe a

@@ -19,9 +19,9 @@ import           Text.Trifecta.Rendering (Span)
 
 data Value a
   = Type                                   -- ^ @'Type' : 'Type'@.
-  | Lam                          (Scope a) -- ^ A lambda abstraction.
+  | Lam Plicity                  (Scope a) -- ^ A lambda abstraction.
   | Pi (Plicit (Usage, Value a)) (Scope a) -- ^ A ∏ type, with a 'Usage' annotation.
-  | a :$ Stack (Value a)                   -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
+  | a :$ Stack (Plicit (Value a))          -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype Scope a = Scope (Value (Incr a))
@@ -36,13 +36,13 @@ instance PrettyPrec (Value Name) where
 prettyValue :: (Ord name, Pretty name) => (Gensym -> name) -> Int -> Value name -> Doc
 prettyValue localName d = run . runNaming (Root "pretty") . go d
   where go d = \case
-          Lam b -> do
-            (as, b') <- unlams localName (Lam b)
+          Lam ie b -> do
+            (as, b') <- unlams localName (Lam ie b)
             b'' <- go 0 b'
             pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> b'') as))))
-            where var vs n rest
-                    | n `Set.member` vs = pretty n   <+> rest
-                    | otherwise         = pretty '_' <+> rest
+            where var vs (p :< n) rest
+                    | n `Set.member` vs = prettyPlicity p (pretty n   <+> rest)
+                    | otherwise         = prettyPlicity p (pretty '_' <+> rest)
           Type -> pure (yellow (pretty "Type"))
           Pi ie@(p :< (pi, t)) b -> do
             name <- localName <$> gensym ""
@@ -61,8 +61,8 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
                     | otherwise = (pretty pi <+>)
                   arrow = blue (pretty "->")
           f :$ sp -> do
-            sp' <- traverse (go 11) (toList sp)
-            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
+            sp' <- traverse (traverse (go 11)) (toList sp)
+            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : map pretty sp')))))))
 
 instance Pretty (Value Meta) where
   pretty = prettyPrec 0
@@ -81,17 +81,17 @@ instance Monad Value where
   a >>= f = joinT (fmap f a)
 
 
-lam :: Eq a => a -> Value a -> Value a
-lam n b = Lam (bind n b)
+lam :: Eq a => Plicit a -> Value a -> Value a
+lam (pl :< n) b = Lam pl (bind n b)
 
-lams :: (Eq a, Foldable t) => t a -> Value a -> Value a
+lams :: (Eq a, Foldable t) => t (Plicit a) -> Value a -> Value a
 lams names body = foldr lam body names
 
-unlam :: Alternative m => a -> Value a -> m (a, Value a)
-unlam n (Lam b) = pure (n, instantiate (pure n) b)
-unlam _ _       = empty
+unlam :: Alternative m => a -> Value a -> m (Plicit a, Value a)
+unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
+unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack name, Value name)
+unlams :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit name), Value name)
 unlams localName value = intro (Nil, value)
   where intro (names, value) = do
           name <- gensym ""
@@ -116,19 +116,19 @@ unpis qlocal value = intro (Nil, value)
           Just (name, body) -> intro (names :> name, body)
           Nothing           -> pure (names, value)
 
-($$) :: Value a -> Value a -> Value a
-Lam   b $$ v = instantiate v b
-Pi  _ b $$ v = instantiate v b
-n :$ vs $$ v = n :$ (vs :> v)
-_       $$ _ = error "illegal application of Type"
+($$) :: Value a -> Plicit (Value a) -> Value a
+Lam _ b $$ (_ :< v) = instantiate v b
+Pi  _ b $$ (_ :< v) = instantiate v b
+n :$ vs $$ v        = n :$ (vs :> v)
+_       $$ _        = error "illegal application of Type"
 
-($$*) :: Foldable t => Value a -> t (Value a) -> Value a
+($$*) :: Foldable t => Value a -> t (Plicit (Value a)) -> Value a
 v $$* sp = foldl' ($$) v sp
 
 
 gfoldT :: forall m n b
-       .  (forall a . n (Incr a) -> n a)
-       -> (forall a . m a -> Stack (n a) -> n a)
+       .  (forall a . Plicity -> n (Incr a) -> n a)
+       -> (forall a . m a -> Stack (Plicit (n a)) -> n a)
        -> (forall a . n a)
        -> (forall a . Plicit (Usage, n a) -> n (Incr a) -> n a)
        -> (forall a . Incr (m a) -> m (Incr a))
@@ -137,13 +137,13 @@ gfoldT :: forall m n b
 gfoldT lam app ty pi dist = go
   where go :: Type (m x) -> n x
         go = \case
-          Lam (Scope b) -> lam (go (dist <$> b))
-          f :$ a -> app f (fmap go a)
+          Lam p (Scope b) -> lam p (go (dist <$> b))
+          f :$ a -> app f (fmap (fmap go) a)
           Type -> ty
           Pi (p :< (m, t)) (Scope b) -> pi (p :< (m, go t)) (go (dist <$> b))
 
 joinT :: Value (Value a) -> Value a
-joinT = gfoldT (Lam . Scope) ($$*) Type (\ p -> Pi p . Scope) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ p -> Lam p . Scope) ($$*) Type (\ p -> Pi p . Scope) (incr (pure Z) (fmap S))
 
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
@@ -162,7 +162,7 @@ generalizeValue :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Me
 generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
   (names, _) <- unpis Local ty
   pure (lams (foldr (\case
-    Im :< (n, _) ::: _ -> (Name n :)
+    Im :< (n, _) ::: _ -> ((Im :< Name n) :)
     _                  -> id) [] names) value)
 
 

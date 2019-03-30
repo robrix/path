@@ -43,19 +43,19 @@ assume v = do
 instantiateImplicits :: (Carrier sig m, Member Elab sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
 instantiateImplicits (val ::: Value.Pi (Im :< (_, t)) b) = do
   v <- exists t
-  instantiateImplicits (val Value.$$ v ::: Value.instantiate v b)
+  instantiateImplicits (val Value.$$ (Im :< v) ::: Value.instantiate v b)
 instantiateImplicits (val ::: ty) = pure (val ::: ty)
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
-      => Maybe User
+      => Plicit (Maybe User)
       -> (Name -> m (Value Meta ::: Type Meta))
       -> m (Value Meta ::: Type Meta)
-intro x body = do
+intro (p :< x) body = do
   _A <- exists Type
   x <- gensym (maybe "_" showUser x)
   _B <- x ::: _A |- exists Type
   u <- x ::: _A |- goalIs _B (body (Local x))
-  pure (Value.lam (Name (Local x)) u ::: Value.pi (Ex :< (Name (Local x), More) ::: _A) _B)
+  pure (Value.lam (p :< Name (Local x)) u ::: Value.pi (p :< (Name (Local x), More) ::: _A) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    => Plicit (Maybe User, Usage, m (Value Meta ::: Type Meta))
@@ -69,15 +69,15 @@ pi (p :< (x, m, t)) body = do
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     => m (Value Meta ::: Type Meta)
+    -> Plicit (m (Value Meta ::: Type Meta))
     -> m (Value Meta ::: Type Meta)
-    -> m (Value Meta ::: Type Meta)
-app f a = do
+app f (p :< a) = do
   _A <- exists Type
   _B <- exists Type
   x <- gensym "app"
-  f' <- goalIs (Value.pi (Ex :< (qlocal x, zero) ::: _A) _B) f
+  f' <- goalIs (Value.pi (p :< (qlocal x, zero) ::: _A) _B) f
   a' <- goalIs _A a
-  pure (f' Value.$$ a' ::: _B)
+  pure (f' Value.$$ (p :< a') ::: _B)
 
 
 exists :: (Carrier sig m, Member Elab sig)
@@ -113,8 +113,8 @@ elab :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming s
      -> m (Value Meta ::: Type Meta)
 elab = \case
   Core.Var n -> assume n
-  Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
-  f Core.:$ a -> app (elab f) (elab a)
+  Core.Lam n b -> intro (Ex :< n) (\ n' -> elab (Core.instantiate (pure n') b))
+  f Core.:$ a -> app (elab f) (Ex :< elab a)
   Core.Type -> pure (Type ::: Type)
   Core.Pi (p :< (n, m, t)) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
   Core.Hole _ -> do
@@ -157,7 +157,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     -- FIXME: keep a signature
     ctx <- ElabC ask
     n <- Meta <$> gensym "meta"
-    k (pure n Value.$$* (pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))))
+    k (pure n Value.$$* ((Im :<) . pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))))
   eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= k . fmap (Value.weaken . entryType)
   eff (L (Have (Local  n) k)) = ElabC (asks (Context.lookup n)) >>= k
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
