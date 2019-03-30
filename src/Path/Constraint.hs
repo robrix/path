@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
 module Path.Constraint where
 
 import qualified Data.Map as Map
@@ -12,7 +12,7 @@ import Text.Trifecta.Rendering (Spanned(..))
 
 data Equation a
   = a :===: a
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 infix 3 :===:
 
