@@ -94,11 +94,11 @@ unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
 unlams :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit name), Value name)
-unlams localName value = intro (Nil, value)
-  where intro (names, value) = do
+unlams localName = intro Nil
+  where intro names value = do
           name <- gensym ""
           case unlam (localName name) value of
-            Just (name, body) -> intro (names :> name, body)
+            Just (name, body) -> intro (names :> name) body
             Nothing           -> pure (names, value)
 
 pi :: Eq a => Plicit (a, Usage) ::: Type a -> Value a -> Value a
@@ -113,9 +113,9 @@ unpi n (Pi (p :< (u, t)) b) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
 unpi _ _                    = empty
 
 unpis :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit (name, Usage) ::: Type name), Value name)
-unpis qlocal value = intro (Nil, value)
-  where intro (names, value) = gensym "" >>= \ root -> case unpi (qlocal root) value of
-          Just (name, body) -> intro (names :> name, body)
+unpis qlocal = intro Nil
+  where intro names value = gensym "" >>= \ root -> case unpi (qlocal root) value of
+          Just (name, body) -> intro (names :> name) body
           Nothing           -> pure (names, value)
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
