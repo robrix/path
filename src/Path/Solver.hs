@@ -51,10 +51,10 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
               -- FIXME: this should insert some sort of dependency
               go scope (Context.insert (n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
           ctx :|-: (Pi (Im :< (_, t1)) b1 :===: tm2) ::: Type -> do
-            n <- exists t1
+            n <- exists ctx t1
             go scope (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
           ctx :|-: (tm1 :===: Pi (Im :< (_, t2)) b2) ::: Type -> do
-            n <- exists t2
+            n <- exists ctx t2
             go scope (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
           ctx :|-: (Lam _ f1 :===: Lam _ f2) ::: Pi (_ :< (_, t)) b -> do
             n <- gensym "lam"
@@ -79,7 +79,9 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
             | blocked t1 || blocked t2 -> tell (Set.singleton (c :~ span))
             | otherwise                -> unsimplifiableConstraint (c :~ span)
 
-        exists _ = pure . Meta <$> gensym ""
+        exists ctx _ = do
+          n <- Meta <$> gensym "meta"
+          pure (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
 
         blocked (Meta _ :$ _) = True
         blocked _             = False
