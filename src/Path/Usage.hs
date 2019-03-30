@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveTraversable #-}
 module Path.Usage where
 
 import Path.Pretty
@@ -33,3 +34,8 @@ instance Pretty Usage where
 
 instance PrettyPrec Usage where
   prettyPrec _ = pretty
+
+
+data Used a
+  = Usage :@ a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
