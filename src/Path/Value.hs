@@ -47,14 +47,14 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
           Pi ie pi t b -> do
             name <- localName <$> gensym ""
             let b' = instantiate (pure name) b
-            if ie == Im || name `Set.member` fvs b' then do
+            prettyParens (d > 1) <$> if ie == Im || name `Set.member` fvs b' then do
               t' <- go 0 t
               b'' <- go 1 b'
-              pure (prettyParens (d > 1) (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b''))
+              pure (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b'')
             else do
               t' <- go 2 t
               b'' <- go 1 b'
-              pure (prettyParens (d > 1) (withPi (t' <+> arrow <+> b'')))
+              pure (withPi (t' <+> arrow <+> b''))
             where withPi
                     | ie == Ex, pi == More = id
                     | ie == Im, pi == Zero = id
