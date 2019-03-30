@@ -50,7 +50,7 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
             prettyParens (d > 1) <$> if ie == Im || name `Set.member` fvs b' then do
               t' <- go 0 t
               b'' <- go 1 b'
-              pure (withIe (pretty name <+> colon <+> withPi t') <+> arrow <+> b'')
+              pure (prettyPlicity ie (pretty name <+> colon <+> withPi t') <+> arrow <+> b'')
             else do
               t' <- go 2 t
               b'' <- go 1 b'
@@ -59,9 +59,6 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
                     | ie == Ex, pi == More = id
                     | ie == Im, pi == Zero = id
                     | otherwise = (pretty pi <+>)
-                  withIe
-                    | ie == Im  = prettyBraces True
-                    | otherwise = prettyParens True
                   arrow = blue (pretty "->")
           f :$ sp -> do
             sp' <- traverse (go 11) (toList sp)
