@@ -37,6 +37,8 @@ data Plicit a
   = Plicity :< a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+infixr 7 :<
+
 instance Pretty a => Pretty (Plicit a) where
   pretty (p :< a) = prettyPlicity p (pretty a)
 
