@@ -81,7 +81,7 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
 
         exists ctx _ = do
           n <- Meta <$> gensym "meta"
-          pure (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
+          pure (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars ctx))
 
         blocked (Meta _ :$ _) = True
         blocked _             = False
