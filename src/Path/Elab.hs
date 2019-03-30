@@ -159,7 +159,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     -- FIXME: use the type
     ctx <- ElabC ask
     n <- Meta <$> gensym "meta"
-    k (pure n Value.$$* ((Ex :<) . pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))))
+    k (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
   eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= k . fmap (Value.weaken . entryType)
   eff (L (Have (Local  n) k)) = ElabC (asks (Context.lookup n)) >>= k
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
