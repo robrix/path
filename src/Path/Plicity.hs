@@ -1,5 +1,6 @@
 module Path.Plicity where
 
+import Path.Pretty
 import Path.Semiring
 
 data Plicity = Im | Ex
@@ -24,3 +25,8 @@ instance Semiring Plicity where
 
 instance Unital Plicity where
   one = Ex
+
+
+prettyPlicity :: Plicity -> Doc -> Doc
+prettyPlicity Im = prettyBraces True
+prettyPlicity Ex = prettyParens True
