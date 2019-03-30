@@ -155,6 +155,7 @@ newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (
 instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
   eff (L (Exists _ k)) = do
     -- FIXME: keep a signature
+    -- FIXME: use the type
     ctx <- ElabC ask
     n <- Meta <$> gensym "meta"
     k (pure n Value.$$* ((Ex :<) . pure . Name . Local <$> Context.vars (ctx :: Context (Type Meta))))
