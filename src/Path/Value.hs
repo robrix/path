@@ -41,8 +41,8 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
             b'' <- go 0 b'
             pure (prettyParens (d > 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> b'') as))))
             where var vs (p :< n) rest
-                    | n `Set.member` vs = prettyPlicity p (pretty n   <+> rest)
-                    | otherwise         = prettyPlicity p (pretty '_' <+> rest)
+                    | n `Set.member` vs = prettyPlicity False (p :< pretty n)   <+> rest
+                    | otherwise         = prettyPlicity False (p :< pretty '_') <+> rest
           Type -> pure (yellow (pretty "Type"))
           Pi ie@(p :< (pi, t)) b -> do
             name <- localName <$> gensym ""
@@ -62,7 +62,7 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
                   arrow = blue (pretty "->")
           f :$ sp -> do
             sp' <- traverse (traverse (go 11)) (toList sp)
-            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : map pretty sp')))))))
+            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : map (prettyPlicity False) sp')))))))
 
 instance Pretty (Value Meta) where
   pretty = prettyPrec 0

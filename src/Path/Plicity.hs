@@ -28,9 +28,10 @@ instance Unital Plicity where
   one = Ex
 
 
-prettyPlicity :: Plicity -> Doc -> Doc
-prettyPlicity Im = prettyBraces True
-prettyPlicity Ex = prettyParens True
+prettyPlicity :: Bool -> Plicit Doc -> Doc
+prettyPlicity _    (Im :< a) = prettyBraces True a
+prettyPlicity True (Ex :< a) = prettyParens True a
+prettyPlicity _    (_  :< a) = a
 
 
 data Plicit a
@@ -40,6 +41,6 @@ data Plicit a
 infixr 7 :<
 
 instance Pretty a => Pretty (Plicit a) where
-  pretty (p :< a) = prettyPlicity p (pretty a)
+  pretty = prettyPlicity True . fmap pretty
 
 instance Pretty a => PrettyPrec (Plicit a)
