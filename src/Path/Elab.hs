@@ -58,13 +58,10 @@ intro x body = do
   pure (Value.lam (Name (Local x)) u ::: Value.pi (Ex :< (Name (Local x), More) ::: _A) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
-   => Maybe User
-   -> Plicity
-   -> Usage
-   -> m (Value Meta ::: Type Meta)
+   => Plicit (Maybe User, Usage, m (Value Meta ::: Type Meta))
    -> (Name -> m (Value Meta ::: Type Meta))
    -> m (Value Meta ::: Type Meta)
-pi x p m t body = do
+pi (p :< (x, m, t)) body = do
   t' <- goalIs Type t
   x <- gensym (maybe "_" showUser x)
   b' <- x ::: t' |- goalIs Type (body (Local x))
@@ -119,7 +116,7 @@ elab = \case
   Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ a -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
-  Core.Pi (p :< (n, m, t)) b -> pi n p m (elab t) (\ n' -> elab (Core.instantiate (pure n') b))
+  Core.Pi (p :< (n, m, t)) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
   Core.Hole _ -> do
     ty <- exists Type
     (::: ty) <$> exists ty
