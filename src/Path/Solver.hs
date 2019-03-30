@@ -84,7 +84,6 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
         blocked (Meta _ :$ _) = True
         blocked _             = False
 
-        whnf :: Scope -> Value Meta -> Maybe (Value Meta)
         whnf scope (Name (Global n) Value.:$ sp) = do
           entry <- Scope.lookup n scope
           val <- entryValue entry
