@@ -114,7 +114,7 @@ elab :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming s
      -> m (Value Meta ::: Type Meta)
 elab = \case
   Core.Var n -> assume n
-  Core.Lam n b -> intro (Ex :< n) (\ n' -> elab (Core.instantiate (pure n') b))
+  Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ a -> app (elab f) (Ex :< elab a)
   Core.Type -> pure (Type ::: Type)
   Core.Pi (p :< (n, m, t)) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
@@ -228,7 +228,7 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
         ty' <- runScope (whnf ty)
         (names, _) <- Value.unpis Local ty'
         pure (foldr (\case
-          Im :< (n, _) ::: _ -> Core.lam n
+          Im :< (n, _) ::: _ -> Core.lam (Im :< n)
           _                  -> id) tm names ::: Value.weaken ty)
       Nothing -> (tm :::) <$> inferredType Nothing
     elab <- runScope (define ty (elab tm))

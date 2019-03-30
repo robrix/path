@@ -10,7 +10,7 @@ import Text.Trifecta.Rendering (Span)
 
 data Core a
   = Var a
-  | Lam (Maybe User) (Scope a)
+  | Lam (Plicit (Maybe User)) (Scope a)
   | Core a :$ Core a
   | Type
   | Pi (Plicit (Maybe User, Usage, Core a)) (Scope a)
@@ -28,16 +28,16 @@ instance Applicative Core where
 instance Monad Core where
   a >>= f = joinT (fmap f a)
 
-lam :: Eq a => a -> Core a -> Core a
-lam n b = Lam Nothing (bind n b)
+lam :: Eq a => Plicit a -> Core a -> Core a
+lam (p :< n) b = Lam (p :< Nothing) (bind n b)
 
-lams :: (Eq a, Foldable t) => t a -> Core a -> Core a
+lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
 gfoldT :: forall m n b
        .  (forall a . m a -> n a)
-       -> (forall a . Maybe User -> n (Incr a) -> n a)
+       -> (forall a . Plicit (Maybe User) -> n (Incr a) -> n a)
        -> (forall a . n a -> n a -> n a)
        -> (forall a . n a)
        -> (forall a . Plicit (Maybe User, Usage, n a) -> n (Incr a) -> n a)

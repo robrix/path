@@ -25,7 +25,7 @@ resolveTerm = \case
   Surface.Var v -> Var <$> resolveName v
   Surface.Lam v b -> do
     v' <- gensym (maybe "lam" show v)
-    local (insertLocal v v') (Lam v . bind (Local v') <$> resolveTerm b)
+    local (insertLocal v v') (Lam (Ex :< v) . bind (Local v') <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi (ie :< (v, u, t)) b -> do
