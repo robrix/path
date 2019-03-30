@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveTraversable #-}
 module Path.Plicity where
 
 import Path.Pretty
@@ -30,3 +31,7 @@ instance Unital Plicity where
 prettyPlicity :: Plicity -> Doc -> Doc
 prettyPlicity Im = prettyBraces True
 prettyPlicity Ex = prettyParens True
+
+data Plicit a
+  = Plicity :< a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
