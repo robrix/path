@@ -61,8 +61,10 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
                     | otherwise = (pretty pi <+>)
                   arrow = blue (pretty "->")
           f :$ sp -> do
-            sp' <- traverse (traverse (go 11)) (toList sp)
-            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : map (prettyPlicity False) sp')))))))
+            sp' <- traverse prettyArg (toList sp)
+            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
+            where prettyArg (Im :< a) = prettyBraces True <$> go 0 a
+                  prettyArg (Ex :< a) = go 11 a
 
 instance Pretty (Value Meta) where
   pretty = prettyPrec 0
