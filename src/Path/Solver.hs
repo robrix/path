@@ -44,19 +44,19 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
           _ :|-: (t1 :===: t2) ::: _
             | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
             | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
-          ctx :|-: (Pi p1 _ t1 b1 :===: Pi p2 _ t2 b2) ::: Type
+          ctx :|-: (Pi (p1 :< (_, t1)) b1 :===: Pi (p2 :< (_, t2)) b2) ::: Type
             | p1 == p2 -> do
               go scope (ctx :|-: (t1 :===: t2) ::: Type)
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
               go scope (Context.insert (n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
-          ctx :|-: (Pi Im _ t1 b1 :===: tm2) ::: Type -> do
+          ctx :|-: (Pi (Im :< (_, t1)) b1 :===: tm2) ::: Type -> do
             n <- exists t1
             go scope (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
-          ctx :|-: (tm1 :===: Pi Im _ t2 b2) ::: Type -> do
+          ctx :|-: (tm1 :===: Pi (Im :< (_, t2)) b2) ::: Type -> do
             n <- exists t2
             go scope (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
-          ctx :|-: (Lam f1 :===: Lam f2) ::: Pi _ _ t b -> do
+          ctx :|-: (Lam f1 :===: Lam f2) ::: Pi (_ :< (_, t)) b -> do
             n <- gensym "lam"
             go scope (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
           ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
@@ -69,10 +69,10 @@ simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constrai
           ctx :|-: (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t2 <- whnf scope (f2 :$ sp2) -> do
               go scope (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (tm1 :===: Lam b2) ::: ty@(Pi _ _ _ _) -> do
+          ctx :|-: (tm1 :===: Lam b2) ::: ty@(Pi (_ :< (_, _)) _) -> do
             n <- gensym "lam"
             go scope (ctx :|-: (lam (qlocal n) (tm1 $$ pure (qlocal n)) :===: Lam b2) ::: ty)
-          ctx :|-: (Lam b1 :===: tm2) ::: ty@(Pi _ _ _ _) -> do
+          ctx :|-: (Lam b1 :===: tm2) ::: ty@(Pi (_ :< (_, _)) _) -> do
             n <- gensym "lam"
             go scope (ctx :|-: (Lam b1 :===: lam (qlocal n) (tm2 $$ pure (qlocal n))) ::: ty)
           c@(_ :|-: (t1 :===: t2) ::: _)

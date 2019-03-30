@@ -41,7 +41,7 @@ assume v = do
   instantiateImplicits (pure (Name v) ::: _A)
 
 instantiateImplicits :: (Carrier sig m, Member Elab sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
-instantiateImplicits (val ::: Value.Pi Im _ t b) = do
+instantiateImplicits (val ::: Value.Pi (Im :< (_, t)) b) = do
   v <- exists t
   instantiateImplicits (val Value.$$ v ::: Value.instantiate v b)
 instantiateImplicits (val ::: ty) = pure (val ::: ty)
@@ -55,7 +55,7 @@ intro x body = do
   x <- gensym (maybe "_" showUser x)
   _B <- x ::: _A |- exists Type
   u <- x ::: _A |- goalIs _B (body (Local x))
-  pure (Value.lam (Name (Local x)) u ::: Value.pi ((Name (Local x), Ex, More) ::: _A) _B)
+  pure (Value.lam (Name (Local x)) u ::: Value.pi (Ex :< (Name (Local x), More) ::: _A) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    => Maybe User
@@ -68,7 +68,7 @@ pi x p m t body = do
   t' <- goalIs Type t
   x <- gensym (maybe "_" showUser x)
   b' <- x ::: t' |- goalIs Type (body (Local x))
-  pure (Value.pi ((qlocal x, p, m) ::: t') b' ::: Type)
+  pure (Value.pi (p :< (qlocal x, m) ::: t') b' ::: Type)
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     => m (Value Meta ::: Type Meta)
@@ -78,7 +78,7 @@ app f a = do
   _A <- exists Type
   _B <- exists Type
   x <- gensym "app"
-  f' <- goalIs (Value.pi ((qlocal x, Ex, zero) ::: _A) _B) f
+  f' <- goalIs (Value.pi (Ex :< (qlocal x, zero) ::: _A) _B) f
   a' <- goalIs _A a
   pure (f' Value.$$ a' ::: _B)
 
@@ -229,8 +229,8 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
         ty' <- runScope (whnf ty)
         (names, _) <- Value.unpis Local ty'
         pure (foldr (\case
-          (n, Im, _) ::: _ -> Core.lam n
-          _                -> id) tm names ::: Value.weaken ty)
+          Im :< (n, _) ::: _ -> Core.lam n
+          _                  -> id) tm names ::: Value.weaken ty)
       Nothing -> (tm :::) <$> inferredType Nothing
     elab <- runScope (define ty (elab tm))
     modify (Scope.insert name (Defn elab))
