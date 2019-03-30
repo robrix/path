@@ -58,7 +58,7 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
             where withPi
                     | ie == Ex, pi == More = id
                     | ie == Im, pi == Zero = id
-                    | otherwise  = (pretty pi <+>)
+                    | otherwise = (pretty pi <+>)
                   withIe
                     | ie == Im  = prettyBraces True
                     | otherwise = prettyParens True
