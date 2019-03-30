@@ -9,7 +9,7 @@ import Control.Effect.State
 import Control.Effect.Sum
 import Control.Effect.Writer
 import Control.Monad ((<=<))
-import Data.Foldable (for_)
+import Data.Foldable (foldl', for_)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -33,18 +33,19 @@ import qualified Path.Value as Value
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
-assume :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member (Reader Span) sig)
+assume :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig)
        => Name
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- have v >>= maybe (freeVariable v) pure
-  instantiateImplicits (pure (Name v) ::: _A)
+  implicits _A >>= foldl' app (pure (pure (Name v) ::: _A))
 
-instantiateImplicits :: (Carrier sig m, Member Elab sig) => Value Meta ::: Type Meta -> m (Value Meta ::: Type Meta)
-instantiateImplicits (val ::: Value.Pi (Im :< (_, t)) b) = do
-  v <- exists t
-  instantiateImplicits (val Value.$$ (Im :< v) ::: Value.instantiate v b)
-instantiateImplicits (val ::: ty) = pure (val ::: ty)
+implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (m (Value Meta ::: Type Meta))))
+implicits = go Nil
+  where go names (Value.Pi (Im :< (_, t)) b) = do
+          v <- exists t
+          go (names :> (Im :< pure (v ::: t))) (Value.instantiate v b)
+        go names _ = pure names
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
       => Plicit (Maybe User)
