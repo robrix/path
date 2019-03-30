@@ -36,3 +36,8 @@ prettyPlicity Ex = prettyParens True
 data Plicit a
   = Plicity :< a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Pretty a => Pretty (Plicit a) where
+  pretty (p :< a) = prettyPlicity p (pretty a)
+
+instance Pretty a => PrettyPrec (Plicit a)
