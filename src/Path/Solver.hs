@@ -10,7 +10,7 @@ import           Data.Foldable (foldl', toList)
 import qualified Data.Map as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
-import           Path.Constraint
+import           Path.Constraint hiding (Scope(..))
 import           Path.Context as Context
 import           Path.Error
 import           Path.Name
@@ -22,8 +22,8 @@ import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Spanned(..))
 
-type Blocked = Set.Set Constraint
-type Queue = Seq.Seq Constraint
+type Blocked = Set.Set (Spanned (Constraint Meta))
+type Queue = Seq.Seq (Spanned (Constraint Meta))
 
 -- FIXME: we need constraint dependencies to ensure that we e.g. δ-reduce a type like Either L R and solve the π type unification constraint before we try to solve whatever we typed using it
 
@@ -36,48 +36,51 @@ simplify :: ( Carrier sig m
             , Member (State Queue) sig
             , Member (State Substitution) sig
             )
-         => Constraint
-         -> m (Set.Set Constraint)
-simplify (constraint :~ span) = ask >>= \ scope -> execWriter (go scope constraint)
-  where go scope = \case
-          _ :|-: (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
-          _ :|-: (t1 :===: t2) ::: _
+         => Spanned (Constraint Meta)
+         -> m (Set.Set (Spanned (Constraint Meta)))
+simplify (constraint :~ span) = do
+  scope <- ask
+  (ctx, eqn) <- unbinds constraint
+  execWriter (go scope ctx eqn)
+  where go scope ctx = \case
+          (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
+          (t1 :===: t2) ::: _
             | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
             | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
-          ctx :|-: (Pi (p1 :< (_, t1)) b1 :===: Pi (p2 :< (_, t2)) b2) ::: Type
+          (Pi (p1 :< (_, t1)) b1 :===: Pi (p2 :< (_, t2)) b2) ::: Type
             | p1 == p2 -> do
-              go scope (ctx :|-: (t1 :===: t2) ::: Type)
+              go scope ctx ((t1 :===: t2) ::: Type)
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
-              go scope (Context.insert (n ::: t1) ctx :|-: (Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
-          ctx :|-: (Pi (Im :< (_, t1)) b1 :===: tm2) ::: Type -> do
+              go scope (Context.insert (n ::: t1) ctx) ((Value.instantiate (pure (qlocal n)) b1 :===: Value.instantiate (pure (qlocal n)) b2) ::: Type)
+          (Pi (Im :< (_, t1)) b1 :===: tm2) ::: Type -> do
             n <- exists ctx t1
-            go scope (ctx :|-: (Value.instantiate n b1 :===: tm2) ::: Type)
-          ctx :|-: (tm1 :===: Pi (Im :< (_, t2)) b2) ::: Type -> do
+            go scope ctx ((Value.instantiate n b1 :===: tm2) ::: Type)
+          (tm1 :===: Pi (Im :< (_, t2)) b2) ::: Type -> do
             n <- exists ctx t2
-            go scope (ctx :|-: (tm1 :===: Value.instantiate n b2) ::: Type)
-          ctx :|-: (Lam _ f1 :===: Lam _ f2) ::: Pi (_ :< (_, t)) b -> do
+            go scope ctx ((tm1 :===: Value.instantiate n b2) ::: Type)
+          (Lam _ f1 :===: Lam _ f2) ::: Pi (_ :< (_, t)) b -> do
             n <- gensym "lam"
-            go scope (Context.insert (n ::: t) ctx :|-: (Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
-          ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
+            go scope (Context.insert (n ::: t) ctx) ((Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
+          (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
             , Just t2 <- whnf scope (f2 :$ sp2) -> do
-              go scope (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (f1@(Name (Global _)) :$ sp1 :===: t2) ::: ty
+              go scope ctx ((t1 :===: t2) ::: ty)
+          (f1@(Name (Global _)) :$ sp1 :===: t2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1) -> do
-              go scope (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
+              go scope ctx ((t1 :===: t2) ::: ty)
+          (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t2 <- whnf scope (f2 :$ sp2) -> do
-              go scope (ctx :|-: (t1 :===: t2) ::: ty)
-          ctx :|-: (tm1 :===: Lam p2 b2) ::: ty@(Pi (_ :< (_, _)) _) -> do
+              go scope ctx ((t1 :===: t2) ::: ty)
+          (tm1 :===: Lam p2 b2) ::: ty@(Pi (_ :< (_, _)) _) -> do
             n <- gensym "lam"
-            go scope (ctx :|-: (lam (p2 :< qlocal n) (tm1 $$ (p2 :< pure (qlocal n))) :===: Lam p2 b2) ::: ty)
-          ctx :|-: (Lam p1 b1 :===: tm2) ::: ty@(Pi (_ :< (_, _)) _) -> do
+            go scope ctx ((lam (p2 :< qlocal n) (tm1 $$ (p2 :< pure (qlocal n))) :===: Lam p2 b2) ::: ty)
+          (Lam p1 b1 :===: tm2) ::: ty@(Pi (_ :< (_, _)) _) -> do
             n <- gensym "lam"
-            go scope (ctx :|-: (Lam p1 b1 :===: lam (p1 :< qlocal n) (tm2 $$ (p1 :< pure (qlocal n)))) ::: ty)
-          c@(_ :|-: (t1 :===: t2) ::: _)
-            | blocked t1 || blocked t2 -> tell (Set.singleton (c :~ span))
-            | otherwise                -> unsimplifiableConstraint (c :~ span)
+            go scope ctx ((Lam p1 b1 :===: lam (p1 :< qlocal n) (tm2 $$ (p1 :< pure (qlocal n)))) ::: ty)
+          c@((t1 :===: t2) ::: _)
+            | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
+            | otherwise                -> unsimplifiableConstraint (binds ctx c :~ span)
 
         exists ctx _ = do
           n <- Meta <$> gensym "meta"
@@ -99,7 +102,7 @@ solver :: ( Carrier sig m
           , Member Naming sig
           , Member (Reader Scope) sig
           )
-       => Set.Set Constraint
+       => Set.Set (Spanned (Constraint Meta))
        -> m Substitution
 solver constraints = execState Map.empty $ do
   (queue, blocked) <- runState (Seq.empty :: Queue) . execState (Set.empty :: Blocked) $ do
@@ -132,22 +135,24 @@ process :: ( Carrier sig m
            , Member (State Substitution) sig
            )
         => Substitution
-        -> Constraint
+        -> Spanned (Constraint Meta)
         -> m ()
-process _S c@((_ :|-: (tm1 :===: tm2) ::: _) :~ _)
-  | tm1 == tm2 = pure ()
-  | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) = simplify (apply s c) >>= enqueueAll
-  | Just (m, sp) <- pattern tm1 = solve m (Value.lams sp tm2)
-  | Just (m, sp) <- pattern tm2 = solve m (Value.lams sp tm1)
-  | otherwise = block c
+process _S c@(constraint :~ _) = do
+  (_, (tm1 :===: tm2) ::: _) <- unbinds constraint
+  case () of
+    _ | tm1 == tm2 -> pure ()
+      | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) -> simplify (apply s c) >>= enqueueAll
+      | Just (m, sp) <- pattern tm1 -> solve m (Value.lams sp tm2)
+      | Just (m, sp) <- pattern tm2 -> solve m (Value.lams sp tm1)
+      | otherwise -> block c
 
-block :: (Carrier sig m, Member (State Blocked) sig) => Constraint -> m ()
+block :: (Carrier sig m, Member (State Blocked) sig) => Spanned (Constraint Meta) -> m ()
 block c = modify (Set.insert c)
 
-enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t Constraint -> m ()
+enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t (Spanned (Constraint Meta)) -> m ()
 enqueueAll = modify . flip (foldl' (Seq.|>))
 
-dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe Constraint)
+dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe (Spanned (Constraint Meta)))
 dequeue = gets Seq.viewl >>= \case
   Seq.EmptyL -> pure Nothing
   h Seq.:< q -> Just h <$ put q
@@ -170,5 +175,5 @@ solve m v = do
   enqueueAll unblocked
   put blocked
 
-isBlockedOn :: Meta -> Constraint -> Bool
+isBlockedOn :: Meta -> Spanned (Constraint Meta) -> Bool
 isBlockedOn m = Set.member m . fvs

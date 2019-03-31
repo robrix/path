@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Stack as Stack
-import Path.Constraint
+import Path.Constraint hiding (Scope(..), (|-))
 import Path.Context as Context
 import qualified Path.Core as Core
 import Path.Error
@@ -147,10 +147,10 @@ instance Effect Elab where
     Unify  q   k -> Unify  q                        (handler (k <$ state))
 
 
-runElab :: ElabC m a -> m (Set.Set Constraint, a)
+runElab :: ElabC m a -> m (Set.Set (Spanned (Constraint Meta)), a)
 runElab = runWriter . runReader mempty . runElabC
 
-newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (Set.Set Constraint) m) a }
+newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (Set.Set (Spanned (Constraint Meta))) m) a }
   deriving (Applicative, Functor, Monad)
 
 instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
@@ -167,8 +167,8 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     span <- ask
     context <- ask
     tell (Set.fromList
-      [ (context :|-: (ty1 :===: ty2) ::: Value.Type) :~ span
-      , (context :|-: (tm1 :===: tm2) ::: ty1)        :~ span
+      [ (binds context ((ty1 :===: ty2) ::: Value.Type)) :~ span
+      , (binds context ((tm1 :===: tm2) ::: ty1))        :~ span
       ])
     runElabC k
   eff (R other) = ElabC (eff (R (R (handleCoercible other))))

@@ -8,7 +8,6 @@ import Data.Foldable (fold, toList)
 import Data.List (intersperse)
 import Data.List.NonEmpty (NonEmpty(..))
 import Path.Constraint
-import Path.Context
 import Path.Name
 import Path.Pretty
 import Text.Trifecta.Rendering (Span, Spanned(..))
@@ -26,16 +25,26 @@ ambiguousName name sources = do
     : map prettyQName (toList sources)))])
 
 
-unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => Constraint -> m a
-unsimplifiableConstraint ((ctx :|-: eqn) :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (prettyEqn eqn : prettyCtx ctx))
+unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig) => Spanned (Constraint Meta) -> m a
+unsimplifiableConstraint (c :~ span) = do
+  (ctx, eqn) <- unbinds c
+  throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (pretty eqn : prettyCtx ctx))
 
-blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Constraint] -> m a
-blockedConstraints constraints = throwError (fold (intersperse hardline (blocked <*> toList . metaNames . fvs <$> constraints)))
-  where blocked ((ctx :|-: eqn) :~ span) m = prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx)
+blockedConstraints :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig) => [Spanned (Constraint Meta)] -> m a
+blockedConstraints constraints = do
+  cs <- traverse (blocked <*> toList . metaNames . fvs) constraints
+  throwError (fold (intersperse hardline cs))
+  where blocked (c :~ span) m = do
+          (ctx, eqn) <- unbinds c
+          pure (prettyErr span (pretty "constraint" </> pretty eqn </> pretty "blocked on metavars" <+> encloseSep mempty mempty (comma <> space) (map (green . pretty . Meta) m)) (prettyCtx ctx))
 
-stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Constraint] -> m a
-stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
-  where stalled ((ctx :|-: eqn) :~ span) = prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx)
+stalledConstraints :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig) => [Spanned (Constraint Meta)] -> m a
+stalledConstraints constraints = do
+  cs <- traverse stalled constraints
+  throwError (fold (intersperse hardline cs))
+  where stalled (c :~ span) = do
+          (ctx, eqn) <- unbinds c
+          pure (prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx))
 
 
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]

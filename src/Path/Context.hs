@@ -7,7 +7,6 @@ import qualified Data.Set as Set
 import Path.Stack as Stack
 import Path.Name
 import Path.Pretty
-import Path.Value
 
 newtype Context a = Context { unContext :: Stack (Gensym ::: a) }
   deriving (Eq, Foldable, Functor, Monoid, Ord, Semigroup, Show, Traversable)
@@ -45,17 +44,3 @@ instance Pretty a => PrettyPrec (Context a)
 
 instance FreeVariables v a => FreeVariables v (Context a) where
   fvs = foldMap fvs
-
-
-data Contextual a = Context (Type Meta) :|-: a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-infixr 1 :|-:
-
-instance Pretty a => Pretty (Contextual a) where
-  pretty (ctx :|-: a) = pretty a </> pretty ctx
-
-instance Pretty a => PrettyPrec (Contextual a)
-
-instance FreeVariables Meta a => FreeVariables Meta (Contextual a) where
-  fvs (ctx :|-: b) = fvs ctx <> fvs b
