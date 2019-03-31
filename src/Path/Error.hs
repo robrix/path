@@ -41,7 +41,7 @@ stalledConstraints constraints = throwError (fold (intersperse hardline (map sta
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
 prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
 
-prettyEqn :: (Pretty a, Pretty b) => (Equation a ::: b) -> Doc
+prettyEqn :: (Pretty a, Pretty b) => Equation a ::: b -> Doc
 prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
   [ pretty "expected:" <+> pretty (expected ::: ty)
   , pretty "  actual:" <+> pretty (actual ::: ty)
