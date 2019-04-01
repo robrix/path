@@ -33,7 +33,7 @@ import qualified Path.Scope as Scope
 import Path.Stack
 import Path.Value
 import Prelude hiding (print)
-import System.Console.Haskeline hiding (handle)
+import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 import Text.Trifecta.Rendering (Span(..))
 
@@ -82,29 +82,24 @@ newtype TransC t (m :: * -> *) a = TransC { runTransC :: t m a }
 instance (Carrier sig m, Effect sig, Monad (t m), MonadTrans t) => Carrier sig (TransC t m) where
   eff = TransC . join . lift . eff . handle (pure ()) (pure . (runTransC =<<))
 
-newtype ControlIOC m a = ControlIOC ((forall x . m x -> IO x) -> m a)
+runControlIO :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
+runControlIO handler = runReader (Handler handler) . runControlIOC
 
-instance Functor m => Functor (ControlIOC m) where
-  fmap f (ControlIOC g) = ControlIOC (\ h -> fmap f (g h))
+newtype ControlIOC m a = ControlIOC { runControlIOC :: ReaderC (Handler m) m a }
+  deriving (Applicative, Functor, Monad, MonadIO)
 
-instance Applicative m => Applicative (ControlIOC m) where
-  pure a = ControlIOC (const (pure a))
-  ControlIOC f <*> ControlIOC a = ControlIOC (\ h -> f h <*> a h)
+newtype Handler m = Handler (forall x . m x -> IO x)
 
-instance Monad m => Monad (ControlIOC m) where
-  ControlIOC m >>= f = ControlIOC (\ handler -> m handler >>= runControlIOC handler . f)
-
-instance MonadIO m => MonadIO (ControlIOC m) where
-  liftIO m = ControlIOC (const (liftIO m))
-
-runControlIOC :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
-runControlIOC f (ControlIOC m) = m f
+runHandler :: Handler m -> ControlIOC m a -> IO a
+runHandler h@(Handler handler) = handler . runReader h . runControlIOC
 
 instance Carrier sig m => Carrier sig (ControlIOC m) where
-  eff op = ControlIOC (\ handler -> eff (handlePure (runControlIOC handler) op))
+  eff op = ControlIOC (eff (R (handleCoercible op)))
 
-instance MonadIO m => MonadException (ControlIOC m) where
-  controlIO f = ControlIOC (\ handler -> liftIO (f (RunIO (fmap pure . handler . runControlIOC handler)) >>= handler . runControlIOC handler))
+instance (Carrier sig m, MonadIO m) => MonadException (ControlIOC m) where
+  controlIO f = ControlIOC $ do
+    handler <- ask
+    liftIO (f (RunIO (fmap pure . runHandler handler)) >>= runHandler handler)
 
 repl :: MonadIO m => [FilePath] -> m ()
 repl packageSources = liftIO $ do
@@ -117,7 +112,7 @@ repl packageSources = liftIO $ do
         , autoAddHistory = True
         }
   createDirectoryIfMissing True settingsDir
-  runM (runControlIOC runM
+  runM (runControlIO runM
        (runREPL prefs settings
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Scope.Scope)
