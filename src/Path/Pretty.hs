@@ -24,7 +24,7 @@ import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
 import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
-import Text.Trifecta.Rendering (Rendering(..), Span(..), render)
+import Text.Trifecta.Rendering (Rendering(..), Span(..), Spanned(..), render)
 import Text.Trifecta.Result (ErrInfo(..))
 
 prettyPrint :: (PrettyPrec a, MonadIO m) => a -> m ()
@@ -97,6 +97,9 @@ instance PrettyPrec () where
 
 instance PrettyPrec Span where
   prettyPrec _ = pretty . render
+
+instance Pretty a => PrettyPrec (Spanned a) where
+  prettyPrec _ (a :~ span) = pretty a <> hardline <> prettyPrec 0 span
 
 instance PrettyPrec a => PrettyPrec [a] where
   prettyPrec _ = prettyList . map (prettyPrec 0)
