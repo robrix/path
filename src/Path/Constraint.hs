@@ -89,6 +89,15 @@ instance Traversable Constraint where
 instance Ord a => FreeVariables a (Constraint a) where
   fvs = foldMap Set.singleton
 
+instance Pretty (Constraint Meta) where
+  pretty c = run . runNaming (Root "pretty") $ do
+    (ctx, eqn) <- unbinds c
+    pure (vsep (pretty eqn : prettyCtx ctx))
+    where prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
+          prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
+
+instance PrettyPrec (Constraint Meta)
+
 
 infixr 1 |-
 
