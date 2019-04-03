@@ -28,13 +28,13 @@ newtype Scope a = Scope (Value (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance PrettyPrec (Value Meta) where
-  prettyPrec = prettyValue qlocal
+  prettyPrec d = run . runNaming (Root "pretty") . prettyValue qlocal d
 
 instance PrettyPrec (Value Name) where
-  prettyPrec = prettyValue Local
+  prettyPrec d = run . runNaming (Root "pretty") . prettyValue Local d
 
-prettyValue :: (Ord name, Pretty name) => (Gensym -> name) -> Int -> Value name -> Doc
-prettyValue localName d = run . runNaming (Root "pretty") . go d
+prettyValue :: (Carrier sig m, Ord name, Pretty name, Member Naming sig) => (Gensym -> name) -> Int -> Value name -> m Doc
+prettyValue localName d = go d
   where go d = \case
           Lam ie b -> do
             (as, b') <- unlams localName (Lam ie b)
