@@ -4,6 +4,7 @@ module Path.Constraint where
 import Control.Effect
 import Control.Monad (join)
 import Data.Bifunctor (first)
+import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
@@ -90,13 +91,11 @@ instance Ord a => FreeVariables a (Constraint a) where
   fvs = foldMap Set.singleton
 
 instance Pretty (Constraint Meta) where
-  pretty = run . runNaming (Root "pretty") . go
-    where go (v :|-: s) = do
-            n <- qlocal <$> gensym ""
-            case instantiate (pure n) s of
-              E eqn -> pure (pretty (n ::: v) </> magenta (pretty "⊢") <+> pretty eqn)
-              other -> (pretty (n ::: v) <> comma </>) <$> go other
-          go (E eqn) = pure (pretty eqn)
+  pretty c = run . runNaming (Root "pretty") $ do
+    (ctx, eqn) <- unbinds c
+    case unContext ctx of
+      Nil -> pure (pretty eqn)
+      ctx -> pure (encloseSep (flatAlt (space <> space) mempty) (softline <> magenta (pretty "⊢")) (softbreak <> comma <> space) (toList (pretty <$> ctx)) <+> pretty eqn)
 
 instance PrettyPrec (Constraint Meta)
 
