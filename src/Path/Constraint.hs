@@ -94,7 +94,7 @@ instance Pretty (Constraint Meta) where
     where go (v :|-: s) = do
             n <- qlocal <$> gensym ""
             case instantiate (pure n) s of
-              E eqn -> pure (pretty (n ::: v) </> pretty "⊢" <+> pretty eqn)
+              E eqn -> pure (pretty (n ::: v) </> magenta (pretty "⊢") <+> pretty eqn)
               other -> (pretty (n ::: v) <> comma </>) <$> go other
           go (E eqn) = pure (pretty eqn)
 
