@@ -222,7 +222,7 @@ typedType (_ ::: t) = t
 infix 6 :::
 
 instance (Pretty a, Pretty b) => Pretty (a ::: b) where
-  pretty (a ::: t) = pretty a <+> colon <+> pretty t
+  pretty (a ::: t) = pretty a <+> cyan colon <+> pretty t
 
 instance (Pretty a, Pretty b) => PrettyPrec (a ::: b)
 
