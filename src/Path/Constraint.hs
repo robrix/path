@@ -90,11 +90,13 @@ instance Ord a => FreeVariables a (Constraint a) where
   fvs = foldMap Set.singleton
 
 instance Pretty (Constraint Meta) where
-  pretty c = run . runNaming (Root "pretty") $ do
-    (ctx, eqn) <- unbinds c
-    pure (vsep (pretty eqn : prettyCtx ctx))
-    where prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
-          prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
+  pretty = run . runNaming (Root "pretty") . go
+    where go (v :|-: s) = do
+            n <- qlocal <$> gensym ""
+            case instantiate (pure n) s of
+              E eqn -> pure (pretty (n ::: v) </> pretty "⊢" <+> pretty eqn)
+              other -> (pretty (n ::: v) <> comma </>) <$> go other
+          go (E eqn) = pure (pretty eqn)
 
 instance PrettyPrec (Constraint Meta)
 
