@@ -44,22 +44,19 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
                     | n `Set.member` vs = prettyPlicity False (p :< pretty n)   <+> rest
                     | otherwise         = prettyPlicity False (p :< pretty '_') <+> rest
           Type -> pure (yellow (pretty "Type"))
-          Pi ie@(p :< (pi, t)) b -> do
-            name <- localName <$> gensym ""
-            let b' = instantiate (pure name) b
-            prettyParens (d > 1) <$> if p == Im || name `Set.member` fvs b' then do
-              ie' <- traverse (traverse (go 0)) ie
-              b'' <- go 1 b'
-              pure (pretty ((\ (pi, t') -> pretty name <+> colon <+> withPi pi t') <$> ie') <+> arrow <+> b'')
-            else do
-              t' <- go 2 t
-              b'' <- go 1 b'
-              pure (withPi pi (t' <+> arrow <+> b''))
-            where withPi pi
-                    | p == Ex, pi == More = id
-                    | p == Im, pi == Zero = id
-                    | otherwise = (pretty pi <+>)
+          v@Pi{} -> do
+            (pis, body) <- unpis localName v
+            body' <- go 1 body
+            pis' <- traverse prettyPi pis
+            pure (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> body')))
+            where withPi Ex More = id
+                  withPi Im Zero = id
+                  withPi _  pi   = (pretty pi <+>)
                   arrow = blue (pretty "->")
+                  l = flatAlt (space <> space <> space) mempty
+                  prettyPi (p :< (n, u) ::: t) = do
+                    t' <- go 0 t
+                    pure (pretty (p :< pretty (pretty n ::: withPi p u t')))
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (prettyParens (d > 10 && not (null sp)) (hsep (pretty f : sp')))
