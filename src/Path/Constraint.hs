@@ -95,9 +95,10 @@ instance Pretty (Constraint Meta) where
     (ctx, eqn@((v1 :===: v2) ::: t)) <- unbinds c
     case unContext ctx of
       Nil -> pure (pretty eqn)
-      ctx -> pure (cat (zipWith (<>) (l : repeat s) (toList (pretty <$> ctx)) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> pretty v1, magenta (pretty "≡") <+> pretty v2, cyan colon <+> pretty t ]))
+      ctx -> pure (cat (zipWith (<>) (l : repeat s) (toList (prettyBind <$> ctx)) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> pretty v1, magenta (pretty "≡") <+> pretty v2, cyan colon <+> pretty t ]))
     where l = flatAlt (magenta (pretty "Γ") <> space) mempty
           s = softbreak <> cyan comma <> space
+          prettyBind (n ::: t) = pretty (qlocal n ::: t)
 
 instance PrettyPrec (Constraint Meta)
 
