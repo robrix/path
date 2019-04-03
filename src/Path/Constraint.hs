@@ -96,7 +96,7 @@ instance Pretty (Constraint Meta) where
     case unContext ctx of
       Nil -> pure (pretty eqn)
       ctx -> pure (cat (zipWith (<>) (l : repeat s) (toList (pretty <$> ctx)) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> pretty v1, magenta (pretty "≡") <+> pretty v2, cyan colon <+> pretty t ]))
-    where l = flatAlt (space <> space) mempty
+    where l = flatAlt (magenta (pretty "Γ") <> space) mempty
           s = softbreak <> cyan comma <> space
 
 instance PrettyPrec (Constraint Meta)
