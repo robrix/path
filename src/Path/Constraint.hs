@@ -4,7 +4,7 @@ module Path.Constraint where
 import Control.Effect
 import Control.Monad (join)
 import Data.Bifunctor (first)
-import Data.Foldable (fold, toList)
+import Data.Foldable (toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
