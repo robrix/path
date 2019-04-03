@@ -62,7 +62,7 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
                   arrow = blue (pretty "->")
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
-            pure (prettyParens (d > 10 && not (null sp)) ((group (align (nest 2 (vsep (pretty f : sp')))))))
+            pure (prettyParens (d > 10 && not (null sp)) (hsep (pretty f : sp')))
             where prettyArg (Im :< a) = prettyBraces True <$> go 0 a
                   prettyArg (Ex :< a) = go 11 a
 
