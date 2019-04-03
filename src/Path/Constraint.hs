@@ -91,11 +91,13 @@ instance Ord a => FreeVariables a (Constraint a) where
   fvs = foldMap Set.singleton
 
 instance Pretty (Constraint Meta) where
-  pretty c = run . runNaming (Root "pretty") $ do
-    (ctx, eqn) <- unbinds c
+  pretty c = group . run . runNaming (Root "pretty") $ do
+    (ctx, eqn@((v1 :===: v2) ::: t)) <- unbinds c
     case unContext ctx of
       Nil -> pure (pretty eqn)
-      ctx -> pure (encloseSep (flatAlt (space <> space) mempty) (softline <> magenta (pretty "⊢")) (softbreak <> comma <> space) (toList (pretty <$> ctx)) <+> pretty eqn)
+      ctx -> pure (sep (zipWith (<>) (l : repeat s) (toList (pretty <$> ctx)) <> [ magenta (pretty "⊢") <+> pretty v1, magenta (pretty "≡") <+> pretty v2, cyan colon <+> pretty t ]))
+    where l = flatAlt (space <> space) mempty
+          s = softbreak <> cyan comma <> space
 
 instance PrettyPrec (Constraint Meta)
 
