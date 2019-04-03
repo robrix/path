@@ -4,7 +4,7 @@ module Path.Constraint where
 import Control.Effect
 import Control.Monad (join)
 import Data.Bifunctor (first)
-import Data.Foldable (toList)
+import Data.Foldable (fold, toList)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
@@ -95,7 +95,7 @@ instance Pretty (Constraint Meta) where
     (ctx, eqn@((v1 :===: v2) ::: t)) <- unbinds c
     case unContext ctx of
       Nil -> pure (pretty eqn)
-      ctx -> pure (sep (zipWith (<>) (l : repeat s) (toList (pretty <$> ctx)) <> [ magenta (pretty "⊢") <+> pretty v1, magenta (pretty "≡") <+> pretty v2, cyan colon <+> pretty t ]))
+      ctx -> pure (cat (zipWith (<>) (l : repeat s) (toList (pretty <$> ctx)) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> pretty v1, magenta (pretty "≡") <+> pretty v2, cyan colon <+> pretty t ]))
     where l = flatAlt (space <> space) mempty
           s = softbreak <> cyan comma <> space
 
