@@ -49,14 +49,14 @@ prettyValue localName d = run . runNaming (Root "pretty") . go d
             body' <- go 1 body
             pis' <- traverse prettyPi pis
             pure (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> body')))
-            where withPi Ex More = id
-                  withPi Im Zero = id
-                  withPi _  pi   = (pretty pi <+>)
+            where withPi Ex More = go 0
+                  withPi Im Zero = go 0
+                  withPi _  pi   = fmap (pretty pi <+>) . go 11
                   arrow = blue (pretty "->")
                   l = flatAlt (space <> space <> space) mempty
                   prettyPi (p :< (n, u) ::: t) = do
-                    t' <- go 0 t
-                    pure (pretty (p :< pretty (pretty n ::: withPi p u t')))
+                    t' <- withPi p u t
+                    pure (pretty (p :< pretty (pretty n ::: t')))
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (prettyParens (d > 10 && not (null sp)) (hsep (pretty f : sp')))
