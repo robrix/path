@@ -51,7 +51,7 @@ library
                      , containers
                      , directory
                      , filepath
-                     , fused-effects < 0.3
+                     , fused-effects >= 0.3 && < 0.4
                      , haskeline
                      , indentation-trifecta
                      , mtl
