@@ -150,7 +150,7 @@ data Meta
 instance Pretty Meta where
   pretty = \case
     Name q -> pretty q
-    Meta m -> pretty '?' <> pretty m
+    Meta m -> bold (pretty '?' <> pretty m)
 
 qlocal :: Gensym -> Meta
 qlocal = Name . Local
