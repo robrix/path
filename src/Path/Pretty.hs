@@ -14,6 +14,7 @@ module Path.Pretty
 , prettyBraces
 , tabulate2
 , tracePrettyM
+, Prec(..)
 , module PP
 ) where
 
@@ -124,3 +125,10 @@ prettyBraces False = id
 -- | Debugging helper.
 tracePrettyM :: (Applicative m, PrettyPrec a) => a -> m ()
 tracePrettyM a = unsafePerformIO (prettyPrint a *> pure (pure ()))
+
+
+data Prec = Prec
+  { precPrecedence :: Int
+  , precDoc        :: Doc
+  }
+  deriving (Show)
