@@ -12,6 +12,7 @@ import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import           Path.Pretty
+import           Path.Stack
 import           Path.Usage
 import           Text.Trifecta.Rendering (Span, Spanned(..))
 
@@ -44,6 +45,15 @@ gensym s = send (Gensym s pure)
 
 namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
 namespace s m = send (Namespace s m pure)
+
+
+un :: (Carrier sig m, Member Naming sig) => (Gensym -> t -> Maybe (a, t)) -> t -> m (Stack a, t)
+un from = go Nil
+  where go names value = do
+          name <- gensym ""
+          case from name value of
+            Just (name, body) -> go (names :> name) body
+            Nothing           -> pure (names, value)
 
 data Naming m k
   = Gensym String (Gensym -> k)

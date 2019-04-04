@@ -77,15 +77,6 @@ instance Monad Value where
   a >>= f = joinT (fmap f a)
 
 
-un :: (Carrier sig m, Member Naming sig) => (Gensym -> t -> Maybe (a, t)) -> t -> m (Stack a, t)
-un from = go Nil
-  where go names value = do
-          name <- gensym ""
-          case from name value of
-            Just (name, body) -> go (names :> name) body
-            Nothing           -> pure (names, value)
-
-
 lam :: Eq a => Plicit a -> Value a -> Value a
 lam (pl :< n) b = Lam pl (bind n b)
 
