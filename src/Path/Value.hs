@@ -77,6 +77,15 @@ instance Monad Value where
   a >>= f = joinT (fmap f a)
 
 
+un :: (Carrier sig m, Member Naming sig) => (Gensym -> Value name -> Maybe (a, Value name)) -> Value name -> m (Stack a, Value name)
+un from = go Nil
+  where go names value = do
+          name <- gensym ""
+          case from name value of
+            Just (name, body) -> go (names :> name) body
+            Nothing           -> pure (names, value)
+
+
 lam :: Eq a => Plicit a -> Value a -> Value a
 lam (pl :< n) b = Lam pl (bind n b)
 
@@ -88,12 +97,7 @@ unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
 unlams :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit name), Value name)
-unlams localName = intro Nil
-  where intro names value = do
-          name <- gensym ""
-          case unlam (localName name) value of
-            Just (name, body) -> intro (names :> name) body
-            Nothing           -> pure (names, value)
+unlams localName = un (unlam . localName)
 
 pi :: Eq a => Plicit (a, Usage) ::: Type a -> Value a -> Value a
 pi (p :< (n, u) ::: t) b = Pi (p :< (u, t)) (bind n b)
@@ -107,12 +111,7 @@ unpi n (Pi (p :< (u, t)) b) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
 unpi _ _                    = empty
 
 unpis :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit (name, Usage) ::: Type name), Value name)
-unpis localName = intro Nil
-  where intro names value = do
-          name <- gensym ""
-          case unpi (localName name) value of
-            Just (name, body) -> intro (names :> name) body
-            Nothing           -> pure (names, value)
+unpis localName = un (unpi . localName)
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
 Lam _ b $$ (_ :< v) = instantiate v b
