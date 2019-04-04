@@ -108,9 +108,11 @@ unpi _ _                    = empty
 
 unpis :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit (name, Usage) ::: Type name), Value name)
 unpis qlocal = intro Nil
-  where intro names value = gensym "" >>= \ root -> case unpi (qlocal root) value of
-          Just (name, body) -> intro (names :> name) body
-          Nothing           -> pure (names, value)
+  where intro names value = do
+          name <- gensym ""
+          case unpi (qlocal name) value of
+            Just (name, body) -> intro (names :> name) body
+            Nothing           -> pure (names, value)
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
 Lam _ b $$ (_ :< v) = instantiate v b
