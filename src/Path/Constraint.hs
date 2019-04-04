@@ -101,7 +101,7 @@ instance Pretty (Constraint Meta) where
         v2' <- prettyValue qlocal 0 v2
         t'  <- prettyValue qlocal 0 t
         pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> v1', magenta (pretty "≡") <+> v2', cyan colon <+> t' ]))
-    where l = flatAlt (magenta (pretty "Γ") <> space) mempty
+    where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
           prettyBind (n ::: t) = pretty . (qlocal n :::) <$> prettyValue qlocal 0 t
 
