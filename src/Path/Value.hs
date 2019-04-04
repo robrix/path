@@ -5,7 +5,7 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
-import           Control.Monad ((<=<), ap)
+import           Control.Monad (ap)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Data.Traversable (for)
@@ -145,13 +145,6 @@ generalizeType ty = pis (foldMap f (fvs ty)) ty >>= \case { Name (Global n) -> p
   where f name
           | Name (Global (_ :.: _)) <- name = Set.empty
           | otherwise                       = Set.singleton (Im :< (name, Zero) ::: Type)
-
-generalizeValue :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig) => Value Meta ::: Type Name -> m (Value Name)
-generalizeValue (value ::: ty) = strengthen <=< namespace "generalizeValue" $ do
-  (names, _) <- unpis Local ty
-  pure (lams (foldr (\case
-    Im :< (n, _) ::: _ -> ((Im :< Name n) :)
-    _                  -> id) [] names) value)
 
 
 weaken :: Value Name -> Value Meta
