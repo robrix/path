@@ -135,3 +135,6 @@ data Prec = Prec
 
 instance Pretty Prec where
   pretty = precDoc
+
+instance PrettyPrec Prec where
+  prettyPrec d (Prec d' a) = prettyParens (d > d') a
