@@ -226,10 +226,10 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
     tm ::: ty <- case ty of
       Just ty -> do
         ty' <- runScope (whnf ty)
-        (names, _) <- Value.unpis Local ty'
-        pure (foldr (\case
-          Im :< (n, _) ::: _ -> Core.lam (Im :< n)
-          _                  -> id) tm names ::: Value.weaken ty)
+        (names, _) <- un (orTerm (\ n -> \case
+          Value.Pi (Im :< _) b -> Just (Im :< Local n, Value.instantiate (pure (Local n)) b)
+          _                    -> Nothing)) ty'
+        pure (Core.lams names tm ::: Value.weaken ty)
       Nothing -> (tm :::) <$> inferredType Nothing
     elab <- runScope (define ty (elab tm))
     modify (Scope.insert name (Defn elab))
