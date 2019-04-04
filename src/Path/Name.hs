@@ -121,6 +121,8 @@ infixl 5 :.:
 instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
 
+instance PrettyPrec Qualified
+
 
 data Name
   = Global Qualified
