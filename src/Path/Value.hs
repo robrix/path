@@ -51,11 +51,8 @@ prettyValue localName = go
                   arrow = blue (pretty "->")
                   l = flatAlt (space <> space <> space) mempty
                   prettyPi (p :< (n, u) ::: t) isUsed = do
-                    t' <- go t
-                    pure $! if isUsed then
-                      pretty (p :< pretty (pretty n ::: withPi p u t'))
-                    else
-                      prettyPlicity False (p :< withPi p u t')
+                    t' <- withPi p u <$> go t
+                    pure $! prettyPlicity isUsed (p :< if isUsed then pretty (n ::: t') else t')
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (if null sp then
