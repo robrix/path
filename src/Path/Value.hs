@@ -31,7 +31,7 @@ prettyValue :: (Carrier sig m, Ord name, Pretty name, Member Naming sig) => (Gen
 prettyValue localName = go
   where go = \case
           Lam ie b -> do
-            (as, b') <- unlams localName (Lam ie b)
+            (as, b') <- un (orTerm (unlam . localName)) (Lam ie b)
             b'' <- go b'
             pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
             where var vs (p :< n) rest
@@ -39,7 +39,7 @@ prettyValue localName = go
                     | otherwise         = prettyPlicity False (p :< pretty '_') <+> rest
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
-            (pis, body) <- unpis localName v
+            (pis, body) <- un (orTerm (unpi . localName)) v
             body' <- go body
             pis' <- traverse prettyPi pis
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
@@ -87,9 +87,6 @@ unlam :: Alternative m => a -> Value a -> m (Plicit a, Value a)
 unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
-unlams :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit name), Value name)
-unlams localName = un (orTerm (unlam . localName))
-
 pi :: Eq a => Plicit (a, Usage) ::: Type a -> Value a -> Value a
 pi (p :< (n, u) ::: t) b = Pi (p :< (u, t)) (bind n b)
 
@@ -100,9 +97,6 @@ pis names body = foldr pi body names
 unpi :: Alternative m => a -> Value a -> m (Plicit (a, Usage) ::: Type a, Value a)
 unpi n (Pi (p :< (u, t)) b) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
 unpi _ _                    = empty
-
-unpis :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit (name, Usage) ::: Type name), Value name)
-unpis localName = un (orTerm (unpi . localName))
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
 Lam _ b $$ (_ :< v) = instantiate v b
