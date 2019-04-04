@@ -128,7 +128,7 @@ tracePrettyM a = unsafePerformIO (prettyPrint a *> pure (pure ()))
 
 
 data Prec = Prec
-  { precPrecedence :: Int
+  { precPrecedence :: Maybe Int
   , precDoc        :: Doc
   }
   deriving (Show)
@@ -137,4 +137,4 @@ instance Pretty Prec where
   pretty = precDoc
 
 instance PrettyPrec Prec where
-  prettyPrec d (Prec d' a) = prettyParens (d > d') a
+  prettyPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a
