@@ -28,10 +28,10 @@ instance Unital Plicity where
   one = Ex
 
 
-prettyPlicity :: Bool -> Plicit Doc -> Doc
-prettyPlicity _    (Im :< a) = prettyBraces True a
-prettyPlicity True (Ex :< a) = prettyParens True a
-prettyPlicity _    (_  :< a) = a
+prettyPlicity :: Pretty a => Bool -> Plicit a -> Doc
+prettyPlicity _    (Im :< a) = prettyBraces True (pretty a)
+prettyPlicity True (Ex :< a) = prettyParens True (pretty a)
+prettyPlicity _    (_  :< a) = pretty a
 
 
 data Plicit a
