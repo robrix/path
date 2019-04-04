@@ -97,13 +97,13 @@ instance Pretty (Constraint Meta) where
       Nil -> pure (pretty eqn)
       ctx -> do
         binds <- traverse prettyBind ctx
-        v1' <- prettyValue qlocal 0 v1
-        v2' <- prettyValue qlocal 0 v2
-        t'  <- prettyValue qlocal 0 t
-        pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> v1', magenta (pretty "≡") <+> v2', cyan colon <+> t' ]))
+        v1' <- prettyValue qlocal v1
+        v2' <- prettyValue qlocal v2
+        t'  <- prettyValue qlocal t
+        pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> prettyPrec 0 v1', magenta (pretty "≡") <+> prettyPrec 0 v2', cyan colon <+> prettyPrec 0 t' ]))
     where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
-          prettyBind (n ::: t) = pretty . (qlocal n :::) <$> prettyValue qlocal 0 t
+          prettyBind (n ::: t) = pretty . (qlocal n :::) . prettyPrec 0 <$> prettyValue qlocal t
 
 instance PrettyPrec (Constraint Meta)
 
