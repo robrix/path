@@ -39,18 +39,23 @@ prettyValue localName = go
                     | otherwise         = prettyPlicity False (p :< pretty '_') <+> rest
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
-            (pis, body) <- un (orTerm (unpi . localName)) v
+            (pis, body) <- un (orTerm (\ n -> \case
+              Pi (p :< (u, t)) b -> let b' = instantiate (pure (localName n)) b in Just ((p :< (localName n, u) ::: t, localName n `Set.member` fvs b'), b')
+              _                  -> Nothing)) v
             body' <- go body
-            pis' <- traverse prettyPi pis
+            pis' <- traverse (uncurry prettyPi) pis
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
             where withPi Ex More = prettyPrec 0
                   withPi Im Zero = prettyPrec 0
                   withPi _  pi   = (pretty pi <+>) . prettyPrec 11
                   arrow = blue (pretty "->")
                   l = flatAlt (space <> space <> space) mempty
-                  prettyPi (p :< (n, u) ::: t) = do
+                  prettyPi (p :< (n, u) ::: t) isUsed = do
                     t' <- go t
-                    pure (pretty (p :< pretty (pretty n ::: withPi p u t')))
+                    pure $! if isUsed then
+                      pretty (p :< pretty (pretty n ::: withPi p u t'))
+                    else
+                      prettyPlicity False (p :< withPi p u t')
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (if null sp then
