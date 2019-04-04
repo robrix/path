@@ -53,8 +53,8 @@ instance Effect REPL where
 prompt :: (Carrier sig m, Member REPL sig) => String -> m (Maybe String)
 prompt p = send (Prompt p pure)
 
-print :: (PrettyPrec a, Carrier sig m, Member REPL sig) => a -> m ()
-print s = send (Print (prettys s) (pure ()))
+print :: (Pretty a, Carrier sig m, Member REPL sig) => a -> m ()
+print s = send (Print (pretty s) (pure ()))
 
 askLine :: (Carrier sig m, Member REPL sig) => m Line
 askLine = send (AskLine pure)

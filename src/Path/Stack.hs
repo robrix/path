@@ -22,8 +22,6 @@ instance Monoid (Stack a) where
 instance Pretty a => Pretty (Stack a) where
   pretty = list . toList . fmap pretty
 
-instance Pretty a => PrettyPrec (Stack a)
-
 
 find :: (a -> Bool) -> Stack a -> Maybe a
 find p = \case

@@ -25,8 +25,6 @@ instance Pretty Entry where
   pretty (Decl        ty)  =         colon <+> pretty ty
   pretty (Defn (v ::: ty)) = align $ colon <+> pretty ty <> hardline <> pretty "=" <+> pretty v
 
-instance PrettyPrec Entry
-
 
 newtype Scope = Scope { unScope :: Map.Map Qualified Entry }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
@@ -51,5 +49,3 @@ under = coerce
 
 instance Pretty Scope where
   pretty = tabulate2 space . map (green . pretty *** align . group . pretty) . Map.toList . unScope
-
-instance PrettyPrec Scope

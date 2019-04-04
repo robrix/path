@@ -25,8 +25,6 @@ instance Pretty a => Pretty (Equation a) where
   pretty (t1 :===: t2) = flatAlt (pretty t1 <+> eq <+> pretty t2) (align (space <+> pretty t1 </> eq <+> pretty t2))
     where eq = magenta (pretty "≡")
 
-instance Pretty a => PrettyPrec (Equation a)
-
 instance FreeVariables v a => FreeVariables v (Equation a) where
   fvs (a1 :===: a2) = fvs a1 <> fvs a2
 
@@ -104,8 +102,6 @@ instance Pretty (Constraint Meta) where
     where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
           prettyBind (n ::: t) = pretty . (qlocal n :::) . prettyPrec 0 <$> prettyValue qlocal t
-
-instance PrettyPrec (Constraint Meta)
 
 
 infixr 1 |-

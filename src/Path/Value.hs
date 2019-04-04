@@ -27,12 +27,6 @@ data Value a
 newtype Scope a = Scope (Value (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance PrettyPrec (Value Meta) where
-  prettyPrec d = prettyPrec d . run . runNaming (Root "pretty") . prettyValue qlocal
-
-instance PrettyPrec (Value Name) where
-  prettyPrec d = prettyPrec d . run . runNaming (Root "pretty") . prettyValue Local
-
 prettyValue :: (Carrier sig m, Ord name, Pretty name, Member Naming sig) => (Gensym -> name) -> Value name -> m Prec
 prettyValue localName = go
   where go = \case
@@ -56,7 +50,7 @@ prettyValue localName = go
                   l = flatAlt (space <> space <> space) mempty
                   prettyPi (p :< (n, u) ::: t) = do
                     t' <- withPi p u t
-                    pure (pretty (p :< pretty (pretty n ::: prettyPrec 0 t')))
+                    pure (pretty (p :< pretty (pretty n ::: t')))
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (if null sp then
@@ -68,10 +62,10 @@ prettyValue localName = go
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 
 instance Pretty (Value Meta) where
-  pretty = prettyPrec 0
+  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue qlocal
 
 instance Pretty (Value Name) where
-  pretty = prettyPrec 0
+  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue Local
 
 instance Ord a => FreeVariables a (Value a) where
   fvs = foldMap Set.singleton

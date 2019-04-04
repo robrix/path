@@ -42,5 +42,3 @@ infixr 7 :<
 
 instance Pretty a => Pretty (Plicit a) where
   pretty = prettyPlicity True . fmap pretty
-
-instance Pretty a => PrettyPrec (Plicit a)

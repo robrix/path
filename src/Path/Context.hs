@@ -40,7 +40,5 @@ vars = fmap typedTerm . unContext
 instance Pretty a => Pretty (Context a) where
   pretty = tabulate2 (space <> colon <> space) . map (green . pretty . Local . typedTerm &&& nest 2 . align . group . pretty . typedType) . toList . unContext
 
-instance Pretty a => PrettyPrec (Context a)
-
 instance FreeVariables v a => FreeVariables v (Context a) where
   fvs = foldMap fvs

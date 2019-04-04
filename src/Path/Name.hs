@@ -27,8 +27,6 @@ instance Pretty Gensym where
     Root s -> pretty s
     _ :/ (_, i) -> prettyVar i
 
-instance PrettyPrec Gensym
-
 prettyGensym :: Gensym -> Doc
 prettyGensym = \case
   Root s -> pretty s
@@ -84,8 +82,6 @@ instance Pretty User where
     Id s  -> pretty s
     Op op -> parens (pretty op)
 
-instance PrettyPrec User
-
 showUser :: User -> String
 showUser (Id s) = s
 showUser (Op o) = showOperator o
@@ -103,8 +99,6 @@ instance Pretty ModuleName where
     ModuleName s -> pretty s
     ss :. s      -> pretty ss <> dot <> pretty s
 
-instance PrettyPrec ModuleName
-
 makeModuleName :: NonEmpty String -> ModuleName
 makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 
@@ -121,8 +115,6 @@ infixl 5 :.:
 instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
 
-instance PrettyPrec Qualified
-
 
 data Name
   = Global Qualified
@@ -133,8 +125,6 @@ instance Pretty Name where
   pretty = \case
     Global (_ :.: n) -> pretty n
     Local         n  -> pretty '_' <> prettyGensym n
-
-instance PrettyPrec Name
 
 inModule :: ModuleName -> Name -> Bool
 inModule m (Global (m' :.: _)) = m == m'
@@ -194,8 +184,6 @@ renderOperator space pretty = \case
 instance Pretty Operator where
   pretty = renderOperator space pretty
 
-instance PrettyPrec Operator
-
 
 data Incr a = Z | S a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -227,8 +215,6 @@ infix 6 :::
 
 instance (Pretty a, Pretty b) => Pretty (a ::: b) where
   pretty (a ::: t) = pretty a <+> cyan colon <+> pretty t
-
-instance (Pretty a, Pretty b) => PrettyPrec (a ::: b)
 
 instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a ::: b) where
   fvs (a ::: b) = fvs a <> fvs b

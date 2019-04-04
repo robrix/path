@@ -26,9 +26,7 @@ mult = (><<)
 
 instance Pretty Resources where
   pretty = vsep . map (uncurry prettyBinding) . Map.toList . unResources
-    where prettyBinding name u = pretty name <+> pretty "@" <+> prettyPrec 0 u
-
-instance PrettyPrec Resources
+    where prettyBinding name u = pretty name <+> pretty "@" <+> pretty u
 
 instance Semigroup Resources where
   (<>) = fmap Resources . (Map.unionWith (<>) `on` unResources)
