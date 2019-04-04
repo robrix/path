@@ -47,13 +47,16 @@ namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
 namespace s m = send (Namespace s m pure)
 
 
-un :: (Carrier sig m, Member Naming sig) => (Gensym -> t -> Maybe (a, t)) -> t -> m (Stack a, t)
+un :: (Carrier sig m, Member Naming sig) => (Gensym -> t -> Either b (a, t)) -> t -> m (Stack a, b)
 un from = go Nil
   where go names value = do
           name <- gensym ""
           case from name value of
-            Just (name, body) -> go (names :> name) body
-            Nothing           -> pure (names, value)
+            Right (name, body) -> go (names :> name) body
+            Left body          -> pure (names, body)
+
+orTerm :: (n -> t -> Maybe (a, t)) -> (n -> t -> Either t (a, t))
+orTerm f a t = maybe (Left t) Right (f a t)
 
 data Naming m k
   = Gensym String (Gensym -> k)
