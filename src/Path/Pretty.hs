@@ -132,3 +132,6 @@ data Prec = Prec
   , precDoc        :: Doc
   }
   deriving (Show)
+
+instance Pretty Prec where
+  pretty = precDoc
