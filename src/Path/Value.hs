@@ -42,8 +42,8 @@ prettyValue localName = go
             (pis, body) <- un (orTerm (\ n -> \case
               Pi (p :< (u, t)) b -> let b' = instantiate (pure (localName n)) b in Just ((p :< (localName n, u) ::: t, localName n `Set.member` fvs b'), b')
               _                  -> Nothing)) v
-            body' <- go body
             pis' <- traverse (uncurry prettyPi) pis
+            body' <- go body
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
             where withPi Ex More = prettyPrec 0
                   withPi Im Zero = prettyPrec 0
