@@ -77,7 +77,7 @@ instance Monad Value where
   a >>= f = joinT (fmap f a)
 
 
-un :: (Carrier sig m, Member Naming sig) => (Gensym -> Value name -> Maybe (a, Value name)) -> Value name -> m (Stack a, Value name)
+un :: (Carrier sig m, Member Naming sig) => (Gensym -> t -> Maybe (a, t)) -> t -> m (Stack a, t)
 un from = go Nil
   where go names value = do
           name <- gensym ""
