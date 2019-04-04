@@ -57,7 +57,6 @@ prettyValue localName = go
               Prec Nothing (pretty f)
             else
               Prec (Just 10) (hsep (pretty f : sp')))
-            -- pure (prettyParens (d > 10 && not (null sp)) (hsep (pretty f : sp')))
             where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> go a
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 
