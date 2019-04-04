@@ -67,7 +67,6 @@ whole p = p <* whiteSpace <* eof
 
 
 identifier :: (Monad m, TokenParsing m) => m String
-
 identifier = ident (IdentifierStyle "identifier" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)
 
 
