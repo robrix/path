@@ -45,8 +45,8 @@ prettyValue localName = go
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
-            where withPi Ex More = prettyPrec 0
-                  withPi Im Zero = prettyPrec 0
+            where withPi Ex More = prettyPrec 1
+                  withPi Im Zero = prettyPrec 1
                   withPi _  pi   = (pretty pi <+>) . prettyPrec 11
                   arrow = blue (pretty "->")
                   l = flatAlt (space <> space <> space) mempty
