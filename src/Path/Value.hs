@@ -33,16 +33,16 @@ prettyValue localName = go
           Lam ie b -> do
             (as, b') <- unlams localName (Lam ie b)
             b'' <- go b'
-            pure (Prec (Just 0) (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
+            pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
             where var vs (p :< n) rest
                     | n `Set.member` vs = prettyPlicity False (p :< pretty n)   <+> rest
                     | otherwise         = prettyPlicity False (p :< pretty '_') <+> rest
-          Type -> pure (Prec Nothing (yellow (pretty "Type")))
+          Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- unpis localName v
             body' <- go body
             pis' <- traverse prettyPi pis
-            pure (Prec (Just 0) (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
+            pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
             where withPi Ex More = fmap (prettyPrec 0) . go
                   withPi Im Zero = fmap (prettyPrec 0) . go
                   withPi _  pi   = fmap ((pretty pi <+>) . prettyPrec 11) . go
@@ -54,9 +54,9 @@ prettyValue localName = go
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (if null sp then
-              Prec Nothing (pretty f)
+              atom (pretty f)
             else
-              Prec (Just 10) (hsep (pretty f : sp')))
+              prec 10 (hsep (pretty f : sp')))
             where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> go a
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 

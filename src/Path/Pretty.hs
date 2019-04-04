@@ -14,6 +14,8 @@ module Path.Pretty
 , tracePrettyM
 , Prec(..)
 , prettyPrec
+, prec
+, atom
 , module PP
 ) where
 
@@ -98,6 +100,12 @@ data Prec = Prec
 
 instance Pretty Prec where
   pretty = precDoc
+
+prec :: Int -> Doc -> Prec
+prec = Prec . Just
+
+atom :: Doc -> Prec
+atom = Prec Nothing
 
 prettyPrec :: Int -> Prec -> Doc
 prettyPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a
