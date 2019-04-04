@@ -113,12 +113,9 @@ binds :: Context (Type Meta) -> Equation (Value Meta) ::: Type Meta -> Constrain
 binds (Context names) body = foldr (|-) (E body) (first qlocal <$> names)
 
 unbinds :: (Carrier sig m, Member Naming sig) => Constraint Meta -> m (Context (Type Meta), Equation (Value Meta) ::: Type Meta)
-unbinds = intro Nil
-  where intro names value = do
-          name <- gensym ""
-          case value of
-            t :|-: b -> intro (names :> name ::: t) (instantiate (pure (qlocal name)) b)
-            E q      -> pure (Context names, q)
+unbinds = fmap (first Context) . un (\ name -> \case
+  t :|-: b -> Right (name ::: t, instantiate (pure (qlocal name)) b)
+  E q      -> Left q)
 
 
 gfoldT :: forall m n b
