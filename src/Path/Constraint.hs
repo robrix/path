@@ -12,7 +12,7 @@ import Path.Context
 import Path.Name
 import Path.Pretty
 import Path.Stack
-import Path.Value (Value, Type)
+import Path.Value (Value, Type, prettyValue)
 import Text.Trifecta.Rendering (Spanned(..))
 
 data Equation a
@@ -95,10 +95,15 @@ instance Pretty (Constraint Meta) where
     (ctx, eqn@((v1 :===: v2) ::: t)) <- unbinds c
     case unContext ctx of
       Nil -> pure (pretty eqn)
-      ctx -> pure (cat (zipWith (<>) (l : repeat s) (toList (prettyBind <$> ctx)) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> pretty v1, magenta (pretty "≡") <+> pretty v2, cyan colon <+> pretty t ]))
+      ctx -> do
+        binds <- traverse prettyBind ctx
+        v1' <- prettyValue qlocal 0 v1
+        v2' <- prettyValue qlocal 0 v2
+        t'  <- prettyValue qlocal 0 t
+        pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> v1', magenta (pretty "≡") <+> v2', cyan colon <+> t' ]))
     where l = flatAlt (magenta (pretty "Γ") <> space) mempty
           s = softbreak <> cyan comma <> space
-          prettyBind (n ::: t) = pretty (qlocal n ::: t)
+          prettyBind (n ::: t) = pretty . (qlocal n :::) <$> prettyValue qlocal 0 t
 
 instance PrettyPrec (Constraint Meta)
 
