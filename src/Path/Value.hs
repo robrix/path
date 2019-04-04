@@ -107,10 +107,10 @@ unpi n (Pi (p :< (u, t)) b) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
 unpi _ _                    = empty
 
 unpis :: (Carrier sig m, Member Naming sig) => (Gensym -> name) -> Value name -> m (Stack (Plicit (name, Usage) ::: Type name), Value name)
-unpis qlocal = intro Nil
+unpis localName = intro Nil
   where intro names value = do
           name <- gensym ""
-          case unpi (qlocal name) value of
+          case unpi (localName name) value of
             Just (name, body) -> intro (names :> name) body
             Nothing           -> pure (names, value)
 
