@@ -10,6 +10,7 @@ module Path.Pretty
 , prettyVar
 , prettyParens
 , prettyBraces
+, prettySpanned
 , tabulate2
 , tracePrettyM
 , Prec(..)
@@ -25,7 +26,7 @@ import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
 import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
-import Text.Trifecta.Rendering (Span(..), render)
+import Text.Trifecta.Rendering (Span(..), Spanned(..), render)
 
 prettyPrint :: (Pretty a, MonadIO m) => a -> m ()
 prettyPrint = putDoc . pretty
@@ -85,6 +86,9 @@ prettyParens False = id
 prettyBraces :: Bool -> Doc -> Doc
 prettyBraces True = braces
 prettyBraces False = id
+
+prettySpanned :: Pretty a => Spanned a -> Doc
+prettySpanned (a :~ s) = pretty a <> hardline <> pretty (render s)
 
 
 -- | Debugging helper.
