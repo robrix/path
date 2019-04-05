@@ -11,7 +11,6 @@ import qualified Data.Set as Set
 import Path.Context
 import Path.Name
 import Path.Pretty
-import Path.Stack
 import Path.Value (Value, Type, prettyValue)
 import Text.Trifecta.Rendering (Spanned(..))
 
@@ -90,15 +89,12 @@ instance Ord a => FreeVariables a (Constraint a) where
 
 instance Pretty (Constraint Meta) where
   pretty c = group . run . runNaming (Root "pretty") $ do
-    (ctx, eqn@((v1 :===: v2) ::: t)) <- unbinds c
-    case unContext ctx of
-      Nil -> pure (pretty eqn)
-      ctx -> do
-        binds <- traverse prettyBind ctx
-        v1' <- prettyValue qlocal v1
-        v2' <- prettyValue qlocal v2
-        t'  <- prettyValue qlocal t
-        pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> prettyPrec 0 v1', magenta (pretty "≡") <+> prettyPrec 0 v2', cyan colon <+> prettyPrec 0 t' ]))
+    (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
+    binds <- traverse prettyBind ctx
+    v1' <- prettyValue qlocal v1
+    v2' <- prettyValue qlocal v2
+    t'  <- prettyValue qlocal t
+    pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> prettyPrec 0 v1', magenta (pretty "≡") <+> prettyPrec 0 v2', cyan colon <+> prettyPrec 0 t' ]))
     where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
           prettyBind (n ::: t) = pretty . (qlocal n :::) . prettyPrec 0 <$> prettyValue qlocal t
