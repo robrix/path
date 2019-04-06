@@ -32,9 +32,6 @@ simplify :: ( Carrier sig m
             , Member (Error Doc) sig
             , Member Naming sig
             , Member (Reader Scope) sig
-            , Member (State Blocked) sig
-            , Member (State Queue) sig
-            , Member (State Substitution) sig
             )
          => Spanned (Constraint Meta)
          -> m (Set.Set (Spanned (Constraint Meta)))
