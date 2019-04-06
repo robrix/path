@@ -22,8 +22,8 @@ entryValue (Defn (v ::: _)) = Just v
 entryValue _                = Nothing
 
 instance Pretty Entry where
-  pretty (Decl        ty)  =         colon <+> pretty ty
-  pretty (Defn (v ::: ty)) = align $ colon <+> pretty ty <> hardline <> pretty "=" <+> pretty v
+  pretty (Decl        ty)  =         cyan colon <+> pretty ty
+  pretty (Defn (v ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
 
 
 newtype Scope = Scope { unScope :: Map.Map Qualified Entry }
