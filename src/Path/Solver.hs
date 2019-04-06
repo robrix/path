@@ -44,9 +44,8 @@ simplify (constraint :~ span) = do
   execWriter (go scope ctx eqn)
   where go scope ctx = \case
           (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
-          (t1 :===: t2) ::: _
-            | Just (m, sp) <- pattern t1 -> solve m (Value.lams sp t2)
-            | Just (m, sp) <- pattern t2 -> solve m (Value.lams sp t1)
+          c@((t1 :===: t2) ::: _)
+            | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
           (Pi (p1 :< (_, t1)) b1 :===: Pi (p2 :< (_, t2)) b2) ::: Type
             | p1 == p2 -> do
               go scope ctx ((t1 :===: t2) ::: Type)
