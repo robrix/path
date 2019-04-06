@@ -74,8 +74,8 @@ app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     -> m (Value Meta ::: Type Meta)
 app f (p :< a) = do
   _A <- exists Type
-  _B <- exists Type
   x <- gensym "app"
+  _B <- x ::: _A |- exists Type
   f' <- goalIs (Value.pi (p :< (qlocal x, case p of { Im -> zero ; Ex -> More }) ::: _A) _B) f
   a' <- goalIs _A a
   pure (f' Value.$$ (p :< a') ::: _B)
