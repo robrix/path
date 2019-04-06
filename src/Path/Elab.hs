@@ -76,7 +76,7 @@ app f (p :< a) = do
   _A <- exists Type
   _B <- exists Type
   x <- gensym "app"
-  f' <- goalIs (Value.pi (p :< (qlocal x, zero) ::: _A) _B) f
+  f' <- goalIs (Value.pi (p :< (qlocal x, case p of { Im -> zero ; Ex -> More }) ::: _A) _B) f
   a' <- goalIs _A a
   pure (f' Value.$$ (p :< a') ::: _B)
 
