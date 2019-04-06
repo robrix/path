@@ -2,7 +2,7 @@
 module Path.Solver where
 
 import           Control.Effect
-import           Control.Effect.Reader
+import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, unless)
@@ -68,6 +68,17 @@ simplify (constraint :~ span) = do
           (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t2 <- whnf scope (f2 :$ sp2) -> do
               go scope ctx ((t1 :===: t2) ::: ty)
+          (Name (Local f1) :$ sp1 :===: Name (Local f2) :$ sp2) ::: _
+            | f1 == f2
+            , length sp1 == length sp2 -> do
+              let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
+                    n <- gensym "spine"
+                    case Value.unpi (qlocal n) ty of
+                      Just (_ ::: t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
+                      Nothing -> pure ()
+                  simplifySpine _ _ _ = pure ()
+              t <- maybe (runReader span (freeVariable f1)) pure (Context.lookup f1 ctx)
+              simplifySpine ctx t (zip (toList sp1) (toList sp2))
           (tm1 :===: Lam p2 b2) ::: ty@(Pi (_ :< (_, _)) _) -> do
             n <- gensym "lam"
             go scope ctx ((lam (p2 :< qlocal n) (tm1 $$ (p2 :< pure (qlocal n))) :===: Lam p2 b2) ::: ty)
