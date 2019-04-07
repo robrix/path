@@ -28,10 +28,9 @@ import' :: DeltaParsing m => m Module.Import
 import' = ann <$> spanned (Module.Import <$ keyword "import" <*> moduleName)
   where ann (f :~ a) = f a
 
-declaration :: DeltaParsing m => m (Module.Decl User Surface)
-declaration = ann <$> spanned ((Module.Doc <$> docs <|> pure const) <*> decl)
-  where decl = ann <$> spanned (name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term)
-        ann (f :~ a) = f a
+declaration :: DeltaParsing m => m (Spanned (Module.Decl User Surface))
+declaration = spanned (Module.Doc <$> docs <*> decl) <|> decl
+  where decl = spanned (name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term)
 
 docs :: TokenParsing m => m String
 docs = runUnlined (fmap unlines . (:) <$> firstLine <*> many line)

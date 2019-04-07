@@ -15,14 +15,14 @@ import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Name
 import Path.Pretty
-import Text.Trifecta.Rendering (Span)
+import Text.Trifecta.Rendering (Span, Spanned(..))
 
 data Module v a = Module
   { moduleName    :: ModuleName
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
   , moduleImports :: [Import]
-  , moduleDecls   :: [Decl v a]
+  , moduleDecls   :: [Spanned (Decl v a)]
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
@@ -30,20 +30,15 @@ data Import = Import { importModuleName :: ModuleName, importAnn :: Span }
   deriving (Eq, Ord, Show)
 
 data Decl v a
-  = Declare v a Span
-  | Define v a Span
-  | Doc String (Decl v a) Span
+  = Declare v a
+  | Define v a
+  | Doc String (Spanned (Decl v a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 declName :: Decl v a -> v
-declName (Declare v _ _) = v
-declName (Define  v _ _) = v
-declName (Doc _ d _)     = declName d
-
-declSpan :: Decl v a -> Span
-declSpan (Declare _ _ span) = span
-declSpan (Define  _ _ span) = span
-declSpan (Doc     _ _ span) = span
+declName (Declare v _)    = v
+declName (Define  v _)    = v
+declName (Doc _ (d :~ _)) = declName d
 
 
 newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }

@@ -16,7 +16,7 @@ import Path.Pretty
 import qualified Path.Surface as Surface
 import Path.Usage
 import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span)
+import Text.Trifecta.Rendering (Span, Spanned(..))
 
 resolveTerm :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
             => Surface.Surface
@@ -41,21 +41,21 @@ resolveTerm = \case
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Decl User Surface.Surface -> m (Decl Qualified (Core Name))
-resolveDecl = \case
-  Declare n ty span -> do
+resolveDecl :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (Reader Span) sig, Member (State Resolution) sig) => Spanned (Decl User Surface.Surface) -> m (Spanned (Decl Qualified (Core Name)))
+resolveDecl (decl :~ span) = (:~ span) <$> case decl of
+  Declare n ty -> do
     res <- get
     moduleName <- ask
     ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm (generalize res ty)))
-    Declare (moduleName :.: n) ty' span <$ modify (insertGlobal n moduleName)
+    Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
     where generalize res ty = foldr bind ty (fvs ty Set.\\ Map.keysSet (unResolution res))
           bind n = Surface.Pi (Im :< (Just n, Zero, Surface.Type)) -- FIXME: insert metavariables for the type
-  Define n tm span -> do
+  Define n tm -> do
     res <- get
     moduleName <- ask
     tm' <- runReader (res :: Resolution) (runReader Defn (resolveTerm tm))
-    Define (moduleName :.: n) tm' span <$ modify (insertGlobal n moduleName)
-  Doc t d span -> Doc t <$> resolveDecl d <*> pure span
+    Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
+  Doc t d -> Doc t <$> resolveDecl d
 
 resolveModule :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core Name))
 resolveModule m = do

@@ -215,14 +215,14 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Decl Qualified (Core.Core Name)
-         -> m (Decl Qualified (Value Name ::: Type Name))
-elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ case decl of
-  Declare name ty span -> do
+         => Spanned (Decl Qualified (Core.Core Name))
+         -> m (Spanned (Decl Qualified (Value Name ::: Type Name)))
+elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fmap (:~ span) $ case decl of
+  Declare name ty -> do
     ty' <- runScope (declare (elab ty))
     modify (Scope.insert name (Decl ty'))
-    pure (Declare name (ty' ::: Value.Type) span)
-  Define  name tm span -> do
+    pure (Declare name (ty' ::: Value.Type))
+  Define  name tm -> do
     ty <- gets (fmap entryType . Scope.lookup name)
     tm ::: ty <- case ty of
       Just ty -> do
@@ -234,8 +234,8 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
       Nothing -> (tm :::) <$> inferType
     elab <- runScope (define ty (elab tm))
     modify (Scope.insert name (Defn elab))
-    pure (Define name elab span)
-  Doc docs     d  span -> Doc docs <$> elabDecl d <*> pure span
+    pure (Define name elab)
+  Doc docs     d  -> Doc docs <$> elabDecl d
 
 declare :: ( Carrier sig m
            , Effect sig
