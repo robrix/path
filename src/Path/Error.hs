@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, TypeOperators #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Error where
 
 import Control.Effect
@@ -43,9 +43,3 @@ stalledConstraints constraints = do
 
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
 prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
-
-prettyEqn :: (Pretty a, Pretty b) => Equation a ::: b -> Doc
-prettyEqn ((expected :===: actual) ::: ty) = fold (punctuate hardline
-  [ pretty "expected:" <+> pretty (expected ::: ty)
-  , pretty "  actual:" <+> pretty (actual ::: ty)
-  ])
