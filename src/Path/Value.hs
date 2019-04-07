@@ -155,11 +155,6 @@ unsafeStrengthen :: Meta -> Name
 unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
 
 
-unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Gensym -> Value Meta -> m a
-unsolvedMetavariable meta ty = do
-  span <- ask
-  throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta)) <+> pretty "in type" <+> pretty ty) [])
-
 unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Value Meta -> m a
 unsolvedMetavariables metas ty = do
   span <- ask
