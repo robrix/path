@@ -24,9 +24,8 @@ module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> man
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
 
-import' :: DeltaParsing m => m Module.Import
-import' = ann <$> spanned (Module.Import <$ keyword "import" <*> moduleName)
-  where ann (f :~ a) = f a
+import' :: DeltaParsing m => m (Spanned Module.Import)
+import' = spanned (Module.Import <$ keyword "import" <*> moduleName)
 
 declaration :: DeltaParsing m => m (Spanned (Module.Decl User Surface))
 declaration = spanned (Module.Doc <$> docs <*> decl) <|> decl

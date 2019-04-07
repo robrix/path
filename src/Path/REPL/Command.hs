@@ -13,7 +13,7 @@ data Command
   | Eval Surface
   | Show Info
   | Reload
-  | Import Import
+  | Import (Spanned Import)
   | Doc ModuleName
   deriving (Eq, Ord, Show)
 

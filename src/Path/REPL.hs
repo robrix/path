@@ -35,7 +35,7 @@ import Path.Value
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.Trifecta.Rendering (Span(..))
+import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 data REPL (m :: * -> *) k
   = Prompt String (Maybe String -> k)
@@ -196,7 +196,8 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           put (moduleGraph (catMaybes checked))
         runDeps = evalState ([] :: [ModuleName])
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
-        failedDep m = all @[] (`notElem` map importModuleName (moduleImports m))
+        failedDep m = all @[] (`notElem` map (importModuleName . unSpanned) (moduleImports m))
+        unSpanned (a :~ _) = a
         runSpan m = do
           line <- askLine
           runReader (Span (lineDelta line) (lineDelta line) mempty) m
