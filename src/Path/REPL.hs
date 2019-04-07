@@ -198,13 +198,10 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all @[] (`notElem` map (importModuleName . unSpanned) (moduleImports m))
         unSpanned (a :~ _) = a
-        runSpan m = do
-          line <- askLine
-          runReader (Span (lineDelta line) (lineDelta line) mempty) m
         runRenamer m = do
           res <- get
           runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
-        elaborate tm = runSpan $ do
+        elaborate (tm :~ span) = runReader span $ do
           ty <- inferType
           tm' <- runRenamer (runReader Defn (resolveTerm tm))
           runScope (define ty (elab tm'))
