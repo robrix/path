@@ -32,13 +32,9 @@ blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Const
 blockedConstraints constraints = throwError (fold (intersperse hardline (map (blocked <*> toList . metaNames . fvs) constraints)))
   where blocked (c :~ span) m = prettyErr span (pretty "constraint blocked on metavars" <+> fillSep (punctuate (comma <> space) (map (pretty . Meta) m))) [pretty c]
 
-stalledConstraints :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig) => [Spanned (Constraint Meta)] -> m a
-stalledConstraints constraints = do
-  cs <- traverse stalled constraints
-  throwError (fold (intersperse hardline cs))
-  where stalled (c :~ span) = do
-          (ctx, eqn) <- unbinds c
-          pure (prettyErr span (pretty "stalled constraint" </> pretty eqn) (prettyCtx ctx))
+stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Constraint Meta)] -> m a
+stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
+  where stalled (c :~ span) = prettyErr span (pretty "stalled constraint") [pretty c]
 
 
 prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
