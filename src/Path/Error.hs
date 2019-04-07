@@ -35,7 +35,3 @@ blockedConstraints constraints = throwError (fold (intersperse hardline (map (bl
 stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Constraint Meta)] -> m a
 stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
   where stalled (c :~ span) = prettyErr span (pretty "stalled constraint") [pretty c]
-
-
-prettyCtx :: (Foldable t, Pretty (t a)) => t a -> [Doc]
-prettyCtx ctx = if null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
