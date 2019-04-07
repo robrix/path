@@ -137,7 +137,7 @@ substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
 generalizeType :: Value Meta -> Value Name
-generalizeType ty = pis (foldMap f (fvs ty)) ty >>= \case { Name (Global n) -> pure (Global n) ; _ -> undefined }
+generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
   where f name
           | Name (Global (_ :.: _)) <- name = Set.empty
           | otherwise                       = Set.singleton (Im :< (name, Zero) ::: Type)
@@ -151,6 +151,9 @@ strengthen ty = for ty $ \case
   Meta m -> unsolvedMetavariable m ty
   Name (Global q) -> pure (Global q)
   Name (Local n) -> pure (Local n)
+
+unsafeStrengthen :: Meta -> Name
+unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
 
 
 unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Gensym -> Value Meta -> m a
