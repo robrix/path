@@ -25,10 +25,8 @@ ambiguousName name sources = do
     : map prettyQName (toList sources)))])
 
 
-unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig) => Spanned (Constraint Meta) -> m a
-unsimplifiableConstraint (c :~ span) = do
-  (ctx, eqn) <- unbinds c
-  throwError (prettyErr span (pretty "unsimplifiable constraint" </> pretty eqn) (pretty eqn : prettyCtx ctx))
+unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => Spanned (Constraint Meta) -> m a
+unsimplifiableConstraint (c :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint") [pretty c])
 
 blockedConstraints :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig) => [Spanned (Constraint Meta)] -> m a
 blockedConstraints constraints = do
