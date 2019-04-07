@@ -203,7 +203,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           runReader (Span (lineDelta line) (lineDelta line) mempty) m
         runRenamer m = do
           res <- get
-          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runSpan m))
+          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
         elaborate tm = runSpan $ do
           ty <- inferType
           tm' <- runRenamer (runReader Defn (resolveTerm tm))
