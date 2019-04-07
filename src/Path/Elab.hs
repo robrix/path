@@ -174,8 +174,8 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     runElabC k
   eff (R other) = ElabC (eff (R (R (handleCoercible other))))
 
-inferredType :: (Carrier sig m, Member Naming sig) => Maybe (Type Meta) -> m (Type Meta)
-inferredType = maybe (pure . Meta <$> gensym "meta") pure
+inferType :: (Carrier sig m, Member Naming sig) => m (Type Meta)
+inferType = pure . Meta <$> gensym "meta"
 
 
 type ModuleTable = Map.Map ModuleName Scope
@@ -231,7 +231,7 @@ elabDecl decl = namespace (show (declName decl)) . runReader (declSpan decl) $ c
           Value.Pi (Im :< _) b -> Just (Im :< Local n, Value.instantiate (pure (Local n)) b)
           _                    -> Nothing)) ty'
         pure (Core.lams names tm ::: Value.weaken ty)
-      Nothing -> (tm :::) <$> inferredType Nothing
+      Nothing -> (tm :::) <$> inferType
     elab <- runScope (define ty (elab tm))
     modify (Scope.insert name (Defn elab))
     pure (Define name elab span)
