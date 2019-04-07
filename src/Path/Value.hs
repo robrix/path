@@ -158,7 +158,7 @@ unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
 unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Value Meta -> m a
 unsolvedMetavariables metas ty = do
   span <- ask
-  throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate (comma <> space) (map (pretty . Meta) metas)) </> pretty "in type" <+> pretty ty) [])
+  throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map (pretty . Meta) metas)) </> pretty "in type" <+> pretty ty) [])
 
 
 type Type = Value

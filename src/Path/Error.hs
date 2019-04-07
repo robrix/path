@@ -30,7 +30,7 @@ unsimplifiableConstraint (c :~ span) = throwError (prettyErr span (pretty "unsim
 
 blockedConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Constraint Meta)] -> m a
 blockedConstraints constraints = throwError (fold (intersperse hardline (map (blocked <*> toList . metaNames . fvs) constraints)))
-  where blocked (c :~ span) m = prettyErr span (pretty "constraint blocked on metavariable" <> (if null m then mempty else pretty "s") <+> fillSep (punctuate (comma <> space) (map (pretty . Meta) m))) [pretty c]
+  where blocked (c :~ span) m = prettyErr span (pretty "constraint blocked on metavariable" <> (if null m then mempty else pretty "s") <+> fillSep (punctuate comma (map (pretty . Meta) m))) [pretty c]
 
 stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Constraint Meta)] -> m a
 stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
