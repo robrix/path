@@ -5,10 +5,9 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
-import           Control.Monad (ap)
+import           Control.Monad (ap, unless)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
-import           Data.Traversable (for)
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
@@ -147,10 +146,10 @@ weaken :: Value Name -> Value Meta
 weaken = fmap Name
 
 strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value Meta -> m (Value Name)
-strengthen ty = for ty $ \case
-  Meta m -> unsolvedMetavariable m ty
-  Name (Global q) -> pure (Global q)
-  Name (Local n) -> pure (Local n)
+strengthen ty = do
+  let mvs = toList (metaNames (fvs ty))
+  unless (null mvs) $ unsolvedMetavariables mvs ty
+  pure (unsafeStrengthen <$> ty)
 
 unsafeStrengthen :: Meta -> Name
 unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
@@ -160,6 +159,11 @@ unsolvedMetavariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader S
 unsolvedMetavariable meta ty = do
   span <- ask
   throwError (prettyErr span (pretty "unsolved metavariable" <+> squotes (pretty (Meta meta)) <+> pretty "in type" <+> pretty ty) [])
+
+unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Value Meta -> m a
+unsolvedMetavariables metas ty = do
+  span <- ask
+  throwError (prettyErr span (pretty "unsolved metavariables" <+> fillSep (punctuate (comma <> space) (map (pretty . Meta) metas)) </> pretty "in type" <+> pretty ty) [])
 
 
 type Type = Value
