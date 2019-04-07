@@ -152,7 +152,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
-          Eval tm -> elaborate tm >>= runScope . whnf . typedTerm >>= print >> loop
+          Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm >>= print >> loop
           Show Bindings -> do
             scope <- get
             unless (Scope.null scope) $ print scope
