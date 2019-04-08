@@ -226,7 +226,8 @@ elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fm
     ty <- gets (fmap entryType . Scope.lookup name)
     tm ::: ty <- case ty of
       Just ty -> do
-        ty' <- gets whnf <*> pure ty
+        scope <- get
+        let ty' = whnf scope ty
         (names, _) <- un (orTerm (\ n -> \case
           Value.Pi (Im :< _) b -> Just (Im :< Local n, Value.instantiate (pure (Local n)) b)
           _                    -> Nothing)) ty'
