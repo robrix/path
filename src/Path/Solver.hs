@@ -62,13 +62,13 @@ simplify (constraint :~ span) = do
             go scope (Context.insert (n ::: t) ctx) ((Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
           (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
-            , Just t2 <- whnf scope (f2 :$ sp2) -> do
+            , Just t2 <- whnf scope (f2 :$ sp2) ->
               go scope ctx ((t1 :===: t2) ::: ty)
           (f1@(Name (Global _)) :$ sp1 :===: t2) ::: ty
-            | Just t1 <- whnf scope (f1 :$ sp1) -> do
+            | Just t1 <- whnf scope (f1 :$ sp1) ->
               go scope ctx ((t1 :===: t2) ::: ty)
           (t1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
-            | Just t2 <- whnf scope (f2 :$ sp2) -> do
+            | Just t2 <- whnf scope (f2 :$ sp2) ->
               go scope ctx ((t1 :===: t2) ::: ty)
           (Name (Local f1) :$ sp1 :===: Name (Local f2) :$ sp2) ::: _
             | f1 == f2
