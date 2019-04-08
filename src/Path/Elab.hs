@@ -229,7 +229,7 @@ elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fm
         scope <- get
         let ty' = whnf scope ty
         (names, _) <- un (orTerm (\ n -> \case
-          Value.Pi (Im :< _) b -> Just (Im :< Local n, Value.instantiate (pure (Local n)) b)
+          Value.Pi (Im :< _) b -> Just (Im :< Local n, whnf scope (Value.instantiate (pure (Local n)) b))
           _                    -> Nothing)) ty'
         pure (Core.lams names tm ::: Value.weaken ty)
       Nothing -> (tm :::) <$> inferType
