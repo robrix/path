@@ -114,10 +114,9 @@ solver :: ( Carrier sig m
        => Set.Set (Spanned (Constraint Meta))
        -> m Substitution
 solver constraints = execState Map.empty $ do
-  (queue, blocked) <- runState (Seq.empty :: Queue) . execState (Set.empty :: Blocked) $ do
+  queue <- execState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) $ do
     enqueueAll constraints
     step
-  unless (null blocked) (blockedConstraints (toList blocked))
   unless (null queue)   (stalledConstraints (toList queue))
 
 step :: ( Carrier sig m
