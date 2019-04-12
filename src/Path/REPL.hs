@@ -215,7 +215,6 @@ basePackage = Package
       , "src/Base/Fin.path"
       , "src/Base/Fix.path"
       , "src/Base/Function.path"
-      , "src/Base/Functor.path"
       , "src/Base/Lazy.path"
       , "src/Base/List.path"
       , "src/Base/Maybe.path"
