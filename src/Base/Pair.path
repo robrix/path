@@ -1,7 +1,5 @@
 module Base.Pair
 
-import Base.Functor
-
 Pair : Type -> Type -> Type
 Pair = \ l r . { a : Type } -> (l -> r -> a) -> a
 
@@ -15,7 +13,8 @@ snd : Pair l r -> r
 snd = \ p . p (\ _ snd . snd)
 
 
-map : Functor (Pair l)
+map :  (r -> r')
+    -> (Pair l r -> Pair l r')
 map = \ f e . e (\ l' r . pair l' (f r))
 
 bimap :  (     l   ->      l')
