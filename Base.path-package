@@ -1,6 +1,5 @@
 name:          Base
-sources:       src/Base/Applicative.path
-             , src/Base/Bool.path
+sources:       src/Base/Bool.path
              , src/Base/Either.path
              , src/Base/Fin.path
              , src/Base/Fix.path
