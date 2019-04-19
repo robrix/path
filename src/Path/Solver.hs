@@ -57,9 +57,10 @@ simplify (constraint :~ span) = do
           (tm1 :===: Pi (Im :< (_, t2)) b2) ::: Type -> do
             n <- exists ctx t2
             go scope ctx ((tm1 :===: Value.instantiate n b2) ::: Type)
-          (Lam _ f1 :===: Lam _ f2) ::: Pi (_ :< (_, t)) b -> do
-            n <- gensym "lam"
-            go scope (Context.insert (n ::: t) ctx) ((Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
+          (Lam p1 f1 :===: Lam p2 f2) ::: Pi (pt :< (_, t)) b
+            | p1 == p2, p1 == pt -> do
+              n <- gensym "lam"
+              go scope (Context.insert (n ::: t) ctx) ((Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
           (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
             , Just t2 <- whnf scope (f2 :$ sp2) ->
