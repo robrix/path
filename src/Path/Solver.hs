@@ -61,6 +61,9 @@ simplify (constraint :~ span) = do
             | p1 == p2, p1 == pt -> do
               n <- gensym "lam"
               go scope (Context.insert (n ::: t) ctx) ((Value.instantiate (pure (qlocal n)) f1 :===: Value.instantiate (pure (qlocal n)) f2) ::: Value.instantiate (pure (qlocal n)) b)
+          (t1 :===: t2) ::: Pi (Im :< (u, t)) b -> do
+            n <- qlocal <$> gensym "lam"
+            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi (Im :< (u, t)) b)
           (f1@(Name (Global _)) :$ sp1 :===: f2@(Name (Global _)) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
             , Just t2 <- whnf scope (f2 :$ sp2) ->
