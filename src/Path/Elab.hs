@@ -158,9 +158,13 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     ctx <- ElabC ask
     n <- Meta <$> gensym "meta"
     k (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
-  eff (L (Have n k)) = lookup n >>= maybe (exists Type >>= exists) pure >>= k
+  eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
     where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
           lookup (Local  n) = ElabC (asks (Context.lookup n))
+          missing = do
+            ty <- exists Type
+            tm <- exists ty
+            ty <$ unify (tm ::: ty :===: pure (Name n) ::: ty)
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
   eff (L (Unify (tm1 ::: ty1 :===: tm2 ::: ty2) k)) = ElabC $ do
     span <- ask
