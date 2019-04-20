@@ -24,12 +24,12 @@ resolveTerm :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member
 resolveTerm (term :~ span) = Ann span <$> case term of
   Surface.Var v -> Var <$> resolveName v
   Surface.Lam (p :< v) b -> do
-    v' <- gensym (maybe "lam" show v)
+    v' <- gensym (maybe "lam" showUser v)
     local (insertLocal v v') (Lam (p :< v) . bind (Local v') <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> traverse resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi (ie :< (v, u, t)) b -> do
-    v' <- gensym (maybe "pi" show v)
+    v' <- gensym (maybe "pi" showUser v)
     Pi . (ie :<) . (v, u,) <$> resolveTerm t <*> local (insertLocal v v') (bind (Local v') <$> resolveTerm b)
   (u, a) Surface.:-> b -> do
     v <- gensym "pi"
