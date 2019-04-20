@@ -46,10 +46,14 @@ resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
   Declare n ty -> do
     res <- get
     moduleName <- ask
-    ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm (generalize res ty)))
+    let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
+        generalize ty = foldr bind ty vs
+        bind n ty = do
+          n' <- gensym (showUser n)
+          local (insertLocal (Just n) n') $
+            Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
+    ty' <- runReader (res :: Resolution) (runReader Decl (generalize (resolveTerm ty)))
     Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
-    where generalize res ty = foldr bind ty (fvs ty Set.\\ Map.keysSet (unResolution res))
-          bind n = Surface.Pi (Im :< (Just n, Zero, Surface.Type)) -- FIXME: insert metavariables for the type
   Define n tm -> do
     res <- get
     moduleName <- ask
