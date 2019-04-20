@@ -121,7 +121,7 @@ solver constraints = execState Map.empty $ do
   queue <- execState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) $ do
     enqueueAll constraints
     step
-  unless (null queue)   (stalledConstraints (toList queue))
+  unless (null queue) (stalledConstraints (toList queue))
 
 step :: ( Carrier sig m
         , Effect sig
