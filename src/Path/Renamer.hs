@@ -29,7 +29,7 @@ resolveTerm (term :~ span) = Ann span <$> case term of
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> traverse resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi (ie :< (v, u, t)) b -> do
-    v' <- gensym (maybe "lam" show v)
+    v' <- gensym (maybe "pi" show v)
     Pi . (ie :<) . (v, u,) <$> resolveTerm t <*> local (insertLocal v v') (bind (Local v') <$> resolveTerm b)
   (u, a) Surface.:-> b -> do
     v <- gensym "pi"
