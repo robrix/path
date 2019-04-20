@@ -5,17 +5,16 @@ import qualified Data.Set as Set
 import Path.Name
 import Path.Plicity
 import Path.Usage
-import Text.Trifecta.Rendering (Span)
+import Text.Trifecta.Rendering (Spanned)
 
 data Surface
   = Var User
-  | Lam (Plicit (Maybe User)) Surface
-  | Surface :$ Plicit Surface
+  | Lam (Plicit (Maybe User)) (Spanned Surface)
+  | Spanned Surface :$ Plicit (Spanned Surface)
   | Type
-  | Pi (Plicit (Maybe User, Usage, Surface)) Surface
+  | Pi (Plicit (Maybe User, Usage, Spanned Surface)) (Spanned Surface)
   | Hole User
-  | (Usage, Surface) :-> Surface
-  | Ann Span Surface
+  | (Usage, Spanned Surface) :-> Spanned Surface
   deriving (Eq, Ord, Show)
 
 instance FreeVariables User Surface where
@@ -29,4 +28,3 @@ instance FreeVariables User Surface where
     Pi (_ :< (Nothing, _, t)) b -> fvs t <> fvs b
     Hole v -> Set.singleton v
     (_, a) :-> b -> fvs a <> fvs b
-    Ann _ a -> fvs a

@@ -19,9 +19,9 @@ import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
 resolveTerm :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
-            => Surface.Surface
+            => Spanned Surface.Surface
             -> m (Core Name)
-resolveTerm = \case
+resolveTerm (term :~ span) = Ann span <$> case term of
   Surface.Var v -> Var <$> resolveName v
   Surface.Lam (p :< v) b -> do
     v' <- gensym (maybe "lam" show v)
@@ -35,13 +35,13 @@ resolveTerm = \case
     v <- gensym "pi"
     Pi . (Ex :<) . (Nothing, u,) <$> resolveTerm a <*> (bind (Local v) <$> resolveTerm b)
   Surface.Hole v -> Hole <$> resolveName v
-  Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
+  -- Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (State Resolution) sig) => Spanned (Decl User Surface.Surface) -> m (Spanned (Decl Qualified (Core Name)))
+resolveDecl :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (State Resolution) sig) => Spanned (Decl User (Spanned Surface.Surface)) -> m (Spanned (Decl Qualified (Core Name)))
 resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
   Declare n ty -> do
     res <- get
@@ -61,7 +61,7 @@ resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig) => Module User Surface.Surface -> m (Module Qualified (Core Name))
+resolveModule :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig) => Module User (Spanned Surface.Surface) -> m (Module Qualified (Core Name))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
