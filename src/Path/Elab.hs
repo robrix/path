@@ -119,9 +119,7 @@ elab = \case
   f Core.:$ (p :< a) -> app (elab f) (p :< elab a)
   Core.Type -> pure (Type ::: Type)
   Core.Pi (p :< (n, m, t)) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
-  Core.Hole _ -> do
-    ty <- exists Type
-    (::: ty) <$> exists ty
+  Core.Hole h -> (pure (Meta h) :::) <$> exists Type
   Core.Ann ann b -> spanIs ann (elab b)
 
 
