@@ -12,6 +12,6 @@ data Surface
   | Spanned Surface :$ Plicit (Spanned Surface)
   | Type
   | Pi (Plicit (Maybe User, Usage, Spanned Surface)) (Spanned Surface)
-  | Hole User
+  | Hole String
   | (Usage, Spanned Surface) :-> Spanned Surface
   deriving (Eq, Ord, Show)
