@@ -93,7 +93,7 @@ simplify (constraint :~ span) = do
             go scope ctx ((Lam p1 b1 :===: lam (p1 :< qlocal n) (tm2 $$ (p1 :< pure (qlocal n)))) ::: ty)
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
-            | otherwise                -> unsimplifiableConstraint [binds ctx c :~ span]
+            | otherwise                -> unsimplifiableConstraints [binds ctx c :~ span]
 
         exists ctx _ = do
           n <- Meta <$> gensym "meta"
@@ -121,7 +121,7 @@ solver constraints = execState Map.empty $ do
   queue <- execState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) $ do
     enqueueAll constraints
     step
-  unless (null queue) (unsimplifiableConstraint (toList queue))
+  unless (null queue) (unsimplifiableConstraints (toList queue))
 
 step :: ( Carrier sig m
         , Effect sig
