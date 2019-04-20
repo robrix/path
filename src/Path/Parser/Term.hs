@@ -40,7 +40,8 @@ var = ann (Var <$> name <?> "variable")
 lambda = ann (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned ((Ex :<) <$> (Just <$> name <|> Nothing <$ token (string "_"))) <?> "pattern"
+  where pattern = spanned (plicit (Just <$> name <|> Nothing <$ token (string "_"))) <?> "pattern"
+        plicit a = (Im :<) <$> braces a <|> (Ex :<) <$> a
         bind [] = term
         bind (v:vv) = wrap v <$> spanned (bind vv)
           where wrap (a :~ v1) (b :~ v2) = Ann (v1 <> v2) (Lam a b)
