@@ -23,9 +23,9 @@ resolveTerm :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member
             -> m (Core Name)
 resolveTerm = \case
   Surface.Var v -> Var <$> resolveName v
-  Surface.Lam v b -> do
+  Surface.Lam (p :< v) b -> do
     v' <- gensym (maybe "lam" show v)
-    local (insertLocal v v') (Lam (Ex :< v) . bind (Local v') <$> resolveTerm b)
+    local (insertLocal v v') (Lam (p :< v) . bind (Local v') <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi (ie :< (v, u, t)) b -> do
