@@ -19,7 +19,14 @@ import qualified Path.Surface as Surface
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
-resolveTerm :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader ModuleName) sig, Member (Reader Resolution) sig, Member (Reader Span) sig)
+resolveTerm :: ( Carrier sig m
+               , Member (Error Doc) sig
+               , Member Naming sig
+               , Member (Reader Mode) sig
+               , Member (Reader ModuleName) sig
+               , Member (Reader Resolution) sig
+               , Member (Reader Span) sig
+               )
             => Spanned Surface.Surface
             -> m (Core Name)
 resolveTerm (term :~ span) = Ann span <$> case term of
@@ -41,7 +48,14 @@ resolveTerm (term :~ span) = Ann span <$> case term of
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
-resolveDecl :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader ModuleName) sig, Member (State Resolution) sig) => Spanned (Decl User (Spanned Surface.Surface)) -> m (Spanned (Decl Qualified (Core Name)))
+resolveDecl :: ( Carrier sig m
+               , Member (Error Doc) sig
+               , Member Naming sig
+               , Member (Reader ModuleName) sig
+               , Member (State Resolution) sig
+               )
+            => Spanned (Decl User (Spanned Surface.Surface))
+            -> m (Spanned (Decl Qualified (Core Name)))
 resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
   Declare n ty -> do
     res <- get
@@ -61,7 +75,14 @@ resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
-resolveModule :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig) => Module User (Spanned Surface.Surface) -> m (Module Qualified (Core Name))
+resolveModule :: ( Carrier sig m
+                 , Effect sig
+                 , Member (Error Doc) sig
+                 , Member Naming sig
+                 , Member (State Resolution) sig
+                 )
+              => Module User (Spanned Surface.Surface)
+              -> m (Module Qualified (Core Name))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -86,7 +107,15 @@ insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:
 lookupName :: User -> Resolution -> Maybe (NonEmpty Name)
 lookupName n = Map.lookup n . unResolution
 
-resolveName :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (Reader Mode) sig, Member (Reader Resolution) sig, Member (Reader Span) sig) => User -> m Name
+resolveName :: ( Carrier sig m
+               , Member (Error Doc) sig
+               , Member Naming sig
+               , Member (Reader Mode) sig
+               , Member (Reader Resolution) sig
+               , Member (Reader Span) sig
+               )
+            => User
+            -> m Name
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
@@ -99,6 +128,12 @@ filterResolution :: (Name -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
-unambiguous :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Name -> m Name
+unambiguous :: ( Carrier sig m
+               , Member (Error Doc) sig
+               , Member (Reader Span) sig
+               )
+            => User
+            -> NonEmpty Name
+            -> m Name
 unambiguous _ (q:|[]) = pure q
 unambiguous v (q:|qs) = ambiguousName v (q :| qs)
