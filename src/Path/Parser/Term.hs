@@ -41,7 +41,6 @@ lambda = ann (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
   where pattern = spanned (plicit (Just <$> name <|> Nothing <$ token (string "_"))) <?> "pattern"
-        plicit a = (Im :<) <$> braces a <|> (Ex :<) <$> a
         bind [] = term
         bind (v:vv) = wrap v <$> spanned (bind vv)
           where wrap (a :~ v1) (b :~ v2) = Ann (v1 <> v2) (Lam a b)
@@ -52,6 +51,9 @@ atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
+
+plicit :: TokenParsing m => m a -> m (Plicit a)
+plicit a = (Im :<) <$> braces a <|> (Ex :<) <$> a
 
 name :: (Monad m, TokenParsing m) => m User
 name =       (Id <$> identifier <?> "name")
