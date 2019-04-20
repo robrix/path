@@ -13,11 +13,11 @@ import Path.Surface
 import Text.Trifecta
 import Text.Trifecta.Indentation
 
-parseModule :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => FilePath -> m (Module.Module User Surface)
+parseModule :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => FilePath -> m (Module.Module User (Spanned Surface))
 parseModule = flip parseFile <*> whole . module'
 
 
-module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module User Surface)
+module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module User (Spanned Surface))
 module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
   where make comment name = Module.Module name comment path
 
@@ -27,7 +27,7 @@ moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` d
 import' :: DeltaParsing m => m (Spanned Module.Import)
 import' = spanned (Module.Import <$ keyword "import" <*> moduleName)
 
-declaration :: DeltaParsing m => m (Spanned (Module.Decl User Surface))
+declaration :: DeltaParsing m => m (Spanned (Module.Decl User (Spanned Surface)))
 declaration = spanned (Module.Doc <$> docs <*> decl) <|> decl
   where decl = spanned (name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term)
 

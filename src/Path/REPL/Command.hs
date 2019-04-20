@@ -9,7 +9,7 @@ data Command
   = Quit
   | Help
   | TypeOf (Spanned Surface)
-  | Decl (Spanned (Decl User Surface))
+  | Decl (Spanned (Decl User (Spanned Surface)))
   | Eval (Spanned Surface)
   | Show Info
   | Reload
