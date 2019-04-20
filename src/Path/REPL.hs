@@ -203,7 +203,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
         elaborate tm@(_ :~ span) = runReader span $ do
           ty <- inferType
-          tm' <- runRenamer (runReader Defn (resolveTerm tm))
+          tm' <- runRenamer (evalState (mempty :: Signature) (runReader Defn (resolveTerm tm)))
           runScope (define ty (elab tm'))
 
 basePackage :: Package

@@ -19,6 +19,8 @@ import qualified Path.Surface as Surface
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
+type Signature = Map.Map (Maybe String) Gensym
+
 resolveTerm :: ( Carrier sig m
                , Member (Error Doc) sig
                , Member Naming sig
@@ -26,6 +28,7 @@ resolveTerm :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (Reader Resolution) sig
                , Member (Reader Span) sig
+               , Member (State Signature) sig
                )
             => Spanned Surface.Surface
             -> m (Core Name)
@@ -42,13 +45,14 @@ resolveTerm (term :~ span) = Ann span <$> case term of
   (u, a) Surface.:-> b -> do
     v <- gensym "pi"
     Pi . (Ex :<) . (Nothing, u,) <$> resolveTerm a <*> (bind (Local v) <$> resolveTerm b)
-  Surface.Hole v -> Hole <$> resolveName (Id (fromMaybe "hole" v))
+  Surface.Hole v -> Hole <$> resolveMeta v
 
 
 data Mode = Decl | Defn
   deriving (Eq, Ord, Show)
 
 resolveDecl :: ( Carrier sig m
+               , Effect sig
                , Member (Error Doc) sig
                , Member Naming sig
                , Member (Reader ModuleName) sig
@@ -66,12 +70,12 @@ resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
     --       n' <- gensym (showUser n)
     --       local (insertLocal (Just n) n') $
     --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
-    ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm ty))
+    ty' <- evalState (mempty :: Signature) (runReader (res :: Resolution) (runReader Decl (resolveTerm ty)))
     Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
   Define n tm -> do
     res <- get
     moduleName <- ask
-    tm' <- runReader (res :: Resolution) (runReader Defn (resolveTerm tm))
+    tm' <- evalState (mempty :: Signature) (runReader (res :: Resolution) (runReader Defn (resolveTerm tm)))
     Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
   Doc t d -> Doc t <$> resolveDecl d
 
@@ -123,6 +127,20 @@ resolveName v = do
     Decl -> maybe ((:| []) . Local <$> gensym "") pure res
     Defn -> maybe (freeVariable v)                pure res
   unambiguous v res
+
+resolveMeta :: ( Carrier sig m
+               , Member Naming sig
+               , Member (State Signature) sig
+               )
+            => Maybe String
+            -> m Gensym
+resolveMeta m = do
+  found <- gets (Map.lookup m)
+  case found of
+    Just meta -> pure meta
+    Nothing   -> do
+      n <- gensym (fromMaybe "meta" m)
+      n <$ modify (Map.insert m n)
 
 filterResolution :: (Name -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
