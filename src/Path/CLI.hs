@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 module Path.CLI where
 
 import Control.Effect (runM)
@@ -8,6 +9,7 @@ import Options.Applicative as Options
 import Path.Package
 import Path.Parser (parseFile, whole)
 import Path.Parser.Package as Parser (package)
+import Path.Pretty
 import Path.REPL
 import qualified Paths_path as Library (version)
 
@@ -23,7 +25,7 @@ argumentsParser = info
 
 options :: Parser (IO ())
 options
-  =   flag' (either printParserError repl =<<) (short 'i' <> long "interactive" <> help "run interactively")
+  =   flag' (either (prettyPrint @Doc) repl =<<) (short 'i' <> long "interactive" <> help "run interactively")
   <*> (pure . Right <$> some source <|> parsePackage <$> strOption (long "package-path" <> metavar "FILE" <> help "source file"))
   where parsePackage = fmap (fmap packageSources) . runM . runError . parseFile (whole Parser.package)
 

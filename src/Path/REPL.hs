@@ -1,11 +1,10 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
 import Control.Arrow ((&&&))
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
-import Control.Effect.Fresh
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum as Effect
@@ -20,73 +19,62 @@ import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Elab
-import Path.Error
 import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Delta(..), ErrInfo, Parser, parseFile, parseString, whole)
-import Path.Parser.Module (module')
+import Path.Parser (Delta(..), parseString, whole)
+import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
-import Path.Resources
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
 import Path.Stack
-import Path.Usage
 import Path.Value
 import Prelude hiding (print)
-import System.Console.Haskeline hiding (handle)
+import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.Trifecta.Rendering (Span(..))
+import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
-data Prompt cmd (m :: * -> *) k = Prompt String (Maybe cmd -> k)
+data REPL (m :: * -> *) k
+  = Prompt String (Maybe String -> k)
+  | Print Doc k
+  | AskLine (Line -> k)
   deriving (Functor)
 
-instance HFunctor (Prompt cmd) where
+instance HFunctor REPL where
   hmap _ = coerce
 
-instance Effect (Prompt cmd) where
+instance Effect REPL where
   handle state handler = coerce . fmap (handler . (<$ state))
 
-prompt :: (Carrier sig m, Member (Prompt cmd) sig) => String -> m (Maybe cmd)
+
+prompt :: (Carrier sig m, Member REPL sig) => String -> m (Maybe String)
 prompt p = send (Prompt p pure)
 
+print :: (Pretty a, Carrier sig m, Member REPL sig) => a -> m ()
+print s = send (Print (pretty s) (pure ()))
 
-data Print (m :: * -> *) k = Print Doc k
-  deriving (Functor)
-
-instance HFunctor Print where
-  hmap _ = coerce
-
-instance Effect Print where
-  handle state handler = coerce . fmap (handler . (<$ state))
-
-print :: (Carrier sig m, Member Print sig, PrettyPrec a) => a -> m ()
-print s = send (Print (prettys s) (pure ()))
+askLine :: (Carrier sig m, Member REPL sig) => m Line
+askLine = send (AskLine pure)
 
 
-runREPL :: MonadException m => Parser (Maybe cmd) -> Prefs -> Settings m -> REPLC cmd m a -> m a
-runREPL parser prefs settings = runInputTWithPrefs prefs settings . runTransC . runReader (Line 0) . runReader parser . runREPLC
+runREPL :: MonadException m => Prefs -> Settings m -> REPLC m a -> m a
+runREPL prefs settings = runInputTWithPrefs prefs settings . runTransC . runReader (Line 0) . runREPLC
 
-newtype REPLC cmd m a = REPLC { runREPLC :: ReaderC (Parser (Maybe cmd)) (ReaderC Line (TransC InputT m)) a }
+newtype REPLC m a = REPLC { runREPLC :: ReaderC Line (TransC InputT m) a }
   deriving (Applicative, Functor, Monad, MonadIO)
 
-instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (Prompt cmd :+: Print :+: sig) (REPLC cmd m) where
+instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
   eff (L (Prompt prompt k)) = REPLC $ do
-    c <- ask
-    l <- ask
-    str <- lift (lift (TransC (getInputLine (cyan <> prompt <> plain))))
-    res <- runError (traverse (parseString (whole c) (lineDelta l)) str)
-    res <- case res of
-      Left  err -> Nothing <$ printParserError err
-      Right res -> pure (join res)
-    local increment (runREPLC (k res))
+    str <- lift (TransC (getInputLine (cyan <> prompt <> plain)))
+    local increment (runREPLC (k str))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
-  eff (R (L (Print text k))) = putDoc text *> k
-  eff (R (R other)) = REPLC (eff (R (R (handleCoercible other))))
+  eff (L (Print text k)) = putDoc text *> k
+  eff (L (AskLine k)) = REPLC ask >>= k
+  eff (R other) = REPLC (eff (R (handleCoercible other)))
 
 newtype TransC t (m :: * -> *) a = TransC { runTransC :: t m a }
   deriving (Applicative, Functor, Monad, MonadIO, MonadTrans)
@@ -94,29 +82,24 @@ newtype TransC t (m :: * -> *) a = TransC { runTransC :: t m a }
 instance (Carrier sig m, Effect sig, Monad (t m), MonadTrans t) => Carrier sig (TransC t m) where
   eff = TransC . join . lift . eff . handle (pure ()) (pure . (runTransC =<<))
 
-newtype ControlIOC m a = ControlIOC ((forall x . m x -> IO x) -> m a)
+runControlIO :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
+runControlIO handler = runReader (Handler handler) . runControlIOC
 
-instance Functor m => Functor (ControlIOC m) where
-  fmap f (ControlIOC g) = ControlIOC (\ h -> fmap f (g h))
+newtype ControlIOC m a = ControlIOC { runControlIOC :: ReaderC (Handler m) m a }
+  deriving (Applicative, Functor, Monad, MonadIO)
 
-instance Applicative m => Applicative (ControlIOC m) where
-  pure a = ControlIOC (const (pure a))
-  ControlIOC f <*> ControlIOC a = ControlIOC (\ h -> f h <*> a h)
+newtype Handler m = Handler (forall x . m x -> IO x)
 
-instance Monad m => Monad (ControlIOC m) where
-  ControlIOC m >>= f = ControlIOC (\ handler -> m handler >>= runControlIOC handler . f)
-
-instance MonadIO m => MonadIO (ControlIOC m) where
-  liftIO m = ControlIOC (const (liftIO m))
-
-runControlIOC :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
-runControlIOC f (ControlIOC m) = m f
+runHandler :: Handler m -> ControlIOC m a -> IO a
+runHandler h@(Handler handler) = handler . runReader h . runControlIOC
 
 instance Carrier sig m => Carrier sig (ControlIOC m) where
-  eff op = ControlIOC (\ handler -> eff (handlePure (runControlIOC handler) op))
+  eff op = ControlIOC (eff (R (handleCoercible op)))
 
-instance MonadIO m => MonadException (ControlIOC m) where
-  controlIO f = ControlIOC (\ handler -> liftIO (f (RunIO (fmap pure . handler . runControlIOC handler)) >>= handler . runControlIOC handler))
+instance (Carrier sig m, MonadIO m) => MonadException (ControlIOC m) where
+  controlIO f = ControlIOC $ do
+    handler <- ask
+    liftIO (f (RunIO (fmap pure . runHandler handler)) >>= runHandler handler)
 
 repl :: MonadIO m => [FilePath] -> m ()
 repl packageSources = liftIO $ do
@@ -129,12 +112,12 @@ repl packageSources = liftIO $ do
         , autoAddHistory = True
         }
   createDirectoryIfMissing True settingsDir
-  runM (runControlIOC runM
-       (runREPL command prefs settings
+  runM (runControlIO runM
+       (runREPL prefs settings
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Scope.Scope)
        (evalState (Resolution mempty)
-       (runReader (Root "repl")
+       (runNaming (Root "repl")
        (script packageSources)))))))
 
 newtype Line = Line Int64
@@ -147,9 +130,8 @@ lineDelta (Line l) = Lines l 0 0 0
 
 script :: ( Carrier sig m
           , Effect sig
-          , Member Print sig
-          , Member (Prompt Command) sig
-          , Member (Reader Gensym) sig
+          , Member Naming sig
+          , Member REPL sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           , Member (State Scope.Scope) sig
@@ -157,33 +139,27 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Resources, Value MName ::: Type MName)) (runError (runError (runError (runError loop))) >>= either printResolveError (either printElabError (either printModuleError (either printParserError pure))))
-  where loop = (prompt "λ: " >>= maybe loop runCommand)
-          `catchError` (const loop <=< printResolveError)
-          `catchError` (const loop <=< printElabError)
-          `catchError` (const loop <=< printModuleError)
-          `catchError` (const loop <=< printParserError)
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError loop >>= either (print @Doc) pure)
+  where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
+          `catchError` (const loop <=< print @Doc)
+        parseCommand str = do
+          l <- askLine
+          traverse (parseString (whole command) (lineDelta l)) str
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
-          TypeOf tm -> do
-            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab Zero . infer
-            print (generalizeType (typedType elab))
-            loop
+          TypeOf tm -> elaborate tm >>= print . typedType >> loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
-          Eval tm -> do
-            (_, elab) <- runRenamer (runReader Defn (resolveTerm tm)) >>= runScope . runElab One . infer
-            runScope (whnf (typedTerm elab)) >>= generalizeValue (generalizeType (typedType elab)) >>= print
-            loop
+          Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm >>= print >> loop
           Show Bindings -> do
             scope <- get
-            unless (Scope.null scope) $ print (scope :: Scope.Scope)
+            unless (Scope.null scope) $ print scope
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph QName (Resources, Value MName ::: Type MName))
+            let ms = modules (graph :: ModuleGraph Qualified (Value Name ::: Type Name))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -193,7 +169,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module QName (Resources, Value MName ::: Type MName)) of
+            case m :: Maybe (Module Qualified (Value Name ::: Type Name)) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
@@ -202,7 +178,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
         reload = do
           put (Resolution mempty)
           let n = length packageSources
-          sorted <- traverse (parseFile . whole . module' <*> id) packageSources >>= loadOrder . moduleGraph
+          sorted <- traverse parseModule packageSources >>= loadOrder . moduleGraph
 
           checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
             let name    = moduleName m
@@ -210,45 +186,40 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph QName (Reso
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runFresh (runReader (Span mempty mempty mempty) (resolveModule m)) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
-              for_ errs printElabError
+              for_ errs (print @Doc)
               modify (name:)
             pure (Just res)
           put (moduleGraph (catMaybes checked))
         runDeps = evalState ([] :: [ModuleName])
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
-        failedDep m = all (`notElem` map importModuleName (moduleImports m)) . map id
+        failedDep m = all @[] (`notElem` map (importModuleName . unSpanned) (moduleImports m))
+        unSpanned (a :~ _) = a
         runRenamer m = do
           res <- get
-          runFresh (runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") (runReader (Span mempty mempty mempty) m)))
-        printResolveError err = print (err :: ResolveError)
-        printElabError    err = print (err :: ElabError)
-        printModuleError  err = print (err :: ModuleError)
-
-printParserError :: MonadIO m => ErrInfo -> m ()
-printParserError = prettyPrint
+          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
+        elaborate (tm :~ span) = runReader span $ do
+          ty <- inferType
+          tm' <- runRenamer (runReader Defn (resolveTerm tm))
+          runScope (define ty (elab tm'))
 
 basePackage :: Package
 basePackage = Package
   { packageName        = "Base"
   , packageSources     =
-      [ "src/Base/Applicative.path"
-      , "src/Base/Bool.path"
+      [ "src/Base/Bool.path"
       , "src/Base/Either.path"
       , "src/Base/Fin.path"
       , "src/Base/Fix.path"
       , "src/Base/Function.path"
-      , "src/Base/Functor.path"
       , "src/Base/Lazy.path"
       , "src/Base/List.path"
       , "src/Base/Maybe.path"
-      , "src/Base/Monad.path"
       , "src/Base/Nat.path"
       , "src/Base/Pair.path"
-      , "src/Base/Pointed.path"
       , "src/Base/Sigma.path"
       , "src/Base/Unit.path"
       , "src/Base/Vector.path"

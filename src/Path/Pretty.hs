@@ -1,8 +1,6 @@
 {-# LANGUAGE DefaultSignatures, FlexibleContexts #-}
 module Path.Pretty
-( PrettyPrec(..)
-, prettyPrint
-, prettys
+( prettyPrint
 , putDoc
 , prettyNotice
 , prettyErr
@@ -12,24 +10,26 @@ module Path.Pretty
 , prettyVar
 , prettyParens
 , prettyBraces
+, prettySpanned
 , tabulate2
+, tracePrettyM
+, Prec(..)
+, prettyPrec
+, prec
+, atom
 , module PP
 ) where
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
-import qualified Data.Map as Map
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
+import System.IO.Unsafe
 import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
-import Text.Trifecta.Rendering (Rendering(..), Span(..), render)
-import Text.Trifecta.Result (ErrInfo(..))
+import Text.Trifecta.Rendering (Span(..), Spanned(..), render)
 
-prettyPrint :: (MonadIO m, PrettyPrec a) => a -> m ()
-prettyPrint = putDoc . prettyPrec 0
-
-prettys :: PrettyPrec a => a -> Doc
-prettys = prettyPrec 0
+prettyPrint :: (Pretty a, MonadIO m) => a -> m ()
+prettyPrint = putDoc . pretty
 
 putDoc :: MonadIO m => Doc -> m ()
 putDoc doc = do
@@ -39,7 +39,7 @@ putDoc doc = do
 prettyNotice :: Span -> Maybe Doc -> Doc -> [Doc] -> Doc
 prettyNotice s lvl msg ctx = vsep
   ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon)) lvl </> msg))
-  : prettys s
+  : pretty (render s)
   : ctx)
 
 prettyErr :: Span -> Doc -> [Doc] -> Doc
@@ -79,34 +79,6 @@ instance Pretty Column where
   pretty = snd . unColumn
 
 
-class PrettyPrec a where
-  prettyPrec :: Int -> a -> Doc
-  default prettyPrec :: Pretty a => Int -> a -> Doc
-  prettyPrec _ = pretty
-
-instance PrettyPrec Doc where
-  prettyPrec _ = id
-
-instance (PrettyPrec a, PrettyPrec b) => PrettyPrec (a, b) where
-  prettyPrec _ (a, b) = tupled [ prettyPrec 0 a, prettyPrec 0 b ]
-
-instance PrettyPrec () where
-  prettyPrec _ = mempty
-
-instance PrettyPrec Span where
-  prettyPrec _ = pretty . render
-
-instance PrettyPrec a => PrettyPrec [a] where
-  prettyPrec _ = prettyList . map (prettyPrec 0)
-
-instance (PrettyPrec k, PrettyPrec v) => PrettyPrec (Map.Map k v) where
-  prettyPrec d = prettyPrec d . Map.toList
-
-instance PrettyPrec ErrInfo where
-  prettyPrec _ = pretty . _errDoc
-
-instance PrettyPrec Rendering
-
 prettyParens :: Bool -> Doc -> Doc
 prettyParens True = parens
 prettyParens False = id
@@ -114,3 +86,30 @@ prettyParens False = id
 prettyBraces :: Bool -> Doc -> Doc
 prettyBraces True = braces
 prettyBraces False = id
+
+prettySpanned :: Pretty a => Spanned a -> Doc
+prettySpanned (a :~ s) = pretty a <> hardline <> pretty (render s)
+
+
+-- | Debugging helper.
+tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
+tracePrettyM a = unsafePerformIO (prettyPrint a *> pure (pure ()))
+
+
+data Prec = Prec
+  { precPrecedence :: Maybe Int
+  , precDoc        :: Doc
+  }
+  deriving (Show)
+
+instance Pretty Prec where
+  pretty = precDoc
+
+prec :: Int -> Doc -> Prec
+prec = Prec . Just
+
+atom :: Doc -> Prec
+atom = Prec Nothing
+
+prettyPrec :: Int -> Prec -> Doc
+prettyPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a

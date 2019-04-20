@@ -1,50 +1,33 @@
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Error where
 
-import           Data.Foldable (fold, toList)
-import qualified Data.Set as Set
-import           Path.Constraint
-import           Path.Context as Context
-import           Path.Name
-import           Path.Pretty
-import           Path.Usage
-import           Path.Value
-import           Text.Trifecta.Rendering (Span)
+import Control.Effect
+import Control.Effect.Error
+import Control.Effect.Reader
+import Data.Foldable (fold, toList)
+import Data.List (intersperse)
+import Data.List.NonEmpty (NonEmpty(..))
+import Path.Constraint
+import Path.Name
+import Path.Pretty
+import Text.Trifecta.Rendering (Span, Spanned(..))
 
-data ElabError = ElabError
-  { errorSpan    :: Span
-  , errorContext :: Context
-  , errorReason  :: ErrorReason
-  }
-  deriving (Eq, Ord, Show)
+freeVariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty name) => name -> m a
+freeVariable name = do
+  span <- ask
+  throwError (prettyErr span (pretty "free variable" <+> squotes (pretty name)) [])
 
-data ErrorReason
-  = FreeVariable QName
-  | TypeMismatch (Set.Set (Caused (Equation (Value MName) ::: Type MName)))
-  | IllegalApplication (Type MName)
-  | ResourceMismatch Gensym Usage Usage [Span]
-  | TypedHole QName (Type MName)
-  | InfiniteType QName (Type MName)
-  deriving (Eq, Ord, Show)
+ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Name -> m a
+ambiguousName name sources = do
+  span <- ask
+  throwError (prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep
+    ( pretty "it could refer to"
+    : map prettyQName (toList sources)))])
 
-instance Pretty ElabError where
-  pretty (ElabError span ctx reason) = case reason of
-    FreeVariable name -> prettyErr span (pretty "free variable" <+> squotes (pretty name)) (prettyCtx ctx)
-    TypeMismatch eqns -> prettyErr span (fold (punctuate hardline
-      (pretty "type mismatch" : map prettyEqn (toList eqns)))) (prettyCtx ctx)
-    IllegalApplication ty -> prettyErr span (pretty "illegal application of term of type" <+> pretty ty) (prettyCtx ctx)
-    ResourceMismatch n pi used uses -> prettyErr span msg (prettyCtx ctx <> map prettys uses)
-      where msg = pretty "Variable" <+> squotes (pretty n) <+> pretty "used" <+> pretty (if pi > used then "less" else "more") <+> parens (pretty (length uses)) <+> pretty "than required" <+> parens (pretty pi)
-    TypedHole n ty -> prettyErr span msg (prettyCtx ctx)
-      where msg = pretty "Found hole" <+> squotes (pretty n) <+> pretty "of type" <+> squotes (pretty ty)
-    InfiniteType n t -> prettyErr span (pretty "Cannot construct infinite type" <+> pretty n <+> blue (pretty "~") <+> pretty t) (prettyCtx ctx)
-    where prettyCtx ctx = if Context.null ctx then [] else [nest 2 (vsep [pretty "Local bindings:", pretty ctx])]
-          prettyEqn ((expected :===: actual) ::: _ :@ cause) = fold (punctuate hardline
-            ( pretty "expected:" <+> pretty expected
-            : pretty "  actual:" <+> pretty actual
-            : prettyCause cause))
-          prettyCause (Assert span) = [magenta (pretty "via source"), prettys span]
-          prettyCause (Via eqn cause) = magenta (pretty "via") <+> pretty eqn : prettyCause cause
-          prettyCause (l :<>: r) = prettyCause l <> prettyCause r
 
-instance PrettyPrec ElabError
+unsimplifiableConstraint :: (Carrier sig m, Member (Error Doc) sig) => Spanned (Constraint Meta) -> m a
+unsimplifiableConstraint (c :~ span) = throwError (prettyErr span (pretty "unsimplifiable constraint") [pretty c])
+
+stalledConstraints :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Constraint Meta)] -> m a
+stalledConstraints constraints = throwError (fold (intersperse hardline (map stalled constraints)))
+  where stalled (c :~ span) = prettyErr span (pretty "stalled constraint") [pretty c]

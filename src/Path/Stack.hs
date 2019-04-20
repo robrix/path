@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase #-}
 module Path.Stack where
 
-import Data.Foldable (foldl', toList)
+import Data.Foldable (toList)
 import Path.Pretty
 import Prelude hiding (filter, lookup)
 
@@ -22,11 +22,6 @@ instance Monoid (Stack a) where
 instance Pretty a => Pretty (Stack a) where
   pretty = list . toList . fmap pretty
 
-instance Pretty a => PrettyPrec (Stack a)
-
-
-fromList :: [a] -> Stack a
-fromList = foldl' (:>) Nil
 
 find :: (a -> Bool) -> Stack a -> Maybe a
 find p = \case
@@ -42,10 +37,3 @@ filter keep = \case
     | keep a    -> filter keep as :> a
     | otherwise -> filter keep as
   Nil           -> Nil
-
-alignWith :: (a -> b -> c) -> Stack a -> Stack b -> (Maybe (Either (Stack a) (Stack b)), Stack c)
-alignWith f = go
-  where go Nil       Nil       = (Nothing, Nil)
-        go (as :> a) Nil       = (Just (Left  (as :> a)), Nil)
-        go Nil       (bs :> b) = (Just (Right (bs :> b)), Nil)
-        go (as :> a) (bs :> b) = (:> f a b) <$> go as bs

@@ -1,16 +1,20 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
 import           Control.Effect
-import           Control.Effect.Fresh
+import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.State
+import           Control.Effect.Sum
+import           Control.Monad.IO.Class
 import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import           Path.Pretty
+import           Path.Stack
 import           Path.Usage
-import           Text.Trifecta.Rendering (Span)
+import           Text.Trifecta.Rendering (Span, Spanned(..))
 
 data Gensym
   = Root String
@@ -24,37 +28,76 @@ instance Pretty Gensym where
     Root s -> pretty s
     _ :/ (_, i) -> prettyVar i
 
-instance PrettyPrec Gensym
+prettyGensym :: Gensym -> Doc
+prettyGensym = \case
+  Root s -> pretty s
+  _ :/ ("", i) -> prettyVar i
+  _ :/ (s, i) -> pretty s <> pretty i
 
 (//) :: Gensym -> String -> Gensym
 root // s = root :/ (s, 0)
 
 infixl 6 //
 
-gensym :: (Applicative m, Carrier sig m, Member Fresh sig, Member (Reader Gensym) sig) => String -> m Gensym
-gensym s = (:/) <$> ask <*> ((,) s <$> fresh)
+
+gensym :: (Carrier sig m, Member Naming sig) => String -> m Gensym
+gensym s = send (Gensym s pure)
+
+namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
+namespace s m = send (Namespace s m pure)
 
 
-data UName
-  = UName String
-  | UOp Operator
+un :: (Carrier sig m, Member Naming sig) => (Gensym -> t -> Either b (a, t)) -> t -> m (Stack a, b)
+un from = go Nil
+  where go names value = do
+          name <- gensym ""
+          case from name value of
+            Right (name, body) -> go (names :> name) body
+            Left body          -> pure (names, body)
+
+orTerm :: (n -> t -> Maybe (a, t)) -> (n -> t -> Either t (a, t))
+orTerm f a t = maybe (Left t) Right (f a t)
+
+data Naming m k
+  = Gensym String (Gensym -> k)
+  | forall a . Namespace String (m a) (a -> k)
+
+deriving instance Functor (Naming m)
+
+instance HFunctor Naming where
+  hmap _ (Gensym    s   k) = Gensym s k
+  hmap f (Namespace s m k) = Namespace s (f m) k
+
+instance Effect Naming where
+  handle state handler (Gensym    s   k) = Gensym s (handler . (<$ state) . k)
+  handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
+
+
+runNaming :: Functor m => Gensym -> NamingC m a -> m a
+runNaming root = runReader root . evalState 0 . runNamingC
+
+newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC Gensym m) a }
+  deriving (Applicative, Functor, Monad, MonadIO)
+
+instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
+  eff (L (Gensym    s   k)) = NamingC (StateC (\ i -> (:/ (s, i)) <$> ask >>= runState (succ i) . runNamingC . k))
+  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (// s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
+  eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
+
+
+data User
+  = Id String
+  | Op Operator
   deriving (Eq, Ord, Show)
 
-instance Pretty UName where
+instance Pretty User where
   pretty = \case
-    UName s -> pretty s
-    UOp op -> pretty op
+    Id s  -> pretty s
+    Op op -> parens (pretty op)
 
-instance PrettyPrec UName
-
-
-newtype Meta = Meta { unMeta :: Gensym }
-  deriving (Eq, Ord, Show)
-
-instance Pretty Meta where
-  pretty (Meta i) = pretty i
-
-instance PrettyPrec Meta
+showUser :: User -> String
+showUser (Id s) = s
+showUser (Op o) = showOperator o
 
 
 data ModuleName
@@ -69,8 +112,6 @@ instance Pretty ModuleName where
     ModuleName s -> pretty s
     ss :. s      -> pretty ss <> dot <> pretty s
 
-instance PrettyPrec ModuleName
-
 makeModuleName :: NonEmpty String -> ModuleName
 makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 
@@ -78,60 +119,54 @@ makeModuleName (s:|ss) = foldl (:.) (ModuleName s) ss
 type PackageName = String
 
 
-data QName
-  = ModuleName :.: UName
+data Qualified
+  = ModuleName :.: User
+  deriving (Eq, Ord, Show)
+
+infixl 5 :.:
+
+instance Pretty Qualified where
+  pretty (m :.: n) = pretty m <> dot <> pretty n
+
+
+data Name
+  = Global Qualified
   | Local Gensym
   deriving (Eq, Ord, Show)
 
-instance Pretty QName where
+instance Pretty Name where
   pretty = \case
-    _ :.: n -> pretty n
-    Local n -> pretty n
+    Global (_ :.: n) -> pretty n
+    Local         n  -> pretty '_' <> prettyGensym n
 
-inModule :: ModuleName -> QName -> Bool
-inModule m (m' :.: _) = m == m'
-inModule _ _          = False
+inModule :: ModuleName -> Name -> Bool
+inModule m (Global (m' :.: _)) = m == m'
+inModule _ _                   = False
 
-prettyQName :: QName -> Doc
+prettyQName :: Name -> Doc
 prettyQName = \case
-  m :.: n -> pretty m <> dot <> pretty n
-  Local n -> pretty n
-
-localNames :: Set.Set MName -> Set.Set Gensym
-localNames = foldMap (\case { Q (Local v) -> Set.singleton v ; _ -> mempty })
+  Global n -> pretty n
+  Local  n -> pretty '_' <> prettyGensym n
 
 
-data MName
-  = Q QName
-  | M Meta
+data Meta
+  = Name Name
+  | Meta Gensym
   deriving (Eq, Ord, Show)
 
-instance Pretty MName where
+instance Pretty Meta where
   pretty = \case
-    Q q -> pretty q
-    M m -> pretty m
+    Name q -> pretty q
+    Meta m -> dullblack (bold (pretty '?' <> pretty m))
 
-qlocal :: Gensym -> MName
-qlocal = Q . Local
+qlocal :: Gensym -> Meta
+qlocal = Name . Local
 
-metaNames :: Set.Set MName -> Set.Set Meta
-metaNames = foldMap (\case { M m -> Set.singleton m ; _ -> mempty })
+localNames :: Set.Set Meta -> Set.Set Gensym
+localNames = foldMap (\case { Name (Local v) -> Set.singleton v ; _ -> mempty })
 
-
-data Head a
-  = Free a
-  | Bound Int
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Ord a => FreeVariables a (Head a) where
-  fvs (Free q) = Set.singleton q
-  fvs _        = mempty
-
-instance Pretty a => Pretty (Head a) where
-  pretty (Free q)  = pretty q
-  pretty (Bound i) = prettyVar i
-
-instance Pretty a => PrettyPrec (Head a)
+metaNames :: Set.Set Meta -> Set.Set Gensym
+metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 
 data Operator
@@ -144,15 +179,23 @@ data Operator
 betweenOp :: String -> String -> Operator
 betweenOp a b = Closed (a :| []) b
 
-instance Pretty Operator where
-  pretty = \case
-    Prefix (f:|fs) -> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
-    Postfix (f:|fs) -> underscore <+> pretty f <+> hsep (map (\ a -> underscore <+> pretty a) fs)
-    Infix (f:|fs) -> underscore <+> pretty f <+> underscore <+> hsep (map (\ a -> pretty a <+> underscore) fs)
-    Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
-    where underscore = pretty '_'
+showOperator :: Operator -> String
+showOperator = renderOperator " " id
 
-instance PrettyPrec Operator
+renderOperator :: Monoid m => m -> (String -> m) -> Operator -> m
+renderOperator space pretty = \case
+  Prefix (f:|fs) -> hsep (map (\ a -> pretty a <+> underscore) (f:fs))
+  Postfix (f:|fs) -> hsep (map (\ a -> underscore <+> pretty a) (f:fs))
+  Infix (f:|fs) -> underscore <+> hsep (map (\ a -> pretty a <+> underscore) (f:fs))
+  Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
+  where hsep []     = mempty
+        hsep [a]    = a
+        hsep (a:as) = a <+> hsep as
+        s <+> t = s <> space <> t
+        underscore = pretty "_"
+
+instance Pretty Operator where
+  pretty = renderOperator space pretty
 
 
 data Incr a = Z | S a
@@ -163,8 +206,7 @@ match x y | x == y    = Z
           | otherwise = S y
 
 subst :: a -> Incr a -> a
-subst a Z     = a
-subst _ (S a) = a
+subst a = incr a id
 
 incr :: b -> (a -> b) -> Incr a -> b
 incr z s = \case { Z -> z ; S a -> s a }
@@ -185,9 +227,7 @@ typedType (_ ::: t) = t
 infix 6 :::
 
 instance (Pretty a, Pretty b) => Pretty (a ::: b) where
-  pretty (a ::: t) = pretty a <+> colon <+> pretty t
-
-instance (Pretty a, Pretty b) => PrettyPrec (a ::: b)
+  pretty (a ::: t) = pretty a <+> cyan colon <+> pretty t
 
 instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a ::: b) where
   fvs (a ::: b) = fvs a <> fvs b
@@ -223,3 +263,6 @@ instance Ord v => FreeVariables v Usage where
 
 instance Ord v => FreeVariables v Span where
   fvs _ = mempty
+
+instance FreeVariables v a => FreeVariables v (Spanned a) where
+  fvs (a :~ _) = fvs a

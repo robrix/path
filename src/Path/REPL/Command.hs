@@ -3,16 +3,17 @@ module Path.REPL.Command where
 import Path.Module
 import Path.Name
 import Path.Surface
+import Text.Trifecta.Rendering (Spanned(..))
 
 data Command
   = Quit
   | Help
-  | TypeOf Surface
-  | Decl (Decl UName Surface)
-  | Eval Surface
+  | TypeOf (Spanned Surface)
+  | Decl (Spanned (Decl User Surface))
+  | Eval (Spanned Surface)
   | Show Info
   | Reload
-  | Import Import
+  | Import (Spanned Import)
   | Doc ModuleName
   deriving (Eq, Ord, Show)
 

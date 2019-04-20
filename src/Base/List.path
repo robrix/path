@@ -1,7 +1,6 @@
 module Base.List
 
 import Base.Fix
-import Base.Functor
 
 ListF : Type -> Type -> Type
 ListF = \ a b . { c : Type } -> c -> (a -> b -> c) -> c
@@ -27,5 +26,6 @@ append : List a -> List a -> List a
 append = \ xs ys . xs (\ k f . f ys (\ x xs . cons x (k xs)))
 
 
-map : Functor List
+map :  (a -> b)
+    -> (List a -> List b)
 map = \ f l . l (\ k g . g nil (\ a as . cons (f a) (k as)))

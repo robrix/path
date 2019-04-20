@@ -1,18 +1,14 @@
 name:          Base
-sources:       src/Base/Applicative.path
-             , src/Base/Bool.path
+sources:       src/Base/Bool.path
              , src/Base/Either.path
              , src/Base/Fin.path
              , src/Base/Fix.path
              , src/Base/Function.path
-             , src/Base/Functor.path
              , src/Base/Lazy.path
              , src/Base/List.path
              , src/Base/Maybe.path
-             , src/Base/Monad.path
              , src/Base/Nat.path
              , src/Base/Pair.path
-             , src/Base/Pointed.path
              , src/Base/Sigma.path
              , src/Base/Unit.path
              , src/Base/Vector.path

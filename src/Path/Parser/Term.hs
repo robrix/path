@@ -20,15 +20,15 @@ ann :: DeltaParsing m => m Surface -> m Surface
 ann = fmap respan . spanned
   where respan (f :~ a) = Ann a f
 
-application = atom `chainl1` pure (:$) <?> "function application"
+application = atom <**> (flip (foldl (:$)) <$> many (plicit atom)) <?> "function application"
 
 type' = ann (Type <$ keyword "Type")
 
 piType = ann (do
-  (p, (v, mult, ty)) <- plicity ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
-  (Pi (Just v) p (fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult) ty) <$> functionType) <?> "dependent function type"
-  where plicity m = (,) Im <$> braces m
-                <|> (,) Ex <$> parens m
+  p :< (v, mult, ty) <- plicity ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  Pi (p :< (Just v, fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult, ty)) <$> functionType) <?> "dependent function type"
+  where plicity m = (Im :<) <$> braces m
+                <|> (Ex :<) <$> parens m
 
 functionType = (,) <$> multiplicity <*> application <**> (flip (:->) <$ op "->" <*> functionType)
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
@@ -38,21 +38,23 @@ functionType = (,) <$> multiplicity <*> application <**> (flip (:->) <$ op "->" 
 var = ann (Var <$> name <?> "variable")
 
 lambda = ann (do
-  vs <- op "\\" *> patterns <* dot
+  vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (Just <$> name <|> Nothing <$ token (string "_")) <?> "pattern"
-        patterns = (:) <$> pattern <*> (patterns <|> pure [])
+  where pattern = spanned (plicit (Just <$> name <|> Nothing <$ token (string "_"))) <?> "pattern"
         bind [] = term
         bind (v:vv) = wrap v <$> spanned (bind vv)
           where wrap (a :~ v1) (b :~ v2) = Ann (v1 <> v2) (Lam a b)
 
-hole = ann (Hole . UName <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
+hole = ann (Hole . Id <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
 atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
-name :: (Monad m, TokenParsing m) => m UName
-name =       (UName <$> identifier <?> "name")
-     <|> try (UOp <$> parens operator <?> "operator name")
+plicit :: TokenParsing m => m a -> m (Plicit a)
+plicit a = (Im :<) <$> braces a <|> (Ex :<) <$> a
+
+name :: (Monad m, TokenParsing m) => m User
+name =       (Id <$> identifier <?> "name")
+     <|> try (Op <$> parens operator <?> "operator name")

@@ -17,11 +17,11 @@ quit = Quit <$ token (string ":q") <|> Quit <$ token (string ":quit") <?> "quit"
 
 help = Help <$ token (string ":h") <|> Help <$ token (string ":?") <|> Help <$ token (string ":help") <?> "help"
 
-typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> term <?> "type of"
+typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> spanned term <?> "type of"
 
 decl = Decl <$> M.declaration
 
-eval = Eval <$> term <?> "term"
+eval = Eval <$> spanned term <?> "term"
 
 show' = Show <$ token (string ":show") <*> info
 
