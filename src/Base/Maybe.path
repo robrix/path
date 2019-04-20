@@ -6,15 +6,17 @@ import Base.Function
 Maybe : Type -> Type
 Maybe = \ a . { b : Type } -> b -> (a -> b) -> b
 
-just : a -> Maybe a
-just = \ a _ just . just a
+just : { a : Type } -> a -> Maybe a
+just = \ {_} a {_} _ just . just a
 
-nothing : Maybe a
-nothing = \ nothing _ . nothing
+nothing : { a : Type } -> Maybe a
+nothing = \ {_} {_} nothing _ . nothing
 
-isJust : Maybe a -> Bool
-isJust = \ m . m false (\ _ . true)
+isJust : { a : Type } -> Maybe a -> Bool
+isJust = \ {_} m . m {Bool} false (\ _ . true)
 
-map :  (a -> b)
+map :  { a : Type }
+    -> { b : Type }
+    -> (a -> b)
     -> (Maybe a -> Maybe b)
-map = \ f m . m nothing (\ a . just (f a))
+map = \ {_} {b} f m . m {Maybe b} (nothing {b}) (\ a . just {b} (f a))

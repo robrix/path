@@ -6,7 +6,7 @@ import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
-import qualified Data.Set as Set
+-- import qualified Data.Set as Set
 import Path.Core as Core
 import Path.Error
 import Path.Module
@@ -14,7 +14,7 @@ import Path.Name
 import Path.Plicity
 import Path.Pretty
 import qualified Path.Surface as Surface
-import Path.Usage
+-- import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
@@ -45,13 +45,13 @@ resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
   Declare n ty -> do
     res <- get
     moduleName <- ask
-    let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
-        generalize ty = foldr bind ty vs
-        bind n ty = do
-          n' <- gensym (showUser n)
-          local (insertLocal (Just n) n') $
-            Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
-    ty' <- runReader (res :: Resolution) (runReader Decl (generalize (resolveTerm ty)))
+    -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
+    --     generalize ty = foldr bind ty vs
+    --     bind n ty = do
+    --       n' <- gensym (showUser n)
+    --       local (insertLocal (Just n) n') $
+    --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
+    ty' <- runReader (res :: Resolution) (runReader Decl (resolveTerm ty))
     Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
   Define n tm -> do
     res <- get

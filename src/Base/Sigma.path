@@ -4,7 +4,7 @@ Sigma : (A : Type) -> (A -> Type) -> Type
 Sigma = \ A B . { C : Type } -> (( a : A ) -> B a -> C) -> C
 
 sigma :  { A : Type } -> { B : A -> Type } -> ( a : A ) -> B a -> Sigma A B
-sigma = \ a b f . f a b
+sigma = \ {_} {_} a b {_} f . f a b
 
 fst : { A : Type } -> { B : A -> Type } -> Sigma A B -> A
-fst = \ s . s (\ a _ . a)
+fst = \ {A} {_} s . s {A} (\ a _ . a)
