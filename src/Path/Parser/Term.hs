@@ -16,8 +16,8 @@ type', var, hole, term, application, piType, functionType, lambda, atom :: Delta
 
 term = functionType
 
-application = foldl app <$> atom <*> many (plicit term atom) <?> "function application"
-  where app f@(_ :~ s1) a@(_ :< (_ :~ s2)) = (f :$ a) :~ (s1 <> s2)
+application = foldl app <$> atom <*> many (spanned (plicit term atom)) <?> "function application"
+  where app f@(_ :~ s1) (a :~ s2) = (f :$ a) :~ (s1 <> s2)
 
 type' = spanned (Type <$ keyword "Type")
 
