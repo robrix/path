@@ -6,6 +6,7 @@ import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
+import Data.Maybe (fromMaybe)
 -- import qualified Data.Set as Set
 import Path.Core as Core
 import Path.Error
@@ -34,7 +35,7 @@ resolveTerm (term :~ span) = Ann span <$> case term of
   (u, a) Surface.:-> b -> do
     v <- gensym "pi"
     Pi . (Ex :<) . (Nothing, u,) <$> resolveTerm a <*> (bind (Local v) <$> resolveTerm b)
-  Surface.Hole v -> Hole <$> resolveName (Id v)
+  Surface.Hole v -> Hole <$> resolveName (Id (fromMaybe "hole" v))
 
 
 data Mode = Decl | Defn
