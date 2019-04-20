@@ -6,7 +6,6 @@ import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
 -- import qualified Data.Set as Set
 import Path.Core as Core
 import Path.Error
@@ -19,7 +18,7 @@ import qualified Path.Surface as Surface
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
-type Signature = Map.Map (Maybe String) Gensym
+type Signature = Map.Map String Gensym
 
 resolveTerm :: ( Carrier sig m
                , Member (Error Doc) sig
@@ -134,13 +133,14 @@ resolveMeta :: ( Carrier sig m
                )
             => Maybe String
             -> m Gensym
-resolveMeta m = do
+resolveMeta (Just m) = do
   found <- gets (Map.lookup m)
   case found of
     Just meta -> pure meta
     Nothing   -> do
-      n <- gensym (fromMaybe "meta" m)
+      n <- gensym m
       n <$ modify (Map.insert m n)
+resolveMeta Nothing = gensym "meta"
 
 filterResolution :: (Name -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
