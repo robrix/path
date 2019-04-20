@@ -10,7 +10,7 @@ import Text.Trifecta.Rendering (Span)
 data Surface
   = Var User
   | Lam (Plicit (Maybe User)) Surface
-  | Surface :$ Surface
+  | Surface :$ Plicit Surface
   | Type
   | Pi (Plicit (Maybe User, Usage, Surface)) Surface
   | Hole User
@@ -23,7 +23,7 @@ instance FreeVariables User Surface where
     Var v -> Set.singleton v
     Lam (_ :< Just v) b -> Set.delete v (fvs b)
     Lam (_ :< Nothing)  b -> fvs b
-    f :$ a -> fvs f <> fvs a
+    f :$ (_ :< a) -> fvs f <> fvs a
     Type -> Set.empty
     Pi (_ :< (Just v,  _, t)) b -> fvs t <> Set.delete v (fvs b)
     Pi (_ :< (Nothing, _, t)) b -> fvs t <> fvs b

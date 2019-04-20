@@ -20,7 +20,7 @@ ann :: DeltaParsing m => m Surface -> m Surface
 ann = fmap respan . spanned
   where respan (f :~ a) = Ann a f
 
-application = atom `chainl1` pure (:$) <?> "function application"
+application = atom `chainl1` pure (\ f a -> f :$ (Ex :< a)) <?> "function application"
 
 type' = ann (Type <$ keyword "Type")
 
