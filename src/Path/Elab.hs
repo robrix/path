@@ -18,7 +18,6 @@ import Path.Stack as Stack
 import Path.Constraint hiding (Scope(..), (|-))
 import Path.Context as Context
 import qualified Path.Core as Core
-import Path.Error
 import Path.Eval
 import Path.Module
 import Path.Name
@@ -33,11 +32,11 @@ import qualified Path.Value as Value
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
-assume :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig)
+assume :: (Carrier sig m, Member Elab sig, Member Naming sig)
        => Name
        -> m (Value Meta ::: Type Meta)
 assume v = do
-  _A <- have v >>= maybe (freeVariable v) pure
+  _A <- have v
   implicits _A >>= foldl' app (pure (pure (Name v) ::: _A))
 
 implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (m (Value Meta ::: Type Meta))))
@@ -103,14 +102,14 @@ b |- m = send (Bind b m pure)
 
 infix 5 |-
 
-have :: (Carrier sig m, Member Elab sig) => Name -> m (Maybe (Type Meta))
+have :: (Carrier sig m, Member Elab sig) => Name -> m (Type Meta)
 have n = send (Have n pure)
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
-elab :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming sig, Member (Reader Span) sig)
+elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span) sig)
      => Core.Core Name
      -> m (Value Meta ::: Type Meta)
 elab = \case
@@ -125,7 +124,7 @@ elab = \case
 
 data Elab m k
   = Exists (Type Meta) (Value Meta -> k)
-  | Have Name (Maybe (Type Meta) -> k)
+  | Have Name (Type Meta -> k)
   | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
   | Unify (Equation (Value Meta ::: Type Meta)) k
 
@@ -159,8 +158,9 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     ctx <- ElabC ask
     n <- Meta <$> gensym "meta"
     k (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
-  eff (L (Have (Global n) k)) = ElabC (asks (Scope.lookup   n)) >>= k . fmap (Value.weaken . entryType)
-  eff (L (Have (Local  n) k)) = ElabC (asks (Context.lookup n)) >>= k
+  eff (L (Have n k)) = lookup n >>= maybe (exists Type >>= exists) pure >>= k
+    where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
+          lookup (Local  n) = ElabC (asks (Context.lookup n))
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
   eff (L (Unify (tm1 ::: ty1 :===: tm2 ::: ty2) k)) = ElabC $ do
     span <- ask
