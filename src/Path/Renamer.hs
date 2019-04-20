@@ -35,7 +35,6 @@ resolveTerm (term :~ span) = Ann span <$> case term of
     v <- gensym "pi"
     Pi . (Ex :<) . (Nothing, u,) <$> resolveTerm a <*> (bind (Local v) <$> resolveTerm b)
   Surface.Hole v -> Hole <$> resolveName v
-  -- Surface.Ann ann a -> Ann ann <$> local (const ann) (resolveTerm a)
 
 
 data Mode = Decl | Defn
