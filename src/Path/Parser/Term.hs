@@ -16,7 +16,7 @@ type', var, hole, term, application, piType, functionType, lambda, atom :: Delta
 
 term = functionType
 
-application = atom <**> (flip (foldl wrap) <$> many (plicit atom)) <?> "function application"
+application = atom <**> (flip (foldl wrap) <$> many (plicit term atom)) <?> "function application"
   where wrap f@(_ :~ s1) a@(_ :< (_ :~ s2)) = (f :$ a) :~ (s1 <> s2)
 
 type' = spanned (Type <$ keyword "Type")
@@ -37,7 +37,8 @@ var = spanned (Var <$> name <?> "variable")
 lambda = (do
   vs <- op "\\" *> some pattern <* dot
   bind vs) <?> "lambda"
-  where pattern = spanned (plicit (Just <$> name <|> Nothing <$ token (string "_"))) <?> "pattern"
+  where pattern = spanned (plicit binding binding) <?> "pattern"
+        binding = Just <$> name <|> Nothing <$ token (string "_")
         bind [] = term
         bind (v:vv) = wrap v <$> spanned (bind vv)
           where wrap (a :~ v1) (b :~ v2) = Lam a b :~ (v1 <> v2)
@@ -49,8 +50,8 @@ atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
-plicit :: TokenParsing m => m a -> m (Plicit a)
-plicit a = (Im :<) <$> braces a <|> (Ex :<) <$> a
+plicit :: TokenParsing m => m a -> m a -> m (Plicit a)
+plicit a b = (Im :<) <$> braces a <|> (Ex :<) <$> b
 
 name :: (Monad m, TokenParsing m) => m User
 name =       (Id <$> identifier <?> "name")
