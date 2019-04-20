@@ -11,7 +11,7 @@ import Text.Trifecta.Rendering (Span)
 data Core a
   = Var a
   | Lam (Plicit (Maybe User)) (Scope a)
-  | Core a :$ Core a
+  | Core a :$ Plicit (Core a)
   | Type
   | Pi (Plicit (Maybe User, Usage, Core a)) (Scope a)
   | Hole a
@@ -38,7 +38,7 @@ lams names body = foldr lam body names
 gfoldT :: forall m n b
        .  (forall a . m a -> n a)
        -> (forall a . Plicit (Maybe User) -> n (Incr a) -> n a)
-       -> (forall a . n a -> n a -> n a)
+       -> (forall a . n a -> Plicit (n a) -> n a)
        -> (forall a . n a)
        -> (forall a . Plicit (Maybe User, Usage, n a) -> n (Incr a) -> n a)
        -> (forall a . m a -> n a)
@@ -51,7 +51,7 @@ gfoldT var lam app ty pi hole ann dist = go
         go = \case
           Var a -> var a
           Lam n (Scope b) -> lam n (go (dist <$> b))
-          f :$ a -> app (go f) (go a)
+          f :$ a -> app (go f) (go <$> a)
           Type -> ty
           Pi (p :< (n, m, t)) (Scope b) -> pi (p :< (n, m, go t)) (go (dist <$> b))
           Hole a -> hole a

@@ -116,7 +116,7 @@ elab :: (Carrier sig m, Member Elab sig, Member (Error Doc) sig, Member Naming s
 elab = \case
   Core.Var n -> assume n
   Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
-  f Core.:$ a -> app (elab f) (Ex :< elab a)
+  f Core.:$ (p :< a) -> app (elab f) (p :< elab a)
   Core.Type -> pure (Type ::: Type)
   Core.Pi (p :< (n, m, t)) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
   Core.Hole _ -> do
