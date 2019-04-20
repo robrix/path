@@ -93,7 +93,7 @@ simplify (constraint :~ span) = do
             go scope ctx ((Lam p1 b1 :===: lam (p1 :< qlocal n) (tm2 $$ (p1 :< pure (qlocal n)))) ::: ty)
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
-            | otherwise                -> unsimplifiableConstraint (binds ctx c :~ span)
+            | otherwise                -> unsimplifiableConstraint [binds ctx c :~ span]
 
         exists ctx _ = do
           n <- Meta <$> gensym "meta"
