@@ -32,6 +32,7 @@ simplify :: ( Carrier sig m
             , Member (Error Doc) sig
             , Member Naming sig
             , Member (Reader Scope) sig
+            , Member (Writer [Spanned (Constraint Meta)]) sig
             )
          => Spanned (Constraint Meta)
          -> m (Set.Set (Spanned (Constraint Meta)))
@@ -93,7 +94,7 @@ simplify (constraint :~ span) = do
             go scope ctx ((Lam p1 b1 :===: lam (p1 :< qlocal n) (tm2 $$ (p1 :< pure (qlocal n)))) ::: ty)
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
-            | otherwise                -> unsimplifiableConstraints [binds ctx c :~ span]
+            | otherwise                -> tell [binds ctx c :~ span]
 
         exists ctx _ = do
           n <- Meta <$> gensym "meta"
@@ -118,10 +119,10 @@ solver :: ( Carrier sig m
        => Set.Set (Spanned (Constraint Meta))
        -> m Substitution
 solver constraints = execState Map.empty $ do
-  queue <- execState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) $ do
+  (queue, unsimplifiable) <- runState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) . execWriter $ do
     enqueueAll constraints
     step
-  unless (null queue) (unsimplifiableConstraints (toList queue))
+  unless (null unsimplifiable && null queue) (unsimplifiableConstraints (unsimplifiable <> toList queue))
 
 step :: ( Carrier sig m
         , Effect sig
@@ -131,6 +132,7 @@ step :: ( Carrier sig m
         , Member (State Blocked) sig
         , Member (State Queue) sig
         , Member (State Substitution) sig
+        , Member (Writer [Spanned (Constraint Meta)]) sig
         )
      => m ()
 step = do
@@ -145,6 +147,7 @@ process :: ( Carrier sig m
            , Member (State Blocked) sig
            , Member (State Queue) sig
            , Member (State Substitution) sig
+           , Member (Writer [Spanned (Constraint Meta)]) sig
            )
         => Substitution
         -> Spanned (Constraint Meta)
