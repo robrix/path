@@ -25,9 +25,6 @@ import           Text.Trifecta.Rendering (Spanned(..))
 type Blocked = Set.Set (Spanned (Constraint Meta))
 type Queue = Seq.Seq (Spanned (Constraint Meta))
 
-newtype Signature = Signature { unSignature :: Map.Map Gensym (Value Meta) }
-  deriving (Eq, Monoid, Ord, Semigroup, Show)
-
 -- FIXME: we need constraint dependencies to ensure that we e.g. δ-reduce a type like Either L R and solve the π type unification constraint before we try to solve whatever we typed using it
 
 simplify :: ( Carrier sig m

@@ -31,6 +31,9 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
 newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value Meta) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
+newtype Signature = Signature { unSignature :: Map.Map Gensym (Value Meta) }
+  deriving (Eq, Monoid, Ord, Semigroup, Show)
+
 class Substitutable t where
   apply :: Substitution -> t -> t
 
