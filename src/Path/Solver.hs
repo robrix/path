@@ -126,7 +126,7 @@ solver constraints = do
     enqueueAll constraints
     step
   sig <- get
-  subst <$ unless (null unsimplifiable && null queue) (unsimplifiableConstraints sig subst (unsimplifiable <> toList queue))
+  subst <$ unless (null unsimplifiable && null queue) (unsimplifiableConstraints sig (unsimplifiable <> toList queue))
 
 step :: ( Carrier sig m
         , Effect sig
