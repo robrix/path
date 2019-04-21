@@ -34,6 +34,12 @@ newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value Me
 newtype Signature = Signature { unSignature :: Map.Map Gensym (Value Meta) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
+instance Pretty Signature where
+  pretty (Signature sig)
+    | null sig  = mempty
+    | otherwise = encloseSep (magenta (pretty "Σ") <> space) mempty (cyan comma <> space) (map (uncurry prettyBind) (Map.toList sig)) <> hardline
+    where prettyBind m t = pretty (Meta m) <+> cyan colon <+> pretty t
+
 class Substitutable t where
   apply :: Substitution -> t -> t
 
