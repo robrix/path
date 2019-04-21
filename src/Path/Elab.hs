@@ -221,7 +221,7 @@ elabDecl :: ( Carrier sig m
 elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fmap (:~ span) $ case decl of
   Declare name ty -> do
     ty' <- runScope (declare (elab ty))
-    modify (Scope.insert name (Decl ty'))
+    modify (Scope.insert name (Entry (Nothing ::: ty')))
     pure (Declare name (ty' ::: Value.Type))
   Define  name tm -> do
     ty <- gets (fmap entryType . Scope.lookup name)
@@ -234,9 +234,9 @@ elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fm
           _                    -> Nothing)) ty'
         pure (Core.lams names tm ::: Value.weaken ty)
       Nothing -> (tm :::) <$> inferType
-    elab <- runScope (define ty (elab tm))
-    modify (Scope.insert name (Defn elab))
-    pure (Define name elab)
+    tm ::: ty <- runScope (define ty (elab tm))
+    modify (Scope.insert name (Entry (Just tm ::: ty)))
+    pure (Define name (tm ::: ty))
   Doc docs     d  -> Doc docs <$> elabDecl d
 
 declare :: ( Carrier sig m

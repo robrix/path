@@ -8,22 +8,18 @@ import Path.Name
 import Path.Pretty
 import Path.Value hiding (Scope(..))
 
-data Entry
-  = Decl (Type Name)
-  | Defn (Value Name ::: Type Name)
+newtype Entry = Entry { unEntry :: Maybe (Value Name) ::: Type Name }
   deriving (Eq, Ord, Show)
 
 entryType :: Entry -> Type Name
-entryType (Decl        ty)  = ty
-entryType (Defn (_ ::: ty)) = ty
+entryType = typedType . unEntry
 
 entryValue :: Entry -> Maybe (Value Name)
-entryValue (Defn (v ::: _)) = Just v
-entryValue _                = Nothing
+entryValue = typedTerm . unEntry
 
 instance Pretty Entry where
-  pretty (Decl        ty)  =         cyan colon <+> pretty ty
-  pretty (Defn (v ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
+  pretty (Entry (Nothing ::: ty)) =         cyan colon <+> pretty ty
+  pretty (Entry (Just v  ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
 
 
 newtype Scope = Scope { unScope :: Map.Map Qualified Entry }
