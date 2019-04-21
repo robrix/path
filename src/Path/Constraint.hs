@@ -31,6 +31,12 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
 newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value Meta) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
+instance Pretty Substitution where
+  pretty (Substitution sig)
+    | null sig  = mempty
+    | otherwise = encloseSep (magenta (pretty "Θ") <> space) mempty (cyan comma <> space) (map (uncurry prettyBind) (Map.toList sig)) <> hardline
+    where prettyBind m t = pretty (Meta m) <+> cyan (pretty "=") <+> pretty t
+
 newtype Signature = Signature { unSignature :: Map.Map Gensym (Value Meta) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
