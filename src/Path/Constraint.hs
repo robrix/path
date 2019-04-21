@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
 module Path.Constraint where
 
 import Control.Effect
@@ -28,7 +28,8 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
   fvs (a1 :===: a2) = fvs a1 <> fvs a2
 
 
-type Substitution = Map.Map Gensym (Value Meta)
+newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value Meta) }
+  deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 class Substitutable t where
   apply :: Substitution -> t -> t
@@ -38,7 +39,7 @@ unMeta (Meta n) = Just n
 unMeta _        = Nothing
 
 instance Substitutable (Value Meta) where
-  apply subst val = do
+  apply (Substitution subst) val = do
     var <- val
     fromMaybe (pure var) (unMeta var >>= (subst Map.!?))
 
@@ -58,7 +59,7 @@ instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
 instance Substitutable (Constraint Meta) where
-  apply subst = joinT . fmap (\ var -> fromMaybe (pure var) (unMeta var >>= (subst Map.!?)))
+  apply (Substitution subst) = joinT . fmap (\ var -> fromMaybe (pure var) (unMeta var >>= (subst Map.!?)))
 
 
 data Constraint a

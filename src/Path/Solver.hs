@@ -119,7 +119,7 @@ solver :: ( Carrier sig m
           )
        => Set.Set (Spanned (Constraint Meta))
        -> m Substitution
-solver constraints = execState Map.empty $ do
+solver constraints = execState mempty $ do
   (queue, unsimplifiable) <- runState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) . execWriter $ do
     enqueueAll constraints
     step
@@ -153,11 +153,11 @@ process :: ( Carrier sig m
         => Substitution
         -> Spanned (Constraint Meta)
         -> m ()
-process _S c@(constraint :~ _) = do
+process (Substitution _S) c@(constraint :~ _) = do
   (_, (tm1 :===: tm2) ::: _) <- unbinds constraint
   case () of
     _ | tm1 == tm2 -> pure ()
-      | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) -> simplify (apply s c) >>= enqueueAll
+      | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) -> simplify (apply (Substitution s) c) >>= enqueueAll
       | Just (m, sp) <- pattern tm1 -> solve m (Value.lams sp tm2)
       | Just (m, sp) <- pattern tm2 -> solve m (Value.lams sp tm1)
       | otherwise -> block c
@@ -186,7 +186,7 @@ distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
 
 solve :: (Carrier sig m, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Gensym -> Value Meta -> m ()
 solve m v = do
-  modify (Map.insert m v . fmap (apply (Map.singleton m v)))
+  modify (Substitution . Map.insert m v . fmap (apply (Substitution (Map.singleton m v))) . unSubstitution)
   (unblocked, blocked) <- gets (Set.partition (isBlockedOn (Meta m)))
   enqueueAll unblocked
   put blocked
