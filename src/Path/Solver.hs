@@ -18,6 +18,7 @@ import           Path.Plicity
 import           Path.Pretty
 import           Path.Scope as Scope hiding (null)
 import           Path.Stack
+import           Path.Usage
 import           Path.Value as Value hiding (Scope (..))
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Spanned(..))
@@ -99,7 +100,9 @@ simplify (constraint :~ span) = do
 
         exists ctx ty = do
           n <- gensym "meta"
-          modify (Signature . Map.insert n ty . unSignature)
+          let f (n ::: t) = Ex :< (qlocal n, More) ::: t
+              ty' = Value.pis (f <$> Context.unContext ctx) ty
+          modify (Signature . Map.insert n ty' . unSignature)
           pure (pure (Meta n) Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars ctx))
 
         blocked (Meta _ :$ _) = True
