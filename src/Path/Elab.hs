@@ -145,19 +145,19 @@ instance Effect Elab where
     Unify  q   k -> Unify  q                        (handler (k <$ state))
 
 
-runElab :: ElabC m a -> m (Signature, (Set.Set (Spanned (Constraint Meta)), a))
-runElab = runState mempty . runWriter . runReader mempty . runElabC
+runElab :: ElabC m a -> m (Set.Set (Spanned (Constraint Meta)), a)
+runElab = runWriter . runReader mempty . runElabC
 
 type Signature = Map.Map Gensym (Value Meta)
 
-newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (Set.Set (Spanned (Constraint Meta))) (StateC Signature m)) a }
+newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (Set.Set (Spanned (Constraint Meta))) m) a }
   deriving (Applicative, Functor, Monad)
 
-instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
+instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (State Signature) sig) => Carrier (Elab :+: sig) (ElabC m) where
   eff (L (Exists ty k)) = do
     ctx <- ElabC ask
     n <- gensym "meta"
-    ElabC (modify (Map.insert n ty))
+    modify (Map.insert n ty)
     k (pure (Meta n) Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
   eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
     where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
@@ -175,7 +175,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
       , (binds context ((tm1 :===: tm2) ::: ty1))        :~ span
       ])
     runElabC k
-  eff (R other) = ElabC (eff (R (R (R (handleCoercible other)))))
+  eff (R other) = ElabC (eff (R (R (handleCoercible other))))
 
 inferType :: (Carrier sig m, Member Naming sig) => m (Type Meta)
 inferType = pure . Meta <$> gensym "meta"
@@ -248,10 +248,10 @@ declare :: ( Carrier sig m
            , Member (Reader Scope) sig
            , Member (Reader Span) sig
            )
-        => ElabC m (Value Meta ::: Type Meta)
+        => ElabC (StateC Signature m) (Value Meta ::: Type Meta)
         -> m (Value Name)
-declare ty = do
-  (_, (constraints, ty')) <- runElab (goalIs Type ty)
+declare ty = evalState (mempty :: Signature) $ do
+  (constraints, ty') <- runElab (goalIs Type ty)
   subst <- solver constraints
   pure (Value.generalizeType (apply subst ty'))
 
@@ -263,10 +263,10 @@ define :: ( Carrier sig m
           , Member (Reader Span) sig
           )
        => Value Meta
-       -> ElabC m (Value Meta ::: Type Meta)
+       -> ElabC (StateC Signature m) (Value Meta ::: Type Meta)
        -> m (Value Name ::: Type Name)
-define ty tm = do
-  (_, (constraints, tm')) <- runElab (goalIs ty tm)
+define ty tm = evalState (mempty :: Signature) $ do
+  (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
   let ty' = Value.generalizeType (apply subst ty)
   (::: ty') <$> Value.strengthen (apply subst tm')
