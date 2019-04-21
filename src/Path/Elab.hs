@@ -155,7 +155,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
   eff (L (Exists ty k)) = do
     ctx <- ElabC ask
     n <- gensym "meta"
-    modify (Map.insert n ty)
+    modify (Signature . Map.insert n ty . unSignature)
     k (pure (Meta n) Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
   eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
     where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
