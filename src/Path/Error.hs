@@ -25,6 +25,6 @@ ambiguousName name sources = do
     : map prettyQName (toList sources)))])
 
 
-unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> [Spanned (Constraint Meta)] -> m a
-unsimplifiableConstraints sig constraints = throwError (pretty sig <> fold (intersperse hardline (map unsimplifiable constraints)))
+unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> Substitution -> [Spanned (Constraint Meta)] -> m a
+unsimplifiableConstraints sig subst constraints = throwError (pretty sig <> pretty subst <> fold (intersperse hardline (map unsimplifiable constraints)))
   where unsimplifiable (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty c]
