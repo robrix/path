@@ -125,7 +125,8 @@ solver constraints = execState mempty $ do
   (queue, unsimplifiable) <- runState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) . execWriter $ do
     enqueueAll constraints
     step
-  unless (null unsimplifiable && null queue) (unsimplifiableConstraints (unsimplifiable <> toList queue))
+  sig <- get
+  unless (null unsimplifiable && null queue) (unsimplifiableConstraints sig (unsimplifiable <> toList queue))
 
 step :: ( Carrier sig m
         , Effect sig
