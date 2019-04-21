@@ -191,7 +191,14 @@ free _          = Nothing
 distinct :: (Foldable t, Ord a) => t a -> Maybe (t a)
 distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
 
-solve :: (Carrier sig m, Member (State Blocked) sig, Member (State Queue) sig, Member (State Substitution) sig) => Gensym -> Value Meta -> m ()
+solve :: ( Carrier sig m
+         , Member (State Blocked) sig
+         , Member (State Queue) sig
+         , Member (State Substitution) sig
+         )
+      => Gensym
+      -> Value Meta
+      -> m ()
 solve m v = do
   modify (Substitution . Map.insert m v . fmap (apply (Substitution (Map.singleton m v))) . unSubstitution)
   (unblocked, blocked) <- gets (Set.partition (isBlockedOn (Meta m)))
