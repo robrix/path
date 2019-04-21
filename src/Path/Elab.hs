@@ -154,12 +154,11 @@ newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (
   deriving (Applicative, Functor, Monad)
 
 instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig) => Carrier (Elab :+: sig) (ElabC m) where
-  eff (L (Exists _ k)) = do
-    -- FIXME: keep a signature
-    -- FIXME: use the type
+  eff (L (Exists ty k)) = do
     ctx <- ElabC ask
-    n <- Meta <$> gensym "meta"
-    k (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
+    n <- gensym "meta"
+    ElabC (modify (Map.insert n ty))
+    k (pure (Meta n) Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
   eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
     where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
           lookup (Local  n) = ElabC (asks (Context.lookup n))
