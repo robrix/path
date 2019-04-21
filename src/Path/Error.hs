@@ -26,5 +26,5 @@ ambiguousName name sources = do
 
 
 unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> [Spanned (Constraint Meta)] -> m a
-unsimplifiableConstraints _ constraints = throwError (fold (intersperse hardline (map unsimplifiable constraints)))
+unsimplifiableConstraints sig constraints = throwError (pretty sig <> fold (intersperse hardline (map unsimplifiable constraints)))
   where unsimplifiable (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty c]
