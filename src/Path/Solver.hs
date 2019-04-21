@@ -35,6 +35,7 @@ simplify :: ( Carrier sig m
             , Member (Error Doc) sig
             , Member Naming sig
             , Member (Reader Scope) sig
+            , Member (State Signature) sig
             , Member (Writer [Spanned (Constraint Meta)]) sig
             )
          => Spanned (Constraint Meta)
@@ -99,9 +100,10 @@ simplify (constraint :~ span) = do
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
             | otherwise                -> tell [binds ctx c :~ span]
 
-        exists ctx _ = do
-          n <- Meta <$> gensym "meta"
-          pure (pure n Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars ctx))
+        exists ctx ty = do
+          n <- gensym "meta"
+          modify (Signature . Map.insert n ty . unSignature)
+          pure (pure (Meta n) Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars ctx))
 
         blocked (Meta _ :$ _) = True
         blocked _             = False
@@ -118,6 +120,7 @@ solver :: ( Carrier sig m
           , Member (Error Doc) sig
           , Member Naming sig
           , Member (Reader Scope) sig
+          , Member (State Signature) sig
           )
        => Set.Set (Spanned (Constraint Meta))
        -> m Substitution
@@ -134,6 +137,7 @@ step :: ( Carrier sig m
         , Member (Reader Scope) sig
         , Member (State Blocked) sig
         , Member (State Queue) sig
+        , Member (State Signature) sig
         , Member (State Substitution) sig
         , Member (Writer [Spanned (Constraint Meta)]) sig
         )
@@ -149,6 +153,7 @@ process :: ( Carrier sig m
            , Member (Reader Scope) sig
            , Member (State Blocked) sig
            , Member (State Queue) sig
+           , Member (State Signature) sig
            , Member (State Substitution) sig
            , Member (Writer [Spanned (Constraint Meta)]) sig
            )
