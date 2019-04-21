@@ -121,12 +121,12 @@ solver :: ( Carrier sig m
           )
        => Set.Set (Spanned (Constraint Meta))
        -> m Substitution
-solver constraints = execState mempty $ do
-  (queue, unsimplifiable) <- runState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) . execWriter $ do
+solver constraints = do
+  (subst, (queue, unsimplifiable)) <- runState (mempty :: Substitution) . runState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) . execWriter $ do
     enqueueAll constraints
     step
   sig <- get
-  unless (null unsimplifiable && null queue) (unsimplifiableConstraints sig (unsimplifiable <> toList queue))
+  subst <$ unless (null unsimplifiable && null queue) (unsimplifiableConstraints sig (unsimplifiable <> toList queue))
 
 step :: ( Carrier sig m
         , Effect sig
