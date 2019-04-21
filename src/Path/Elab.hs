@@ -148,8 +148,6 @@ instance Effect Elab where
 runElab :: ElabC m a -> m (Set.Set (Spanned (Constraint Meta)), a)
 runElab = runWriter . runReader mempty . runElabC
 
-type Signature = Map.Map Gensym (Value Meta)
-
 newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (Set.Set (Spanned (Constraint Meta))) m) a }
   deriving (Applicative, Functor, Monad)
 

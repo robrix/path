@@ -18,7 +18,7 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import Path.Elab hiding (Signature)
+import Path.Elab
 import Path.Eval
 import Path.Module as Module
 import Path.Name
