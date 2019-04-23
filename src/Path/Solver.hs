@@ -182,12 +182,12 @@ dequeue = gets Seq.viewl >>= \case
   h Seq.:< q -> Just h <$ put q
 
 pattern :: Type Meta -> Maybe (Gensym, Stack (Plicit Meta))
-pattern (Meta m :$ sp) = (,) m <$> (traverse (traverse free) sp >>= distinct)
+pattern (Meta m :$ sp) = (,) m <$> (traverse (traverse bound) sp >>= distinct)
 pattern _              = Nothing
 
-free :: Type Meta -> Maybe Meta
-free (Name v :$ Nil) = Just (Name v)
-free _               = Nothing
+bound :: Type Meta -> Maybe Meta
+bound (Name v :$ Nil) = Just (Name v)
+bound _               = Nothing
 
 distinct :: (Foldable t, Ord a) => t a -> Maybe (t a)
 distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
