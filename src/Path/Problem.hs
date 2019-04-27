@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
 module Path.Problem where
 
+import Control.Applicative (Alternative(..))
 import Control.Monad (ap)
 import Data.Foldable (foldl')
 import Path.Name
@@ -38,6 +39,10 @@ lam (n ::: t) b = Lam t (bind n b)
 
 lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 lams names body = foldr lam body names
+
+unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
+unlam n (Lam t b) = pure (n ::: t, instantiate (pure n) b)
+unlam _ _         = empty
 
 ($$) :: Problem a -> Problem a -> Problem a
 Lam _ b $$ v = instantiate v b
