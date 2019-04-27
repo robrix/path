@@ -33,6 +33,12 @@ data Equation a
 infix 3 :===:
 
 
+lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
+lam (n ::: t) b = Lam t (bind n b)
+
+lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
+lams names body = foldr lam body names
+
 ($$) :: Problem a -> Problem a -> Problem a
 Lam _ b $$ v = instantiate v b
 Pi  _ b $$ v = instantiate v b
