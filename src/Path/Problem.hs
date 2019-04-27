@@ -6,7 +6,6 @@ import Path.Stack
 
 data Problem a
   = Ex (Problem a) (Scope a)
-  | Problem a ::: Problem a
   | Problem a :===: Problem a
   | Type
   | Lam (Problem a) (Scope a)
