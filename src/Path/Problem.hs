@@ -43,3 +43,8 @@ gfoldT ex u ty lam pi app dist = go
           f :$ a -> app f (go <$> a)
           Type -> ty
           Pi t (Scope b) -> pi (go t) (go (dist <$> b))
+
+
+-- | Bind occurrences of an 'Meta' in a 'Value' term, producing a 'Scope' in which the 'Meta' is bound.
+bind :: Eq a => a -> Problem a -> Scope a
+bind name = Scope . fmap (match name)
