@@ -31,6 +31,7 @@ library
                      , Path.Parser.Term
                      , Path.Plicity
                      , Path.Pretty
+                     , Path.Problem
                      , Path.Renamer
                      , Path.REPL
                      , Path.REPL.Command
