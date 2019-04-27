@@ -22,3 +22,24 @@ data Equation a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 infix 3 :===:
+
+
+gfoldT :: forall m n b
+       .  (forall a . n a -> n (Incr a) -> n a)
+       -> (forall a . Equation (n a) -> n a)
+       -> (forall a . n a)
+       -> (forall a . n a -> n (Incr a) -> n a)
+       -> (forall a . n a -> n (Incr a) -> n a)
+       -> (forall a . m a -> Stack (n a) -> n a)
+       -> (forall a . Incr (m a) -> m (Incr a))
+       -> Problem (m b)
+       -> n b
+gfoldT ex u ty lam pi app dist = go
+  where go :: Problem (m x) -> n x
+        go = \case
+          Ex t (Scope b) -> ex (go t) (go (dist <$> b))
+          U (a :===: b) -> u (go a :===: go b)
+          Lam t (Scope b) -> lam (go t) (go (dist <$> b))
+          f :$ a -> app f (go <$> a)
+          Type -> ty
+          Pi t (Scope b) -> pi (go t) (go (dist <$> b))
