@@ -52,6 +52,10 @@ pi (n ::: t) b = Pi t (bind n b)
 pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 pis names body = foldr pi body names
 
+unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
+unpi n (Pi t b) = pure (n ::: t, instantiate (pure n) b)
+unpi _ _        = empty
+
 ($$) :: Problem a -> Problem a -> Problem a
 Lam _ b $$ v = instantiate v b
 Pi  _ b $$ v = instantiate v b
