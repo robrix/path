@@ -6,7 +6,7 @@ import Path.Stack
 
 data Problem a
   = Ex (Problem a) (Scope a)
-  | E (Equation (Problem a))
+  | U (Equation (Problem a))
   | Type
   | Lam (Problem a) (Scope a)
   | Pi (Problem a) (Scope a)
