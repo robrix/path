@@ -6,6 +6,7 @@ import Control.Monad (ap)
 import Data.Foldable (foldl')
 import Path.Name
 import Path.Stack
+import Prelude hiding (pi)
 
 data Problem a
   = Ex (Problem a) (Scope a)
@@ -43,6 +44,13 @@ lams names body = foldr lam body names
 unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unlam n (Lam t b) = pure (n ::: t, instantiate (pure n) b)
 unlam _ _         = empty
+
+pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
+pi (n ::: t) b = Pi t (bind n b)
+
+-- | Wrap a type in a sequence of pi bindings.
+pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
+pis names body = foldr pi body names
 
 ($$) :: Problem a -> Problem a -> Problem a
 Lam _ b $$ v = instantiate v b
