@@ -4,6 +4,7 @@ module Path.Problem where
 import Control.Applicative (Alternative(..))
 import Control.Monad (ap)
 import Data.Foldable (foldl')
+import Path.Constraint (Equation(..))
 import Path.Name
 import Path.Stack
 import Prelude hiding (pi)
@@ -26,13 +27,6 @@ instance Applicative Problem where
 
 instance Monad Problem where
   a >>= f = joinT (f <$> a)
-
-
-data Equation a
-  = a :===: a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-infix 3 :===:
 
 
 lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
