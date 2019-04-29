@@ -147,6 +147,22 @@ t --> body = do
   b' <- x ::: t' |- goalIs Type (body (Local x))
   pure (pi (qlocal x ::: t') b' ::: Type)
 
+app :: ( Carrier sig m
+       , Member Naming sig
+       , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+       )
+    => m (Problem Meta ::: Problem Meta)
+    -> m (Problem Meta ::: Problem Meta)
+    -> m (Problem Meta ::: Problem Meta)
+app f a = do
+  _A <- meta Type
+  x <- gensym "app"
+  _B <- x ::: _A |- meta Type
+  let _F = pi (qlocal x ::: _A) _B
+  f' <- goalIs _F f
+  a' <- goalIs _A a
+  pure (f' $$ a' ::: _F $$ a')
+
 
 goalIs :: ( Carrier sig m
           , Member Naming sig
