@@ -132,7 +132,7 @@ intro body = do
   x <- gensym "intro"
   _B <- x ::: _A |- meta Type
   u <- x ::: _A |- goalIs _B (body (Local x))
-  pure (lam (Name (Local x) ::: _A) u ::: pi (Name (Local x) ::: _A) _B)
+  pure (lam (qlocal x ::: _A) u ::: pi (qlocal x ::: _A) _B)
 
 
 goalIs :: ( Carrier sig m
