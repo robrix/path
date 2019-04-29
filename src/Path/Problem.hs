@@ -133,6 +133,11 @@ goalIs ty2 m = do
   n <- gensym "meta"
   pure (exists (Meta n ::: (ty1 === ty2)) (pure (Meta n)) === tm1)
 
+meta :: (Carrier sig m, Member Naming sig) => Problem Meta -> m (Problem Meta)
+meta ty = do
+  n <- gensym "meta"
+  pure (exists (Meta n ::: ty) (pure (Meta n)))
+
 have :: ( Carrier sig m
         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
         , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
