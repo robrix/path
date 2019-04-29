@@ -12,6 +12,7 @@ import Prelude hiding (pi)
 data Problem a
   = Ex (Problem a) (Scope a)
   | U (Equation (Problem a))
+  | As (Problem a) (Problem a)
   | Type
   | Lam (Problem a) (Scope a)
   | Pi (Problem a) (Scope a)
@@ -75,6 +76,7 @@ v $$* sp = foldl' ($$) v sp
 gfoldT :: forall m n b
        .  (forall a . n a -> n (Incr a) -> n a)
        -> (forall a . Equation (n a) -> n a)
+       -> (forall a . n a ::: n a -> n a)
        -> (forall a . n a)
        -> (forall a . n a -> n (Incr a) -> n a)
        -> (forall a . n a -> n (Incr a) -> n a)
@@ -82,18 +84,19 @@ gfoldT :: forall m n b
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Problem (m b)
        -> n b
-gfoldT ex u ty lam pi app dist = go
+gfoldT ex u as ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
           Ex t (Scope b) -> ex (go t) (go (dist <$> b))
           U (a :===: b) -> u (go a :===: go b)
+          As a b -> as (go a ::: go b)
           Type -> ty
           Lam t (Scope b) -> lam (go t) (go (dist <$> b))
           Pi t (Scope b) -> pi (go t) (go (dist <$> b))
           f :$ a -> app f (go <$> a)
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT (\ t -> Ex t . Scope) U Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) ($$*) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ t -> Ex t . Scope) U (\ (a ::: b) -> As a b) Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) ($$*) (incr (pure Z) (fmap S))
 
 
 -- | Bind occurrences of an 'Meta' in a 'Value' term, producing a 'Scope' in which the 'Meta' is bound.
