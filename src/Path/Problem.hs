@@ -130,8 +130,8 @@ goalIs :: ( Carrier sig m
        -> m (Problem Meta)
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
-  n <- gensym "meta"
-  pure (exists (Meta n ::: (ty1 === ty2)) (pure (Meta n)) === tm1)
+  tm2 <- meta (ty1 === ty2)
+  pure (tm1 === tm2)
 
 meta :: (Carrier sig m, Member Naming sig) => Problem Meta -> m (Problem Meta)
 meta ty = do
