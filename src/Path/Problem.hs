@@ -32,6 +32,10 @@ instance Monad Problem where
 exists :: Eq a => a ::: Problem a -> Problem a -> Problem a
 exists (n ::: t) b = Ex t (bind n b)
 
+unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
+unexists n (Ex t b) = pure (n ::: t, instantiate (pure n) b)
+unexists _ _        = empty
+
 (===) :: Problem a -> Problem a -> Problem a
 p === q = U (p :===: q)
 
