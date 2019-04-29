@@ -122,6 +122,17 @@ assume v = do
   pure (pure (Name v) ::: _A)
 
 
+goalIs :: ( Carrier sig m
+          , Member Naming sig
+          )
+       => Problem Meta
+       -> m (Problem Meta ::: Problem Meta)
+       -> m (Problem Meta)
+goalIs ty2 m = do
+  tm1 ::: ty1 <- m
+  n <- gensym "meta"
+  pure (exists (Meta n ::: (ty1 === ty2)) (pure (Meta n)) === tm1)
+
 have :: ( Carrier sig m
         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
         , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
