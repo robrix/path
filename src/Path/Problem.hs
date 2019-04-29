@@ -1,13 +1,18 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
 module Path.Problem where
 
 import Control.Applicative (Alternative(..))
+import Control.Effect
+import Control.Effect.Fail
+import Control.Effect.Reader hiding (Local)
 import Control.Monad (ap)
 import Data.Foldable (foldl')
+import qualified Data.Map as Map
 import Path.Constraint (Equation(..))
 import Path.Name
-import Path.Stack
-import Prelude hiding (pi)
+import qualified Path.Scope as Scope
+import Path.Stack as Stack
+import Prelude hiding (fail, pi)
 
 data Problem a
   = Ex (Problem a) (Scope a)
@@ -103,3 +108,15 @@ bind name = Scope . fmap (match name)
 -- | Substitute a 'Problem' term for the free variable in a given 'Scope', producing a closed 'Problem' term.
 instantiate :: Problem a -> Scope a -> Problem a
 instantiate t (Scope b) = b >>= subst t . fmap pure
+
+
+have :: ( Carrier sig m
+        , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+        , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
+        , MonadFail m
+        )
+     => Name
+     -> m (Problem Meta)
+have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
+  where lookup (Global n) = asks (fmap Scope.entryType . Map.lookup n)
+        lookup (Local  n) = asks (fmap typedType . Stack.find ((== n) . typedTerm))
