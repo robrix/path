@@ -110,6 +110,18 @@ instantiate :: Problem a -> Scope a -> Problem a
 instantiate t (Scope b) = b >>= subst t . fmap pure
 
 
+assume :: ( Carrier sig m
+          , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+          , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
+          , MonadFail m
+          )
+       => Name
+       -> m (Problem Meta ::: Problem Meta)
+assume v = do
+  _A <- have v
+  pure (pure (Name v) ::: _A)
+
+
 have :: ( Carrier sig m
         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
         , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
