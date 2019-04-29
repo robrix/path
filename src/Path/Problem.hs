@@ -138,6 +138,11 @@ meta ty = do
   n <- gensym "meta"
   pure (exists (Meta n ::: ty) (pure (Meta n)))
 
+(|-) :: (Carrier sig m, Member (Reader (Stack (Gensym ::: Problem Meta))) sig) => Gensym ::: Problem Meta -> m a -> m a
+(|-) = local . flip (:>)
+
+infix 5 |-
+
 have :: ( Carrier sig m
         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
         , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
