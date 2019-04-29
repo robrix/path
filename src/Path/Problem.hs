@@ -87,10 +87,10 @@ gfoldT ex u ty lam pi app dist = go
         go = \case
           Ex t (Scope b) -> ex (go t) (go (dist <$> b))
           U (a :===: b) -> u (go a :===: go b)
-          Lam t (Scope b) -> lam (go t) (go (dist <$> b))
-          f :$ a -> app f (go <$> a)
           Type -> ty
+          Lam t (Scope b) -> lam (go t) (go (dist <$> b))
           Pi t (Scope b) -> pi (go t) (go (dist <$> b))
+          f :$ a -> app f (go <$> a)
 
 joinT :: Problem (Problem a) -> Problem a
 joinT = gfoldT (\ t -> Ex t . Scope) U Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) ($$*) (incr (pure Z) (fmap S))
