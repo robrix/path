@@ -134,6 +134,19 @@ intro body = do
   u <- x ::: _A |- goalIs _B (body (Local x))
   pure (lam (qlocal x ::: _A) u ::: pi (qlocal x ::: _A) _B)
 
+(-->) :: ( Carrier sig m
+         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+         , Member Naming sig
+         )
+      => m (Problem Meta ::: Problem Meta)
+      -> (Name -> m (Problem Meta ::: Problem Meta))
+      -> m (Problem Meta ::: Problem Meta)
+t --> body = do
+  t' <- goalIs Type t
+  x <- gensym "pi"
+  b' <- x ::: t' |- goalIs Type (body (Local x))
+  pure (pi (qlocal x ::: t') b' ::: Type)
+
 
 goalIs :: ( Carrier sig m
           , Member Naming sig
