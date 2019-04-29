@@ -121,6 +121,19 @@ assume v = do
   _A <- have v
   pure (pure (Name v) ::: _A)
 
+intro :: ( Carrier sig m
+         , Member Naming sig
+         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+         )
+      => (Name -> m (Problem Meta ::: Problem Meta))
+      -> m (Problem Meta ::: Problem Meta)
+intro body = do
+  _A <- meta Type
+  x <- gensym "intro"
+  _B <- x ::: _A |- meta Type
+  u <- x ::: _A |- goalIs _B (body (Local x))
+  pure (lam (Name (Local x) ::: _A) u ::: pi (Name (Local x) ::: _A) _B)
+
 
 goalIs :: ( Carrier sig m
           , Member Naming sig
