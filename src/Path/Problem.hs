@@ -29,6 +29,11 @@ instance Monad Problem where
   a >>= f = joinT (f <$> a)
 
 
+(===) :: Problem a -> Problem a -> Problem a
+p === q = U (p :===: q)
+
+infixr 3 ===
+
 lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
 lam (n ::: t) b = Lam t (bind n b)
 
