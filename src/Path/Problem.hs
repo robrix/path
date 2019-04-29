@@ -135,8 +135,8 @@ intro body = do
   pure (lam (qlocal x ::: _A) u ::: pi (qlocal x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
-         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
          , Member Naming sig
+         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
          )
       => m (Problem Meta ::: Problem Meta)
       -> (Name -> m (Problem Meta ::: Problem Meta))
