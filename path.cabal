@@ -59,6 +59,7 @@ library
                      , optparse-applicative
                      , parsers
                      , terminal-size
+                     , text
                      , trifecta
                      , unordered-containers
   hs-source-dirs:      src
