@@ -113,8 +113,10 @@ instantiate :: Problem a -> Scope a -> Problem a
 instantiate t (Scope b) = b >>= subst t . fmap pure
 
 
+type Context = Stack (Gensym ::: Problem Meta)
+
 assume :: ( Carrier sig m
-          , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+          , Member (Reader Context) sig
           , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
           , MonadFail m
           )
@@ -126,7 +128,7 @@ assume v = do
 
 intro :: ( Carrier sig m
          , Member Naming sig
-         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+         , Member (Reader Context) sig
          )
       => (Name -> m (Problem Meta ::: Problem Meta))
       -> m (Problem Meta ::: Problem Meta)
@@ -139,7 +141,7 @@ intro body = do
 
 (-->) :: ( Carrier sig m
          , Member Naming sig
-         , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+         , Member (Reader Context) sig
          )
       => m (Problem Meta ::: Problem Meta)
       -> (Name -> m (Problem Meta ::: Problem Meta))
@@ -152,7 +154,7 @@ t --> body = do
 
 app :: ( Carrier sig m
        , Member Naming sig
-       , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+       , Member (Reader Context) sig
        )
     => m (Problem Meta ::: Problem Meta)
     -> m (Problem Meta ::: Problem Meta)
@@ -183,13 +185,13 @@ meta ty = do
   n <- gensym "meta"
   pure (exists (Meta n ::: ty) (pure (Meta n)))
 
-(|-) :: (Carrier sig m, Member (Reader (Stack (Gensym ::: Problem Meta))) sig) => Gensym ::: Problem Meta -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Problem Meta -> m a -> m a
 (|-) = local . flip (:>)
 
 infix 5 |-
 
 have :: ( Carrier sig m
-        , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+        , Member (Reader Context) sig
         , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
         , MonadFail m
         )
@@ -205,7 +207,7 @@ spanIs span = local (const span)
 
 elab :: ( Carrier sig m
         , Member Naming sig
-        , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+        , Member (Reader Context) sig
         , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
         , Member (Reader Span) sig
         , MonadFail m
