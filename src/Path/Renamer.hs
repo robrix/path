@@ -60,7 +60,6 @@ resolveDecl :: ( Carrier sig m
             => Spanned (Decl User (Spanned Surface.Surface ::: Spanned Surface.Surface))
             -> m (Spanned (Decl Qualified (Core Gensym ::: Core Gensym)))
 resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ do
-  res <- get
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
   --     generalize ty = foldr bind ty vs
@@ -68,11 +67,14 @@ resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ d
   --       n' <- gensym (showUser n)
   --       local (insertLocal (Just n) n') $
   --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
-  (ty', tm') <- evalState (mempty :: Signature) . runReader (res :: Resolution) $
-    (,) <$> runReader Declare (resolveTerm ty)
+  (ty', tm') <- evalState (mempty :: Signature) $
+    (,) <$> runResolution (runReader Declare (resolveTerm ty))
         <*  modify (insertGlobal n moduleName)
-        <*> runReader Define  (resolveTerm tm)
+        <*> runResolution (runReader Define  (resolveTerm tm))
   pure (Decl d (moduleName :.: n) (tm' ::: ty'))
+
+runResolution :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
+runResolution m = get >>= \ res -> runReader res m
 
 resolveModule :: ( Carrier sig m
                  , Effect sig
