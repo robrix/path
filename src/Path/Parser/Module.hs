@@ -27,12 +27,12 @@ moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` d
 import' :: DeltaParsing m => m (Spanned Module.Import)
 import' = spanned (Module.Import <$ keyword "import" <*> moduleName)
 
-declaration :: DeltaParsing m => m (Spanned (Module.Decl User (Spanned Surface ::: Spanned Surface)))
+declaration :: (DeltaParsing m, IndentationParsing m) => m (Spanned (Module.Decl User (Spanned Surface ::: Spanned Surface)))
 declaration = spanned $ do
   docs <- optional docs
-  name <- name
+  name <- absoluteIndentation name
   ty <- op ":" *> term
-  tm <- token (string (showUser name)) *> op "=" *> term
+  tm <- absoluteIndentation (token (string (showUser name)) *> op "=" *> term)
   pure (Module.Decl docs name (tm ::: ty))
 
 docs :: TokenParsing m => m String
