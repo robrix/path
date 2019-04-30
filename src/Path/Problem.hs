@@ -219,6 +219,7 @@ elab :: ( Carrier sig m
      -> m (Problem Gensym ::: Problem Gensym)
 elab = \case
   Core.Var n -> assume n
+  Core.Glo n -> assume (Global n)
   Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure (Local n')) b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
