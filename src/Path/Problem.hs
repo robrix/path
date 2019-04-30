@@ -76,6 +76,7 @@ unpi _ _        = empty
 Lam _ b $$ v = instantiate v b
 Pi  _ b $$ v = instantiate v b
 n :$ vs $$ v = n :$ (vs :> v)
+-- FIXME: what about existentials or equations at the head?
 _       $$ _ = error "illegal application of Type"
 
 ($$*) :: Foldable t => Problem a -> t (Problem a) -> Problem a
