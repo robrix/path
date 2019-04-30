@@ -107,7 +107,7 @@ joinT :: Problem (Problem a) -> Problem a
 joinT = gfoldT (\ t -> Ex t . Scope) U Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) ($$*) (incr (pure Z) (fmap S))
 
 
--- | Bind occurrences of an 'Meta' in a 'Value' term, producing a 'Scope' in which the 'Meta' is bound.
+-- | Bind occurrences of a name in a 'Value' term, producing a 'Scope' in which the name is bound.
 bind :: Eq a => a -> Problem a -> Scope a
 bind name = Scope . fmap (match name)
 
