@@ -8,28 +8,24 @@ import Path.Name
 import Path.Pretty
 import Path.Value hiding (Scope(..))
 
-data Entry
-  = Decl (Type Name)
-  | Defn (Value Name ::: Type Name)
+newtype Entry a = Entry { unEntry :: Maybe a ::: a }
   deriving (Eq, Ord, Show)
 
-entryType :: Entry -> Type Name
-entryType (Decl        ty)  = ty
-entryType (Defn (_ ::: ty)) = ty
+entryType :: Entry a -> a
+entryType = typedType . unEntry
 
-entryValue :: Entry -> Maybe (Value Name)
-entryValue (Defn (v ::: _)) = Just v
-entryValue _                = Nothing
+entryValue :: Entry a -> Maybe a
+entryValue = typedTerm . unEntry
 
-instance Pretty Entry where
-  pretty (Decl        ty)  =         cyan colon <+> pretty ty
-  pretty (Defn (v ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
+instance Pretty a => Pretty (Entry a) where
+  pretty (Entry (Nothing ::: ty)) =         cyan colon <+> pretty ty
+  pretty (Entry (Just v  ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
 
 
-newtype Scope = Scope { unScope :: Map.Map Qualified Entry }
+newtype Scope = Scope { unScope :: Map.Map Qualified (Entry (Type Gensym)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
-lookup :: Qualified -> Scope -> Maybe Entry
+lookup :: Qualified -> Scope -> Maybe (Entry (Type Gensym))
 lookup q = Map.lookup q . unScope
 
 null :: Scope -> Bool
@@ -38,13 +34,13 @@ null = Map.null . unScope
 union :: Scope -> Scope -> Scope
 union = (<>)
 
-filter :: (Qualified -> Entry -> Bool) -> Scope -> Scope
+filter :: (Qualified -> Entry (Type Gensym) -> Bool) -> Scope -> Scope
 filter = under . Map.filterWithKey
 
-insert :: Qualified -> Entry -> Scope -> Scope
+insert :: Qualified -> Entry (Type Gensym) -> Scope -> Scope
 insert q = under . Map.insert q
 
-under :: (Map.Map Qualified Entry -> Map.Map Qualified Entry) -> Scope -> Scope
+under :: (Map.Map Qualified (Entry (Type Gensym)) -> Map.Map Qualified (Entry (Type Gensym))) -> Scope -> Scope
 under = coerce
 
 instance Pretty Scope where

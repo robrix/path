@@ -5,29 +5,29 @@ import Base.Fix
 NatF : Type -> Type
 NatF = \ a . { b : Type } -> b -> (a -> b) -> b
 
-zf : NatF a
-zf = \ z _ . z
+zf : { a : Type } -> NatF a
+zf = \ {_} {_} z _ . z
 
-sf : a -> NatF a
-sf = \ a _ s . s a
+sf : { a : Type } -> a -> NatF a
+sf = \ {_} a {_} _ s . s a
 
 
 Nat : Type
 Nat = Fix NatF
 
 z : Nat
-z = in zf
+z = in {NatF} (zf {Nat})
 
 s : Nat -> Nat
-s = \ n . in (sf n)
+s = \ n . in {NatF} (sf {Nat} n)
 
 
 iter : { a : Type } -> a -> (a -> a) -> Nat -> a
-iter = \ z s n . n (\ k f . f z (\ m . s (k m)))
+iter = \ {a} z s n . n {a} (\ k f . f z (\ m . s (k m)))
 
 
 (_ + _) : Nat -> Nat -> Nat
-(_ + _) = \ m . iter m s
+(_ + _) = \ m . iter {Nat} m s
 
 (_ * _) : Nat -> Nat -> Nat
-(_ * _) = \ m . iter z ((_ + _) m)
+(_ * _) = \ m . iter {Nat} z ((_ + _) m)

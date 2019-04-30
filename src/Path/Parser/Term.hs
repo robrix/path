@@ -3,7 +3,7 @@ module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
 import Data.Maybe (fromMaybe)
-import Path.Name
+import Path.Name hiding (name)
 import Path.Parser as Parser
 import Path.Plicity
 import Path.Parser.Mixfix
@@ -16,16 +16,15 @@ type', var, hole, term, application, piType, functionType, lambda, atom :: Delta
 
 term = functionType
 
-application = atom <**> (flip (foldl wrap) <$> many (plicit term atom)) <?> "function application"
-  where wrap f@(_ :~ s1) a@(_ :< (_ :~ s2)) = (f :$ a) :~ (s1 <> s2)
+application = foldl app <$> atom <*> many (spanned (plicit term atom)) <?> "function application"
+  where app f@(_ :~ s1) (a :~ s2) = (f :$ a) :~ (s1 <> s2)
 
 type' = spanned (Type <$ keyword "Type")
 
 piType = spanned (do
-  p :< (v, mult, ty) <- plicity ((,,) <$> name <* colon <*> optional multiplicity <*> term) <* op "->"
+  p :< (v, mult, ty) <- plicit binding (parens binding) <* op "->"
   Pi (p :< (Just v, fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult, ty)) <$> functionType) <?> "dependent function type"
-  where plicity m = (Im :<) <$> braces m
-                <|> (Ex :<) <$> parens m
+  where binding = ((,,) <$> name <* colon <*> optional multiplicity <*> term)
 
 functionType = spanned ((,) <$> multiplicity <*> application <**> (flip (:->) <$ op "->" <*> functionType))
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
@@ -43,7 +42,7 @@ lambda = (do
         bind (v:vv) = wrap v <$> spanned (bind vv)
           where wrap (a :~ v1) (b :~ v2) = Lam a b :~ (v1 <> v2)
 
-hole = spanned (Hole . Id <$> ident (IdentifierStyle "hole" (char '?') (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
+hole = spanned (Hole <$ char '?' <*> optional (ident (IdentifierStyle "hole" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)))
 
 atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 

@@ -5,27 +5,29 @@ import Base.Fix
 ListF : Type -> Type -> Type
 ListF = \ a b . { c : Type } -> c -> (a -> b -> c) -> c
 
-nilf : ListF a b
-nilf = \ nil _ . nil
+nilf : { a : Type } -> { b : Type } -> ListF a b
+nilf = \ {_} {_} {_} nil _ . nil
 
-consf : a -> b -> ListF a b
-consf = \ a b _ cons . cons a b
+consf : { a : Type } -> { b : Type } -> a -> b -> ListF a b
+consf = \ {_} {_} a b {_} _ cons . cons a b
 
 
 List : Type -> Type
 List = \ a . Fix (ListF a)
 
-nil : List a
-nil = in nilf
+nil : { a : Type } -> List a
+nil = \ {a} . in {ListF a} (nilf {a} {List a})
 
-cons : a -> List a -> List a
-cons = \ h t . in (consf h t)
-
-
-append : List a -> List a -> List a
-append = \ xs ys . xs (\ k f . f ys (\ x xs . cons x (k xs)))
+cons : { a : Type } -> a -> List a -> List a
+cons = \ {a} h t . in {ListF a} (consf {a} h {List a} t)
 
 
-map :  (a -> b)
+append : { a : Type } -> List a -> List a -> List a
+append = \ {a} xs ys . xs {List a} (\ k f . f ys (\ x xs . cons {a} x (k xs)))
+
+
+map :  { a : Type }
+    -> { b : Type }
+    -> (a -> b)
     -> (List a -> List b)
-map = \ f l . l (\ k g . g nil (\ a as . cons (f a) (k as)))
+map = \ {_} {b} f l . l {List b} (\ k g . g (nil {b}) (\ a as . cons {b} (f a) (k as)))

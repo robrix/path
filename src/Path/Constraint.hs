@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
 module Path.Constraint where
 
 import Control.Effect
@@ -28,7 +28,23 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
   fvs (a1 :===: a2) = fvs a1 <> fvs a2
 
 
-type Substitution = Map.Map Gensym (Value Meta)
+newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value Meta) }
+  deriving (Eq, Monoid, Ord, Semigroup, Show)
+
+instance Pretty Substitution where
+  pretty (Substitution sig)
+    | null sig  = mempty
+    | otherwise = encloseSep (magenta (pretty "Θ") <> space) mempty (cyan comma <> space) (map (uncurry prettyBind) (Map.toList sig)) <> hardline
+    where prettyBind m t = pretty (Meta m) <+> cyan (pretty "=") <+> pretty t
+
+newtype Signature = Signature { unSignature :: Map.Map Gensym (Value Meta) }
+  deriving (Eq, Monoid, Ord, Semigroup, Show)
+
+instance Pretty Signature where
+  pretty (Signature sig)
+    | null sig  = mempty
+    | otherwise = encloseSep (magenta (pretty "Σ") <> space) mempty (cyan comma <> space) (map (uncurry prettyBind) (Map.toList sig)) <> hardline
+    where prettyBind m t = pretty (Meta m) <+> cyan colon <+> pretty t
 
 class Substitutable t where
   apply :: Substitution -> t -> t
@@ -38,7 +54,7 @@ unMeta (Meta n) = Just n
 unMeta _        = Nothing
 
 instance Substitutable (Value Meta) where
-  apply subst val = do
+  apply (Substitution subst) val = do
     var <- val
     fromMaybe (pure var) (unMeta var >>= (subst Map.!?))
 
@@ -58,7 +74,7 @@ instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
 instance Substitutable (Constraint Meta) where
-  apply subst = joinT . fmap (\ var -> fromMaybe (pure var) (unMeta var >>= (subst Map.!?)))
+  apply (Substitution subst) = joinT . fmap (\ var -> fromMaybe (pure var) (unMeta var >>= (subst Map.!?)))
 
 
 data Constraint a
@@ -91,13 +107,13 @@ instance Pretty (Constraint Meta) where
   pretty c = group . run . runNaming (Root "pretty") $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
     binds <- traverse prettyBind ctx
-    v1' <- prettyValue qlocal v1
-    v2' <- prettyValue qlocal v2
-    t'  <- prettyValue qlocal t
+    v1' <- prettyValue Name v1
+    v2' <- prettyValue Name v2
+    t'  <- prettyValue Name t
     pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> prettyPrec 0 v1', magenta (pretty "≡") <+> prettyPrec 0 v2', cyan colon <+> prettyPrec 0 t' ]))
     where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
-          prettyBind (n ::: t) = pretty . (qlocal n :::) . prettyPrec 0 <$> prettyValue qlocal t
+          prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyValue Name t
 
 
 infixr 1 |-
@@ -106,11 +122,11 @@ infixr 1 |-
 n ::: t |- b = t :|-: bind n b
 
 binds :: Context (Type Meta) -> Equation (Value Meta) ::: Type Meta -> Constraint Meta
-binds (Context names) body = foldr (|-) (E body) (first qlocal <$> names)
+binds (Context names) body = foldr (|-) (E body) (first Name <$> names)
 
 unbinds :: (Carrier sig m, Member Naming sig) => Constraint Meta -> m (Context (Type Meta), Equation (Value Meta) ::: Type Meta)
 unbinds = fmap (first Context) . un (\ name -> \case
-  t :|-: b -> Right (name ::: t, instantiate (pure (qlocal name)) b)
+  t :|-: b -> Right (name ::: t, instantiate (pure (Name name)) b)
   E q      -> Left q)
 
 
