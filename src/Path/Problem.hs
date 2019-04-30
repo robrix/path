@@ -6,12 +6,10 @@ import Control.Effect
 import Control.Effect.Fail
 import Control.Effect.Reader hiding (Local)
 import Control.Monad (ap)
-import qualified Data.Map as Map
 import Path.Constraint (Equation(..))
 import qualified Path.Core as Core
 import Path.Name
 import Path.Plicity (Plicit(..))
-import qualified Path.Scope as Scope
 import Path.Stack as Stack
 import Prelude hiding (fail, pi)
 import Text.Trifecta.Rendering (Span(..))
@@ -109,11 +107,9 @@ instantiate t (Scope b) = b >>= subst t . fmap pure
 
 
 type Context = Stack (Binding ::: Problem Gensym)
-type Signature = Map.Map Qualified (Scope.Entry (Problem Gensym))
 
 assume :: ( Carrier sig m
           , Member (Reader Context) sig
-          , Member (Reader Signature) sig
           , MonadFail m
           )
        => Name Gensym
@@ -188,14 +184,12 @@ infix 5 |-
 
 have :: ( Carrier sig m
         , Member (Reader Context) sig
-        , Member (Reader Signature) sig
         , MonadFail m
         )
      => Name Gensym
      -> m (Problem Gensym)
 have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
-  where lookup (Global n) = asks (fmap Scope.entryType . Map.lookup n)
-        lookup (Local  n) = asks (fmap typedType . Stack.find ((== n) . bindingName . typedTerm))
+  where lookup n = asks (fmap typedType . Stack.find ((== n) . bindingName . typedTerm))
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
@@ -204,7 +198,6 @@ spanIs span = local (const span)
 elab :: ( Carrier sig m
         , Member Naming sig
         , Member (Reader Context) sig
-        , Member (Reader Signature) sig
         , Member (Reader Span) sig
         , MonadFail m
         )
@@ -271,12 +264,12 @@ data a := b = a := b
 infix 1 :=
 
 data Binding
-  = Define (Gensym := Problem Gensym)
+  = Define (Name Gensym := Problem Gensym)
   | Exists Gensym
   | ForAll Gensym
   deriving (Eq, Ord, Show)
 
-bindingName :: Binding -> Gensym
+bindingName :: Binding -> Name Gensym
 bindingName (Define (n := _)) = n
-bindingName (Exists  n)       = n
-bindingName (ForAll  n)       = n
+bindingName (Exists  n)       = Local n
+bindingName (ForAll  n)       = Local n
