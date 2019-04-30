@@ -277,6 +277,6 @@ data a := b = a := b
 infix 1 :=
 
 data Bind
-  = Exists (Gensym := Problem Meta)
+  = Exists (Gensym := Maybe (Problem Meta))
   | ForAll Gensym
   deriving (Eq, Ord, Show)
