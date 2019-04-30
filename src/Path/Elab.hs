@@ -191,7 +191,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Scope) sig
               )
-           => Module Qualified (Core.Core Gensym)
+           => Module Qualified (Core.Core Gensym ::: Core.Core Gensym)
            -> m (Module Qualified (Value Gensym ::: Type Gensym))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
@@ -218,28 +218,20 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Spanned (Decl Qualified (Core.Core Gensym))
+         => Spanned (Decl Qualified (Core.Core Gensym ::: Core.Core Gensym))
          -> m (Spanned (Decl Qualified (Value Gensym ::: Type Gensym)))
-elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fmap (:~ span) $ case decl of
-  Declare name ty -> do
-    ty' <- runScope (declare (elab ty))
-    modify (Scope.insert name (Entry (Nothing ::: ty')))
-    pure (Declare name (ty' ::: Value.Type))
-  Define  name tm -> do
-    ty <- gets (fmap entryType . Scope.lookup name)
-    tm ::: ty <- case ty of
-      Just ty -> do
-        scope <- get
-        let ty' = whnf scope ty
-        (names, _) <- un (orTerm (\ n -> \case
-          Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (Value.instantiate (pure n) b))
-          _                    -> Nothing)) ty'
-        pure (Core.lams names tm ::: Value.weaken ty)
-      Nothing -> (tm :::) <$> inferType
-    tm ::: ty <- runScope (define ty (elab tm))
-    modify (Scope.insert name (Entry (Just tm ::: ty)))
-    pure (Define name (tm ::: ty))
-  Doc docs     d  -> Doc docs <$> elabDecl d
+elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
+  ty' <- runScope (declare (elab ty))
+  modify (Scope.insert name (Entry (Nothing ::: ty')))
+  scope <- get
+
+  let ty'' = whnf scope ty'
+  (names, _) <- un (orTerm (\ n -> \case
+    Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (Value.instantiate (pure n) b))
+    _                    -> Nothing)) ty''
+  tm ::: _ <- runScope (define (Value.weaken ty') (elab (Core.lams names tm)))
+  modify (Scope.insert name (Entry (Just tm ::: ty')))
+  pure (Decl d name (tm ::: ty'))
 
 declare :: ( Carrier sig m
            , Effect sig

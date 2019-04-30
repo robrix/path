@@ -1,7 +1,7 @@
-{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleContexts, TypeOperators #-}
 module Path.Parser.Module where
 
-import Control.Applicative ((<**>), Alternative(..))
+import Control.Applicative (Alternative(..))
 import Control.Effect
 import Control.Monad.IO.Class
 import qualified Path.Module as Module
@@ -13,11 +13,11 @@ import Path.Surface
 import Text.Trifecta
 import Text.Trifecta.Indentation
 
-parseModule :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => FilePath -> m (Module.Module User (Spanned Surface))
+parseModule :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => FilePath -> m (Module.Module User (Spanned Surface ::: Spanned Surface))
 parseModule = flip parseFile <*> whole . module'
 
 
-module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module User (Spanned Surface))
+module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module User (Spanned Surface ::: Spanned Surface))
 module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
   where make comment name = Module.Module name comment path
 
@@ -27,9 +27,13 @@ moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` d
 import' :: DeltaParsing m => m (Spanned Module.Import)
 import' = spanned (Module.Import <$ keyword "import" <*> moduleName)
 
-declaration :: DeltaParsing m => m (Spanned (Module.Decl User (Spanned Surface)))
-declaration = spanned (Module.Doc <$> docs <*> decl) <|> decl
-  where decl = spanned (name <**> (Module.Declare <$ op ":" <|> Module.Define <$ op "=") <*> term)
+declaration :: DeltaParsing m => m (Spanned (Module.Decl User (Spanned Surface ::: Spanned Surface)))
+declaration = spanned $ do
+  docs <- optional docs
+  name <- name
+  ty <- op ":" *> term
+  tm <- token (string (showUser name)) *> op "=" *> term
+  pure (Module.Decl docs name (tm ::: ty))
 
 docs :: TokenParsing m => m String
 docs = runUnlined (fmap unlines . (:) <$> firstLine <*> many line)

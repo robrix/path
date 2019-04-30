@@ -208,7 +208,7 @@ runRenamer m = do
 elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Scope.Scope) sig) => Spanned Surface.Surface -> m (Value Gensym ::: Type Gensym)
 elaborate tm@(_ :~ span) = runReader span $ do
   ty <- inferType
-  tm' <- runRenamer (evalState (mempty :: Signature) (runReader Defn (resolveTerm tm)))
+  tm' <- runRenamer (evalState (mempty :: Signature) (runReader Define (resolveTerm tm)))
   runScope (define ty (elab tm'))
 
 basePackage :: Package

@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, TupleSections #-}
+{-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, TupleSections, TypeOperators #-}
 module Path.Renamer where
 
 import Control.Effect
@@ -47,7 +47,7 @@ resolveTerm (term :~ span) = Ann span <$> case term of
   Surface.Hole v -> Hole <$> resolveMeta v
 
 
-data Mode = Decl | Defn
+data Mode = Declare | Define
   deriving (Eq, Ord, Show)
 
 resolveDecl :: ( Carrier sig m
@@ -57,26 +57,21 @@ resolveDecl :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                )
-            => Spanned (Decl User (Spanned Surface.Surface))
-            -> m (Spanned (Decl Qualified (Core Gensym)))
-resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
-  Declare n ty -> do
-    res <- get
-    moduleName <- ask
-    -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
-    --     generalize ty = foldr bind ty vs
-    --     bind n ty = do
-    --       n' <- gensym (showUser n)
-    --       local (insertLocal (Just n) n') $
-    --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
-    ty' <- evalState (mempty :: Signature) (runReader (res :: Resolution) (runReader Decl (resolveTerm ty)))
-    Declare (moduleName :.: n) ty' <$ modify (insertGlobal n moduleName)
-  Define n tm -> do
-    res <- get
-    moduleName <- ask
-    tm' <- evalState (mempty :: Signature) (runReader (res :: Resolution) (runReader Defn (resolveTerm tm)))
-    Define (moduleName :.: n) tm' <$ modify (insertGlobal n moduleName)
-  Doc t d -> Doc t <$> resolveDecl d
+            => Spanned (Decl User (Spanned Surface.Surface ::: Spanned Surface.Surface))
+            -> m (Spanned (Decl Qualified (Core Gensym ::: Core Gensym)))
+resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ do
+  res <- get
+  moduleName <- ask
+  -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
+  --     generalize ty = foldr bind ty vs
+  --     bind n ty = do
+  --       n' <- gensym (showUser n)
+  --       local (insertLocal (Just n) n') $
+  --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
+  (ty', tm') <- evalState (mempty :: Signature) . runReader (res :: Resolution) $
+    (,) <$> runReader Declare (resolveTerm ty)
+        <*> runReader Define  (resolveTerm tm)
+  Decl d (moduleName :.: n) (tm' ::: ty') <$ modify (insertGlobal n moduleName)
 
 resolveModule :: ( Carrier sig m
                  , Effect sig
@@ -84,8 +79,8 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module User (Spanned Surface.Surface)
-              -> m (Module Qualified (Core Gensym))
+              => Module User (Spanned Surface.Surface ::: Spanned Surface.Surface)
+              -> m (Module Qualified (Core Gensym ::: Core Gensym))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -123,8 +118,8 @@ resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
   res <- case mode of
-    Decl -> maybe ((:| []) . Local <$> gensym "") pure res
-    Defn -> maybe (freeVariable v)                pure res
+    Declare -> maybe ((:| []) . Local <$> gensym "") pure res
+    Define  -> maybe (freeVariable v)                pure res
   unambiguous v res
 
 resolveMeta :: ( Carrier sig m

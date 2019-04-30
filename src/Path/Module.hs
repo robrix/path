@@ -29,17 +29,12 @@ data Module v a = Module
 newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
-data Decl v a
-  = Declare v a
-  | Define v a
-  | Doc String (Spanned (Decl v a))
+data Decl v a = Decl
+  { declDocs :: Maybe String
+  , declName :: v
+  , declBody :: a
+  }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-declName :: Decl v a -> v
-declName (Declare v _)    = v
-declName (Define  v _)    = v
-declName (Doc _ (d :~ _)) = declName d
-
 
 newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
   deriving (Eq, Ord, Show)

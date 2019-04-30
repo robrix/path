@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeOperators #-}
 module Path.REPL.Command where
 
 import Path.Module
@@ -9,7 +10,7 @@ data Command
   = Quit
   | Help
   | TypeOf (Spanned Surface)
-  | Decl (Spanned (Decl User (Spanned Surface)))
+  | Decl (Spanned (Decl User (Spanned Surface ::: Spanned Surface)))
   | Eval (Spanned Surface)
   | Show Info
   | Reload
