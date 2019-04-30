@@ -281,3 +281,8 @@ data Binding
   | Exists Gensym
   | ForAll Gensym
   deriving (Eq, Ord, Show)
+
+bindingName :: Binding -> Gensym
+bindingName (Define (n := _)) = n
+bindingName (Exists  n)       = n
+bindingName (ForAll  n)       = n
