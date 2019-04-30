@@ -33,7 +33,7 @@ import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 assume :: (Carrier sig m, Member Elab sig, Member Naming sig)
-       => Name
+       => Name Gensym
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- have v
@@ -102,7 +102,7 @@ b |- m = send (Bind b m pure)
 
 infix 5 |-
 
-have :: (Carrier sig m, Member Elab sig) => Name -> m (Type Meta)
+have :: (Carrier sig m, Member Elab sig) => Name Gensym -> m (Type Meta)
 have n = send (Have n pure)
 
 
@@ -125,7 +125,7 @@ elab = \case
 
 data Elab m k
   = Exists (Type Meta) (Value Meta -> k)
-  | Have Name (Type Meta -> k)
+  | Have (Name Gensym) (Type Meta -> k)
   | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
   | Unify (Equation (Value Meta ::: Type Meta)) k
 
@@ -193,7 +193,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Module Qualified (Core.Core Gensym)
-           -> m (Module Qualified (Value Name ::: Type Name))
+           -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -220,7 +220,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             )
          => Spanned (Decl Qualified (Core.Core Gensym))
-         -> m (Spanned (Decl Qualified (Value Name ::: Type Name)))
+         -> m (Spanned (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym))))
 elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fmap (:~ span) $ case decl of
   Declare name ty -> do
     ty' <- runScope (declare (elab ty))
@@ -250,7 +250,7 @@ declare :: ( Carrier sig m
            , Member (Reader Span) sig
            )
         => ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-        -> m (Value Name)
+        -> m (Value (Name Gensym))
 declare ty = evalState (mempty :: Signature) $ do
   (constraints, ty') <- runElab (goalIs Type ty)
   subst <- solver constraints
@@ -265,7 +265,7 @@ define :: ( Carrier sig m
           )
        => Value Meta
        -> ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-       -> m (Value Name ::: Type Name)
+       -> m (Value (Name Gensym) ::: Type (Name Gensym))
 define ty tm = evalState (mempty :: Signature) $ do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
