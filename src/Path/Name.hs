@@ -139,6 +139,10 @@ instance Pretty Name where
     Global (_ :.: n) -> pretty n
     Local         n  -> pretty '_' <> prettyGensym n
 
+name :: (Gensym -> a) -> (Qualified -> a) -> Name -> a
+name local _      (Local  n) = local n
+name _     global (Global n) = global n
+
 inModule :: ModuleName -> Name -> Bool
 inModule m (Global (m' :.: _)) = m == m'
 inModule _ _                   = False

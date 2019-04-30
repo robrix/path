@@ -3,7 +3,7 @@ module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
 import Data.Maybe (fromMaybe)
-import Path.Name
+import Path.Name hiding (name)
 import Path.Parser as Parser
 import Path.Plicity
 import Path.Parser.Mixfix
