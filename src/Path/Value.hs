@@ -34,7 +34,7 @@ prettyValue localName = go
             b'' <- go b'
             pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
             where var vs (p :< n) rest
-                    | n `Set.member` vs = prettyPlicity False (p :< pretty n)   <+> rest
+                    | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n))   <+> rest
                     | otherwise         = prettyPlicity False (p :< pretty '_') <+> rest
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
@@ -51,7 +51,7 @@ prettyValue localName = go
                   l = flatAlt (space <> space <> space) mempty
                   prettyPi (p :< (n, u) ::: t) isUsed = do
                     t' <- withPi p u <$> go t
-                    pure $! prettyPlicity isUsed (p :< if isUsed then pretty (n ::: t') else t')
+                    pure $! prettyPlicity isUsed (p :< if isUsed then pretty (Local n ::: t') else t')
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (if null sp then
