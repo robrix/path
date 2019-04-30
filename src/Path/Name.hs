@@ -6,6 +6,7 @@ import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Sum
+import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
@@ -77,7 +78,7 @@ runNaming :: Functor m => Gensym -> NamingC m a -> m a
 runNaming root = runReader root . evalState 0 . runNamingC
 
 newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC Gensym m) a }
-  deriving (Applicative, Functor, Monad, MonadIO)
+  deriving (Applicative, Functor, Monad, MonadFail, MonadIO)
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
   eff (L (Gensym    s   k)) = NamingC (StateC (\ i -> (:/ (s, i)) <$> ask >>= runState (succ i) . runNamingC . k))
