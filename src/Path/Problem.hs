@@ -38,6 +38,10 @@ instance Monad Problem where
   a >>= f = joinT (f <$> a)
 
 
+name :: Name -> Problem Gensym
+name (Local  n) = Var n
+name (Global n) = Glo n
+
 exists :: Eq a => a ::: Problem a -> Problem a -> Problem a
 exists (n ::: t) b = Ex t (bind n b)
 
@@ -111,8 +115,8 @@ instantiate :: Problem a -> Scope a -> Problem a
 instantiate t (Scope b) = b >>= subst t . fmap pure
 
 
-type Context = Stack (Binding ::: Problem Name)
-type Signature = Map.Map Qualified (Scope.Entry (Problem Name))
+type Context = Stack (Binding ::: Problem Gensym)
+type Signature = Map.Map Qualified (Scope.Entry (Problem Gensym))
 
 assume :: ( Carrier sig m
           , Member (Reader Context) sig
@@ -120,49 +124,49 @@ assume :: ( Carrier sig m
           , MonadFail m
           )
        => Name
-       -> m (Problem Name ::: Problem Name)
+       -> m (Problem Gensym ::: Problem Gensym)
 assume v = do
   _A <- have v
-  pure (pure v ::: _A)
+  pure (name v ::: _A)
 
 intro :: ( Carrier sig m
          , Member Naming sig
          , Member (Reader Context) sig
          )
-      => (Name -> m (Problem Name ::: Problem Name))
-      -> m (Problem Name ::: Problem Name)
+      => (Gensym -> m (Problem Gensym ::: Problem Gensym))
+      -> m (Problem Gensym ::: Problem Gensym)
 intro body = do
   _A <- meta Type
   x <- gensym "intro"
   _B <- ForAll x ::: _A |- meta Type
-  u <- ForAll x ::: _A |- goalIs _B (body (Local x))
-  pure (lam (Local x ::: _A) u ::: pi (Local x ::: _A) _B)
+  u <- ForAll x ::: _A |- goalIs _B (body x)
+  pure (lam (x ::: _A) u ::: pi (x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
          , Member Naming sig
          , Member (Reader Context) sig
          )
-      => m (Problem Name ::: Problem Name)
-      -> (Name -> m (Problem Name ::: Problem Name))
-      -> m (Problem Name ::: Problem Name)
+      => m (Problem Gensym ::: Problem Gensym)
+      -> (Gensym -> m (Problem Gensym ::: Problem Gensym))
+      -> m (Problem Gensym ::: Problem Gensym)
 t --> body = do
   t' <- goalIs Type t
   x <- gensym "pi"
-  b' <- ForAll x ::: t' |- goalIs Type (body (Local x))
-  pure (pi (Local x ::: t') b' ::: Type)
+  b' <- ForAll x ::: t' |- goalIs Type (body x)
+  pure (pi (x ::: t') b' ::: Type)
 
 app :: ( Carrier sig m
        , Member Naming sig
        , Member (Reader Context) sig
        )
-    => m (Problem Name ::: Problem Name)
-    -> m (Problem Name ::: Problem Name)
-    -> m (Problem Name ::: Problem Name)
+    => m (Problem Gensym ::: Problem Gensym)
+    -> m (Problem Gensym ::: Problem Gensym)
+    -> m (Problem Gensym ::: Problem Gensym)
 app f a = do
   _A <- meta Type
   x <- gensym "app"
   _B <- ForAll x ::: _A |- meta Type
-  let _F = pi (Local x ::: _A) _B
+  let _F = pi (x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' :$ a' ::: _F :$ a')
@@ -171,20 +175,20 @@ app f a = do
 goalIs :: ( Carrier sig m
           , Member Naming sig
           )
-       => Problem Name
-       -> m (Problem Name ::: Problem Name)
-       -> m (Problem Name)
+       => Problem Gensym
+       -> m (Problem Gensym ::: Problem Gensym)
+       -> m (Problem Gensym)
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
   tm2 <- meta (ty1 === ty2)
   pure (tm1 === tm2)
 
-meta :: (Carrier sig m, Member Naming sig) => Problem Name -> m (Problem Name)
+meta :: (Carrier sig m, Member Naming sig) => Problem Gensym -> m (Problem Gensym)
 meta ty = do
   n <- gensym "meta"
-  pure (exists (Local n ::: ty) (pure (Local n)))
+  pure (exists (n ::: ty) (pure n))
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem Name -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem Gensym -> m a -> m a
 (|-) = local . flip (:>)
 
 infix 5 |-
@@ -195,7 +199,7 @@ have :: ( Carrier sig m
         , MonadFail m
         )
      => Name
-     -> m (Problem Name)
+     -> m (Problem Gensym)
 have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
   where lookup (Global n) = asks (fmap Scope.entryType . Map.lookup n)
         lookup (Local  n) = asks (fmap typedType . Stack.find ((== n) . bindingName . typedTerm))
@@ -212,14 +216,14 @@ elab :: ( Carrier sig m
         , MonadFail m
         )
      => Core.Core Name
-     -> m (Problem Name ::: Problem Name)
+     -> m (Problem Gensym ::: Problem Gensym)
 elab = \case
   Core.Var n -> assume n
-  Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure n') b))
+  Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure (Local n')) b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
-  Core.Pi (_ :< (_, _, t)) b -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
-  Core.Hole h -> (pure (Local h) :::) <$> meta Type
+  Core.Pi (_ :< (_, _, t)) b -> elab t --> \ n' -> elab (Core.instantiate (pure (Local n')) b)
+  Core.Hole h -> (pure h :::) <$> meta Type
   Core.Ann ann b -> spanIs ann (elab b)
 
 simplify :: ( Carrier sig m
@@ -227,29 +231,29 @@ simplify :: ( Carrier sig m
             , Member (Reader Context) sig
             , MonadFail m
             )
-         => Problem Name
-         -> m (Problem Name)
+         => Problem Gensym
+         -> m (Problem Gensym)
 simplify = \case
   Ex t b -> do
     n <- gensym "ex"
     t' <- simplify t
-    b' <- Exists n ::: t' |- simplify (instantiate (pure (Local n)) b)
-    pure (exists (Local n ::: t') b')
+    b' <- Exists n ::: t' |- simplify (instantiate (pure n) b)
+    pure (exists (n ::: t') b')
   U (t1 :===: t2)
     | t1 == t2  -> pure t1
   U (Ex t1 b1 :===: Ex t2 b2) -> do
     n <- gensym "ex"
     t' <- simplify (t1 === t2)
-    b' <- simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
-    pure (exists (Local n ::: t') b')
+    b' <- simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
+    pure (exists (n ::: t') b')
   U (Ex t1 b1 :===: tm2) -> do
     n <- gensym "ex"
     t1' <- simplify t1
-    pure (exists (Local n ::: t1') (instantiate (pure (Local n)) b1 === tm2))
+    pure (exists (n ::: t1') (instantiate (pure n) b1 === tm2))
   U (tm1 :===: Ex t2 b2) -> do
     n <- gensym "ex"
     t2' <- simplify t2
-    pure (exists (Local n ::: t2') (tm1 === instantiate (pure (Local n)) b2))
+    pure (exists (n ::: t2') (tm1 === instantiate (pure n) b2))
   U other -> fail $ "no rule to simplify: " <> show other
   Var a -> pure (Var a)
   Glo a -> pure (Glo a)
@@ -257,13 +261,13 @@ simplify = \case
   Lam t b -> do
     n <- gensym "lam"
     t' <- simplify t
-    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
-    pure (lam (Local n ::: t') b')
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure n) b)
+    pure (lam (n ::: t') b')
   Pi t b -> do
     n <- gensym "pi"
     t' <- simplify t
-    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
-    pure (pi (Local n ::: t') b')
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure n) b)
+    pure (pi (n ::: t') b')
   f :$ a -> do
     f' <- simplify f
     a' <- simplify a
@@ -275,7 +279,7 @@ data a := b = a := b
 infix 1 :=
 
 data Binding
-  = Define (Gensym := Problem Name)
+  = Define (Gensym := Problem Gensym)
   | Exists Gensym
   | ForAll Gensym
   deriving (Eq, Ord, Show)
