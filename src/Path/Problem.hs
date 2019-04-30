@@ -276,7 +276,7 @@ data a := b = a := b
 
 infix 1 :=
 
-data Bind
+data Binding
   = Define (Gensym := Problem Meta)
   | Exists Gensym
   | ForAll Gensym
