@@ -32,7 +32,7 @@ resolveTerm :: ( Carrier sig m
             => Spanned Surface.Surface
             -> m (Core Gensym)
 resolveTerm (term :~ span) = Ann span <$> case term of
-  Surface.Var v -> name Var Glo <$> resolveName v
+  Surface.Var v -> Var <$> resolveName v
   Surface.Lam (p :< v) b -> do
     v' <- gensym (maybe "lam" showUser v)
     local (insertLocal v v') (Lam (p :< v) . bind v' <$> resolveTerm b)
