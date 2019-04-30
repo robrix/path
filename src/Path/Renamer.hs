@@ -94,7 +94,7 @@ resolveModule m = do
   where amongImports q = any (flip inModule q . importModuleName . unSpanned) (moduleImports m)
         unSpanned (a :~ _) = a
 
-newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty Name) }
+newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Gensym)) }
   deriving (Eq, Ord, Show)
 
 instance Semigroup Resolution where
@@ -107,7 +107,7 @@ insertLocal Nothing  _  = id
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution
 
-lookupName :: User -> Resolution -> Maybe (NonEmpty Name)
+lookupName :: User -> Resolution -> Maybe (NonEmpty (Name Gensym))
 lookupName n = Map.lookup n . unResolution
 
 resolveName :: ( Carrier sig m
@@ -118,7 +118,7 @@ resolveName :: ( Carrier sig m
                , Member (Reader Span) sig
                )
             => User
-            -> m Name
+            -> m (Name Gensym)
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
@@ -142,7 +142,7 @@ resolveMeta (Just m) = do
       n <$ modify (Map.insert m n)
 resolveMeta Nothing = gensym "meta"
 
-filterResolution :: (Name -> Bool) -> Resolution -> Resolution
+filterResolution :: (Name Gensym -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
@@ -151,7 +151,7 @@ unambiguous :: ( Carrier sig m
                , Member (Reader Span) sig
                )
             => User
-            -> NonEmpty Name
-            -> m Name
+            -> NonEmpty (Name Gensym)
+            -> m (Name Gensym)
 unambiguous _ (q:|[]) = pure q
 unambiguous v (q:|qs) = ambiguousName v (q :| qs)

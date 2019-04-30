@@ -139,7 +139,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Name ::: Type Name)) (runError loop >>= either (print @Doc) pure)
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym))) (runError loop >>= either (print @Doc) pure)
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
         parseCommand str = do
@@ -159,7 +159,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph Qualified (Value Name ::: Type Name))
+            let ms = modules (graph :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -169,7 +169,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module Qualified (Value Name ::: Type Name)) of
+            case m :: Maybe (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym))) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))

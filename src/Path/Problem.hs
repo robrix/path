@@ -119,7 +119,7 @@ assume :: ( Carrier sig m
           , Member (Reader Signature) sig
           , MonadFail m
           )
-       => Name
+       => Name Gensym
        -> m (Problem Gensym ::: Problem Gensym)
 assume v = do
   _A <- have v
@@ -194,7 +194,7 @@ have :: ( Carrier sig m
         , Member (Reader Signature) sig
         , MonadFail m
         )
-     => Name
+     => Name Gensym
      -> m (Problem Gensym)
 have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
   where lookup (Global n) = asks (fmap Scope.entryType . Map.lookup n)

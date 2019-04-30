@@ -64,7 +64,7 @@ prettyValue localName = go
 instance Pretty (Value Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue qlocal
 
-instance Pretty (Value Name) where
+instance Pretty (Value (Name Gensym)) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue Local
 
 instance Ord a => FreeVariables a (Value a) where
@@ -135,23 +135,23 @@ joinT = gfoldT (\ p -> Lam p . Scope) ($$*) Type (\ p -> Pi p . Scope) (incr (pu
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
-generalizeType :: Value Meta -> Value Name
+generalizeType :: Value Meta -> Value (Name Gensym)
 generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
   where f name
           | Name (Global (_ :.: _)) <- name = Set.empty
           | otherwise                       = Set.singleton (Im :< (name, Zero) ::: Type)
 
 
-weaken :: Value Name -> Value Meta
+weaken :: Value (Name Gensym) -> Value Meta
 weaken = fmap Name
 
-strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value Meta -> m (Value Name)
+strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value Meta -> m (Value (Name Gensym))
 strengthen ty = do
   let mvs = toList (metaNames (fvs ty))
   unless (null mvs) $ unsolvedMetavariables mvs ty
   pure (unsafeStrengthen <$> ty)
 
-unsafeStrengthen :: Meta -> Name
+unsafeStrengthen :: Meta -> Name Gensym
 unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
 
 
