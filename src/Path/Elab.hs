@@ -48,23 +48,23 @@ implicits = go Nil
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
       => Plicit (Maybe User)
-      -> (Name -> m (Value Meta ::: Type Meta))
+      -> (Gensym -> m (Value Meta ::: Type Meta))
       -> m (Value Meta ::: Type Meta)
 intro (p :< x) body = do
   _A <- exists Type
   x <- gensym (maybe "_" showUser x)
   _B <- x ::: _A |- exists Type
-  u <- x ::: _A |- goalIs _B (body (Local x))
+  u <- x ::: _A |- goalIs _B (body x)
   pure (Value.lam (p :< Name (Local x)) u ::: Value.pi (p :< (Name (Local x), More) ::: _A) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    => Plicit (Maybe User, Usage, m (Value Meta ::: Type Meta))
-   -> (Name -> m (Value Meta ::: Type Meta))
+   -> (Gensym -> m (Value Meta ::: Type Meta))
    -> m (Value Meta ::: Type Meta)
 pi (p :< (x, m, t)) body = do
   t' <- goalIs Type t
   x <- gensym (maybe "_" showUser x)
-  b' <- x ::: t' |- goalIs Type (body (Local x))
+  b' <- x ::: t' |- goalIs Type (body x)
   pure (Value.pi (p :< (qlocal x, m) ::: t') b' ::: Type)
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
@@ -110,10 +110,10 @@ spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
 elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span) sig)
-     => Core.Core Name
+     => Core.Core Gensym
      -> m (Value Meta ::: Type Meta)
 elab = \case
-  Core.Var n -> assume n
+  Core.Var n -> assume (Local n)
   Core.Glo n -> assume (Global n)
   Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ (p :< a) -> app (elab f) (p :< elab a)
@@ -192,7 +192,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Scope) sig
               )
-           => Module Qualified (Core.Core Name)
+           => Module Qualified (Core.Core Gensym)
            -> m (Module Qualified (Value Name ::: Type Name))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
@@ -219,7 +219,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Spanned (Decl Qualified (Core.Core Name))
+         => Spanned (Decl Qualified (Core.Core Gensym))
          -> m (Spanned (Decl Qualified (Value Name ::: Type Name)))
 elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fmap (:~ span) $ case decl of
   Declare name ty -> do
@@ -233,7 +233,7 @@ elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fm
         scope <- get
         let ty' = whnf scope ty
         (names, _) <- un (orTerm (\ n -> \case
-          Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (Value.instantiate (pure (Local n)) b))
+          Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (Value.instantiate (pure (Local n)) b))
           _                    -> Nothing)) ty'
         pure (Core.lams names tm ::: Value.weaken ty)
       Nothing -> (tm :::) <$> inferType
