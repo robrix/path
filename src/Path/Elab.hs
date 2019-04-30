@@ -37,7 +37,7 @@ assume :: (Carrier sig m, Member Elab sig, Member Naming sig)
        -> m (Value Meta ::: Type Meta)
 assume v = do
   _A <- have v
-  implicits _A >>= foldl' app (pure (pure (Name v) ::: _A))
+  implicits _A >>= foldl' app (pure (name (pure . Name) Value.global v ::: _A))
 
 implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (m (Value Meta ::: Type Meta))))
 implicits = go Nil
@@ -55,7 +55,7 @@ intro (p :< x) body = do
   x <- gensym (maybe "_" showUser x)
   _B <- x ::: _A |- exists Type
   u <- x ::: _A |- goalIs _B (body x)
-  pure (Value.lam (p :< Name (Local x)) u ::: Value.pi (p :< (Name (Local x), More) ::: _A) _B)
+  pure (Value.lam (p :< Name x) u ::: Value.pi (p :< (Name x, More) ::: _A) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    => Plicit (Maybe User, Usage, m (Value Meta ::: Type Meta))
@@ -65,7 +65,7 @@ pi (p :< (x, m, t)) body = do
   t' <- goalIs Type t
   x <- gensym (maybe "_" showUser x)
   b' <- x ::: t' |- goalIs Type (body x)
-  pure (Value.pi (p :< (qlocal x, m) ::: t') b' ::: Type)
+  pure (Value.pi (p :< (Name x, m) ::: t') b' ::: Type)
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     => m (Value Meta ::: Type Meta)
@@ -75,7 +75,7 @@ app f (p :< a) = do
   _A <- exists Type
   x <- gensym "app"
   _B <- x ::: _A |- exists Type
-  let _F = Value.pi (p :< (qlocal x, case p of { Im -> zero ; Ex -> More }) ::: _A) _B
+  let _F = Value.pi (p :< (Name x, case p of { Im -> zero ; Ex -> More }) ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' Value.$$ (p :< a') ::: _F Value.$$ (p :< a'))
@@ -156,17 +156,17 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
   eff (L (Exists ty k)) = do
     ctx <- ElabC ask
     n <- gensym "meta"
-    let f (n ::: t) = Ex :< (qlocal n, More) ::: t
+    let f (n ::: t) = Ex :< (Name n, More) ::: t
         ty' = Value.pis (f <$> Context.unContext ctx) ty
     modify (Signature . Map.insert n ty' . unSignature)
-    k (pure (Meta n) Value.$$* ((Ex :<) . pure . qlocal <$> Context.vars (ctx :: Context (Type Meta))))
+    k (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars (ctx :: Context (Type Meta))))
   eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
     where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
           lookup (Local  n) = ElabC (asks (Context.lookup n))
           missing = do
             ty <- exists Type
             tm <- exists ty
-            ty <$ unify (tm ::: ty :===: pure (Name n) ::: ty)
+            ty <$ unify (tm ::: ty :===: name (pure . Name) Value.global n ::: ty)
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
   eff (L (Unify (tm1 ::: ty1 :===: tm2 ::: ty2) k)) = ElabC $ do
     span <- ask
@@ -193,7 +193,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Module Qualified (Core.Core Gensym)
-           -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
+           -> m (Module Qualified (Value Gensym ::: Type Gensym))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -220,7 +220,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             )
          => Spanned (Decl Qualified (Core.Core Gensym))
-         -> m (Spanned (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym))))
+         -> m (Spanned (Decl Qualified (Value Gensym ::: Type Gensym)))
 elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fmap (:~ span) $ case decl of
   Declare name ty -> do
     ty' <- runScope (declare (elab ty))
@@ -233,7 +233,7 @@ elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fm
         scope <- get
         let ty' = whnf scope ty
         (names, _) <- un (orTerm (\ n -> \case
-          Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (Value.instantiate (pure (Local n)) b))
+          Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (Value.instantiate (pure n) b))
           _                    -> Nothing)) ty'
         pure (Core.lams names tm ::: Value.weaken ty)
       Nothing -> (tm :::) <$> inferType
@@ -250,7 +250,7 @@ declare :: ( Carrier sig m
            , Member (Reader Span) sig
            )
         => ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-        -> m (Value (Name Gensym))
+        -> m (Value Gensym)
 declare ty = evalState (mempty :: Signature) $ do
   (constraints, ty') <- runElab (goalIs Type ty)
   subst <- solver constraints
@@ -265,7 +265,7 @@ define :: ( Carrier sig m
           )
        => Value Meta
        -> ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-       -> m (Value (Name Gensym) ::: Type (Name Gensym))
+       -> m (Value Gensym ::: Type Gensym)
 define ty tm = evalState (mempty :: Signature) $ do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
