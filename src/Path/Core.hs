@@ -29,10 +29,6 @@ instance Applicative Core where
 instance Monad Core where
   a >>= f = joinT (fmap f a)
 
-name :: Name -> Core Gensym
-name (Local  n) = Var n
-name (Global n) = Glo n
-
 lam :: Eq a => Plicit a -> Core a -> Core a
 lam (p :< n) b = Lam (p :< Nothing) (bind n b)
 

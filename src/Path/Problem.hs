@@ -38,10 +38,6 @@ instance Monad Problem where
   a >>= f = joinT (f <$> a)
 
 
-name :: Name -> Problem Gensym
-name (Local  n) = Var n
-name (Global n) = Glo n
-
 exists :: Eq a => a ::: Problem a -> Problem a -> Problem a
 exists (n ::: t) b = Ex t (bind n b)
 
@@ -127,7 +123,7 @@ assume :: ( Carrier sig m
        -> m (Problem Gensym ::: Problem Gensym)
 assume v = do
   _A <- have v
-  pure (name v ::: _A)
+  pure (name Var Glo v ::: _A)
 
 intro :: ( Carrier sig m
          , Member Naming sig
