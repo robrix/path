@@ -223,3 +223,35 @@ elab = \case
   Core.Pi (_ :< (_, _, t)) b -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
   Core.Hole h -> (pure (Meta h) :::) <$> meta Type
   Core.Ann ann b -> spanIs ann (elab b)
+
+simplify :: ( Carrier sig m
+            , Member Naming sig
+            , Member (Reader Context) sig
+            , MonadFail m
+            )
+         => Problem Meta
+         -> m (Problem Meta)
+simplify = \case
+  Ex t b -> do
+    n <- gensym "ex"
+    t' <- simplify t
+    b' <- n ::: t' |- simplify (instantiate (pure (Meta n)) b)
+    pure (exists (Meta n ::: t') b')
+  U q -> case q of
+    t1 :===: t2
+      | t1 == t2  -> pure t1
+      | otherwise -> fail "unimplemented"
+  Type -> pure Type
+  Lam t b -> do
+    n <- gensym "lam"
+    t' <- simplify t
+    b' <- n ::: t' |- simplify (instantiate (pure (qlocal n)) b)
+    pure (lam (qlocal n ::: t') b')
+  Pi t b -> do
+    n <- gensym "pi"
+    t' <- simplify t
+    b' <- n ::: t' |- simplify (instantiate (pure (qlocal n)) b)
+    pure (pi (qlocal n ::: t') b')
+  f :$ as -> do
+    as' <- traverse simplify as
+    pure (pure f $$* as')
