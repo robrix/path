@@ -116,7 +116,7 @@ instantiate :: Problem a -> Scope a -> Problem a
 instantiate t (Scope b) = b >>= subst t . fmap pure
 
 
-type Context = Stack (Gensym ::: Problem Meta)
+type Context = Stack (Binding ::: Problem Meta)
 type Signature = Map.Map Qualified (Scope.Entry (Problem Meta))
 
 assume :: ( Carrier sig m
@@ -139,8 +139,8 @@ intro :: ( Carrier sig m
 intro body = do
   _A <- meta Type
   x <- gensym "intro"
-  _B <- x ::: _A |- meta Type
-  u <- x ::: _A |- goalIs _B (body (Local x))
+  _B <- ForAll x ::: _A |- meta Type
+  u <- ForAll x ::: _A |- goalIs _B (body (Local x))
   pure (lam (qlocal x ::: _A) u ::: pi (qlocal x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
@@ -153,7 +153,7 @@ intro body = do
 t --> body = do
   t' <- goalIs Type t
   x <- gensym "pi"
-  b' <- x ::: t' |- goalIs Type (body (Local x))
+  b' <- ForAll x ::: t' |- goalIs Type (body (Local x))
   pure (pi (qlocal x ::: t') b' ::: Type)
 
 app :: ( Carrier sig m
@@ -166,7 +166,7 @@ app :: ( Carrier sig m
 app f a = do
   _A <- meta Type
   x <- gensym "app"
-  _B <- x ::: _A |- meta Type
+  _B <- ForAll x ::: _A |- meta Type
   let _F = pi (qlocal x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
@@ -189,7 +189,7 @@ meta ty = do
   n <- gensym "meta"
   pure (exists (Meta n ::: ty) (pure (Meta n)))
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Problem Meta -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem Meta -> m a -> m a
 (|-) = local . flip (:>)
 
 infix 5 |-
@@ -203,7 +203,7 @@ have :: ( Carrier sig m
      -> m (Problem Meta)
 have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
   where lookup (Global n) = asks (fmap Scope.entryType . Map.lookup n)
-        lookup (Local  n) = asks (fmap typedType . Stack.find ((== n) . typedTerm))
+        lookup (Local  n) = asks (fmap typedType . Stack.find ((== n) . bindingName . typedTerm))
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
@@ -238,7 +238,7 @@ simplify = \case
   Ex t b -> do
     n <- gensym "ex"
     t' <- simplify t
-    b' <- n ::: t' |- simplify (instantiate (pure (Meta n)) b)
+    b' <- Exists n ::: t' |- simplify (instantiate (pure (Meta n)) b)
     pure (exists (Meta n ::: t') b')
   U (t1 :===: t2)
     | t1 == t2  -> pure t1
@@ -260,12 +260,12 @@ simplify = \case
   Lam t b -> do
     n <- gensym "lam"
     t' <- simplify t
-    b' <- n ::: t' |- simplify (instantiate (pure (qlocal n)) b)
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure (qlocal n)) b)
     pure (lam (qlocal n ::: t') b')
   Pi t b -> do
     n <- gensym "pi"
     t' <- simplify t
-    b' <- n ::: t' |- simplify (instantiate (pure (qlocal n)) b)
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure (qlocal n)) b)
     pure (pi (qlocal n ::: t') b')
   f :$ as -> do
     as' <- traverse simplify as
