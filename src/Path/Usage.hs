@@ -10,8 +10,8 @@ data Usage
   deriving (Eq, Ord, Show)
 
 instance Semigroup Usage where
-  Zero <> _    = Zero
-  _    <> Zero = Zero
+  Zero <> a    = a
+  a    <> Zero = a
   _    <> _    = More
 
 instance Monoid Usage where
