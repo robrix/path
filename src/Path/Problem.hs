@@ -9,10 +9,13 @@ import Control.Monad (ap)
 import Data.Foldable (foldl')
 import qualified Data.Map as Map
 import Path.Constraint (Equation(..))
+import qualified Path.Core as Core
 import Path.Name
+import Path.Plicity (Plicit(..))
 import qualified Path.Scope as Scope
 import Path.Stack as Stack
 import Prelude hiding (fail, pi)
+import Text.Trifecta.Rendering (Span(..))
 
 data Problem a
   = Ex (Problem a) (Scope a)
@@ -195,3 +198,25 @@ have :: ( Carrier sig m
 have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
   where lookup (Global n) = asks (fmap Scope.entryType . Map.lookup n)
         lookup (Local  n) = asks (fmap typedType . Stack.find ((== n) . typedTerm))
+
+
+spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
+spanIs span = local (const span)
+
+elab :: ( Carrier sig m
+        , Member Naming sig
+        , Member (Reader (Stack (Gensym ::: Problem Meta))) sig
+        , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
+        , Member (Reader Span) sig
+        , MonadFail m
+        )
+     => Core.Core Name
+     -> m (Problem Meta ::: Problem Meta)
+elab = \case
+  Core.Var n -> assume n
+  Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure n') b))
+  f Core.:$ (_ :< a) -> app (elab f) (elab a)
+  Core.Type -> pure (Type ::: Type)
+  Core.Pi (_ :< (_, _, t)) b -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
+  Core.Hole h -> (pure (Meta h) :::) <$> meta Type
+  Core.Ann ann b -> spanIs ann (elab b)
