@@ -31,6 +31,7 @@ import Path.Renamer
 import Path.REPL.Command as Command
 import qualified Path.Scope as Scope
 import Path.Stack
+import qualified Path.Surface as Surface
 import Path.Value
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (Handler, handle)
@@ -198,13 +199,17 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all @[] (`notElem` map (importModuleName . unSpanned) (moduleImports m))
         unSpanned (a :~ _) = a
-        runRenamer m = do
-          res <- get
-          runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
-        elaborate tm@(_ :~ span) = runReader span $ do
-          ty <- inferType
-          tm' <- runRenamer (evalState (mempty :: Signature) (runReader Defn (resolveTerm tm)))
-          runScope (define ty (elab tm'))
+
+runRenamer :: (Carrier sig m, Member (State Resolution) sig) => ReaderC ModuleName (ReaderC Resolution m) a -> m a
+runRenamer m = do
+  res <- get
+  runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
+
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Scope.Scope) sig) => Spanned Surface.Surface -> m (Value Gensym ::: Type Gensym)
+elaborate tm@(_ :~ span) = runReader span $ do
+  ty <- inferType
+  tm' <- runRenamer (evalState (mempty :: Signature) (runReader Defn (resolveTerm tm)))
+  runScope (define ty (elab tm'))
 
 basePackage :: Package
 basePackage = Package
