@@ -6,7 +6,6 @@ import Control.Effect
 import Control.Effect.Fail
 import Control.Effect.Reader hiding (Local)
 import Control.Monad (ap)
-import Data.Foldable (foldl')
 import qualified Data.Map as Map
 import Path.Constraint (Equation(..))
 import qualified Path.Core as Core
@@ -20,17 +19,18 @@ import Text.Trifecta.Rendering (Span(..))
 data Problem a
   = Ex (Problem a) (Scope a)
   | U (Equation (Problem a))
+  | Var a
   | Type
   | Lam (Problem a) (Scope a)
   | Pi (Problem a) (Scope a)
-  | a :$ Stack (Problem a)
+  | Problem a :$ Problem a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype Scope a = Scope (Problem (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Problem where
-  pure = (:$ Nil)
+  pure = Var
   (<*>) = ap
 
 instance Monad Problem where
@@ -72,39 +72,31 @@ unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unpi n (Pi t b) = pure (n ::: t, instantiate (pure n) b)
 unpi _ _        = empty
 
-($$) :: Problem a -> Problem a -> Problem a
-Lam _ b $$ v = instantiate v b
-Pi  _ b $$ v = instantiate v b
-n :$ vs $$ v = n :$ (vs :> v)
--- FIXME: what about existentials or equations at the head?
-_       $$ _ = error "illegal application of Type"
-
-($$*) :: Foldable t => Problem a -> t (Problem a) -> Problem a
-v $$* sp = foldl' ($$) v sp
-
 
 gfoldT :: forall m n b
        .  (forall a . n a -> n (Incr a) -> n a)
        -> (forall a . Equation (n a) -> n a)
+       -> (forall a . m a -> n a)
        -> (forall a . n a)
        -> (forall a . n a -> n (Incr a) -> n a)
        -> (forall a . n a -> n (Incr a) -> n a)
-       -> (forall a . m a -> Stack (n a) -> n a)
+       -> (forall a . n a -> n a -> n a)
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Problem (m b)
        -> n b
-gfoldT ex u ty lam pi app dist = go
+gfoldT ex u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
           Ex t (Scope b) -> ex (go t) (go (dist <$> b))
           U (a :===: b) -> u (go a :===: go b)
+          Var a -> var a
           Type -> ty
           Lam t (Scope b) -> lam (go t) (go (dist <$> b))
           Pi t (Scope b) -> pi (go t) (go (dist <$> b))
-          f :$ a -> app f (go <$> a)
+          f :$ a -> go f `app` go a
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT (\ t -> Ex t . Scope) U Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) ($$*) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ t -> Ex t . Scope) U id Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) (:$) (incr (pure Z) (fmap S))
 
 
 -- | Bind occurrences of a name in a 'Value' term, producing a 'Scope' in which the name is bound.
@@ -170,7 +162,7 @@ app f a = do
   let _F = pi (Local x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
-  pure (f' $$ a' ::: _F $$ a')
+  pure (f' :$ a' ::: _F :$ a')
 
 
 goalIs :: ( Carrier sig m
@@ -256,6 +248,7 @@ simplify = \case
     t2' <- simplify t2
     pure (exists (Local n ::: t2') (tm1 === instantiate (pure (Local n)) b2))
   U other -> fail $ "no rule to simplify: " <> show other
+  Var a -> pure (Var a)
   Type -> pure Type
   Lam t b -> do
     n <- gensym "lam"
@@ -267,9 +260,10 @@ simplify = \case
     t' <- simplify t
     b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
     pure (pi (Local n ::: t') b')
-  f :$ as -> do
-    as' <- traverse simplify as
-    pure (pure f $$* as')
+  f :$ a -> do
+    f' <- simplify f
+    a' <- simplify a
+    pure (f' :$ a')
 
 data a := b = a := b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
