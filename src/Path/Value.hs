@@ -20,7 +20,7 @@ data Value a
   = Type                                   -- ^ @'Type' : 'Type'@.
   | Lam Plicity                  (Scope a) -- ^ A lambda abstraction.
   | Pi (Plicit (Usage, Value a)) (Scope a) -- ^ A ∏ type, with a 'Usage' annotation.
-  | a :$ Stack (Plicit (Value a))          -- ^ A neutral term represented as a function on the right and a list of arguments to apply it.
+  | Name a :$ Stack (Plicit (Value a))     -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype Scope a = Scope (Value (Incr a))
@@ -62,21 +62,24 @@ prettyValue localName = go
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 
 instance Pretty (Value Meta) where
-  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue qlocal
+  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue Name
 
-instance Pretty (Value (Name Gensym)) where
-  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue Local
+instance Pretty (Value Gensym) where
+  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue id
 
 instance Ord a => FreeVariables a (Value a) where
   fvs = foldMap Set.singleton
 
 instance Applicative Value where
-  pure = (:$ Nil)
+  pure = (:$ Nil) . Local
   (<*>) = ap
 
 instance Monad Value where
   a >>= f = joinT (fmap f a)
 
+
+global :: Qualified -> Value a
+global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Value a -> Value a
 lam (pl :< n) b = Lam pl (bind n b)
@@ -111,22 +114,23 @@ v $$* sp = foldl' ($$) v sp
 
 gfoldT :: forall m n b
        .  (forall a . Plicity -> n (Incr a) -> n a)
-       -> (forall a . m a -> Stack (Plicit (n a)) -> n a)
+       -> (forall a . Name (m a) -> n a)
+       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
        -> (forall a . n a)
        -> (forall a . Plicit (Usage, n a) -> n (Incr a) -> n a)
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Value (m b)
        -> n b
-gfoldT lam app ty pi dist = go
+gfoldT lam var app ty pi dist = go
   where go :: Type (m x) -> n x
         go = \case
           Lam p (Scope b) -> lam p (go (dist <$> b))
-          f :$ a -> app f (fmap (fmap go) a)
+          f :$ a -> app (var f) (fmap (fmap go) a)
           Type -> ty
           Pi (p :< (m, t)) (Scope b) -> pi (p :< (m, go t)) (go (dist <$> b))
 
 joinT :: Value (Value a) -> Value a
-joinT = gfoldT (\ p -> Lam p . Scope) ($$*) Type (\ p -> Pi p . Scope) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ p -> Lam p . Scope) (name id global) ($$*) Type (\ p -> Pi p . Scope) (incr (pure Z) (fmap S))
 
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
@@ -135,23 +139,21 @@ joinT = gfoldT (\ p -> Lam p . Scope) ($$*) Type (\ p -> Pi p . Scope) (incr (pu
 substitute :: Eq a => a -> Value a -> Value a -> Value a
 substitute name image = instantiate image . bind name
 
-generalizeType :: Value Meta -> Value (Name Gensym)
+generalizeType :: Value Meta -> Value Gensym
 generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
-  where f name
-          | Name (Global (_ :.: _)) <- name = Set.empty
-          | otherwise                       = Set.singleton (Im :< (name, Zero) ::: Type)
+  where f name = Set.singleton (Im :< (name, Zero) ::: Type)
 
 
-weaken :: Value (Name Gensym) -> Value Meta
+weaken :: Value Gensym -> Value Meta
 weaken = fmap Name
 
-strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value Meta -> m (Value (Name Gensym))
+strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value Meta -> m (Value Gensym)
 strengthen ty = do
   let mvs = toList (metaNames (fvs ty))
   unless (null mvs) $ unsolvedMetavariables mvs ty
   pure (unsafeStrengthen <$> ty)
 
-unsafeStrengthen :: Meta -> Name Gensym
+unsafeStrengthen :: Meta -> Gensym
 unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
 
 
