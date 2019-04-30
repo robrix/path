@@ -240,6 +240,11 @@ simplify = \case
   U q -> case q of
     t1 :===: t2
       | t1 == t2  -> pure t1
+    Ex t1 b1 :===: Ex t2 b2 -> do
+      n <- gensym "ex"
+      t' <- simplify (t1 === t2)
+      b' <- simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
+      pure (exists (Meta n ::: t') b')
     other -> fail $ "no rule to simplify: " <> show other
   Type -> pure Type
   Lam t b -> do
