@@ -114,6 +114,7 @@ elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span)
      -> m (Value Meta ::: Type Meta)
 elab = \case
   Core.Var n -> assume n
+  Core.Glo n -> assume (Global n)
   Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ (p :< a) -> app (elab f) (p :< elab a)
   Core.Type -> pure (Type ::: Type)
