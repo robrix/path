@@ -107,13 +107,13 @@ instance Pretty (Constraint Meta) where
   pretty c = group . run . runNaming (Root "pretty") $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
     binds <- traverse prettyBind ctx
-    v1' <- prettyValue qlocal v1
-    v2' <- prettyValue qlocal v2
-    t'  <- prettyValue qlocal t
+    v1' <- prettyValue Name v1
+    v2' <- prettyValue Name v2
+    t'  <- prettyValue Name t
     pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> prettyPrec 0 v1', magenta (pretty "≡") <+> prettyPrec 0 v2', cyan colon <+> prettyPrec 0 t' ]))
     where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
-          prettyBind (n ::: t) = pretty . (qlocal n :::) . prettyPrec 0 <$> prettyValue qlocal t
+          prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyValue Name t
 
 
 infixr 1 |-
@@ -122,11 +122,11 @@ infixr 1 |-
 n ::: t |- b = t :|-: bind n b
 
 binds :: Context (Type Meta) -> Equation (Value Meta) ::: Type Meta -> Constraint Meta
-binds (Context names) body = foldr (|-) (E body) (first qlocal <$> names)
+binds (Context names) body = foldr (|-) (E body) (first Name <$> names)
 
 unbinds :: (Carrier sig m, Member Naming sig) => Constraint Meta -> m (Context (Type Meta), Equation (Value Meta) ::: Type Meta)
 unbinds = fmap (first Context) . un (\ name -> \case
-  t :|-: b -> Right (name ::: t, instantiate (pure (qlocal name)) b)
+  t :|-: b -> Right (name ::: t, instantiate (pure (Name name)) b)
   E q      -> Left q)
 
 
