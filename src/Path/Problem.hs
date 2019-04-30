@@ -211,15 +211,15 @@ elab :: ( Carrier sig m
         , Member (Reader Span) sig
         , MonadFail m
         )
-     => Core.Core Name
+     => Core.Core Gensym
      -> m (Problem Gensym ::: Problem Gensym)
 elab = \case
-  Core.Var n -> assume n
+  Core.Var n -> assume (Local n)
   Core.Glo n -> assume (Global n)
-  Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure (Local n')) b))
+  Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
-  Core.Pi (_ :< (_, _, t)) b -> elab t --> \ n' -> elab (Core.instantiate (pure (Local n')) b)
+  Core.Pi (_ :< (_, _, t)) b -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
   Core.Hole h -> (pure h :::) <$> meta Type
   Core.Ann ann b -> spanIs ann (elab b)
 
