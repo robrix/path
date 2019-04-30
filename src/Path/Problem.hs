@@ -114,10 +114,11 @@ instantiate t (Scope b) = b >>= subst t . fmap pure
 
 
 type Context = Stack (Gensym ::: Problem Meta)
+type Signature = Map.Map Qualified (Scope.Entry (Problem Meta))
 
 assume :: ( Carrier sig m
           , Member (Reader Context) sig
-          , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
+          , Member (Reader Signature) sig
           , MonadFail m
           )
        => Name
@@ -192,7 +193,7 @@ infix 5 |-
 
 have :: ( Carrier sig m
         , Member (Reader Context) sig
-        , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
+        , Member (Reader Signature) sig
         , MonadFail m
         )
      => Name
@@ -208,7 +209,7 @@ spanIs span = local (const span)
 elab :: ( Carrier sig m
         , Member Naming sig
         , Member (Reader Context) sig
-        , Member (Reader (Map.Map Qualified (Scope.Entry (Problem Meta)))) sig
+        , Member (Reader Signature) sig
         , Member (Reader Span) sig
         , MonadFail m
         )
