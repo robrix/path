@@ -240,7 +240,7 @@ simplify = \case
   U q -> case q of
     t1 :===: t2
       | t1 == t2  -> pure t1
-      | otherwise -> fail "unimplemented"
+    other -> fail $ "no rule to simplify: " <> show other
   Type -> pure Type
   Lam t b -> do
     n <- gensym "lam"
