@@ -275,3 +275,8 @@ data a := b = a := b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 infix 1 :=
+
+data Bind
+  = Exists (Gensym := Problem Meta)
+  | ForAll Gensym
+  deriving (Eq, Ord, Show)
