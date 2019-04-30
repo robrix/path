@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase, TupleSections #-}
+{-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, TupleSections #-}
 module Path.Renamer where
 
 import Control.Effect
@@ -95,7 +95,7 @@ resolveModule m = do
         unSpanned (a :~ _) = a
 
 newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Gensym)) }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Monoid, Ord, Show)
 
 instance Semigroup Resolution where
   Resolution m1 <> Resolution m2 = Resolution (Map.unionWith (fmap nub . (<>)) m1 m2)
