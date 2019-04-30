@@ -19,8 +19,7 @@ import Text.Trifecta.Rendering (Span(..))
 data Problem a
   = Ex (Problem a) (Scope a)
   | U (Equation (Problem a))
-  | Var a
-  | Glo Qualified
+  | Var (Name a)
   | Type
   | Lam (Problem a) (Scope a)
   | Pi (Problem a) (Scope a)
@@ -31,7 +30,7 @@ newtype Scope a = Scope (Problem (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Problem where
-  pure = Var
+  pure = Var . Local
   (<*>) = ap
 
 instance Monad Problem where
@@ -77,8 +76,7 @@ unpi _ _        = empty
 gfoldT :: forall m n b
        .  (forall a . n a -> n (Incr a) -> n a)
        -> (forall a . Equation (n a) -> n a)
-       -> (forall a . m a -> n a)
-       -> (forall a . Qualified -> n a)
+       -> (forall a . Name (m a) -> n a)
        -> (forall a . n a)
        -> (forall a . n a -> n (Incr a) -> n a)
        -> (forall a . n a -> n (Incr a) -> n a)
@@ -86,20 +84,19 @@ gfoldT :: forall m n b
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Problem (m b)
        -> n b
-gfoldT ex u var glo ty lam pi app dist = go
+gfoldT ex u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
           Ex t (Scope b) -> ex (go t) (go (dist <$> b))
           U (a :===: b) -> u (go a :===: go b)
           Var a -> var a
-          Glo a -> glo a
           Type -> ty
           Lam t (Scope b) -> lam (go t) (go (dist <$> b))
           Pi t (Scope b) -> pi (go t) (go (dist <$> b))
           f :$ a -> go f `app` go a
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT (\ t -> Ex t . Scope) U id Glo Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) (:$) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ t -> Ex t . Scope) U (name id (Var . Global)) Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) (:$) (incr (pure Z) (fmap S))
 
 
 -- | Bind occurrences of a name in a 'Value' term, producing a 'Scope' in which the name is bound.
@@ -123,7 +120,7 @@ assume :: ( Carrier sig m
        -> m (Problem Gensym ::: Problem Gensym)
 assume v = do
   _A <- have v
-  pure (name Var Glo v ::: _A)
+  pure (Var v ::: _A)
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -252,7 +249,6 @@ simplify = \case
     pure (exists (n ::: t2') (tm1 === instantiate (pure n) b2))
   U other -> fail $ "no rule to simplify: " <> show other
   Var a -> pure (Var a)
-  Glo a -> pure (Glo a)
   Type -> pure Type
   Lam t b -> do
     n <- gensym "lam"
