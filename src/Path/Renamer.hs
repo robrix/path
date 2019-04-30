@@ -70,8 +70,9 @@ resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ d
   --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
   (ty', tm') <- evalState (mempty :: Signature) . runReader (res :: Resolution) $
     (,) <$> runReader Declare (resolveTerm ty)
+        <*  modify (insertGlobal n moduleName)
         <*> runReader Define  (resolveTerm tm)
-  Decl d (moduleName :.: n) (tm' ::: ty') <$ modify (insertGlobal n moduleName)
+  pure (Decl d (moduleName :.: n) (tm' ::: ty'))
 
 resolveModule :: ( Carrier sig m
                  , Effect sig
