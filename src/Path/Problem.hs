@@ -270,3 +270,8 @@ simplify = \case
   f :$ as -> do
     as' <- traverse simplify as
     pure (pure f $$* as')
+
+data a := b = a := b
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+infix 1 :=
