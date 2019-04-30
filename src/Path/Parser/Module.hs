@@ -4,6 +4,7 @@ module Path.Parser.Module where
 import Control.Applicative (Alternative(..))
 import Control.Effect
 import Control.Monad.IO.Class
+import qualified Data.Text.Encoding as Text
 import qualified Path.Module as Module
 import Path.Name hiding (name)
 import Path.Parser
@@ -30,9 +31,8 @@ import' = spanned (Module.Import <$ keyword "import" <*> moduleName)
 declaration :: (DeltaParsing m, IndentationParsing m) => m (Spanned (Module.Decl User (Spanned Surface ::: Spanned Surface)))
 declaration = spanned $ do
   docs <- optional docs
-  name <- absoluteIndentation name
-  ty <- op ":" *> term
-  tm <- absoluteIndentation (token (string (showUser name)) *> op "=" *> term)
+  ((name, name'), ty) <- absoluteIndentation ((,) <$> slicedWith (,) name <* op ":" <*> term)
+  tm <- absoluteIndentation (token (text (Text.decodeUtf8 name')) *> op "=" *> term)
   pure (Module.Decl docs name (tm ::: ty))
 
 docs :: TokenParsing m => m String
