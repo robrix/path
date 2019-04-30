@@ -116,10 +116,10 @@ instance Pretty (Constraint Meta) where
           prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyValue Name t
 
 
-infixr 1 |-
-
 (|-) :: Eq a => a ::: Type a -> Constraint a -> Constraint a
 n ::: t |- b = t :|-: bind n b
+
+infixr 1 |-
 
 binds :: Context (Type Meta) -> Equation (Value Meta) ::: Type Meta -> Constraint Meta
 binds (Context names) body = foldr (|-) (E body) (first Name <$> names)
