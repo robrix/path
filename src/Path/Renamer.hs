@@ -30,20 +30,20 @@ resolveTerm :: ( Carrier sig m
                , Member (State Signature) sig
                )
             => Spanned Surface.Surface
-            -> m (Core Name)
+            -> m (Core Gensym)
 resolveTerm (term :~ span) = Ann span <$> case term of
   Surface.Var v -> name <$> resolveName v
   Surface.Lam (p :< v) b -> do
     v' <- gensym (maybe "lam" showUser v)
-    local (insertLocal v v') (Lam (p :< v) . bind (Local v') <$> resolveTerm b)
+    local (insertLocal v v') (Lam (p :< v) . bind v' <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> traverse resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi (ie :< (v, u, t)) b -> do
     v' <- gensym (maybe "pi" showUser v)
-    Pi . (ie :<) . (v, u,) <$> resolveTerm t <*> local (insertLocal v v') (bind (Local v') <$> resolveTerm b)
+    Pi . (ie :<) . (v, u,) <$> resolveTerm t <*> local (insertLocal v v') (bind v' <$> resolveTerm b)
   (u, a) Surface.:-> b -> do
     v <- gensym "pi"
-    Pi . (Ex :<) . (Nothing, u,) <$> resolveTerm a <*> (bind (Local v) <$> resolveTerm b)
+    Pi . (Ex :<) . (Nothing, u,) <$> resolveTerm a <*> (bind v <$> resolveTerm b)
   Surface.Hole v -> Hole <$> resolveMeta v
 
 
@@ -58,7 +58,7 @@ resolveDecl :: ( Carrier sig m
                , Member (State Resolution) sig
                )
             => Spanned (Decl User (Spanned Surface.Surface))
-            -> m (Spanned (Decl Qualified (Core Name)))
+            -> m (Spanned (Decl Qualified (Core Gensym)))
 resolveDecl (decl :~ span) = fmap (:~ span) . runReader span $ case decl of
   Declare n ty -> do
     res <- get
@@ -85,7 +85,7 @@ resolveModule :: ( Carrier sig m
                  , Member (State Resolution) sig
                  )
               => Module User (Spanned Surface.Surface)
-              -> m (Module Qualified (Core Name))
+              -> m (Module Qualified (Core Gensym))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
