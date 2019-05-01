@@ -44,10 +44,8 @@ unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unexists n (Ex t b) = pure (n ::: t, instantiate (pure n) b)
 unexists _ _        = empty
 
-(===) :: Eq a => Problem a -> Problem a -> Problem a
-p === q
-  | p == q    = p
-  | otherwise = U (p :===: q)
+(===) :: Problem a -> Problem a -> Problem a
+p === q = U (p :===: q)
 
 infixr 3 ===
 
