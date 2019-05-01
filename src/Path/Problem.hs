@@ -5,14 +5,16 @@ import Control.Applicative (Alternative(..))
 import Control.Effect
 import Control.Effect.Fail
 import Control.Effect.Reader hiding (Local)
+import Control.Effect.State
 import Control.Monad (ap)
 import Path.Constraint (Equation(..))
 import qualified Path.Core as Core
+import Path.Module
 import Path.Name
 import Path.Plicity (Plicit(..))
 import Path.Stack as Stack
 import Prelude hiding (fail, pi)
-import Text.Trifecta.Rendering (Span(..))
+import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 data Problem a
   = Ex (Problem a) (Scope a)
@@ -211,6 +213,40 @@ elab = \case
   Core.Pi (_ :< (_, _, t)) b -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
   Core.Hole h -> (pure h :::) <$> meta Type
   Core.Ann ann b -> spanIs ann (elab b)
+
+elabDecl :: ( Carrier sig m
+            , Member Naming sig
+            , Member (State Context) sig
+            , MonadFail m
+            )
+         => Spanned (Decl Qualified (Core.Core Gensym ::: Core.Core Gensym))
+         -> m (Spanned (Decl Qualified (Problem Gensym ::: Problem Gensym)))
+elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
+  ctx <- get
+  ty' <- runReader ctx (declare    (elab ty))
+  tm' <- runReader ctx (define ty' (elab tm))
+  put (ctx :> Define (Global name := tm') ::: ty')
+  pure (Decl d name (tm' ::: ty'))
+
+declare :: ( Carrier sig m
+           , Member Naming sig
+           , Member (Reader Context) sig
+           , MonadFail m
+           )
+        => m (Problem Gensym ::: Problem Gensym)
+        -> m (Problem Gensym)
+declare ty = goalIs Type ty >>= simplify
+
+define :: ( Carrier sig m
+          , Member Naming sig
+          , Member (Reader Context) sig
+          , MonadFail m
+          )
+       => Problem Gensym
+       -> m (Problem Gensym ::: Problem Gensym)
+       -> m (Problem Gensym)
+define ty tm = goalIs ty tm >>= simplify
+
 
 simplify :: ( Carrier sig m
             , Member Naming sig
