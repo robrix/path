@@ -182,7 +182,7 @@ meta ty = do
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem Gensym -> m a -> m a
 (|-) = local . flip (:>)
 
-infix 5 |-
+infix 3 |-
 
 have :: ( Carrier sig m
         , Member (Reader Context) sig
