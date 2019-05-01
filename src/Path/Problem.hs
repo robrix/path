@@ -267,16 +267,16 @@ simplify = \case
   U (Ex t1 b1 :===: Ex t2 b2) -> do
     n <- gensym "ex"
     t' <- simplify (t1 === t2)
-    b' <- simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
+    b' <- Exists n ::: t' |- simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
     pure (exists (n ::: t') b')
   U (Ex t1 b1 :===: tm2) -> do
     n <- gensym "ex"
     t1' <- simplify t1
-    exists (n ::: t1') <$> simplify (instantiate (pure n) b1 === tm2)
+    Exists n ::: t1' |- exists (n ::: t1') <$> simplify (instantiate (pure n) b1 === tm2)
   U (tm1 :===: Ex t2 b2) -> do
     n <- gensym "ex"
     t2' <- simplify t2
-    exists (n ::: t2') <$> simplify (tm1 === instantiate (pure n) b2)
+    Exists n ::: t2' |- exists (n ::: t2') <$> simplify (tm1 === instantiate (pure n) b2)
   U (Pi t1 b1 :===: Pi t2 b2) -> do
     n <- gensym "pi"
     pi . (n :::) <$> simplify (t1 === t2) <*> simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
