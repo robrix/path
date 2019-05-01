@@ -189,7 +189,7 @@ have :: ( Carrier sig m
      => Name Gensym
      -> m (Problem Gensym)
 have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
-  where lookup n = asks (fmap typedType . Stack.find ((== n) . bindingName . typedTerm))
+  where lookup n = fmap typedType <$> lookupBinding n
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
@@ -318,3 +318,6 @@ bindingName :: Binding -> Name Gensym
 bindingName (Define (n := _)) = n
 bindingName (Exists  n)       = Local n
 bindingName (ForAll  n)       = Local n
+
+lookupBinding :: (Carrier sig m, Member (Reader Context) sig) => Name Gensym -> m (Maybe (Binding ::: Problem Gensym))
+lookupBinding n = asks (Stack.find ((== n) . bindingName . typedTerm))
