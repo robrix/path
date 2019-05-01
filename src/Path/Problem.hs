@@ -224,7 +224,8 @@ elabDecl :: ( Carrier sig m
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ctx <- get
   ty' <- runReader ctx (declare    (elab ty))
-  tm' <- runReader ctx (define ty' (elab tm))
+  def <- meta ty'
+  tm' <- runReader (ctx :> Define (Global name := def) ::: ty') (define ty' (elab tm))
   put (ctx :> Define (Global name := tm') ::: ty')
   pure (Decl d name (tm' ::: ty'))
 
