@@ -279,7 +279,8 @@ simplify = \case
     Exists n ::: t2' |- exists (n ::: t2') <$> simplify (tm1 === instantiate (pure n) b2)
   U (Pi t1 b1 :===: Pi t2 b2) -> do
     n <- gensym "pi"
-    pi . (n :::) <$> simplify (t1 === t2) <*> simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
+    t' <- simplify (t1 === t2)
+    ForAll n ::: t' |- pi (n ::: t') <$> simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
   U other -> fail $ "no rule to simplify: " <> show other
   Var a -> pure (Var a)
   Type -> pure Type
