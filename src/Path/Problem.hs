@@ -277,6 +277,8 @@ simplify = \case
         n <- gensym "ex"
         t2' <- simplify t2
         Exists n ::: t2' |- exists (n ::: t2') <$> simplify (tm1 === instantiate (pure n) b2)
+      Var v1 :===: t2 -> simplifyVar v1 t2
+      t1 :===: Var v2 -> simplifyVar v2 t1
       Pi t1 b1 :===: Pi t2 b2 -> do
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
@@ -302,6 +304,14 @@ simplify = \case
     f' <- simplify f
     a' <- simplify a
     pure (f' :$ a')
+
+simplifyVar :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Name Gensym -> Problem Gensym -> m (Problem Gensym)
+simplifyVar v t = do
+  v' <- lookupBinding v
+  case v' of
+    Just _ -> fail $ "rigid-rigid mismatch: " <> show v <> " vs " <> show t
+    Nothing -> fail $ "free variable: " <> show v
+
 
 data a := b = a := b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
