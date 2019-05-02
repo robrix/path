@@ -18,6 +18,7 @@ import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 data Problem a
   = Ex (Problem a) (Scope a)
+  | Let (Problem a) (Problem a) (Scope a)
   | U (Equation (Problem a))
   | Var (Name a)
   | Type
@@ -73,6 +74,7 @@ unpi _ _        = empty
 
 gfoldT :: forall m n b
        .  (forall a . n a -> n (Incr a) -> n a)
+       -> (forall a . n a -> n a -> n (Incr a) -> n a)
        -> (forall a . Equation (n a) -> n a)
        -> (forall a . Name (m a) -> n a)
        -> (forall a . n a)
@@ -82,10 +84,11 @@ gfoldT :: forall m n b
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Problem (m b)
        -> n b
-gfoldT ex u var ty lam pi app dist = go
+gfoldT ex let' u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
           Ex t (Scope b) -> ex (go t) (go (dist <$> b))
+          Let v t (Scope b) -> let' (go v) (go t) (go (dist <$> b))
           U (a :===: b) -> u (go a :===: go b)
           Var a -> var a
           Type -> ty
@@ -94,7 +97,7 @@ gfoldT ex u var ty lam pi app dist = go
           f :$ a -> go f `app` go a
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT (\ t -> Ex t . Scope) U (name id (Var . Global)) Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) (:$) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ t -> Ex t . Scope) (\ v t -> Let v t . Scope) U (name id (Var . Global)) Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) (:$) (incr (pure Z) (fmap S))
 
 
 -- | Bind occurrences of a name in a 'Value' term, producing a 'Scope' in which the name is bound.
@@ -260,6 +263,12 @@ simplify = \case
     t' <- simplify t
     b' <- Exists n ::: t' |- simplify (instantiate (pure n) b)
     pure (exists (n ::: t') b')
+  Let v t b -> do
+    n <- gensym "let"
+    v' <- simplify v
+    t' <- simplify t
+    b' <- Define (Local n := v') ::: t' |- simplify (instantiate (pure n) b)
+    pure (Let v' t' (bind n b'))
   U (t1 :===: t2) -> do
     q <- (:===:) <$> simplify t1 <*> simplify t2
     case q of
