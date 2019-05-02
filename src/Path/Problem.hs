@@ -45,6 +45,9 @@ unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unexists n (Ex t b) = pure (n ::: t, instantiate (pure n) b)
 unexists _ _        = empty
 
+let' :: Eq a => a := Problem a ::: Problem a -> Problem a -> Problem a
+let' (n := v ::: t) b = Let v t (bind n b)
+
 (===) :: Problem a -> Problem a -> Problem a
 p === q = U (p :===: q)
 
@@ -268,7 +271,7 @@ simplify = \case
     v' <- simplify v
     t' <- simplify t
     b' <- Define (Local n := v') ::: t' |- simplify (instantiate (pure n) b)
-    pure (Let v' t' (bind n b'))
+    pure (let' (n := v' ::: t') b')
   U (t1 :===: t2) -> do
     q <- (:===:) <$> simplify t1 <*> simplify t2
     case q of
