@@ -48,6 +48,10 @@ unexists _ _        = empty
 let' :: Eq a => a := Problem a ::: Problem a -> Problem a -> Problem a
 let' (n := v ::: t) b = Let v t (bind n b)
 
+unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Problem a)
+unlet' n (Let v t b) = pure (n := v ::: t, instantiate (pure n) b)
+unlet' _ _           = empty
+
 (===) :: Problem a -> Problem a -> Problem a
 p === q = U (p :===: q)
 
