@@ -23,7 +23,7 @@ data Problem a
   | Var (Name a)
   | Type
   | Lam (Problem a) (Scope a)
-  | Pi (Problem a) (Scope a)
+  | Pi (Problem a) (Problem a)
   | Problem a :$ Problem a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
@@ -68,15 +68,15 @@ unlam n (Lam t b) = pure (n ::: t, instantiate (pure n) b)
 unlam _ _         = empty
 
 pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
-pi (n ::: t) b = Pi t (bind n b)
+pi (n ::: t) b = Pi t (Lam t (bind n b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unpi n (Pi t b) = pure (n ::: t, instantiate (pure n) b)
-unpi _ _        = empty
+unpi n (Pi t (Lam _ b)) = pure (n ::: t, instantiate (pure n) b)
+unpi _ _                = empty
 
 
 gfoldT :: forall m n b
@@ -86,7 +86,7 @@ gfoldT :: forall m n b
        -> (forall a . Name (m a) -> n a)
        -> (forall a . n a)
        -> (forall a . n a -> n (Incr a) -> n a)
-       -> (forall a . n a -> n (Incr a) -> n a)
+       -> (forall a . n a -> n a -> n a)
        -> (forall a . n a -> n a -> n a)
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Problem (m b)
@@ -100,11 +100,11 @@ gfoldT ex let' u var ty lam pi app dist = go
           Var a -> var a
           Type -> ty
           Lam t (Scope b) -> lam (go t) (go (dist <$> b))
-          Pi t (Scope b) -> pi (go t) (go (dist <$> b))
+          Pi t b -> pi (go t) (go b)
           f :$ a -> go f `app` go a
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT (\ t -> Ex t . Scope) (\ v t -> Let v t . Scope) U (name id (Var . Global)) Type (\ t -> Lam t . Scope) (\ t -> Pi t . Scope) (:$) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ t -> Ex t . Scope) (\ v t -> Let v t . Scope) U (name id (Var . Global)) Type (\ t -> Lam t . Scope) Pi (:$) (incr (pure Z) (fmap S))
 
 
 -- | Bind occurrences of a name in a 'Value' term, producing a 'Scope' in which the name is bound.
@@ -296,7 +296,7 @@ simplify = \case
         Exists n ::: t2' |- exists (n ::: t2') <$> simplify (tm1 === instantiate (pure n) b2)
       Var v1 :===: t2 -> simplifyVar v1 t2
       t1 :===: Var v2 -> simplifyVar v2 t1
-      Pi t1 b1 :===: Pi t2 b2 -> do
+      Pi t1 (Lam _ b1) :===: Pi t2 (Lam _ b2) -> do
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- pi (n ::: t') <$> simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
@@ -312,11 +312,12 @@ simplify = \case
     t' <- simplify t
     b' <- ForAll n ::: t' |- simplify (instantiate (pure n) b)
     pure (lam (n ::: t') b')
-  Pi t b -> do
+  Pi t (Lam _ b) -> do
     n <- gensym "pi"
     t' <- simplify t
     b' <- ForAll n ::: t' |- simplify (instantiate (pure n) b)
     pure (pi (n ::: t') b')
+  Pi t b -> Pi <$> simplify t <*> simplify b
   f :$ a -> do
     f' <- simplify f
     a' <- simplify a
