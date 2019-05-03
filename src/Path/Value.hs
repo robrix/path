@@ -17,10 +17,10 @@ import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
 data Value a
-  = Type                                   -- ^ @'Type' : 'Type'@.
-  | Lam Plicity                  (Scope a) -- ^ A lambda abstraction.
-  | Pi (Plicit (Usage, Value a)) (Scope a) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Name a :$ Stack (Plicit (Value a))     -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  = Type                               -- ^ @'Type' : 'Type'@.
+  | Lam Plicity              (Scope a) -- ^ A lambda abstraction.
+  | Pi Usage (Value a)       (Value a) -- ^ A ∏ type, with a 'Usage' annotation.
+  | Name a :$ Stack (Plicit (Value a)) -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype Scope a = Scope (Value (Incr a))
@@ -39,8 +39,8 @@ prettyValue localName = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi (p :< (u, t)) b -> let b' = instantiate (pure (localName n)) b in Just ((p :< (localName n, u) ::: t, localName n `Set.member` fvs b'), b')
-              _                  -> Nothing)) v
+              Pi u t (Lam p b) -> let b' = instantiate (pure (localName n)) b in Just ((p :< (localName n, u) ::: t, localName n `Set.member` fvs b'), b')
+              _                -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
@@ -92,21 +92,21 @@ unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
 pi :: Eq a => Plicit (a, Usage) ::: Type a -> Value a -> Value a
-pi (p :< (n, u) ::: t) b = Pi (p :< (u, t)) (bind n b)
+pi (p :< (n, u) ::: t) b = Pi u t (Lam p (bind n b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (Plicit (a, Usage) ::: Type a) -> Value a -> Value a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Value a -> m (Plicit (a, Usage) ::: Type a, Value a)
-unpi n (Pi (p :< (u, t)) b) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
-unpi _ _                    = empty
+unpi n (Pi u t (Lam p b)) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
+unpi _ _                  = empty
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
-Lam _ b $$ (_ :< v) = instantiate v b
-Pi  _ b $$ (_ :< v) = instantiate v b
-n :$ vs $$ v        = n :$ (vs :> v)
-_       $$ _        = error "illegal application of Type"
+Lam  _ b $$ (_ :< v) = instantiate v b
+Pi _ _ b $$ v        = b $$ v
+n :$ vs  $$ v        = n :$ (vs :> v)
+_        $$ _        = error "illegal application of Type"
 
 ($$*) :: Foldable t => Value a -> t (Plicit (Value a)) -> Value a
 v $$* sp = foldl' ($$) v sp
@@ -117,7 +117,7 @@ gfoldT :: forall m n b
        -> (forall a . Name (m a) -> n a)
        -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
        -> (forall a . n a)
-       -> (forall a . Plicit (Usage, n a) -> n (Incr a) -> n a)
+       -> (forall a . Usage -> n a -> n a -> n a)
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Value (m b)
        -> n b
@@ -127,10 +127,10 @@ gfoldT lam var app ty pi dist = go
           Lam p (Scope b) -> lam p (go (dist <$> b))
           f :$ a -> app (var f) (fmap (fmap go) a)
           Type -> ty
-          Pi (p :< (m, t)) (Scope b) -> pi (p :< (m, go t)) (go (dist <$> b))
+          Pi m t b -> pi m (go t) (go b)
 
 joinT :: Value (Value a) -> Value a
-joinT = gfoldT (\ p -> Lam p . Scope) (name id global) ($$*) Type (\ p -> Pi p . Scope) (incr (pure Z) (fmap S))
+joinT = gfoldT (\ p -> Lam p . Scope) (name id global) ($$*) Type Pi (incr (pure Z) (fmap S))
 
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
