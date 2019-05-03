@@ -300,6 +300,7 @@ simplify = \case
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- pi (n ::: t') <$> simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
+      Pi t1 b1 :===: Pi t2 b2 -> Pi <$> simplify (t1 === t2) <*> simplify (b1 === b2)
       Lam t1 b1 :===: Lam t2 b2 -> do
         n <- gensym "lam"
         t' <- simplify (t1 === t2)
