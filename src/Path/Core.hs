@@ -10,15 +10,12 @@ import Text.Trifecta.Rendering (Span)
 
 data Core a
   = Var (Name a)
-  | Lam (Plicit (Maybe User)) (Scope a)
+  | Lam (Plicit (Maybe User)) (Core (Incr a))
   | Core a :$ Plicit (Core a)
   | Type
   | Pi Usage (Core a) (Core a)
   | Hole Gensym
   | Ann Span (Core a)
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-newtype Scope a = Scope (Core (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Core where
@@ -50,7 +47,7 @@ gfoldT var lam app ty pi hole ann dist = go
   where go :: Core (m x) -> n x
         go = \case
           Var a -> var a
-          Lam n (Scope b) -> lam n (go (dist <$> b))
+          Lam n b -> lam n (go (dist <$> b))
           f :$ a -> app (go f) (go <$> a)
           Type -> ty
           Pi m t b -> pi m (go t) (go b)
@@ -58,20 +55,20 @@ gfoldT var lam app ty pi hole ann dist = go
           Ann span a -> ann span (go a)
 
 joinT :: Core (Core a) -> Core a
-joinT = gfoldT (name id (Var . Global)) (\ n -> Lam n . Scope) (:$) Type Pi Hole Ann (incr (pure Z) (fmap S))
+joinT = gfoldT (name id (Var . Global)) Lam (:$) Type Pi Hole Ann (incr (pure Z) (fmap S))
 
 
 -- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
 --
---   prop> substitute a (pure b) (Lam (Scope (pure (S a)))) === Lam (Scope (pure (S b)))
+--   prop> substitute a (pure b) (Lam (pure (S a))) === Lam (pure (S b))
 substitute :: Eq a => a -> Core a -> Core a -> Core a
 substitute name image = instantiate image . bind name
 
 
--- | Bind occurrences of an 'Meta' in a 'Core' term, producing a 'Scope' in which the 'Meta' is bound.
-bind :: Eq a => a -> Core a -> Scope a
-bind name = Scope . fmap (match name)
+-- | Bind occurrences of an 'Meta' in a 'Core' term, producing a 'Core' term in which the 'Meta' is bound.
+bind :: Eq a => a -> Core a -> Core (Incr a)
+bind name = fmap (match name)
 
--- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Core' term.
-instantiate :: Core a -> Scope a -> Core a
-instantiate t (Scope b) = b >>= subst t . fmap pure
+-- | Substitute a 'Core' term for the free variable in a given 'Core' term, producing a closed 'Core' term.
+instantiate :: Core a -> Core (Incr a) -> Core a
+instantiate t b = b >>= subst t . fmap pure
