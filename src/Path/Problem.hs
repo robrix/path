@@ -17,17 +17,14 @@ import Prelude hiding (fail, pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 data Problem a
-  = Ex (Problem a) (Scope a)
-  | Let (Problem a) (Problem a) (Scope a)
+  = Ex (Problem a) (Problem (Incr a))
+  | Let (Problem a) (Problem a) (Problem (Incr a))
   | U (Equation (Problem a))
   | Var (Name a)
   | Type
-  | Lam (Problem a) (Scope a)
+  | Lam (Problem a) (Problem (Incr a))
   | Pi (Problem a) (Problem a)
   | Problem a :$ Problem a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-newtype Scope a = Scope (Problem (Incr a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Problem where
@@ -94,26 +91,26 @@ gfoldT :: forall m n b
 gfoldT ex let' u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
-          Ex t (Scope b) -> ex (go t) (go (dist <$> b))
-          Let v t (Scope b) -> let' (go v) (go t) (go (dist <$> b))
+          Ex t b -> ex (go t) (go (dist <$> b))
+          Let v t b -> let' (go v) (go t) (go (dist <$> b))
           U (a :===: b) -> u (go a :===: go b)
           Var a -> var a
           Type -> ty
-          Lam t (Scope b) -> lam (go t) (go (dist <$> b))
+          Lam t b -> lam (go t) (go (dist <$> b))
           Pi t b -> pi (go t) (go b)
           f :$ a -> go f `app` go a
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT (\ t -> Ex t . Scope) (\ v t -> Let v t . Scope) U (name id (Var . Global)) Type (\ t -> Lam t . Scope) Pi (:$) (incr (pure Z) (fmap S))
+joinT = gfoldT Ex Let U (name id (Var . Global)) Type Lam Pi (:$) (incr (pure Z) (fmap S))
 
 
--- | Bind occurrences of a name in a 'Value' term, producing a 'Scope' in which the name is bound.
-bind :: Eq a => a -> Problem a -> Scope a
-bind name = Scope . fmap (match name)
+-- | Bind occurrences of a name in a 'Value' term, producing a 'Problem' in which the name is bound.
+bind :: Eq a => a -> Problem a -> Problem (Incr a)
+bind name = fmap (match name)
 
--- | Substitute a 'Problem' term for the free variable in a given 'Scope', producing a closed 'Problem' term.
-instantiate :: Problem a -> Scope a -> Problem a
-instantiate t (Scope b) = b >>= subst t . fmap pure
+-- | Substitute a 'Problem' term for the free variable in a given 'Problem', producing a closed 'Problem' term.
+instantiate :: Problem a -> Problem (Incr a) -> Problem a
+instantiate t b = b >>= subst t . fmap pure
 
 
 type Context = Stack (Binding ::: Problem Gensym)
