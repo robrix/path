@@ -6,7 +6,7 @@ import Data.Coerce
 import qualified Data.Map as Map
 import Path.Name
 import Path.Pretty
-import Path.Value hiding (Scope(..))
+import Path.Value
 
 newtype Entry a = Entry { unEntry :: Maybe a ::: a }
   deriving (Eq, Ord, Show)

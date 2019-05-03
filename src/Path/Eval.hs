@@ -3,7 +3,7 @@ module Path.Eval where
 
 import Path.Name
 import Path.Scope as Scope
-import Path.Value as Value hiding (Scope(..))
+import Path.Value as Value
 
 -- | Evaluate a 'Value' to weak head normal form.
 --

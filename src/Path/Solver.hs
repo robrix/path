@@ -19,7 +19,7 @@ import           Path.Pretty
 import           Path.Scope as Scope hiding (null)
 import           Path.Stack
 import           Path.Usage
-import           Path.Value as Value hiding (Scope (..))
+import           Path.Value as Value
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Spanned(..))
 
