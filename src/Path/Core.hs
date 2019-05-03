@@ -13,7 +13,7 @@ data Core a
   | Lam (Plicit (Maybe User)) (Scope a)
   | Core a :$ Plicit (Core a)
   | Type
-  | Pi (Plicit (Maybe User, Usage, Core a)) (Scope a)
+  | Pi Usage (Core a) (Core a)
   | Hole Gensym
   | Ann Span (Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -40,7 +40,7 @@ gfoldT :: forall m n b
        -> (forall a . Plicit (Maybe User) -> n (Incr a) -> n a)
        -> (forall a . n a -> Plicit (n a) -> n a)
        -> (forall a . n a)
-       -> (forall a . Plicit (Maybe User, Usage, n a) -> n (Incr a) -> n a)
+       -> (forall a . Usage -> n a -> n a -> n a)
        -> (forall a . Gensym -> n a)
        -> (forall a . Span -> n a -> n a)
        -> (forall a . Incr (m a) -> m (Incr a))
@@ -53,12 +53,12 @@ gfoldT var lam app ty pi hole ann dist = go
           Lam n (Scope b) -> lam n (go (dist <$> b))
           f :$ a -> app (go f) (go <$> a)
           Type -> ty
-          Pi (p :< (n, m, t)) (Scope b) -> pi (p :< (n, m, go t)) (go (dist <$> b))
+          Pi m t b -> pi m (go t) (go b)
           Hole a -> hole a
           Ann span a -> ann span (go a)
 
 joinT :: Core (Core a) -> Core a
-joinT = gfoldT (name id (Var . Global)) (\ n -> Lam n . Scope) (:$) Type (\ p -> Pi p . Scope) Hole Ann (incr (pure Z) (fmap S))
+joinT = gfoldT (name id (Var . Global)) (\ n -> Lam n . Scope) (:$) Type Pi Hole Ann (incr (pure Z) (fmap S))
 
 
 -- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
