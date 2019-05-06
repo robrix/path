@@ -43,12 +43,12 @@ instance Pretty (Problem Gensym) where
     where go = \case
             Ex t b -> do
               n <- Meta <$> gensym "ex"
-              t' <- prettyPrec 0 <$> go t
+              t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> magenta dot <+> b'))
             Let v t b -> do
               n <- Meta <$> gensym "let"
-              t' <- prettyPrec 0 <$> go t
+              t' <- prettyPrec 1 <$> go t
               v' <- prettyPrec 0 <$> go v
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') <+> magenta dot <+> b'))
@@ -59,16 +59,16 @@ instance Pretty (Problem Gensym) where
             Type -> pure (atom (yellow (pretty "Type")))
             Lam t b -> do
               n <- Name <$> gensym "lam"
-              t' <- prettyPrec 0 <$> go t
+              t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') <+> cyan dot <+> b'))
             Pi t (Lam _ b) -> do
               n <- Name <$> gensym "pi"
-              t' <- prettyPrec 0 <$> go t
+              t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (parens (pretty (n ::: t')) <+> arrow <+> b'))
             Pi t b -> do
-              t' <- prettyPrec 0 <$> go t
+              t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go b
               pure (prec 0 (pretty t' <+> arrow <+> b'))
             f :$ a -> do
