@@ -36,6 +36,12 @@ data Decl v a = Decl
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+instance (Pretty v, Pretty a) => Pretty (Decl v a) where
+  pretty (Decl docs v a) = case docs of
+    Nothing -> pretty v <+> magenta (pretty "=") <+> pretty a
+    Just ds -> pretty ds <> hardline <> pretty v <+> magenta (pretty "=") <+> pretty a
+
+
 newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
   deriving (Eq, Ord, Show)
 
