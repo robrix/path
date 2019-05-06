@@ -403,3 +403,7 @@ bindingName (ForAll  n)       = Local n
 
 lookupBinding :: (Carrier sig m, Member (Reader Context) sig) => Name Gensym -> m (Maybe (Binding ::: Problem Gensym))
 lookupBinding n = asks (Stack.find ((== n) . bindingName . typedTerm))
+
+
+runProblem :: Functor m => StateC Context (ReaderC Span (ReaderC Context m)) a -> m a
+runProblem = runReader (mempty :: Context) . runReader (Span mempty mempty mempty) . evalState (mempty :: Context)
