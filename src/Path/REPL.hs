@@ -244,5 +244,9 @@ helpDoc = tabulate2 (space <+> space) entries
           ]
         w = align . fillSep . map pretty . words
 
-runParseModule :: FilePath -> IO (Either Doc (Module Qualified (Path.Core.Core Gensym ::: Path.Core.Core Gensym)))
-runParseModule path = runM @IO . runError @Doc $ parseModule path >>= runNaming (Root "root") . evalState (mempty :: Resolution) . resolveModule
+runParseModule :: FilePath -> (Module Qualified (Path.Core.Core Gensym ::: Path.Core.Core Gensym) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
+runParseModule path f = runM @IO . runError @Doc $ do
+  m <- parseModule path
+  runNaming (Root "root") $ do
+    m' <- evalState (mempty :: Resolution) (resolveModule m)
+    f m'
