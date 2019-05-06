@@ -372,7 +372,9 @@ simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Context) s
 simplifyVar v t = do
   v' <- lookupBinding v
   case v' of
-    Just _ -> ask >>= unsimplifiable . pure . (U (Var v :===: t) :~)
+    Just _ -> do
+      p <- contextualize (U (Var v :===: t))
+      ask >>= unsimplifiable . pure . (p :~)
     Nothing -> freeVariable v
 
 contextualize :: (Carrier sig m, Member (Reader Context) sig) => Problem Gensym -> m (Problem Gensym)
