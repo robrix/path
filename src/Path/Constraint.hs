@@ -107,13 +107,13 @@ instance Pretty (Constraint Meta) where
   pretty c = group . run . runNaming (Root "pretty") $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
     binds <- traverse prettyBind ctx
-    v1' <- prettyValue Name v1
-    v2' <- prettyValue Name v2
-    t'  <- prettyValue Name t
+    v1' <- prettyValue v1
+    v2' <- prettyValue v2
+    t'  <- prettyValue t
     pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> prettyPrec 0 v1', magenta (pretty "≡") <+> prettyPrec 0 v2', cyan colon <+> prettyPrec 0 t' ]))
     where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
-          prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyValue Name t
+          prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyValue t
 
 
 (|-) :: Eq a => a ::: Type a -> Constraint a -> Constraint a

@@ -23,11 +23,11 @@ data Value a
   | Name a :$ Stack (Plicit (Value a))  -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-prettyValue :: (Carrier sig m, Ord name, Pretty name, Member Naming sig) => (Gensym -> name) -> Value name -> m Prec
-prettyValue localName = go
+prettyValue :: (Carrier sig m, Member Naming sig) => Value Meta -> m Prec
+prettyValue = go
   where go = \case
           Lam ie b -> do
-            (as, b') <- un (orTerm (unlam . localName)) (Lam ie b)
+            (as, b') <- un (orTerm (unlam . Name)) (Lam ie b)
             b'' <- go b'
             pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
             where var vs (p :< n) rest
@@ -36,7 +36,7 @@ prettyValue localName = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi u t (Lam p b) -> let b' = instantiate (pure (localName n)) b in Just ((p :< (localName n, u) ::: t, localName n `Set.member` fvs b'), b')
+              Pi u t (Lam p b) -> let b' = instantiate (pure (Name n)) b in Just ((p :< (Name n, u) ::: t, Name n `Set.member` fvs b'), b')
               _                -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
@@ -59,7 +59,7 @@ prettyValue localName = go
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 
 instance Pretty (Value Meta) where
-  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue Name
+  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue
 
 instance Pretty (Value Gensym) where
   pretty = pretty . fmap Name
