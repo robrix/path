@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
 module Path.Problem where
 
 import Control.Applicative (Alternative(..))
@@ -12,6 +12,7 @@ import qualified Path.Core as Core
 import Path.Module
 import Path.Name
 import Path.Plicity (Plicit(..))
+import Path.Pretty
 import Path.Stack as Stack
 import Prelude hiding (fail, pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
@@ -34,6 +35,44 @@ instance Applicative Problem where
 instance Monad Problem where
   a >>= f = joinT (f <$> a)
 
+instance Pretty (Problem Gensym) where
+  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go . fmap Name
+    where go = \case
+            Ex t b -> do
+              n <- Meta <$> gensym "ex"
+              t' <- prettyPrec 0 <$> go t
+              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
+              pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> dot <+> b'))
+            Let v t b -> do
+              n <- Meta <$> gensym "let"
+              t' <- prettyPrec 0 <$> go t
+              v' <- prettyPrec 0 <$> go v
+              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
+              pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') <+> dot <+> b'))
+            U q -> do
+              q' <- traverse go q
+              pure (prec 0 (pretty (prettyPrec 0 <$> q')))
+            Var n -> pure (atom (pretty n))
+            Type -> pure (atom (yellow (pretty "Type")))
+            Lam t b -> do
+              n <- Name <$> gensym "lam"
+              t' <- prettyPrec 0 <$> go t
+              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
+              pure (prec 0 (pretty "λ" <+> pretty (n ::: t') <+> dot <+> b'))
+            Pi t (Lam _ b) -> do
+              n <- Name <$> gensym "pi"
+              t' <- prettyPrec 0 <$> go t
+              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
+              pure (prec 0 (parens (pretty (n ::: t')) <+> arrow <+> b'))
+            Pi t b -> do
+              t' <- prettyPrec 0 <$> go t
+              b' <- prettyPrec 0 <$> go b
+              pure (prec 0 (pretty t' <+> arrow <+> b'))
+            f :$ a -> do
+              f' <- prettyPrec 10 <$> go f
+              a' <- prettyPrec 11 <$> go a
+              pure (prec 10 (f' <+> a'))
+          arrow = blue (pretty "->")
 
 exists :: Eq a => a ::: Problem a -> Problem a -> Problem a
 exists (n ::: t) b = Ex t (bind n b)
