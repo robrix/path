@@ -383,9 +383,9 @@ contextualize :: (Carrier sig m, Member (Reader Context) sig) => Problem Gensym 
 contextualize = asks . go
   where go p Nil = p
         go p (ctx :> Define (Local n := v) ::: t) = go (let' (n := v ::: t) p) ctx
-        go p (ctx :> Define _ ::: _) = go p ctx
-        go p (ctx :> Exists n ::: t) = go (exists (n ::: t) p) ctx
-        go p (ctx :> ForAll n ::: t) = go (lam (n ::: t) p) ctx
+        go p (ctx :> Define _              ::: _) = go p ctx
+        go p (ctx :> Exists n              ::: t) = go (exists (n ::: t) p) ctx
+        go p (ctx :> ForAll n              ::: t) = go (lam (n ::: t) p) ctx
 
 
 unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
