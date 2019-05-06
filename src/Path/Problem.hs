@@ -372,11 +372,11 @@ simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Context) s
 simplifyVar v t = do
   v' <- lookupBinding v
   case v' of
-    Just _ -> asks (pure . ((Var v :===: t) :~)) >>= unsimplifiable
+    Just _ -> ask >>= unsimplifiable . pure . (U (Var v :===: t) :~)
     Nothing -> freeVariable v
 
 
-unsimplifiable :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Equation (Problem Gensym))] -> m a
+unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
 unsimplifiable constraints = throwError (fold (intersperse hardline (map format constraints)))
   where format (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty c]
 
