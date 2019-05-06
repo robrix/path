@@ -18,6 +18,7 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
+import qualified Path.Core
 import Path.Elab
 import Path.Eval
 import Path.Module as Module
@@ -242,3 +243,6 @@ helpDoc = tabulate2 (space <+> space) entries
           , (":type, :t <expr>", w "show the type of <expr>")
           ]
         w = align . fillSep . map pretty . words
+
+runParseModule :: FilePath -> IO (Either Doc (Module Qualified (Path.Core.Core Gensym ::: Path.Core.Core Gensym)))
+runParseModule path = runM @IO . runError @Doc $ parseModule path >>= runNaming (Root "root") . evalState (mempty :: Resolution) . resolveModule
