@@ -54,7 +54,7 @@ instance Pretty (Problem Gensym) where
               pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') <+> magenta dot <+> b'))
             U q -> do
               q' <- traverse go q
-              pure (prec 0 (pretty (prettyPrec 0 <$> q')))
+              pure (prec 0 (pretty (prettyPrec 1 <$> q')))
             Var (Global (_ :.: n)) -> pure (atom (pretty n))
             Var (Local (Name n)) -> pure (atom (pretty '_' <> pretty n))
             Var (Local n) -> pure (atom (pretty n))
