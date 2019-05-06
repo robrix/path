@@ -55,7 +55,9 @@ instance Pretty (Problem Gensym) where
             U q -> do
               q' <- traverse go q
               pure (prec 0 (pretty (prettyPrec 0 <$> q')))
-            Var n -> pure (atom (pretty n))
+            Var (Global (_ :.: n)) -> pure (atom (pretty n))
+            Var (Local (Name n)) -> pure (atom (pretty '_' <> pretty n))
+            Var (Local n) -> pure (atom (pretty n))
             Type -> pure (atom (yellow (pretty "Type")))
             Lam t b -> do
               n <- Name <$> gensym "lam"
