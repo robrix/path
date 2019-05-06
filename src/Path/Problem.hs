@@ -3,18 +3,21 @@ module Path.Problem where
 
 import Control.Applicative (Alternative(..))
 import Control.Effect
-import Control.Effect.Fail
+import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Control.Monad (ap)
+import Data.Foldable (fold)
+import Data.List (intersperse)
 import Path.Constraint (Equation(..))
 import qualified Path.Core as Core
+import Path.Error
 import Path.Module
 import Path.Name
 import Path.Plicity (Plicit(..))
 import Path.Pretty
 import Path.Stack as Stack
-import Prelude hiding (fail, pi)
+import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 data Problem a
@@ -155,8 +158,9 @@ instantiate t b = b >>= subst t . fmap pure
 type Context = Stack (Binding ::: Problem Gensym)
 
 assume :: ( Carrier sig m
+          , Member (Error Doc) sig
           , Member (Reader Context) sig
-          , MonadFail m
+          , Member (Reader Span) sig
           )
        => Name Gensym
        -> m (Problem Gensym ::: Problem Gensym)
@@ -229,12 +233,13 @@ meta ty = do
 infix 3 |-
 
 have :: ( Carrier sig m
+        , Member (Error Doc) sig
         , Member (Reader Context) sig
-        , MonadFail m
+        , Member (Reader Span) sig
         )
      => Name Gensym
      -> m (Problem Gensym)
-have n = lookup n >>= maybe (fail ("free variable: " <> show n)) pure
+have n = lookup n >>= maybe (freeVariable n) pure
   where lookup n = fmap typedType <$> lookupBinding n
 
 
@@ -242,10 +247,10 @@ spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
 elab :: ( Carrier sig m
+        , Member (Error Doc) sig
         , Member Naming sig
         , Member (Reader Context) sig
         , Member (Reader Span) sig
-        , MonadFail m
         )
      => Core.Core Gensym
      -> m (Problem Gensym ::: Problem Gensym)
@@ -260,9 +265,9 @@ elab = \case
   Core.Ann ann b -> spanIs ann (elab b)
 
 elabDecl :: ( Carrier sig m
+            , Member (Error Doc) sig
             , Member Naming sig
             , Member (State Context) sig
-            , MonadFail m
             )
          => Spanned (Decl Qualified (Core.Core Gensym ::: Core.Core Gensym))
          -> m (Spanned (Decl Qualified (Problem Gensym ::: Problem Gensym)))
@@ -275,18 +280,20 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
   pure (Decl d name (tm' ::: ty'))
 
 declare :: ( Carrier sig m
+           , Member (Error Doc) sig
            , Member Naming sig
            , Member (Reader Context) sig
-           , MonadFail m
+           , Member (Reader Span) sig
            )
         => m (Problem Gensym ::: Problem Gensym)
         -> m (Problem Gensym)
 declare ty = goalIs Type ty >>= simplify
 
 define :: ( Carrier sig m
+          , Member (Error Doc) sig
           , Member Naming sig
           , Member (Reader Context) sig
-          , MonadFail m
+          , Member (Reader Span) sig
           )
        => Problem Gensym
        -> m (Problem Gensym ::: Problem Gensym)
@@ -295,9 +302,10 @@ define ty tm = goalIs ty tm >>= simplify
 
 
 simplify :: ( Carrier sig m
+            , Member (Error Doc) sig
             , Member Naming sig
             , Member (Reader Context) sig
-            , MonadFail m
+            , Member (Reader Span) sig
             )
          => Problem Gensym
          -> m (Problem Gensym)
@@ -341,7 +349,7 @@ simplify = \case
         n <- gensym "lam"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- lam (n ::: t') <$> simplify (instantiate (pure n) b1 === instantiate (pure n) b2)
-      other -> fail $ "no rule to simplify: " <> show other
+      other -> pure (U other)
   Var a -> pure (Var a)
   Type -> pure Type
   Lam t b -> do
@@ -360,12 +368,17 @@ simplify = \case
     a' <- simplify a
     pure (f' :$ a')
 
-simplifyVar :: (Carrier sig m, Member (Reader Context) sig, MonadFail m) => Name Gensym -> Problem Gensym -> m (Problem Gensym)
+simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Context) sig, Member (Reader Span) sig) => Name Gensym -> Problem Gensym -> m (Problem Gensym)
 simplifyVar v t = do
   v' <- lookupBinding v
   case v' of
-    Just _ -> fail $ "rigid-rigid mismatch: " <> show v <> " vs " <> show t
-    Nothing -> fail $ "free variable: " <> show v
+    Just _ -> asks (pure . ((Var v :===: t) :~)) >>= unsimplifiable
+    Nothing -> freeVariable v
+
+
+unsimplifiable :: (Carrier sig m, Member (Error Doc) sig) => [Spanned (Equation (Problem Gensym))] -> m a
+unsimplifiable constraints = throwError (fold (intersperse hardline (map format constraints)))
+  where format (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty c]
 
 
 data a := b = a := b
