@@ -62,7 +62,7 @@ instance Pretty (Value Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue Name
 
 instance Pretty (Value Gensym) where
-  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue id
+  pretty = pretty . fmap Name
 
 instance Ord a => FreeVariables a (Value a) where
   fvs = foldMap Set.singleton
