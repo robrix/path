@@ -374,6 +374,7 @@ simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Context) s
 simplifyVar v t = do
   v' <- lookupBinding (Local (Meta v))
   case v' of
+    Just (Exists n ::: _) -> pure (pure (Meta n) === t) -- FIXME: solve n with t
     Just _ -> do
       p <- contextualize (U (pure (Meta v) :===: t))
       ask >>= unsimplifiable . pure . (p :~)
