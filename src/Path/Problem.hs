@@ -340,8 +340,8 @@ simplify = \case
         n <- gensym "ex"
         t2' <- simplify t2
         Exists n ::: t2' |- exists (Meta n ::: t2') <$> simplify (tm1 === instantiate (pure (Meta n)) b2)
-      Var (Local (Meta v1)) :===: t2 -> simplifyVar v1 t2
-      t1 :===: Var (Local (Meta v2)) -> simplifyVar v2 t1
+      Var (Local (Meta v1)) :===: t2 -> simplifyVar (Meta v1) t2
+      t1 :===: Var (Local (Meta v2)) -> simplifyVar (Meta v2) t1
       Pi t1 (Lam _ b1) :===: Pi t2 (Lam _ b2) -> do
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
@@ -370,13 +370,13 @@ simplify = \case
     a' <- simplify a
     pure (f' :$ a')
 
-simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Context) sig, Member (Reader Span) sig) => Gensym -> Problem Meta -> m (Problem Meta)
+simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Context) sig, Member (Reader Span) sig) => Meta -> Problem Meta -> m (Problem Meta)
 simplifyVar v t = do
-  v' <- lookupBinding (Local (Meta v))
+  v' <- lookupBinding (Local v)
   case v' of
     Just (Exists n ::: _) -> pure (pure (Meta n) === t) -- FIXME: solve n with t
     Just _ -> do
-      p <- contextualize (U (pure (Meta v) :===: t))
+      p <- contextualize (U (pure v :===: t))
       ask >>= unsimplifiable . pure . (p :~)
     Nothing -> freeVariable v
 
