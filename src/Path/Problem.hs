@@ -413,7 +413,7 @@ data Binding
 
 bindingName :: Binding -> Name Meta
 bindingName (Define (n := _)) = n
-bindingName (Exists  n)       = Local (Name n)
+bindingName (Exists  n)       = Local (Meta n)
 bindingName (ForAll  n)       = Local (Name n)
 
 lookupBinding :: (Carrier sig m, Member (Reader Context) sig) => Name Meta -> m (Maybe (Binding ::: Problem Meta))
