@@ -20,6 +20,8 @@ import Path.Stack as Stack
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
+-- FIXME: represent errors explicitly in the tree
+-- FIXME: represent spans explicitly in the tree
 data Problem a
   = Ex (Problem a) (Problem (Incr a))
   | Let (Problem a) (Problem a) (Problem (Incr a))
