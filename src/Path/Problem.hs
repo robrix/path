@@ -241,15 +241,12 @@ b |- m = do
 infix 3 |-
 
 bindMeta :: (Carrier sig m, Member (State Context) sig) => Gensym ::: Problem Meta -> m a -> m (Binding, a)
-bindMeta (e ::: t) m = do
-  modify (:> Exists e ::: t)
+bindMeta (e ::: t) m = Exists e ::: t |- do
   a <- m
-  stack <- get
+  stack <- get @Context
   case stack of
     Nil -> pure (Exists e, a)
-    stack' :> e' ::: _ -> do
-      put (stack' `asTypeOf` Nil :> Exists e ::: t)
-      pure (e', a)
+    _ :> e' ::: _ -> pure (e', a)
 
 solve :: (Carrier sig m, Member (State Context) sig) => Gensym -> Problem Meta -> m ()
 solve var val = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (Meta var) then Define (Local (Meta var) := val) else b) ::: (t `asTypeOf` val)))
