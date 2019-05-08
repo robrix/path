@@ -21,3 +21,6 @@ instance Effect (Stack e) where
 
 push :: (Carrier sig m, Member (Stack e) sig) => e -> m a -> m (e, a)
 push e m = send (Push e m (curry pure))
+
+mapStack :: (Carrier sig m, Member (Stack e) sig) => (e -> e) -> m ()
+mapStack f = send (Map f (pure ()))
