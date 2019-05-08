@@ -13,7 +13,8 @@ extra-source-files:  README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:     Path.CLI
+  exposed-modules:     Control.Effect.Stack
+                     , Path.CLI
                      , Path.Constraint
                      , Path.Context
                      , Path.Core
