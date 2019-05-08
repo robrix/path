@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
 import Control.Applicative (Alternative(..))
@@ -246,6 +246,9 @@ bindMeta (e ::: t) m = do
     stack' :> e' ::: _ -> do
       put (stack' `asTypeOf` Nil :> Exists e ::: t)
       pure (e', a)
+
+solve :: (Carrier sig m, Member (State Context) sig) => Gensym -> Problem Meta -> m ()
+solve var val = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (Meta var) then Define (Local (Meta var) := val) else b) ::: (t `asTypeOf` val)))
 
 have :: ( Carrier sig m
         , Member (Error Doc) sig
