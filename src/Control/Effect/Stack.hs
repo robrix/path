@@ -1,8 +1,10 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, GeneralizedNewtypeDeriving, StandaloneDeriving #-}
 module Control.Effect.Stack where
 
 import Control.Effect.Carrier
+import Control.Effect.State
 import Control.Effect.Sum
+import qualified Path.Stack as Stack
 
 data Stack e m k
   = forall a . Push e (m a) (e -> a -> k)
@@ -24,3 +26,7 @@ push e m = send (Push e m (curry pure))
 
 mapStack :: (Carrier sig m, Member (Stack e) sig) => (e -> e) -> m ()
 mapStack f = send (Map f (pure ()))
+
+
+newtype StackC e m a = StackC { runStackC :: StateC (Stack.Stack e) m a }
+  deriving (Applicative, Functor, Monad)
