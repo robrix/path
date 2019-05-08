@@ -1,7 +1,8 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
 module Control.Effect.Stack where
 
 import Control.Effect.Carrier
+import Control.Effect.Sum
 
 data Stack e m k
   = forall a . Push e (m a) (e -> a -> k)
@@ -16,3 +17,7 @@ instance HFunctor (Stack e) where
 instance Effect (Stack e) where
   handle state handler (Push e m k) = Push e (handler (m <$ state)) (fmap handler . fmap . k)
   handle state handler (Map f    k) = Map f (handler (k <$ state))
+
+
+push :: (Carrier sig m, Member (Stack e) sig) => e -> m a -> m (e, a)
+push e m = send (Push e m (curry pure))
