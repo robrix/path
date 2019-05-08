@@ -236,6 +236,17 @@ meta ty = do
 
 infix 3 |-
 
+bindMeta :: (Carrier sig m, Member (State Context) sig) => Gensym ::: Problem Meta -> m a -> m (Binding, a)
+bindMeta (e ::: t) m = do
+  modify (:> Exists e ::: t)
+  a <- m
+  stack <- get
+  case stack of
+    Nil -> pure (Exists e, a)
+    stack' :> e' ::: _ -> do
+      put (stack' `asTypeOf` Nil :> Exists e ::: t)
+      pure (e', a)
+
 have :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member (Reader Context) sig
