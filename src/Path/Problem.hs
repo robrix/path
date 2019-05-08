@@ -163,8 +163,8 @@ type Context = Stack (Binding ::: Problem Meta)
 
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
-          , Member (Reader Context) sig
           , Member (Reader Span) sig
+          , Member (State Context) sig
           )
        => Name Gensym
        -> m (Problem Meta ::: Problem Meta)
@@ -174,7 +174,7 @@ assume v = do
 
 intro :: ( Carrier sig m
          , Member Naming sig
-         , Member (Reader Context) sig
+         , Member (State Context) sig
          )
       => (Gensym -> m (Problem Meta ::: Problem Meta))
       -> m (Problem Meta ::: Problem Meta)
@@ -187,7 +187,7 @@ intro body = do
 
 (-->) :: ( Carrier sig m
          , Member Naming sig
-         , Member (Reader Context) sig
+         , Member (State Context) sig
          )
       => m (Problem Meta ::: Problem Meta)
       -> (Gensym -> m (Problem Meta ::: Problem Meta))
@@ -200,7 +200,7 @@ t --> body = do
 
 app :: ( Carrier sig m
        , Member Naming sig
-       , Member (Reader Context) sig
+       , Member (State Context) sig
        )
     => m (Problem Meta ::: Problem Meta)
     -> m (Problem Meta ::: Problem Meta)
@@ -231,8 +231,12 @@ meta ty = do
   n <- gensym "meta"
   pure (exists (Meta n ::: ty) (pure (Meta n)))
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem Meta -> m a -> m a
-(|-) = local . flip (:>)
+(|-) :: (Carrier sig m, Member (State Context) sig) => Binding ::: Problem Meta -> m a -> m a
+b |- m = do
+  stack <- get
+  put (stack :> b)
+  a <- m
+  a <$ put stack
 
 infix 3 |-
 
@@ -252,8 +256,8 @@ solve var val = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (
 
 have :: ( Carrier sig m
         , Member (Error Doc) sig
-        , Member (Reader Context) sig
         , Member (Reader Span) sig
+        , Member (State Context) sig
         )
      => Name Gensym
      -> m (Problem Meta)
@@ -267,8 +271,8 @@ spanIs span = local (const span)
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member Naming sig
-        , Member (Reader Context) sig
         , Member (Reader Span) sig
+        , Member (State Context) sig
         )
      => Core.Core Gensym
      -> m (Problem Meta ::: Problem Meta)
@@ -300,8 +304,8 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
 declare :: ( Carrier sig m
            , Member (Error Doc) sig
            , Member Naming sig
-           , Member (Reader Context) sig
            , Member (Reader Span) sig
+           , Member (State Context) sig
            )
         => m (Problem Meta ::: Problem Meta)
         -> m (Problem Meta)
@@ -310,8 +314,8 @@ declare ty = goalIs Type ty >>= simplify
 define :: ( Carrier sig m
           , Member (Error Doc) sig
           , Member Naming sig
-          , Member (Reader Context) sig
           , Member (Reader Span) sig
+          , Member (State Context) sig
           )
        => Problem Meta
        -> m (Problem Meta ::: Problem Meta)
@@ -322,8 +326,8 @@ define ty tm = goalIs ty tm >>= simplify
 simplify :: ( Carrier sig m
             , Member (Error Doc) sig
             , Member Naming sig
-            , Member (Reader Context) sig
             , Member (Reader Span) sig
+            , Member (State Context) sig
             )
          => Problem Meta
          -> m (Problem Meta)
@@ -386,7 +390,7 @@ simplify = \case
     a' <- simplify a
     pure (f' :$ a')
 
-simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Context) sig, Member (Reader Span) sig) => Meta -> Problem Meta -> m (Problem Meta)
+simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Meta -> Problem Meta -> m (Problem Meta)
 simplifyVar v t = do
   v' <- lookupBinding (Local v)
   case v' of
@@ -396,8 +400,8 @@ simplifyVar v t = do
       ask >>= unsimplifiable . pure . (p :~)
     Nothing -> freeVariable v
 
-contextualize :: (Carrier sig m, Member (Reader Context) sig) => Problem Meta -> m (Problem Meta)
-contextualize = asks . go
+contextualize :: (Carrier sig m, Member (State Context) sig) => Problem Meta -> m (Problem Meta)
+contextualize = gets . go
   where go p Nil = p
         go p (ctx :> Define (Local n := v) ::: t) = go (let' (n := v ::: t) p) ctx
         go p (ctx :> Define _              ::: _) = go p ctx
@@ -430,8 +434,8 @@ bindingName (Define (n := _)) = n
 bindingName (Exists  n)       = Local (Meta n)
 bindingName (ForAll  n)       = Local (Name n)
 
-lookupBinding :: (Carrier sig m, Member (Reader Context) sig) => Name Meta -> m (Maybe (Binding ::: Problem Meta))
-lookupBinding n = asks (Stack.find ((== n) . bindingName . typedTerm))
+lookupBinding :: (Carrier sig m, Member (State Context) sig) => Name Meta -> m (Maybe (Binding ::: Problem Meta))
+lookupBinding n = gets (Stack.find ((== n) . bindingName . typedTerm))
 
 
 runProblem :: Functor m => StateC Context (ReaderC Span (ReaderC Context m)) a -> m a
