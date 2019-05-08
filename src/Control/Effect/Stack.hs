@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Control.Effect.Stack where
 
 import Control.Effect.Carrier
@@ -30,3 +30,16 @@ mapStack f = send (Map f (pure ()))
 
 newtype StackC e m a = StackC { runStackC :: StateC (Stack.Stack e) m a }
   deriving (Applicative, Functor, Monad)
+
+instance (Carrier sig m, Effect sig) => Carrier (Stack e :+: sig) (StackC e m) where
+  eff (L (Push e m k)) = do
+    StackC (modify (Stack.:> e))
+    a <- m
+    stack <- StackC get
+    case stack of
+      Stack.Nil -> k e a
+      stack Stack.:> e' -> do
+        StackC (put stack)
+        k e' a
+  eff (L (Map f k)) = StackC (modify (fmap @Stack.Stack f)) *> k
+  eff (R other) = StackC (eff (R (handleCoercible other)))
