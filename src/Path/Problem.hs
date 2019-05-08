@@ -438,5 +438,5 @@ lookupBinding :: (Carrier sig m, Member (State Context) sig) => Name Meta -> m (
 lookupBinding n = gets (Stack.find ((== n) . bindingName . typedTerm))
 
 
-runProblem :: Functor m => StateC Context (ReaderC Span (ReaderC Context m)) a -> m a
-runProblem = runReader (mempty :: Context) . runReader (Span mempty mempty mempty) . evalState (mempty :: Context)
+runProblem :: Functor m => ReaderC Span (StateC Context m) a -> m a
+runProblem = evalState (mempty :: Context) . runReader (Span mempty mempty mempty)
