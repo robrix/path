@@ -248,8 +248,8 @@ bindMeta (e ::: t) m = Exists e ::: t |- do
     Nil -> pure (Exists e, a)
     _ :> e' ::: _ -> pure (e', a)
 
-solve :: (Carrier sig m, Member (State Context) sig) => Gensym -> Problem Meta -> m ()
-solve var val = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (Meta var) then Define (Local (Meta var) := val) else b) ::: (t `asTypeOf` val)))
+solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Problem Meta -> m ()
+solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (Meta var) then Define (Local (Meta var) := val) else b) ::: (t `asTypeOf` val)))
 
 have :: ( Carrier sig m
         , Member (Error Doc) sig
