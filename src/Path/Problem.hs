@@ -23,8 +23,7 @@ import Text.Trifecta.Rendering (Span(..), Spanned(..))
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
 data Problem a
-  = Ex (Problem a) (Problem (Incr a))
-  | Let (Problem a) (Problem a) (Problem (Incr a))
+  = Ex (Maybe (Problem a)) (Problem a) (Problem (Incr a))
   | U (Equation (Problem a))
   | Var (Name a)
   | Type
@@ -43,12 +42,12 @@ instance Monad Problem where
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
     where go = \case
-            Ex t b -> do
+            Ex Nothing t b -> do
               n <- Meta <$> gensym "ex"
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> magenta dot </> b'))
-            Let v t b -> do
+            Ex (Just v) t b -> do
               n <- Meta <$> gensym "let"
               t' <- prettyPrec 1 <$> go t
               v' <- prettyPrec 0 <$> go v
@@ -82,18 +81,18 @@ instance Pretty (Problem Meta) where
           arrow = blue (pretty "->")
 
 exists :: Eq a => a ::: Problem a -> Problem a -> Problem a
-exists (n ::: t) b = Ex t (bind n b)
+exists (n ::: t) b = Ex Nothing t (bind n b)
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unexists n (Ex t b) = pure (n ::: t, instantiate (pure n) b)
+unexists n (Ex Nothing t b) = pure (n ::: t, instantiate (pure n) b)
 unexists _ _        = empty
 
 let' :: Eq a => a := Problem a ::: Problem a -> Problem a -> Problem a
-let' (n := v ::: t) b = Let v t (bind n b)
+let' (n := v ::: t) b = Ex (Just v) t (bind n b)
 
 unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Problem a)
-unlet' n (Let v t b) = pure (n := v ::: t, instantiate (pure n) b)
-unlet' _ _           = empty
+unlet' n (Ex (Just v) t b) = pure (n := v ::: t, instantiate (pure n) b)
+unlet' _ _                 = empty
 
 (===) :: Problem a -> Problem a -> Problem a
 p === q = U (p :===: q)
@@ -123,8 +122,7 @@ unpi _ _                = empty
 
 
 gfoldT :: forall m n b
-       .  (forall a . n a -> n (Incr a) -> n a)
-       -> (forall a . n a -> n a -> n (Incr a) -> n a)
+       .  (forall a . Maybe (n a) -> n a -> n (Incr a) -> n a)
        -> (forall a . Equation (n a) -> n a)
        -> (forall a . Name (m a) -> n a)
        -> (forall a . n a)
@@ -134,11 +132,10 @@ gfoldT :: forall m n b
        -> (forall a . Incr (m a) -> m (Incr a))
        -> Problem (m b)
        -> n b
-gfoldT ex let' u var ty lam pi app dist = go
+gfoldT ex u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
-          Ex t b -> ex (go t) (go (dist <$> b))
-          Let v t b -> let' (go v) (go t) (go (dist <$> b))
+          Ex v t b -> ex (go <$> v) (go t) (go (dist <$> b))
           U (a :===: b) -> u (go a :===: go b)
           Var a -> var a
           Type -> ty
@@ -147,7 +144,7 @@ gfoldT ex let' u var ty lam pi app dist = go
           f :$ a -> go f `app` go a
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT Ex Let U (name id (Var . Global)) Type Lam Pi (:$) (incr (pure Z) (fmap S))
+joinT = gfoldT Ex U (name id (Var . Global)) Type Lam Pi (:$) (incr (pure Z) (fmap S))
 
 
 -- | Bind occurrences of a name in a 'Value' term, producing a 'Problem' in which the name is bound.
@@ -241,11 +238,11 @@ b |- m = do
 infix 3 |-
 
 bindMeta :: (Carrier sig m, Member (State Context) sig) => Gensym ::: Problem Meta -> m a -> m (Binding, a)
-bindMeta (e ::: t) m = Exists e ::: t |- do
+bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
   a <- m
   stack <- get @Context
   case stack of
-    Nil -> pure (Exists e, a)
+    Nil -> pure (Exists (e := Nothing), a)
     _ :> e' ::: _ -> pure (e', a)
 
 solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Problem Meta -> m ()
@@ -329,14 +326,14 @@ simplify :: ( Carrier sig m
          => Problem Meta
          -> m (Problem Meta)
 simplify = \case
-  Ex t b -> do
+  Ex Nothing t b -> do
     n <- gensym "ex"
     t' <- simplify t
     (v, b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b)
     case v of
       Define (_ := v') -> pure (let' (Meta n := v' ::: t') b')
       _ -> pure (exists (Meta n ::: t') b')
-  Let v t b -> do
+  Ex (Just v) t b -> do
     n <- gensym "let"
     v' <- simplify v
     t' <- simplify t
@@ -346,19 +343,21 @@ simplify = \case
     q <- (:===:) <$> simplify t1 <*> simplify t2
     case q of
       t1 :===: t2 | t1 == t2 -> pure t1
-      Ex t1 b1 :===: Ex t2 b2 -> do
+      Ex v1 t1 b1 :===: Ex v2 t2 b2 -> do
         n <- gensym "ex"
         t' <- simplify (t1 === t2)
-        b' <- Exists n ::: t' |- simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
+        (_, b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
         pure (exists (Meta n ::: t') b')
-      Ex t1 b1 :===: tm2 -> do
+      Ex v1 t1 b1 :===: tm2 -> do
         n <- gensym "ex"
         t1' <- simplify t1
-        Exists n ::: t1' |- exists (Meta n ::: t1') <$> simplify (instantiate (pure (Meta n)) b1 === tm2)
-      tm1 :===: Ex t2 b2 -> do
+        (_, tm1') <- (n ::: t1') `bindMeta` (exists (Meta n ::: t1') <$> simplify (instantiate (pure (Meta n)) b1 === tm2))
+        pure tm1'
+      tm1 :===: Ex v2 t2 b2 -> do
         n <- gensym "ex"
         t2' <- simplify t2
-        Exists n ::: t2' |- exists (Meta n ::: t2') <$> simplify (tm1 === instantiate (pure (Meta n)) b2)
+        (_, tm2') <- (n ::: t2') `bindMeta` (exists (Meta n ::: t2') <$> simplify (tm1 === instantiate (pure (Meta n)) b2))
+        pure tm2'
       Var (Local (Meta v1)) :===: t2 -> simplifyVar (Meta v1) t2
       t1 :===: Var (Local (Meta v2)) -> simplifyVar (Meta v2) t1
       Pi t1 (Lam _ b1) :===: Pi t2 (Lam _ b2) -> do
@@ -394,7 +393,7 @@ simplifyVar v t = do
   v' <- lookupBinding (Local v)
   case v' of
     -- FIXME: occurs check
-    Just (Exists n ::: _) -> t <$ solve (n := t)
+    Just (Exists (n := _) ::: _) -> t <$ solve (n := t)
     Just _ -> do
       p <- contextualize (U (pure v :===: t))
       ask >>= unsimplifiable . pure . (p :~)
@@ -405,7 +404,8 @@ contextualize = gets . go
   where go p Nil = p
         go p (ctx :> Define (Local n := v) ::: t) = go (let' (n := v ::: t) p) ctx
         go p (ctx :> Define _              ::: _) = go p ctx
-        go p (ctx :> Exists n              ::: t) = go (exists (Meta n ::: t) p) ctx
+        go p (ctx :> Exists (n := Nothing) ::: t) = go (exists (Meta n ::: t) p) ctx
+        go p (ctx :> Exists (n := Just v)  ::: t) = go (let' (Meta n := v ::: t) p) ctx
         go p (ctx :> ForAll n              ::: t) = go (lam (Name n ::: t) p) ctx
 
 
@@ -425,13 +425,13 @@ instance (Pretty a, Pretty b) => Pretty (a := b) where
 
 data Binding
   = Define (Name Meta := Problem Meta)
-  | Exists Gensym
+  | Exists (Gensym := Maybe (Problem Meta))
   | ForAll Gensym
   deriving (Eq, Ord, Show)
 
 bindingName :: Binding -> Name Meta
 bindingName (Define (n := _)) = n
-bindingName (Exists  n)       = Local (Meta n)
+bindingName (Exists (n := _)) = Local (Meta n)
 bindingName (ForAll  n)       = Local (Name n)
 
 lookupBinding :: (Carrier sig m, Member (State Context) sig) => Name Meta -> m (Maybe (Binding ::: Problem Meta))
