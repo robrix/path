@@ -246,7 +246,7 @@ bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
     _ :> e' ::: _ -> pure (e', a)
 
 solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Problem Meta -> m ()
-solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (Meta var) then Define (Local (Meta var) := val) else b) ::: (t `asTypeOf` val)))
+solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (Meta var) then Exists (var := Just val) else b) ::: (t `asTypeOf` val)))
 
 have :: ( Carrier sig m
         , Member (Error Doc) sig
@@ -331,13 +331,13 @@ simplify = \case
     t' <- simplify t
     (v, b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b)
     case v of
-      Define (_ := v') -> pure (let' (Meta n := v' ::: t') b')
+      Exists (_ := Just v') -> pure (let' (Meta n := v' ::: t') b')
       _ -> pure (exists (Meta n ::: t') b')
   Ex (Just v) t b -> do
     n <- gensym "let"
     v' <- simplify v
     t' <- simplify t
-    b' <- Define (Local (Meta n) := v') ::: t' |- simplify (instantiate (pure (Meta n)) b)
+    b' <- Exists (n := Just v') ::: t' |- simplify (instantiate (pure (Meta n)) b)
     pure (let' (Meta n := v' ::: t') b')
   U (t1 :===: t2) -> do
     q <- (:===:) <$> simplify t1 <*> simplify t2
