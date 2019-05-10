@@ -332,8 +332,10 @@ simplify = \case
   Ex t b -> do
     n <- gensym "ex"
     t' <- simplify t
-    b' <- Exists n ::: t' |- simplify (instantiate (pure (Meta n)) b)
-    pure (exists (Meta n ::: t') b')
+    (v, b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b)
+    case v of
+      Define (_ := v') -> pure (let' (Meta n := v' ::: t') b')
+      _ -> pure (exists (Meta n ::: t') b')
   Let v t b -> do
     n <- gensym "let"
     v' <- simplify v
