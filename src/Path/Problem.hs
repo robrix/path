@@ -291,8 +291,8 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
   ctx <- get
   ty' <- runReader ctx (declare    (elab ty))
   def <- meta ty'
-  tm' <- runReader (ctx :> Define (Global name := def) ::: ty') (define ty' (elab tm))
-  put (ctx :> Define (Global name := tm') ::: ty')
+  tm' <- runReader (ctx :> Define (name := def) ::: ty') (define ty' (elab tm))
+  put (ctx :> Define (name := tm') ::: ty')
   pure (Decl d name (tm' ::: ty'))
 
 declare :: ( Carrier sig m
@@ -402,7 +402,6 @@ simplifyVar v t = do
 contextualize :: (Carrier sig m, Member (State Context) sig) => Problem Meta -> m (Problem Meta)
 contextualize = gets . go
   where go p Nil = p
-        go p (ctx :> Define (Local n := v) ::: t) = go (let' (n := v ::: t) p) ctx
         go p (ctx :> Define _              ::: _) = go p ctx
         go p (ctx :> Exists (n := Nothing) ::: t) = go (exists (Meta n ::: t) p) ctx
         go p (ctx :> Exists (n := Just v)  ::: t) = go (let' (Meta n := v ::: t) p) ctx
@@ -424,13 +423,13 @@ instance (Pretty a, Pretty b) => Pretty (a := b) where
 
 
 data Binding
-  = Define (Name Meta := Problem Meta)
+  = Define (Qualified := Problem Meta)
   | Exists (Gensym := Maybe (Problem Meta))
   | ForAll Gensym
   deriving (Eq, Ord, Show)
 
 bindingName :: Binding -> Name Meta
-bindingName (Define (n := _)) = n
+bindingName (Define (n := _)) = Global n
 bindingName (Exists (n := _)) = Local (Meta n)
 bindingName (ForAll  n)       = Local (Name n)
 
