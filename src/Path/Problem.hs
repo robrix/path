@@ -418,7 +418,7 @@ data a := b = a := b
 infix 1 :=
 
 instance (Pretty a, Pretty b) => Pretty (a := b) where
-  pretty (a := b) = pretty a <+> pretty "=" <+> pretty b
+  pretty (a := b) = pretty a <+> magenta (pretty "=") <+> pretty b
 
 
 data Binding
