@@ -433,6 +433,11 @@ bindingName (Define (n := _)) = Global n
 bindingName (Exists (n := _)) = Local (Meta n)
 bindingName (ForAll  n)       = Local (Name n)
 
+bindingValue :: Binding -> Maybe (Problem Meta)
+bindingValue (Define (_ := v)) = Just v
+bindingValue (Exists (_ := v)) = v
+bindingValue (ForAll  _)       = Nothing
+
 lookupBinding :: (Carrier sig m, Member (State Context) sig) => Name Meta -> m (Maybe (Binding ::: Problem Meta))
 lookupBinding n = gets (Stack.find ((== n) . bindingName . typedTerm))
 
