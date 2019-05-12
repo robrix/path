@@ -81,6 +81,7 @@ instance Pretty (Problem Meta) where
           arrow = blue (pretty "->")
 
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
+exists (n := Just v ::: t) (Var (Local n')) | n == n' = v
 exists (n := v ::: t) b = Ex v t (bind n b)
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
