@@ -391,7 +391,7 @@ simplifyVar v t = do
   v' <- lookupBinding (Local v)
   case v' of
     -- FIXME: occurs check
-    Just (Exists (n := _) ::: _) -> t <$ solve (n := t)
+    Just (Exists (n := _) ::: _) -> pure v <$ solve (n := t)
     Just _ -> do
       p <- contextualize (U (pure v :===: t))
       ask >>= unsimplifiable . pure . (p :~)
