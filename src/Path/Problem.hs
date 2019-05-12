@@ -94,8 +94,10 @@ unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Pr
 unlet' n (Ex (Just v) t b) = pure (n := v ::: t, instantiate (pure n) b)
 unlet' _ _                 = empty
 
-(===) :: Problem a -> Problem a -> Problem a
-p === q = U (p :===: q)
+(===) :: Eq a => Problem a -> Problem a -> Problem a
+p === q
+  | p == q    = p
+  | otherwise = U (p :===: q)
 
 infixr 3 ===
 
