@@ -80,8 +80,8 @@ instance Pretty (Problem Meta) where
               pure (prec 10 (f' <+> a'))
           arrow = blue (pretty "->")
 
-exists :: Eq a => a ::: Problem a -> Problem a -> Problem a
-exists (n ::: t) b = Ex Nothing t (bind n b)
+exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
+exists (n := v ::: t) b = Ex v t (bind n b)
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unexists n (Ex Nothing t b) = pure (n ::: t, instantiate (pure n) b)
@@ -226,7 +226,7 @@ goalIs ty2 m = do
 meta :: (Carrier sig m, Member Naming sig) => Problem Meta -> m (Problem Meta)
 meta ty = do
   n <- gensym "meta"
-  pure (exists (Meta n ::: ty) (pure (Meta n)))
+  pure (exists (Meta n := Nothing ::: ty) (pure (Meta n)))
 
 (|-) :: (Carrier sig m, Member (State Context) sig) => Binding ::: Problem Meta -> m a -> m a
 b |- m = do
@@ -329,10 +329,8 @@ simplify = \case
   Ex Nothing t b -> do
     n <- gensym "ex"
     t' <- simplify t
-    (v, b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b)
-    case v of
-      Exists (_ := Just v') -> pure (let' (Meta n := v' ::: t') b')
-      _ -> pure (exists (Meta n ::: t') b')
+    (v', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b)
+    pure (exists (Meta n := bindingValue v' ::: t') b')
   Ex (Just v) t b -> do
     n <- gensym "let"
     v' <- simplify v
@@ -346,18 +344,18 @@ simplify = \case
       Ex v1 t1 b1 :===: Ex v2 t2 b2 -> do
         n <- gensym "ex"
         t' <- simplify (t1 === t2)
-        (_, b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
-        pure (exists (Meta n ::: t') b')
+        (v', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
+        pure (exists (Meta n := bindingValue v' ::: t') b')
       Ex v1 t1 b1 :===: tm2 -> do
         n <- gensym "ex"
         t1' <- simplify t1
-        (_, tm1') <- (n ::: t1') `bindMeta` (exists (Meta n ::: t1') <$> simplify (instantiate (pure (Meta n)) b1 === tm2))
-        pure tm1'
+        (v', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === tm2)
+        pure (exists (Meta n := bindingValue v' ::: t1') tm1')
       tm1 :===: Ex v2 t2 b2 -> do
         n <- gensym "ex"
         t2' <- simplify t2
-        (_, tm2') <- (n ::: t2') `bindMeta` (exists (Meta n ::: t2') <$> simplify (tm1 === instantiate (pure (Meta n)) b2))
-        pure tm2'
+        (v', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Meta n)) b2)
+        pure (exists (Meta n := bindingValue v' ::: t2') tm2')
       Var (Local (Meta v1)) :===: t2 -> simplifyVar (Meta v1) t2
       t1 :===: Var (Local (Meta v2)) -> simplifyVar (Meta v2) t1
       Pi t1 (Lam _ b1) :===: Pi t2 (Lam _ b2) -> do
@@ -402,10 +400,9 @@ simplifyVar v t = do
 contextualize :: (Carrier sig m, Member (State Context) sig) => Problem Meta -> m (Problem Meta)
 contextualize = gets . go
   where go p Nil = p
-        go p (ctx :> Define _              ::: _) = go p ctx
-        go p (ctx :> Exists (n := Nothing) ::: t) = go (exists (Meta n ::: t) p) ctx
-        go p (ctx :> Exists (n := Just v)  ::: t) = go (let' (Meta n := v ::: t) p) ctx
-        go p (ctx :> ForAll n              ::: t) = go (lam (Name n ::: t) p) ctx
+        go p (ctx :> Define _        ::: _) = go p ctx
+        go p (ctx :> Exists (n := v) ::: t) = go (exists (Meta n := v ::: t) p) ctx
+        go p (ctx :> ForAll n        ::: t) = go (lam (Name n ::: t) p) ctx
 
 
 unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
