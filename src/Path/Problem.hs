@@ -357,18 +357,21 @@ simplify = \case
       Ex v1 t1 b1 :===: Ex v2 t2 b2 -> do
         n <- gensym "ex"
         t' <- simplify (t1 === t2)
-        (v', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
-        pure (exists (Meta n := bindingValue v' ::: t') b')
+        v' <- maybe (pure Nothing) (fmap Just . simplify) (v1 ?===? v2)
+        (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
+        pure (exists (Meta n := (v' <|> bindingValue v'') ::: t') b')
       Ex v1 t1 b1 :===: tm2 -> do
         n <- gensym "ex"
         t1' <- simplify t1
-        (v', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === tm2)
-        pure (exists (Meta n := bindingValue v' ::: t1') tm1')
+        v' <- maybe (pure Nothing) (fmap Just . simplify) v1
+        (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === tm2)
+        pure (exists (Meta n := (v' <|> bindingValue v'') ::: t1') tm1')
       tm1 :===: Ex v2 t2 b2 -> do
         n <- gensym "ex"
         t2' <- simplify t2
-        (v', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Meta n)) b2)
-        pure (exists (Meta n := bindingValue v' ::: t2') tm2')
+        v' <- maybe (pure Nothing) (fmap Just . simplify) v2
+        (v'', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Meta n)) b2)
+        pure (exists (Meta n := (v' <|> bindingValue v'') ::: t2') tm2')
       Var (Local (Meta v1)) :===: t2 -> simplifyVar (Meta v1) t2
       t1 :===: Var (Local (Meta v2)) -> simplifyVar (Meta v2) t1
       Pi t1 (Lam _ b1) :===: Pi t2 (Lam _ b2) -> do
