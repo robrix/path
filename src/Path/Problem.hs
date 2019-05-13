@@ -102,6 +102,16 @@ p === q
 
 infixr 3 ===
 
+(?===?) :: Eq a => Maybe (Problem a) -> Maybe (Problem a) -> Maybe (Problem a)
+Nothing ?===? Nothing = Nothing
+Just p ?===? Nothing = Just p
+Nothing ?===? Just q = Just q
+Just p ?===? Just q
+  | p == q    = Just p
+  | otherwise = Just (U (p :===: q))
+
+infixr 3 ?===?
+
 lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
 lam (n ::: t) b = Lam t (bind n b)
 
