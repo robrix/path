@@ -37,7 +37,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = gfoldT Ex U (name id (Var . Global)) Type Lam Pi (:$) pure (f <$> a)
+  a >>= f = gfold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure (f <$> a)
 
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
@@ -134,18 +134,18 @@ unpi n (Pi t (Lam _ b)) = pure (n ::: t, instantiate (pure n) b)
 unpi _ _                = empty
 
 
-gfoldT :: forall m n b
-       .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
-       -> (forall a . Equation (n a) -> n a)
-       -> (forall a . Name (m a) -> n a)
-       -> (forall a . n a)
-       -> (forall a . n a -> n (Incr (n a)) -> n a)
-       -> (forall a . n a -> n a -> n a)
-       -> (forall a . n a -> n a -> n a)
-       -> (forall a . Incr a -> m (Incr a))
-       -> Problem (m b)
-       -> n b
-gfoldT ex u var ty lam pi app dist = go
+gfold :: forall m n b
+      .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
+      -> (forall a . Equation (n a) -> n a)
+      -> (forall a . Name (m a) -> n a)
+      -> (forall a . n a)
+      -> (forall a . n a -> n (Incr (n a)) -> n a)
+      -> (forall a . n a -> n a -> n a)
+      -> (forall a . n a -> n a -> n a)
+      -> (forall a . Incr a -> m (Incr a))
+      -> Problem (m b)
+      -> n b
+gfold ex u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
           Ex v t b -> ex (go <$> v) (go t) (go (dist . fmap go <$> b))
