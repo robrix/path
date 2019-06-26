@@ -17,10 +17,10 @@ import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
 data Value a
-  = Type                                -- ^ @'Type' : 'Type'@.
-  | Lam Plicity        (Value (Incr a)) -- ^ A lambda abstraction.
-  | Pi Usage (Value a) (Value a)        -- ^ A ∏ type, with a 'Usage' annotation.
-  | Name a :$ Stack (Plicit (Value a))  -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  = Type                                        -- ^ @'Type' : 'Type'@.
+  | Lam Plicity        (Value (Incr (Value a))) -- ^ A lambda abstraction.
+  | Pi Usage (Value a) (Value a)                -- ^ A ∏ type, with a 'Usage' annotation.
+  | Name a :$ Stack (Plicit (Value a))          -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 prettyValue :: (Carrier sig m, Member Naming sig) => Value Meta -> m Prec
@@ -110,24 +110,24 @@ v $$* sp = foldl' ($$) v sp
 
 
 gfoldT :: forall m n b
-       .  (forall a . Plicity -> n (Incr a) -> n a)
+       .  (forall a . Plicity -> n (Incr (n a)) -> n a)
        -> (forall a . Name (m a) -> n a)
        -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
        -> (forall a . n a)
        -> (forall a . Usage -> n a -> n a -> n a)
-       -> (forall a . Incr (m a) -> m (Incr a))
+       -> (forall a . Incr a -> m (Incr a))
        -> Value (m b)
        -> n b
 gfoldT lam var app ty pi dist = go
   where go :: Type (m x) -> n x
         go = \case
-          Lam p b -> lam p (go (dist <$> b))
+          Lam p b -> lam p (go (dist . fmap go <$> b))
           f :$ a -> app (var f) (fmap (fmap go) a)
           Type -> ty
           Pi m t b -> pi m (go t) (go b)
 
 joinT :: Value (Value a) -> Value a
-joinT = gfoldT Lam (name id global) ($$*) Type Pi (incr (pure Z) (fmap S))
+joinT = gfoldT Lam (name id global) ($$*) Type Pi pure
 
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
@@ -164,12 +164,12 @@ type Type = Value
 
 
 -- | Bind occurrences of an 'Meta' in a 'Value' term, producing a 'Value' in which the 'Meta' is bound.
-bind :: Eq a => a -> Value a -> Value (Incr a)
-bind name = fmap (match name)
+bind :: Eq a => a -> Value a -> Value (Incr (Value a))
+bind name = fmap (fmap pure . match name)
 
 -- | Substitute a 'Value' term for the free variable in a given 'Value', producing a closed 'Value' term.
-instantiate :: Value a -> Value (Incr a) -> Value a
-instantiate t b = b >>= subst t . fmap pure
+instantiate :: Value a -> Value (Incr (Value a)) -> Value a
+instantiate t b = b >>= subst t
 
 
 -- $setup
