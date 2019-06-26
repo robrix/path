@@ -160,7 +160,7 @@ joinT :: Problem (Problem a) -> Problem a
 joinT = gfoldT Ex U (name id (Var . Global)) Type Lam Pi (:$) (incr (pure Z) (fmap S))
 
 
--- | Bind occurrences of a name in a 'Value' term, producing a 'Problem' in which the name is bound.
+-- | Bind occurrences of a name in a 'Problem' term, producing a 'Problem' in which the name is bound.
 bind :: Eq a => a -> Problem a -> Problem (Incr a)
 bind name = fmap (match name)
 
