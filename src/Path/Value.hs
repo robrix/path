@@ -72,7 +72,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = gfoldT Lam (name id global) ($$*) Type Pi pure (fmap f a)
+  a >>= f = gfold Lam (name id global) ($$*) Type Pi pure (fmap f a)
 
 
 global :: Qualified -> Value a
@@ -109,16 +109,16 @@ _        $$ _        = error "illegal application of Type"
 v $$* sp = foldl' ($$) v sp
 
 
-gfoldT :: forall m n b
-       .  (forall a . Plicity -> n (Incr (n a)) -> n a)
-       -> (forall a . Name (m a) -> n a)
-       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
-       -> (forall a . n a)
-       -> (forall a . Usage -> n a -> n a -> n a)
-       -> (forall a . Incr a -> m (Incr a))
-       -> Value (m b)
-       -> n b
-gfoldT lam var app ty pi dist = go
+gfold :: forall m n b
+      .  (forall a . Plicity -> n (Incr (n a)) -> n a)
+      -> (forall a . Name (m a) -> n a)
+      -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
+      -> (forall a . n a)
+      -> (forall a . Usage -> n a -> n a -> n a)
+      -> (forall a . Incr a -> m (Incr a))
+      -> Value (m b)
+      -> n b
+gfold lam var app ty pi dist = go
   where go :: Type (m x) -> n x
         go = \case
           Lam p b -> lam p (go (dist . fmap go <$> b))
