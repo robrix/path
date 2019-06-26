@@ -23,11 +23,11 @@ import Text.Trifecta.Rendering (Span(..), Spanned(..))
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
 data Problem a
-  = Ex (Maybe (Problem a)) (Problem a) (Problem (Incr a))
+  = Ex (Maybe (Problem a)) (Problem a) (Problem (Incr (Problem a)))
   | U (Equation (Problem a))
   | Var (Name a)
   | Type
-  | Lam (Problem a) (Problem (Incr a))
+  | Lam (Problem a) (Problem (Incr (Problem a)))
   | Pi (Problem a) (Problem a)
   | Problem a :$ Problem a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -135,38 +135,38 @@ unpi _ _                = empty
 
 
 gfoldT :: forall m n b
-       .  (forall a . Maybe (n a) -> n a -> n (Incr a) -> n a)
+       .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
        -> (forall a . Equation (n a) -> n a)
        -> (forall a . Name (m a) -> n a)
        -> (forall a . n a)
-       -> (forall a . n a -> n (Incr a) -> n a)
+       -> (forall a . n a -> n (Incr (n a)) -> n a)
        -> (forall a . n a -> n a -> n a)
        -> (forall a . n a -> n a -> n a)
-       -> (forall a . Incr (m a) -> m (Incr a))
+       -> (forall a . Incr a -> m (Incr a))
        -> Problem (m b)
        -> n b
 gfoldT ex u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
-          Ex v t b -> ex (go <$> v) (go t) (go (dist <$> b))
+          Ex v t b -> ex (go <$> v) (go t) (go (dist . fmap go <$> b))
           U (a :===: b) -> u (go a :===: go b)
           Var a -> var a
           Type -> ty
-          Lam t b -> lam (go t) (go (dist <$> b))
+          Lam t b -> lam (go t) (go (dist . fmap go <$> b))
           Pi t b -> pi (go t) (go b)
           f :$ a -> go f `app` go a
 
 joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT Ex U (name id (Var . Global)) Type Lam Pi (:$) (incr (pure Z) (fmap S))
+joinT = gfoldT Ex U (name id (Var . Global)) Type Lam Pi (:$) pure
 
 
 -- | Bind occurrences of a name in a 'Problem' term, producing a 'Problem' in which the name is bound.
-bind :: Eq a => a -> Problem a -> Problem (Incr a)
-bind name = fmap (match name)
+bind :: Eq a => a -> Problem a -> Problem (Incr (Problem a))
+bind name = fmap (fmap pure . match name)
 
 -- | Substitute a 'Problem' term for the free variable in a given 'Problem', producing a closed 'Problem' term.
-instantiate :: Problem a -> Problem (Incr a) -> Problem a
-instantiate t b = b >>= subst t . fmap pure
+instantiate :: Problem a -> Problem (Incr (Problem a)) -> Problem a
+instantiate t b = b >>= subst t
 
 
 type Context = Stack (Binding ::: Problem Meta)
