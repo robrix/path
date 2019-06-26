@@ -37,7 +37,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = joinT (f <$> a)
+  a >>= f = gfoldT Ex U (name id (Var . Global)) Type Lam Pi (:$) pure (f <$> a)
 
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
@@ -155,9 +155,6 @@ gfoldT ex u var ty lam pi app dist = go
           Lam t b -> lam (go t) (go (dist . fmap go <$> b))
           Pi t b -> pi (go t) (go b)
           f :$ a -> go f `app` go a
-
-joinT :: Problem (Problem a) -> Problem a
-joinT = gfoldT Ex U (name id (Var . Global)) Type Lam Pi (:$) pure
 
 
 -- | Bind occurrences of a name in a 'Problem' term, producing a 'Problem' in which the name is bound.
