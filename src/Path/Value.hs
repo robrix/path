@@ -72,7 +72,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = joinT (fmap f a)
+  a >>= f = gfoldT Lam (name id global) ($$*) Type Pi pure (fmap f a)
 
 
 global :: Qualified -> Value a
@@ -125,9 +125,6 @@ gfoldT lam var app ty pi dist = go
           f :$ a -> app (var f) (fmap (fmap go) a)
           Type -> ty
           Pi m t b -> pi m (go t) (go b)
-
-joinT :: Value (Value a) -> Value a
-joinT = gfoldT Lam (name id global) ($$*) Type Pi pure
 
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
