@@ -10,7 +10,7 @@ import Text.Trifecta.Rendering (Span)
 
 data Core a
   = Var (Name a)
-  | Lam (Plicit (Maybe User)) (Core (Incr a))
+  | Lam (Plicit (Maybe User)) (Core (Incr (Core a)))
   | Core a :$ Plicit (Core a)
   | Type
   | Pi Usage (Core a) (Core a)
@@ -34,20 +34,20 @@ lams names body = foldr lam body names
 
 gfoldT :: forall m n b
        .  (forall a . Name (m a) -> n a)
-       -> (forall a . Plicit (Maybe User) -> n (Incr a) -> n a)
+       -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
        -> (forall a . n a -> Plicit (n a) -> n a)
        -> (forall a . n a)
        -> (forall a . Usage -> n a -> n a -> n a)
        -> (forall a . Gensym -> n a)
        -> (forall a . Span -> n a -> n a)
-       -> (forall a . Incr (m a) -> m (Incr a))
+       -> (forall a . Incr (n a) -> m (Incr (n a)))
        -> Core (m b)
        -> n b
 gfoldT var lam app ty pi hole ann dist = go
   where go :: Core (m x) -> n x
         go = \case
           Var a -> var a
-          Lam n b -> lam n (go (dist <$> b))
+          Lam n b -> lam n (go (dist . fmap go <$> b))
           f :$ a -> app (go f) (go <$> a)
           Type -> ty
           Pi m t b -> pi m (go t) (go b)
@@ -55,7 +55,7 @@ gfoldT var lam app ty pi hole ann dist = go
           Ann span a -> ann span (go a)
 
 joinT :: Core (Core a) -> Core a
-joinT = gfoldT (name id (Var . Global)) Lam (:$) Type Pi Hole Ann (incr (pure Z) (fmap S))
+joinT = gfoldT (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure
 
 
 -- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
@@ -66,9 +66,9 @@ substitute name image = instantiate image . bind name
 
 
 -- | Bind occurrences of an 'Meta' in a 'Core' term, producing a 'Core' term in which the 'Meta' is bound.
-bind :: Eq a => a -> Core a -> Core (Incr a)
-bind name = fmap (match name)
+bind :: Eq a => a -> Core a -> Core (Incr (Core a))
+bind name = fmap (fmap pure . match name)
 
 -- | Substitute a 'Core' term for the free variable in a given 'Core' term, producing a closed 'Core' term.
-instantiate :: Core a -> Core (Incr a) -> Core a
-instantiate t b = b >>= subst t . fmap pure
+instantiate :: Core a -> Core (Incr (Core a)) -> Core a
+instantiate t b = b >>= subst t
