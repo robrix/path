@@ -32,18 +32,18 @@ lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
-gfoldT :: forall m n b
-       .  (forall a . Name (m a) -> n a)
-       -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
-       -> (forall a . n a -> Plicit (n a) -> n a)
-       -> (forall a . n a)
-       -> (forall a . Usage -> n a -> n a -> n a)
-       -> (forall a . Gensym -> n a)
-       -> (forall a . Span -> n a -> n a)
-       -> (forall a . Incr (n a) -> m (Incr (n a)))
-       -> Core (m b)
-       -> n b
-gfoldT var lam app ty pi hole ann dist = go
+gfold :: forall m n b
+      .  (forall a . Name (m a) -> n a)
+      -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
+      -> (forall a . n a -> Plicit (n a) -> n a)
+      -> (forall a . n a)
+      -> (forall a . Usage -> n a -> n a -> n a)
+      -> (forall a . Gensym -> n a)
+      -> (forall a . Span -> n a -> n a)
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> Core (m b)
+      -> n b
+gfold var lam app ty pi hole ann dist = go
   where go :: Core (m x) -> n x
         go = \case
           Var a -> var a
@@ -55,7 +55,7 @@ gfoldT var lam app ty pi hole ann dist = go
           Ann span a -> ann span (go a)
 
 joinT :: Core (Core a) -> Core a
-joinT = gfoldT (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure
+joinT = gfold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure
 
 
 -- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
