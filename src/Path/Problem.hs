@@ -157,14 +157,14 @@ gfold :: forall m n b
       -> (forall a . Incr a -> m (Incr a))
       -> Problem (m b)
       -> n b
-gfold ex u var ty lam pi app dist = go
+gfold ex u var ty lam pi app k = go
   where go :: Problem (m x) -> n x
         go = \case
-          Problem (Ex v t b) -> ex (go <$> v) (go t) (go (dist . fmap go <$> b))
+          Problem (Ex v t b) -> ex (go <$> v) (go t) (go (k . fmap go <$> b))
           Problem (U (a :===: b)) -> u (go a :===: go b)
           Problem (Var a) -> var a
           Problem Type -> ty
-          Problem (Lam t b) -> lam (go t) (go (dist . fmap go <$> b))
+          Problem (Lam t b) -> lam (go t) (go (k . fmap go <$> b))
           Problem (Pi t b) -> pi (go t) (go b)
           Problem (f :$ a) -> go f `app` go a
 
