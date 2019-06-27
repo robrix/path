@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
 import Control.Applicative (Alternative(..))
@@ -22,116 +22,128 @@ import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
-data Problem a
-  = Ex (Maybe (Problem a)) (Problem a) (Problem (Incr (Problem a)))
-  | U (Equation (Problem a))
+data ProblemF f a
+  = Ex (Maybe (f a)) (f a) (f (Incr (f a)))
+  | U (Equation (f a))
   | Var (Name a)
   | Type
-  | Lam (Problem a) (Problem (Incr (Problem a)))
-  | Pi (Problem a) (Problem a)
-  | Problem a :$ Problem a
+  | Lam (f a) (f (Incr (f a)))
+  | Pi (f a) (f a)
+  | f a :$ f a
+  deriving (Foldable, Functor, Traversable)
+
+deriving instance (Eq   a, forall x . Eq   x => Eq   (f x)) => Eq   (ProblemF f a)
+deriving instance (Ord  a, forall x . Eq   x => Eq   (f x)
+                         , forall x . Ord  x => Ord  (f x)) => Ord  (ProblemF f a)
+deriving instance (Show a, forall x . Show x => Show (f x)) => Show (ProblemF f a)
+
+newtype Problem a = Problem { unProblem :: ProblemF Problem a }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Problem where
-  pure = Var . Local
+  pure = Problem . Var . Local
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = gfold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure (f <$> a)
+  a >>= f = gfold ex (Problem . U) (name id (Problem . Var . Global)) (Problem Type) lam pi ($$) pure (f <$> a)
+    where ex v t b = Problem (Ex v t b)
+          lam t b = Problem (Lam t b)
+          pi t b = Problem (Pi t b)
+          f $$ a = Problem (f :$ a)
 
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
     where go = \case
-            Ex Nothing t b -> do
+            Problem (Ex Nothing t b) -> do
               n <- Meta <$> gensym "ex"
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> magenta dot </> b'))
-            Ex (Just v) t b -> do
+            Problem (Ex (Just v) t b) -> do
               n <- Meta <$> gensym "let"
               t' <- prettyPrec 1 <$> go t
               v' <- prettyPrec 0 <$> go v
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') <+> magenta dot </> b'))
-            U q -> do
+            Problem (U q) -> do
               q' <- traverse go q
               pure (prec 0 (pretty (prettyPrec 1 <$> q')))
-            Var (Global (_ :.: n)) -> pure (atom (pretty n))
-            Var (Local (Name n)) -> pure (atom (pretty '_' <> pretty n))
-            Var (Local n) -> pure (atom (pretty n))
-            Type -> pure (atom (yellow (pretty "Type")))
-            Lam t b -> do
+            Problem (Var (Global (_ :.: n))) -> pure (atom (pretty n))
+            Problem (Var (Local (Name n))) -> pure (atom (pretty '_' <> pretty n))
+            Problem (Var (Local n)) -> pure (atom (pretty n))
+            Problem Type -> pure (atom (yellow (pretty "Type")))
+            Problem (Lam t b) -> do
               n <- Name <$> gensym "lam"
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (pretty (cyan backslash) <+> pretty (Local n ::: t') <+> cyan dot </> b'))
-            Pi t (Lam _ b) -> do
+            Problem (Pi t (Problem (Lam _ b))) -> do
               n <- Name <$> gensym "pi"
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (parens (pretty (Local n ::: t')) <+> arrow <+> b'))
-            Pi t b -> do
+            Problem (Pi t b) -> do
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go b
               pure (prec 0 (pretty t' <+> arrow <+> b'))
-            f :$ a -> do
+            Problem (f :$ a) -> do
               f' <- prettyPrec 10 <$> go f
               a' <- prettyPrec 11 <$> go a
               pure (prec 10 (f' <+> a'))
           arrow = blue (pretty "->")
 
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
-exists (n := Just v ::: _) (Var (Local n')) | n == n' = v
-exists (n := v ::: t) b = Ex v t (bind n b)
+exists (n := Just v ::: _) (Problem (Var (Local n'))) | n == n' = v
+exists (n := v ::: t)      b                                    = Problem (Ex v t (bind n b))
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unexists n (Ex Nothing t b) = pure (n ::: t, instantiate (pure n) b)
-unexists _ _        = empty
+unexists n (Problem (Ex Nothing t b)) = pure (n ::: t, instantiate (pure n) b)
+unexists _ _                          = empty
 
 let' :: Eq a => a := Problem a ::: Problem a -> Problem a -> Problem a
-let' (n := v ::: t) b = Ex (Just v) t (bind n b)
+let' (n := v ::: t) b = Problem (Ex (Just v) t (bind n b))
 
 unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Problem a)
-unlet' n (Ex (Just v) t b) = pure (n := v ::: t, instantiate (pure n) b)
-unlet' _ _                 = empty
+unlet' n (Problem (Ex (Just v) t b)) = pure (n := v ::: t, instantiate (pure n) b)
+unlet' _ _                           = empty
 
 (===) :: Eq a => Problem a -> Problem a -> Problem a
 p === q
   | p == q    = p
-  | otherwise = U (p :===: q)
+  | otherwise = Problem (U (p :===: q))
 
 infixr 3 ===
 
 (?===?) :: Eq a => Maybe (Problem a) -> Maybe (Problem a) -> Maybe (Problem a)
 Nothing ?===? Nothing = Nothing
-Just p ?===? Nothing = Just p
-Nothing ?===? Just q = Just q
-Just p ?===? Just q
+Just p  ?===? Nothing = Just p
+Nothing ?===? Just q  = Just q
+Just p  ?===? Just q
   | p == q    = Just p
-  | otherwise = Just (U (p :===: q))
+  | otherwise = Just (Problem (U (p :===: q)))
 
 infixr 3 ?===?
 
 lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
-lam (n ::: t) b = Lam t (bind n b)
+lam (n ::: t) b = Problem (Lam t (bind n b))
 
 lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unlam n (Lam t b) = pure (n ::: t, instantiate (pure n) b)
-unlam _ _         = empty
+unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate (pure n) b)
+unlam _ _                   = empty
 
 pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
-pi (n ::: t) b = Pi t (Lam t (bind n b))
+pi (n ::: t) b = Problem (Pi t (lam (n ::: t) b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unpi n (Pi t (Lam _ b)) = pure (n ::: t, instantiate (pure n) b)
-unpi _ _                = empty
+unpi n (Problem (Pi t (Problem (Lam _ b)))) = pure (n ::: t, instantiate (pure n) b)
+unpi _ _                        = empty
 
 
 gfold :: forall m n b
@@ -148,13 +160,13 @@ gfold :: forall m n b
 gfold ex u var ty lam pi app dist = go
   where go :: Problem (m x) -> n x
         go = \case
-          Ex v t b -> ex (go <$> v) (go t) (go (dist . fmap go <$> b))
-          U (a :===: b) -> u (go a :===: go b)
-          Var a -> var a
-          Type -> ty
-          Lam t b -> lam (go t) (go (dist . fmap go <$> b))
-          Pi t b -> pi (go t) (go b)
-          f :$ a -> go f `app` go a
+          Problem (Ex v t b) -> ex (go <$> v) (go t) (go (dist . fmap go <$> b))
+          Problem (U (a :===: b)) -> u (go a :===: go b)
+          Problem (Var a) -> var a
+          Problem Type -> ty
+          Problem (Lam t b) -> lam (go t) (go (dist . fmap go <$> b))
+          Problem (Pi t b) -> pi (go t) (go b)
+          Problem (f :$ a) -> go f `app` go a
 
 
 -- | Bind occurrences of a name in a 'Problem' term, producing a 'Problem' in which the name is bound.
@@ -177,7 +189,7 @@ assume :: ( Carrier sig m
        -> m (Problem Meta ::: Problem Meta)
 assume v = do
   _A <- have v
-  pure (Var (Name <$> v) ::: _A)
+  pure (Problem (Var (Name <$> v)) ::: _A)
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -186,9 +198,9 @@ intro :: ( Carrier sig m
       => (Gensym -> m (Problem Meta ::: Problem Meta))
       -> m (Problem Meta ::: Problem Meta)
 intro body = do
-  _A <- meta Type
+  _A <- meta (Problem Type)
   x <- gensym "intro"
-  _B <- ForAll x ::: _A |- meta Type
+  _B <- ForAll x ::: _A |- meta (Problem Type)
   u <- ForAll x ::: _A |- goalIs _B (body x)
   pure (lam (Name x ::: _A) u ::: pi (Name x ::: _A) _B)
 
@@ -200,10 +212,10 @@ intro body = do
       -> (Gensym -> m (Problem Meta ::: Problem Meta))
       -> m (Problem Meta ::: Problem Meta)
 t --> body = do
-  t' <- goalIs Type t
+  t' <- goalIs (Problem Type) t
   x <- gensym "pi"
-  b' <- ForAll x ::: t' |- goalIs Type (body x)
-  pure (pi (Name x ::: t') b' ::: Type)
+  b' <- ForAll x ::: t' |- goalIs (Problem Type) (body x)
+  pure (pi (Name x ::: t') b' ::: Problem Type)
 
 app :: ( Carrier sig m
        , Member Naming sig
@@ -213,13 +225,13 @@ app :: ( Carrier sig m
     -> m (Problem Meta ::: Problem Meta)
     -> m (Problem Meta ::: Problem Meta)
 app f a = do
-  _A <- meta Type
+  _A <- meta (Problem Type)
   x <- gensym "app"
-  _B <- ForAll x ::: _A |- meta Type
+  _B <- ForAll x ::: _A |- meta (Problem Type)
   let _F = pi (Name x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
-  pure (f' :$ a' ::: _F :$ a')
+  pure (Problem (f' :$ a') ::: Problem (_F :$ a'))
 
 
 goalIs :: ( Carrier sig m
@@ -284,10 +296,10 @@ elab = \case
   Core.Var n -> assume n
   Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure n') b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
-  Core.Type -> pure (Type ::: Type)
+  Core.Type -> pure (Problem Type ::: Problem Type)
   Core.Pi _ t (Core.Lam _ b) -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
   Core.Pi _ t b -> elab t --> \ _ -> elab b
-  Core.Hole h -> (pure (Meta h) :::) <$> meta Type
+  Core.Hole h -> (pure (Meta h) :::) <$> meta (Problem Type)
   Core.Ann ann b -> spanIs ann (elab b)
 
 elabDecl :: ( Carrier sig m
@@ -313,7 +325,7 @@ declare :: ( Carrier sig m
            )
         => m (Problem Meta ::: Problem Meta)
         -> m (Problem Meta)
-declare ty = goalIs Type ty >>= simplify
+declare ty = goalIs (Problem Type) ty >>= simplify
 
 define :: ( Carrier sig m
           , Member (Error Doc) sig
@@ -336,68 +348,68 @@ simplify :: ( Carrier sig m
          => Problem Meta
          -> m (Problem Meta)
 simplify = \case
-  Ex Nothing t b -> do
+  Problem (Ex Nothing t b) -> do
     n <- gensym "ex"
     t' <- simplify t
     (v', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b)
     pure (exists (Meta n := bindingValue v' ::: t') b')
-  Ex (Just v) t b -> do
+  Problem (Ex (Just v) t b) -> do
     n <- gensym "let"
     v' <- simplify v
     t' <- simplify t
     b' <- Exists (n := Just v') ::: t' |- simplify (instantiate (pure (Meta n)) b)
     pure (let' (Meta n := v' ::: t') b')
-  U (t1 :===: t2) -> do
+  Problem (U (t1 :===: t2)) -> do
     q <- (:===:) <$> simplify t1 <*> simplify t2
     case q of
       t1 :===: t2 | t1 == t2 -> pure t1
-      Ex v1 t1 b1 :===: Ex v2 t2 b2 -> do
+      Problem (Ex v1 t1 b1) :===: Problem (Ex v2 t2 b2) -> do
         n <- gensym "ex"
         t' <- simplify (t1 === t2)
         v' <- maybe (pure Nothing) (fmap Just . simplify) (v1 ?===? v2)
         (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
         pure (exists (Meta n := (v' <|> bindingValue v'') ::: t') b')
-      Ex v1 t1 b1 :===: tm2 -> do
+      Problem (Ex v1 t1 b1) :===: tm2 -> do
         n <- gensym "ex"
         t1' <- simplify t1
         v' <- maybe (pure Nothing) (fmap Just . simplify) v1
         (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === tm2)
         pure (exists (Meta n := (v' <|> bindingValue v'') ::: t1') tm1')
-      tm1 :===: Ex v2 t2 b2 -> do
+      tm1 :===: Problem (Ex v2 t2 b2) -> do
         n <- gensym "ex"
         t2' <- simplify t2
         v' <- maybe (pure Nothing) (fmap Just . simplify) v2
         (v'', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Meta n)) b2)
         pure (exists (Meta n := (v' <|> bindingValue v'') ::: t2') tm2')
-      Var (Local (Meta v1)) :===: t2 -> simplifyVar (Meta v1) t2
-      t1 :===: Var (Local (Meta v2)) -> simplifyVar (Meta v2) t1
-      Pi t1 (Lam _ b1) :===: Pi t2 (Lam _ b2) -> do
+      Problem (Var (Local (Meta v1))) :===: t2 -> simplifyVar (Meta v1) t2
+      t1 :===: Problem (Var (Local (Meta v2))) -> simplifyVar (Meta v2) t1
+      Problem (Pi t1 (Problem (Lam _ b1))) :===: Problem (Pi t2 (Problem (Lam _ b2))) -> do
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- pi (Name n ::: t') <$> simplify (instantiate (pure (Name n)) b1 === instantiate (pure (Name n)) b2)
-      Pi t1 b1 :===: Pi t2 b2 -> Pi <$> simplify (t1 === t2) <*> simplify (b1 === b2)
-      Lam t1 b1 :===: Lam t2 b2 -> do
+      Problem (Pi t1 b1) :===: Problem (Pi t2 b2) -> Problem <$> (Pi <$> simplify (t1 === t2) <*> simplify (b1 === b2))
+      Problem (Lam t1 b1) :===: Problem (Lam t2 b2) -> do
         n <- gensym "lam"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- lam (Name n ::: t') <$> simplify (instantiate (pure (Name n)) b1 === instantiate (pure (Name n)) b2)
-      other -> pure (U other)
-  Var a -> pure (Var a)
-  Type -> pure Type
-  Lam t b -> do
+      other -> pure (Problem (U other))
+  Problem (Var a) -> pure (Problem (Var a))
+  Problem Type -> pure (Problem Type)
+  Problem (Lam t b) -> do
     n <- gensym "lam"
     t' <- simplify t
     b' <- ForAll n ::: t' |- simplify (instantiate (pure (Name n)) b)
     pure (lam (Name n ::: t') b')
-  Pi t (Lam _ b) -> do
+  Problem (Pi t (Problem (Lam _ b))) -> do
     n <- gensym "pi"
     t' <- simplify t
     b' <- ForAll n ::: t' |- simplify (instantiate (pure (Name n)) b)
     pure (pi (Name n ::: t') b')
-  Pi t b -> Pi <$> simplify t <*> simplify b
-  f :$ a -> do
+  Problem (Pi t b) -> Problem <$> (Pi <$> simplify t <*> simplify b)
+  Problem (f :$ a) -> do
     f' <- simplify f
     a' <- simplify a
-    pure (f' :$ a')
+    pure (Problem (f' :$ a'))
 
 simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Meta -> Problem Meta -> m (Problem Meta)
 simplifyVar v t = do
@@ -406,7 +418,7 @@ simplifyVar v t = do
     -- FIXME: occurs check
     Just (Exists (n := _) ::: _) -> pure v <$ solve (n := t)
     Just _ -> do
-      p <- contextualize (U (pure v :===: t))
+      p <- contextualize (Problem (U (pure v :===: t)))
       ask >>= unsimplifiable . pure . (p :~)
     Nothing -> freeVariable v
 
