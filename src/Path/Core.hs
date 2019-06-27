@@ -23,7 +23,7 @@ instance Applicative Core where
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = joinT (fmap f a)
+  a >>= f = gfold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure (fmap f a)
 
 lam :: Eq a => Plicit a -> Core a -> Core a
 lam (p :< n) b = Lam (p :< Nothing) (bind n b)
@@ -53,9 +53,6 @@ gfold var lam app ty pi hole ann dist = go
           Pi m t b -> pi m (go t) (go b)
           Hole a -> hole a
           Ann span a -> ann span (go a)
-
-joinT :: Core (Core a) -> Core a
-joinT = gfold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure
 
 
 -- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
