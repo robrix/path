@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeOperators #-}
 module Path.Value where
 
 import           Control.Applicative (Alternative (..))
@@ -6,8 +6,10 @@ import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Monad (ap, unless)
+import           Data.Coerce
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
+import           GHC.Generics ((:.:) (..))
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
@@ -126,6 +128,30 @@ gfold lam var app ty pi k = go
           Type -> ty
           Pi m t b -> pi m (go t) (go b)
 
+efold :: forall l m n z b
+      .  ( forall a b . Coercible a b => Coercible (n a) (n b)
+         , forall a b . Coercible a b => Coercible (m a) (m b)
+         )
+      => (forall a . Plicity -> n (Incr (n a)) -> n a)
+      -> (forall a . Name (m a) -> n a)
+      -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
+      -> (forall a . n a)
+      -> (forall a . Usage -> n a -> n a -> n a)
+      -> (forall a . Incr a -> m (Incr a))
+      -> (l b -> m (z b))
+      -> Value (l b)
+      -> n (z b)
+efold lam var app ty pi k = go
+  where go :: forall l' z' x . (l' x -> m (z' x)) -> Value (l' x) -> n (z' x)
+        go h = \case
+          Type -> ty
+          Lam p b -> lam p (coerce ((go :: ((Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x))
+                                            -> Value ((Incr :.: Value :.: l') x)
+                                            -> n ((Incr :.: n :.: z') x))
+                       (coerce (k . fmap (go h)))
+                       (coerce b)))
+          f :$ a -> app (var (h <$> f)) (fmap (go h) <$> a)
+          Pi m t b -> pi m (go h t) (go h b)
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
 --
