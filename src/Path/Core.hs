@@ -43,11 +43,11 @@ gfold :: forall m n b
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> Core (m b)
       -> n b
-gfold var lam app ty pi hole ann dist = go
+gfold var lam app ty pi hole ann k = go
   where go :: Core (m x) -> n x
         go = \case
           Var a -> var a
-          Lam n b -> lam n (go (dist . fmap go <$> b))
+          Lam n b -> lam n (go (k . fmap go <$> b))
           f :$ a -> app (go f) (go <$> a)
           Type -> ty
           Pi m t b -> pi m (go t) (go b)

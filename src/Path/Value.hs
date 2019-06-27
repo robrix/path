@@ -118,10 +118,10 @@ gfold :: forall m n b
       -> (forall a . Incr a -> m (Incr a))
       -> Value (m b)
       -> n b
-gfold lam var app ty pi dist = go
+gfold lam var app ty pi k = go
   where go :: Type (m x) -> n x
         go = \case
-          Lam p b -> lam p (go (dist . fmap go <$> b))
+          Lam p b -> lam p (go (k . fmap go <$> b))
           f :$ a -> app (var f) (fmap (fmap go) a)
           Type -> ty
           Pi m t b -> pi m (go t) (go b)
