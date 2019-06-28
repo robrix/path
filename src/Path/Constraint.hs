@@ -1,5 +1,14 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
-module Path.Constraint where
+module Path.Constraint
+( Equation (..)
+, Substitution (..)
+, Signature (..)
+, Substitutable (..)
+, Constraint (..)
+, (|-)
+, binds
+, unbinds
+) where
 
 import Control.Effect
 import Control.Monad (join)
