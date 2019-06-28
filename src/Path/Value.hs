@@ -196,14 +196,5 @@ unsolvedMetavariables metas ty = do
 type Type = Value
 
 
--- | Bind occurrences of an 'Meta' in a 'Value' term, producing a 'Value' in which the 'Meta' is bound.
-bind :: Eq a => a -> Value a -> Value (Incr (Value a))
-bind name = fmap (fmap pure . match name)
-
--- | Substitute a 'Value' term for the free variable in a given 'Value', producing a closed 'Value' term.
-instantiate :: Value a -> Value (Incr (Value a)) -> Value a
-instantiate t b = b >>= subst t
-
-
 -- $setup
 -- >>> import Test.QuickCheck

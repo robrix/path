@@ -68,12 +68,3 @@ gfold var lam app ty pi hole ann k = go
 --   prop> substitute a (pure b) (Lam (pure (S a))) === Lam (pure (S b))
 substitute :: Eq a => a -> Core a -> Core a -> Core a
 substitute name image = instantiate image . bind name
-
-
--- | Bind occurrences of an 'Meta' in a 'Core' term, producing a 'Core' term in which the 'Meta' is bound.
-bind :: Eq a => a -> Core a -> Core (Incr (Core a))
-bind name = fmap (fmap pure . match name)
-
--- | Substitute a 'Core' term for the free variable in a given 'Core' term, producing a closed 'Core' term.
-instantiate :: Core a -> Core (Incr (Core a)) -> Core a
-instantiate t b = b >>= subst t

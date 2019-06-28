@@ -18,7 +18,7 @@ import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import           Path.Context
-import           Path.Name
+import           Path.Name hiding (bind, instantiate)
 import           Path.Pretty
 import           Path.Value (Type, Value, prettyValue)
 import           Text.Trifecta.Rendering (Spanned (..))

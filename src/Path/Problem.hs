@@ -170,15 +170,6 @@ gfold ex u var ty lam pi app k = go
           Problem (f :$ a) -> go f `app` go a
 
 
--- | Bind occurrences of a name in a 'Problem' term, producing a 'Problem' in which the name is bound.
-bind :: Eq a => a -> Problem a -> Problem (Incr (Problem a))
-bind name = fmap (fmap pure . match name)
-
--- | Substitute a 'Problem' term for the free variable in a given 'Problem', producing a closed 'Problem' term.
-instantiate :: Problem a -> Problem (Incr (Problem a)) -> Problem a
-instantiate t b = b >>= subst t
-
-
 type Context = Stack (Binding ::: Problem Meta)
 
 assume :: ( Carrier sig m
@@ -295,10 +286,10 @@ elab :: ( Carrier sig m
      -> m (Problem Meta ::: Problem Meta)
 elab = \case
   Core (Core.Var n) -> assume n
-  Core (Core.Lam _ b) -> intro (\ n' -> elab (Core.instantiate (pure n') b))
+  Core (Core.Lam _ b) -> intro (\ n' -> elab (instantiate (pure n') b))
   Core (f Core.:$ (_ :< a)) -> app (elab f) (elab a)
   Core Core.Type -> pure (Problem Type ::: Problem Type)
-  Core (Core.Pi _ t (Core (Core.Lam _ b))) -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
+  Core (Core.Pi _ t (Core (Core.Lam _ b))) -> elab t --> \ n' -> elab (instantiate (pure n') b)
   Core (Core.Pi _ t b) -> elab t --> \ _ -> elab b
   Core (Core.Hole h) -> (pure (Meta h) :::) <$> meta (Problem Type)
   Core (Core.Ann ann b) -> spanIs ann (elab b)

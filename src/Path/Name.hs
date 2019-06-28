@@ -213,6 +213,14 @@ subst a = incr a id
 incr :: b -> (a -> b) -> Incr a -> b
 incr z s = \case { Z -> z ; S a -> s a }
 
+-- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
+bind :: (Applicative f, Eq a) => a -> f a -> f (Incr (f a))
+bind name = fmap (fmap pure . match name)
+
+-- | Substitute a term for the free variable in a given term, producing a closed term.
+instantiate :: Monad f => f a -> f (Incr (f a)) -> f a
+instantiate t b = b >>= subst t
+
 
 data a ::: b = a ::: b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)

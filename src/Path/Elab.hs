@@ -44,7 +44,7 @@ implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (
 implicits = go Nil
   where go names (Value (Value.Pi _ t (Value (Value.Lam Im b)))) | False = do
           v <- exists t
-          go (names :> (Im :< pure (v ::: t))) (Value.instantiate v b)
+          go (names :> (Im :< pure (v ::: t))) (instantiate v b)
         go names _ = pure names
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
@@ -115,10 +115,10 @@ elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span)
      -> m (Value Meta ::: Type Meta)
 elab = \case
   Core (Core.Var n) -> assume n
-  Core (Core.Lam n b) -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
+  Core (Core.Lam n b) -> intro n (\ n' -> elab (instantiate (pure n') b))
   Core (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
   Core Core.Type -> pure (Value.type' ::: Value.type')
-  Core (Core.Pi m t (Core (Core.Lam (p :< n) b))) -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
+  Core (Core.Pi m t (Core (Core.Lam (p :< n) b))) -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure n') b))
   Core (Core.Pi m t b) -> pi (Ex :< (Nothing, m, elab t)) (\ _ -> elab b)
   Core (Core.Hole h) -> (pure (Meta h) :::) <$> exists Value.type'
   Core (Core.Ann ann b) -> spanIs ann (elab b)
@@ -229,7 +229,7 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
 
   let ty'' = whnf scope ty'
   (names, _) <- un (orTerm (\ n -> \case
-    Value (Value.Pi _ _ (Value (Value.Lam Im b))) | False -> Just (Im :< n, whnf scope (Value.instantiate (pure n) b))
+    Value (Value.Pi _ _ (Value (Value.Lam Im b))) | False -> Just (Im :< n, whnf scope (instantiate (pure n) b))
     _                                                     -> Nothing)) ty''
   tm ::: _ <- runScope (define (Value.weaken ty') (elab (Core.lams names tm)))
   modify (Scope.insert name (Entry (Just tm ::: ty')))
