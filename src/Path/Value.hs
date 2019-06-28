@@ -128,7 +128,7 @@ gfold :: forall m n b
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
       -> (forall a . Usage -> n a -> n a -> n a)
-      -> (forall a . Incr a -> m (Incr a))
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> Value (m b)
       -> n b
 gfold lam var app ty pi k = go
@@ -148,7 +148,7 @@ efold :: forall l m n z b
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
       -> (forall a . Usage -> n a -> n a -> n a)
-      -> (forall a . Incr a -> m (Incr a))
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (l b -> m (z b))
       -> Value (l b)
       -> n (z b)
