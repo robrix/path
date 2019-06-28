@@ -156,10 +156,9 @@ efold lam var app ty pi k = go
   where go :: forall l' z' x . (l' x -> m (z' x)) -> Value (l' x) -> n (z' x)
         go h = \case
           Value Type -> ty
-          Value (Lam p b) -> lam p (coerce ((go :: ((Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x))
-                                                -> Value ((Incr :.: Value :.: l') x)
-                                                -> n ((Incr :.: n :.: z') x))
-                               (coerce (k . fmap (go h)))
+          Value (Lam p b) -> lam p (coerce (go
+                               (coerce (k . fmap (go h))
+                                 :: ((Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x)))
                                (fmap coerce b))) -- FIXME: Can we avoid this fmap and just coerce harder?
           Value (f :$ a) -> app (var (h <$> f)) (fmap (go h) <$> a)
           Value (Pi m t b) -> pi m (go h t) (go h b)
