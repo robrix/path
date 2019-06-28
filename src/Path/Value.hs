@@ -132,7 +132,7 @@ gfold :: forall m n b
       -> Value (m b)
       -> n b
 gfold lam var app ty pi k = go
-  where go :: Type (m x) -> n x
+  where go :: Value (m x) -> n x
         go = \case
           Value (Lam p b) -> lam p (go (k . fmap go <$> b))
           Value (f :$ a) -> app (var f) (fmap (fmap go) a)
