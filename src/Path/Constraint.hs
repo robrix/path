@@ -10,18 +10,18 @@ module Path.Constraint
 , unbinds
 ) where
 
-import Control.Effect
-import Control.Monad (join)
-import Data.Bifunctor (first)
-import Data.Foldable (toList)
+import           Control.Effect
+import           Control.Monad (join)
+import           Data.Bifunctor (first)
+import           Data.Foldable (toList)
 import qualified Data.Map as Map
-import Data.Maybe (fromMaybe)
+import           Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
-import Path.Context
-import Path.Name
-import Path.Pretty
-import Path.Value (Value, Type, prettyValue)
-import Text.Trifecta.Rendering (Spanned(..))
+import           Path.Context
+import           Path.Name
+import           Path.Pretty
+import           Path.Value (Type, Value, prettyValue)
+import           Text.Trifecta.Rendering (Spanned (..))
 
 data Equation a
   = a :===: a
@@ -94,15 +94,15 @@ data Constraint a
 infixr 1 :|-:
 
 instance Foldable Constraint where
-  foldMap f (v :|-: s) = foldMap f v <> foldMap (foldMap f) s
+  foldMap f (v :|-: s)    = foldMap f v <> foldMap (foldMap f) s
   foldMap f (E (q ::: t)) = foldMap (foldMap f) q <> foldMap f t
 
 instance Functor Constraint where
-  fmap f (v :|-: s) = fmap f v :|-: fmap (fmap f) s
+  fmap f (v :|-: s)    = fmap f v :|-: fmap (fmap f) s
   fmap f (E (q ::: t)) = E (fmap (fmap f) q ::: fmap f t)
 
 instance Traversable Constraint where
-  traverse f (v :|-: s) = (:|-:) <$> traverse f v <*> traverse (traverse f) s
+  traverse f (v :|-: s)    = (:|-:) <$> traverse f v <*> traverse (traverse f) s
   traverse f (E (q ::: t)) = fmap E . (:::) <$> traverse (traverse f) q <*> traverse f t
 
 instance Ord a => FreeVariables a (Constraint a) where
