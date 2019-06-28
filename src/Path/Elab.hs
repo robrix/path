@@ -17,6 +17,7 @@ import Data.Traversable (for)
 import Path.Stack as Stack
 import Path.Constraint hiding (Scope(..), (|-))
 import Path.Context as Context
+import Path.Core (Core (Core))
 import qualified Path.Core as Core
 import Path.Eval
 import Path.Module
@@ -113,14 +114,14 @@ elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span)
      => Core.Core Gensym
      -> m (Value Meta ::: Type Meta)
 elab = \case
-  Core.Var n -> assume n
-  Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
-  f Core.:$ (p :< a) -> app (elab f) (p :< elab a)
-  Core.Type -> pure (Value.type' ::: Value.type')
-  Core.Pi m t (Core.Lam (p :< n) b) -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
-  Core.Pi m t b -> pi (Ex :< (Nothing, m, elab t)) (\ _ -> elab b)
-  Core.Hole h -> (pure (Meta h) :::) <$> exists Value.type'
-  Core.Ann ann b -> spanIs ann (elab b)
+  Core (Core.Var n) -> assume n
+  Core (Core.Lam n b) -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
+  Core (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
+  Core Core.Type -> pure (Value.type' ::: Value.type')
+  Core (Core.Pi m t (Core (Core.Lam (p :< n) b))) -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
+  Core (Core.Pi m t b) -> pi (Ex :< (Nothing, m, elab t)) (\ _ -> elab b)
+  Core (Core.Hole h) -> (pure (Meta h) :::) <$> exists Value.type'
+  Core (Core.Ann ann b) -> spanIs ann (elab b)
 
 
 data Elab m k

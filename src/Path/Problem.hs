@@ -10,6 +10,7 @@ import Control.Monad (ap)
 import Data.Foldable (fold)
 import Data.List (intersperse)
 import Path.Constraint (Equation(..))
+import Path.Core (Core (Core))
 import qualified Path.Core as Core
 import Path.Error
 import Path.Module
@@ -293,14 +294,14 @@ elab :: ( Carrier sig m
      => Core.Core Gensym
      -> m (Problem Meta ::: Problem Meta)
 elab = \case
-  Core.Var n -> assume n
-  Core.Lam _ b -> intro (\ n' -> elab (Core.instantiate (pure n') b))
-  f Core.:$ (_ :< a) -> app (elab f) (elab a)
-  Core.Type -> pure (Problem Type ::: Problem Type)
-  Core.Pi _ t (Core.Lam _ b) -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
-  Core.Pi _ t b -> elab t --> \ _ -> elab b
-  Core.Hole h -> (pure (Meta h) :::) <$> meta (Problem Type)
-  Core.Ann ann b -> spanIs ann (elab b)
+  Core (Core.Var n) -> assume n
+  Core (Core.Lam _ b) -> intro (\ n' -> elab (Core.instantiate (pure n') b))
+  Core (f Core.:$ (_ :< a)) -> app (elab f) (elab a)
+  Core Core.Type -> pure (Problem Type ::: Problem Type)
+  Core (Core.Pi _ t (Core (Core.Lam _ b))) -> elab t --> \ n' -> elab (Core.instantiate (pure n') b)
+  Core (Core.Pi _ t b) -> elab t --> \ _ -> elab b
+  Core (Core.Hole h) -> (pure (Meta h) :::) <$> meta (Problem Type)
+  Core (Core.Ann ann b) -> spanIs ann (elab b)
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
