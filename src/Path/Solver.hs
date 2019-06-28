@@ -10,7 +10,7 @@ import           Data.Foldable (foldl', toList)
 import qualified Data.Map as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
-import           Path.Constraint hiding (Scope(..))
+import           Path.Constraint
 import           Path.Context as Context
 import           Path.Error
 import           Path.Name

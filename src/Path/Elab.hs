@@ -15,7 +15,7 @@ import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Stack as Stack
-import Path.Constraint hiding (Scope(..), (|-))
+import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import Path.Core (Core (Core))
 import qualified Path.Core as Core

@@ -78,26 +78,22 @@ instance Substitutable (Constraint Meta) where
 
 
 data Constraint a
-  = Value a :|-: Scope a
+  = Value a :|-: Constraint (Incr a)
   | E (Equation (Value a) ::: Type a)
   deriving (Eq, Ord, Show)
 
 infixr 1 :|-:
 
-newtype Scope a = Scope (Constraint (Incr a))
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-
 instance Foldable Constraint where
-  foldMap f (v :|-: s) = foldMap f v <> foldMap f s
+  foldMap f (v :|-: s) = foldMap f v <> foldMap (foldMap f) s
   foldMap f (E (q ::: t)) = foldMap (foldMap f) q <> foldMap f t
 
 instance Functor Constraint where
-  fmap f (v :|-: s) = fmap f v :|-: fmap f s
+  fmap f (v :|-: s) = fmap f v :|-: fmap (fmap f) s
   fmap f (E (q ::: t)) = E (fmap (fmap f) q ::: fmap f t)
 
 instance Traversable Constraint where
-  traverse f (v :|-: s) = (:|-:) <$> traverse f v <*> traverse f s
+  traverse f (v :|-: s) = (:|-:) <$> traverse f v <*> traverse (traverse f) s
   traverse f (E (q ::: t)) = fmap E . (:::) <$> traverse (traverse f) q <*> traverse f t
 
 instance Ord a => FreeVariables a (Constraint a) where
@@ -138,20 +134,20 @@ gfoldT :: forall m n b
        -> n b
 gfoldT bind eqn dist = go
   where go :: Constraint (m x) -> n x
-        go (v :|-: Scope b) = bind v (go (dist <$> b))
-        go (E a)            = eqn a
+        go (v :|-: b) = bind v (go (dist <$> b))
+        go (E a)      = eqn a
 
 joinT :: Constraint (Value a) -> Constraint a
 joinT = gfoldT
-  (\ v s -> join v :|-: Scope s)
+  (\ v s -> join v :|-: s)
   (\ (q ::: t) -> E (fmap join q ::: join t))
   (incr (pure Z) (fmap S))
 
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
-bind :: Eq a => a -> Constraint a -> Scope a
-bind name = Scope . fmap (match name)
+bind :: Eq a => a -> Constraint a -> Constraint (Incr a)
+bind name = fmap (match name)
 
 -- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
-instantiate :: Value a -> Scope a -> Constraint a
-instantiate t (Scope b) = joinT (subst t . fmap pure <$> b)
+instantiate :: Value a -> Constraint (Incr a) -> Constraint a
+instantiate t b = joinT (subst t . fmap pure <$> b)
