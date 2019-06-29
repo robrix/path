@@ -112,23 +112,6 @@ _        $$ _        = error "illegal application of Type"
 v $$* sp = foldl' ($$) v sp
 
 
-gfold :: forall m n b
-      .  (forall a . Name (m a) -> n a)
-      -> (forall a . Plicity -> n (Incr (n a)) -> n a)
-      -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
-      -> (forall a . n a)
-      -> (forall a . Usage -> n a -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> Value (m b)
-      -> n b
-gfold var lam app ty pi k = go
-  where go :: Value (m x) -> n x
-        go = \case
-          Lam p b -> lam p (go (k . fmap go <$> b))
-          f :$ a -> app (var f) (fmap (fmap go) a)
-          Type -> ty
-          Pi m t b -> pi m (go t) (go b)
-
 efold :: forall l m n z b
       .  ( forall a b . Coercible a b => Coercible (n a) (n b)
          , forall a b . Coercible a b => Coercible (m a) (m b)
