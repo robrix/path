@@ -137,28 +137,6 @@ unpi n (Pi t (Lam _ b)) = pure (n ::: t, instantiate (pure n) b)
 unpi _ _                = empty
 
 
-gfold :: forall m n b
-      .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
-      -> (forall a . Equation (n a) -> n a)
-      -> (forall a . Name (m a) -> n a)
-      -> (forall a . n a)
-      -> (forall a . n a -> n (Incr (n a)) -> n a)
-      -> (forall a . n a -> n a -> n a)
-      -> (forall a . n a -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> Problem (m b)
-      -> n b
-gfold ex u var ty lam pi app k = go
-  where go :: Problem (m x) -> n x
-        go = \case
-          Ex v t b -> ex (go <$> v) (go t) (go (k . fmap go <$> b))
-          U (a :===: b) -> u (go a :===: go b)
-          Var a -> var a
-          Type -> ty
-          Lam t b -> lam (go t) (go (k . fmap go <$> b))
-          Pi t b -> pi (go t) (go b)
-          f :$ a -> go f `app` go a
-
 efold :: forall l m n z b
       .  ( forall a b . Coercible a b => Coercible (n a) (n b)
          , forall a b . Coercible a b => Coercible (m a) (m b)
