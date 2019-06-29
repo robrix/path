@@ -39,7 +39,7 @@ prettyValue = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi (p :< (u :@ t)) b -> let b' = instantiate (pure (Name n)) b in Just ((p :< Name n ::: u :@ t, Name n `Set.member` fvs b'), b')
+              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Name n)) b in Just ((p :< Name n ::: u :@ t, Name n `Set.member` fvs b'), b')
               _                    -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
@@ -140,7 +140,7 @@ efold var lam app ty pi k = go
 
 generalizeType :: Value Meta -> Value Gensym
 generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
-  where f name = Set.singleton (Im :< (name ::: Zero :@ Type))
+  where f name = Set.singleton (Im :< name ::: Zero :@ Type)
 
 
 weaken :: Value Gensym -> Value Meta

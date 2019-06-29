@@ -41,7 +41,7 @@ assume v = do
 
 implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (m (Value Meta ::: Type Meta))))
 implicits = go Nil
-  where go names (Value.Pi (Im :< (_ :@ t)) b) | False = do
+  where go names (Value.Pi (Im :< _ :@ t) b) | False = do
           v <- exists t
           go (names :> (Im :< pure (v ::: t))) (instantiate v b)
         go names _ = pure names
