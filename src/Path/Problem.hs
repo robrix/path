@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
-import Control.Applicative (Alternative(..))
+import Control.Applicative (Alternative (..), Const (..))
 import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
@@ -9,6 +9,7 @@ import Control.Effect.State
 import Control.Monad (ap)
 import Data.Coerce
 import Data.Foldable (fold)
+import Data.Functor.Identity
 import Data.List (intersperse)
 import GHC.Generics ((:.:) (..))
 import Path.Constraint (Equation(..))
@@ -39,7 +40,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = gfold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure (f <$> a)
+  a >>= f = coerce $ efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure ((coerce `asTypeOf` fmap Const) . f . runIdentity) (coerce a)
 
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
