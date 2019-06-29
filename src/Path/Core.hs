@@ -17,7 +17,7 @@ data Core a
   | Lam (Plicit (Maybe User)) (Core (Incr (Core a)))
   | Core a :$ Plicit (Core a)
   | Type
-  | Pi (Plicit (Maybe User, Used (Core a))) (Core (Incr (Core a)))
+  | Pi (Plicit (Maybe User ::: Used (Core a))) (Core (Incr (Core a)))
   | Hole Gensym
   | Ann Span (Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -44,7 +44,7 @@ efold :: forall l m n z b
       -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Plicit (n a) -> n a)
       -> (forall a . n a)
-      -> (forall a . Plicit (Maybe User, Used (n a)) -> n (Incr (n a)) -> n a)
+      -> (forall a . Plicit (Maybe User ::: Used (n a)) -> n (Incr (n a)) -> n a)
       -> (forall a . Gensym -> n a)
       -> (forall a . Span -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
