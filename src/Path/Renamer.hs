@@ -40,8 +40,10 @@ resolveTerm (term :~ span) = local (const span) $ Ann span <$> case term of
   Surface.Type -> pure Type
   Surface.Pi (ie :< (v, u :@ t)) b -> do
     v' <- gensym (maybe "pi" showUser v)
-    Pi . (u :@) <$> resolveTerm t <*> local (insertLocal v v') (Lam (ie :< v) . bind v' <$> resolveTerm b)
-  u :@ a Surface.:-> b -> Pi . (u :@) <$> resolveTerm a <*> resolveTerm b
+    Pi . (ie :<) . (v,) . (u :@) <$> resolveTerm t <*> local (insertLocal v v') (bind v' <$> resolveTerm b)
+  u :@ a Surface.:-> b -> do
+    v' <- gensym "pi"
+    Pi . (Ex :<) . (Nothing,) . (u :@) <$> resolveTerm a <*> (bind v' <$> resolveTerm b)
   Surface.Hole v -> Hole <$> resolveMeta v
 
 

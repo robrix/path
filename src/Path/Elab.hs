@@ -117,8 +117,7 @@ elab = \case
   Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure n') b))
   (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
   Core.Type -> pure (Value.Type ::: Value.Type)
-  Core.Pi (m :@ t) (Core.Lam (p :< n) b) -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure n') b))
-  Core.Pi (m :@ t) b -> pi (Ex :< (Nothing, m, elab t)) (\ _ -> elab b)
+  Core.Pi (p :< (n, m :@ t)) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure n') b))
   Core.Hole h -> (pure (Meta h) :::) <$> exists Value.Type
   Core.Ann ann b -> spanIs ann (elab b)
 

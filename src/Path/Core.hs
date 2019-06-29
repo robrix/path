@@ -17,7 +17,7 @@ data Core a
   | Lam (Plicit (Maybe User)) (Core (Incr (Core a)))
   | Core a :$ Plicit (Core a)
   | Type
-  | Pi (Used (Core a)) (Core a)
+  | Pi (Plicit (Maybe User, Used (Core a))) (Core (Incr (Core a)))
   | Hole Gensym
   | Ann Span (Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -44,7 +44,7 @@ efold :: forall l m n z b
       -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Plicit (n a) -> n a)
       -> (forall a . n a)
-      -> (forall a . Used (n a) -> n a -> n a)
+      -> (forall a . Plicit (Maybe User, Used (n a)) -> n (Incr (n a)) -> n a)
       -> (forall a . Gensym -> n a)
       -> (forall a . Span -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
@@ -55,12 +55,13 @@ efold var lam app ty pi hole ann k = go
   where go :: forall l' z' x . (l' x -> m (z' x)) -> Core (l' x) -> n (z' x)
         go h = \case
           Var a -> var (h <$> a)
-          Lam p b -> lam p (coerce (go
-                       (coerce (k . fmap (go h))
-                         :: (Incr :.: Core :.: l') x -> m ((Incr :.: n :.: z') x))
-                       (coerce b)))
+          Lam p b -> lam p (nest b)
           f :$ a -> app (go h f) (go h <$> a)
           Type -> ty
-          Pi t b -> pi (go h <$> t) (go h b)
+          Pi t b -> pi (fmap (fmap (go h)) <$> t) (nest b)
           Hole a -> hole a
           Ann loc b -> ann loc (go h b)
+          where nest b = coerce (go
+                  (coerce (k . fmap (go h))
+                    :: (Incr :.: Core :.: l') x -> m ((Incr :.: n :.: z') x))
+                  (coerce b))
