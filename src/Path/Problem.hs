@@ -7,8 +7,10 @@ import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Control.Monad (ap)
+import Data.Coerce
 import Data.Foldable (fold)
 import Data.List (intersperse)
+import GHC.Generics ((:.:) (..))
 import Path.Constraint (Equation(..))
 import qualified Path.Core as Core
 import Path.Error
@@ -155,6 +157,36 @@ gfold ex u var ty lam pi app k = go
           Lam t b -> lam (go t) (go (k . fmap go <$> b))
           Pi t b -> pi (go t) (go b)
           f :$ a -> go f `app` go a
+
+efold :: forall l m n z b
+      .  ( forall a b . Coercible a b => Coercible (n a) (n b)
+         , forall a b . Coercible a b => Coercible (m a) (m b)
+         )
+      => (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
+      -> (forall a . Equation (n a) -> n a)
+      -> (forall a . Name (m a) -> n a)
+      -> (forall a . n a)
+      -> (forall a . n a -> n (Incr (n a)) -> n a)
+      -> (forall a . n a -> n a -> n a)
+      -> (forall a . n a -> n a -> n a)
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (l b -> m (z b))
+      -> Problem (l b)
+      -> n (z b)
+efold ex u var ty lam pi app k = go
+  where go :: forall l' z' x . (l' x -> m (z' x)) -> Problem (l' x) -> n (z' x)
+        go h = \case
+          Ex v t b -> ex (go h <$> v) (go h t) (nest b)
+          U q -> u (go h <$> q)
+          Var a -> var (h <$> a)
+          Type -> ty
+          Lam t b -> lam (go h t) (nest b)
+          Pi t b -> pi (go h t) (go h b)
+          f :$ a -> app (go h f) (go h a)
+          where nest b = coerce (go
+                  (coerce (k . fmap (go h))
+                    :: (Incr :.: Problem :.: l') x -> m ((Incr :.: n :.: z') x))
+                  (coerce b))
 
 
 type Context = Stack (Binding ::: Problem Meta)
