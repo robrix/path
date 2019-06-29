@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
 import           Control.Applicative (Alternative (..), Const (..))
@@ -11,6 +11,7 @@ import           Data.Coerce
 import           Data.Foldable (fold)
 import           Data.Functor.Identity
 import           Data.List (intersperse)
+import qualified Data.Set as Set
 import           GHC.Generics ((:.:) (..))
 import           Path.Constraint (Equation (..))
 import qualified Path.Core as Core
@@ -32,7 +33,7 @@ data Problem a
   | Var (Name a)
   | Type
   | Lam (Problem a) (Problem (Incr (Problem a)))
-  | Pi (Problem a) (Problem a)
+  | Pi (Problem a) (Problem (Incr (Problem a)))
   | Problem a :$ Problem a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
@@ -69,20 +70,23 @@ instance Pretty (Problem Meta) where
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (pretty (cyan backslash) <+> pretty (Local n ::: t') <+> cyan dot </> b'))
-            Pi t (Lam _ b) -> do
-              n <- Name <$> gensym "pi"
-              t' <- prettyPrec 1 <$> go t
-              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
-              pure (prec 0 (parens (pretty (Local n ::: t')) <+> arrow <+> b'))
             Pi t b -> do
+              n <- Name <$> gensym "pi"
+              let b' = instantiate (pure n) b
               t' <- prettyPrec 1 <$> go t
-              b' <- prettyPrec 0 <$> go b
-              pure (prec 0 (pretty t' <+> arrow <+> b'))
+              b'' <- prettyPrec 0 <$> go b'
+              if n `Set.member` fvs b' then do
+                pure (prec 0 (parens (pretty (Local n ::: t')) <+> arrow <+> b''))
+              else do
+                pure (prec 0 (pretty t' <+> arrow <+> b''))
             f :$ a -> do
               f' <- prettyPrec 10 <$> go f
               a' <- prettyPrec 11 <$> go a
               pure (prec 10 (f' <+> a'))
           arrow = blue (pretty "->")
+
+instance Ord a => FreeVariables a (Problem a) where
+  fvs = foldMap Set.singleton
 
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
 exists (n := Just v ::: _) (Var (Local n')) | n == n' = v
@@ -127,15 +131,15 @@ unlam n (Lam t b) = pure (n ::: t, instantiate (pure n) b)
 unlam _ _         = empty
 
 pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
-pi (n ::: t) b = Pi t (lam (n ::: t) b)
+pi (n ::: t) b = Pi t (bind n b)
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unpi n (Pi t (Lam _ b)) = pure (n ::: t, instantiate (pure n) b)
-unpi _ _                = empty
+unpi n (Pi t b) = pure (n ::: t, instantiate (pure n) b)
+unpi _ _        = empty
 
 
 efold :: forall l m n z b
@@ -147,7 +151,7 @@ efold :: forall l m n z b
       -> (forall a . Name (m a) -> n a)
       -> (forall a . n a)
       -> (forall a . n a -> n (Incr (n a)) -> n a)
-      -> (forall a . n a -> n a -> n a)
+      -> (forall a . n a -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (l b -> m (z b))
@@ -161,7 +165,7 @@ efold ex u var ty lam pi app k = go
           Var a -> var (h <$> a)
           Type -> ty
           Lam t b -> lam (go h t) (nest b)
-          Pi t b -> pi (go h t) (go h b)
+          Pi t b -> pi (go h t) (nest b)
           f :$ a -> app (go h f) (go h a)
           where nest b = coerce (go
                   (coerce (k . fmap (go h))
@@ -373,11 +377,10 @@ simplify = \case
         pure (exists (Meta n := (v' <|> bindingValue v'') ::: t2') tm2')
       Var (Local (Meta v1)) :===: t2 -> simplifyVar (Meta v1) t2
       t1 :===: Var (Local (Meta v2)) -> simplifyVar (Meta v2) t1
-      Pi t1 (Lam _ b1) :===: Pi t2 (Lam _ b2) -> do
+      Pi t1 b1 :===: Pi t2 b2 -> do
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- pi (Name n ::: t') <$> simplify (instantiate (pure (Name n)) b1 === instantiate (pure (Name n)) b2)
-      Pi t1 b1 :===: Pi t2 b2 -> Pi <$> simplify (t1 === t2) <*> simplify (b1 === b2)
       Lam t1 b1 :===: Lam t2 b2 -> do
         n <- gensym "lam"
         t' <- simplify (t1 === t2)
@@ -390,12 +393,11 @@ simplify = \case
     t' <- simplify t
     b' <- ForAll n ::: t' |- simplify (instantiate (pure (Name n)) b)
     pure (lam (Name n ::: t') b')
-  Pi t (Lam _ b) -> do
+  Pi t b -> do
     n <- gensym "pi"
     t' <- simplify t
     b' <- ForAll n ::: t' |- simplify (instantiate (pure (Name n)) b)
     pure (pi (Name n ::: t') b')
-  Pi t b -> Pi <$> simplify t <*> simplify b
   f :$ a -> do
     f' <- simplify f
     a' <- simplify a
