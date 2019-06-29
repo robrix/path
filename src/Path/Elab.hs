@@ -55,7 +55,7 @@ intro (p :< x) body = do
   x <- gensym (maybe "_" showUser x)
   _B <- x ::: _A |- exists Value.Type
   u <- x ::: _A |- goalIs _B (body x)
-  pure (Value.lam (p :< Name x) u ::: Value.pi (p :< (Name x, More) ::: _A) _B)
+  pure (Value.lam (p :< Name x) u ::: Value.pi (p :< ((Name x, More) ::: _A)) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    => Plicit (Maybe User, Usage, m (Value Meta ::: Type Meta))
@@ -65,7 +65,7 @@ pi (p :< (x, m, t)) body = do
   t' <- goalIs Value.Type t
   x <- gensym (maybe "_" showUser x)
   b' <- x ::: t' |- goalIs Value.Type (body x)
-  pure (Value.pi (p :< (Name x, m) ::: t') b' ::: Value.Type)
+  pure (Value.pi (p :< ((Name x, m) ::: t')) b' ::: Value.Type)
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     => m (Value Meta ::: Type Meta)
@@ -75,7 +75,7 @@ app f (p :< a) = do
   _A <- exists Value.Type
   x <- gensym "app"
   _B <- x ::: _A |- exists Value.Type
-  let _F = Value.pi (p :< (Name x, case p of { Im -> zero ; Ex -> More }) ::: _A) _B
+  let _F = Value.pi (p :< ((Name x, case p of { Im -> zero ; Ex -> More }) ::: _A)) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' Value.$$ (p :< a') ::: _F Value.$$ (p :< a'))
@@ -156,7 +156,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
   eff (L (Exists ty k)) = do
     ctx <- ElabC ask
     n <- gensym "meta"
-    let f (n ::: t) = Ex :< (Name n, More) ::: t
+    let f (n ::: t) = Ex :< ((Name n, More) ::: t)
         ty' = Value.pis (f <$> Context.unContext ctx) ty
     modify (Signature . Map.insert n ty' . unSignature)
     k (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars (ctx :: Context (Type Meta))))

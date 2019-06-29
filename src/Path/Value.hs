@@ -91,11 +91,11 @@ unlam :: Alternative m => a -> Value a -> m (Plicit a, Value a)
 unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
-pi :: Eq a => Plicit (a, Usage) ::: Type a -> Value a -> Value a
-pi (p :< (n, u) ::: t) b = Pi u t (Lam p (bind n b))
+pi :: Eq a => Plicit ((a, Usage) ::: Type a) -> Value a -> Value a
+pi (p :< ((n, u) ::: t)) b = Pi u t (Lam p (bind n b))
 
 -- | Wrap a type in a sequence of pi bindings.
-pis :: (Eq a, Foldable t) => t (Plicit (a, Usage) ::: Type a) -> Value a -> Value a
+pis :: (Eq a, Foldable t) => t (Plicit ((a, Usage) ::: Type a)) -> Value a -> Value a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Value a -> m (Plicit (a, Usage) ::: Type a, Value a)
@@ -139,7 +139,7 @@ efold var lam app ty pi k = go
 
 generalizeType :: Value Meta -> Value Gensym
 generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
-  where f name = Set.singleton (Im :< (name, Zero) ::: Type)
+  where f name = Set.singleton (Im :< ((name, Zero) ::: Type))
 
 
 weaken :: Value Gensym -> Value Meta

@@ -100,7 +100,7 @@ simplify (constraint :~ span) = do
 
         exists ctx ty = do
           n <- gensym "meta"
-          let f (n ::: t) = Ex :< (Name n, More) ::: t
+          let f (n ::: t) = Ex :< ((Name n, More) ::: t)
               ty' = Value.pis (f <$> Context.unContext ctx) ty
           modify (Signature . Map.insert n ty' . unSignature)
           pure (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars ctx))
