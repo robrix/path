@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveTraversable #-}
 module Path.Usage where
 
 import Path.Pretty
@@ -30,3 +31,10 @@ instance Pretty Usage where
   pretty Zero = pretty "0"
   pretty One  = pretty "1"
   pretty More = pretty "ω"
+
+
+data Used a
+  = Usage :@ a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+infixr 8 :@
