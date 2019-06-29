@@ -34,8 +34,8 @@ prettyValue = go
             b'' <- go b'
             pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
             where var vs (p :< n) rest
-                    | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n))   <+> rest
-                    | otherwise         = prettyPlicity False (p :< pretty '_') <+> rest
+                    | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n)) <+> rest
+                    | otherwise         = prettyPlicity False (p :< pretty '_')       <+> rest
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
