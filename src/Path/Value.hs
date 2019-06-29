@@ -136,11 +136,6 @@ efold var lam app ty pi k = go
           f :$ a -> app (var (h <$> f)) (fmap (go h) <$> a)
           Pi m t b -> pi m (go h t) (go h b)
 
--- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
---
---   prop> substitute a (pure b) (Lam Ex (pure (S a))) === Lam Ex (pure (S b))
-substitute :: Eq a => a -> Value a -> Value a -> Value a
-substitute name image = instantiate image . bind name
 
 generalizeType :: Value Meta -> Value Gensym
 generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
