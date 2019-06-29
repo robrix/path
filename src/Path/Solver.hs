@@ -48,25 +48,25 @@ simplify (constraint :~ span) = do
             | m1 == m2 -> pure ()
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
-          (Pi (_ :@ t1) (Lam p1 b1) :===: Pi (_ :@ t2) (Lam p2 b2)) ::: Type
+          (Pi (p1 :< (_ :@ t1)) b1 :===: Pi (p2 :< (_ :@ t2)) b2) ::: Type
             | p1 == p2 -> do
               go scope ctx ((t1 :===: t2) ::: Type)
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
               go scope (Context.insert (n ::: t1) ctx) ((instantiate (pure (Name n)) b1 :===: instantiate (pure (Name n)) b2) ::: Type)
-          (Pi (_ :@ t1) (Lam Im b1) :===: tm2) ::: Type -> do
+          (Pi (Im :< (_ :@ t1)) b1 :===: tm2) ::: Type -> do
             n <- exists ctx t1
             go scope ctx ((instantiate n b1 :===: tm2) ::: Type)
-          (tm1 :===: Pi (_ :@ t2) (Lam Im b2)) ::: Type -> do
+          (tm1 :===: Pi (Im :< (_ :@ t2)) b2) ::: Type -> do
             n <- exists ctx t2
             go scope ctx ((tm1 :===: instantiate n b2) ::: Type)
-          (Lam p1 f1 :===: Lam p2 f2) ::: Pi (_ :@ t) (Lam pt b)
+          (Lam p1 f1 :===: Lam p2 f2) ::: Pi (pt :< (_ :@ t)) b
             | p1 == p2, p1 == pt -> do
               n <- gensym "lam"
               go scope (Context.insert (n ::: t) ctx) ((instantiate (pure (Name n)) f1 :===: instantiate (pure (Name n)) f2) ::: instantiate (pure (Name n)) b)
-          (t1 :===: t2) ::: Pi (u :@ t) (Lam Im b) -> do
+          (t1 :===: t2) ::: Pi (Im :< (u :@ t)) b -> do
             n <- Name <$> gensym "lam"
-            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi (u :@ t) (Lam Im b))
+            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi (Im :< (u :@ t)) b)
           (f1@(Global _) :$ sp1 :===: f2@(Global _) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
             , Just t2 <- whnf scope (f2 :$ sp2) ->
