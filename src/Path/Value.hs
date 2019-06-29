@@ -40,7 +40,7 @@ prettyValue = go
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
               Pi u t (Lam p b) -> let b' = instantiate (pure (Name n)) b in Just ((p :< (Name n, u) ::: t, Name n `Set.member` fvs b'), b')
-              _                                -> Nothing)) v
+              _                -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
