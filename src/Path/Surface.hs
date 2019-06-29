@@ -15,3 +15,5 @@ data Surface
   | Hole (Maybe String)
   | (Usage, Spanned Surface) :-> Spanned Surface
   deriving (Eq, Ord, Show)
+
+infixr 0 :->
