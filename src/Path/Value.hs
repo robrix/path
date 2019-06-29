@@ -74,7 +74,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = gfold Lam (name id global) ($$*) Type Pi pure (fmap f a)
+  a >>= f = gfold (name id global) Lam ($$*) Type Pi pure (fmap f a)
 
 
 global :: Qualified -> Value a
@@ -112,15 +112,15 @@ v $$* sp = foldl' ($$) v sp
 
 
 gfold :: forall m n b
-      .  (forall a . Plicity -> n (Incr (n a)) -> n a)
-      -> (forall a . Name (m a) -> n a)
+      .  (forall a . Name (m a) -> n a)
+      -> (forall a . Plicity -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
       -> (forall a . Usage -> n a -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> Value (m b)
       -> n b
-gfold lam var app ty pi k = go
+gfold var lam app ty pi k = go
   where go :: Value (m x) -> n x
         go = \case
           Lam p b -> lam p (go (k . fmap go <$> b))
@@ -132,8 +132,8 @@ efold :: forall l m n z b
       .  ( forall a b . Coercible a b => Coercible (n a) (n b)
          , forall a b . Coercible a b => Coercible (m a) (m b)
          )
-      => (forall a . Plicity -> n (Incr (n a)) -> n a)
-      -> (forall a . Name (m a) -> n a)
+      => (forall a . Name (m a) -> n a)
+      -> (forall a . Plicity -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
       -> (forall a . Usage -> n a -> n a -> n a)
@@ -141,7 +141,7 @@ efold :: forall l m n z b
       -> (l b -> m (z b))
       -> Value (l b)
       -> n (z b)
-efold lam var app ty pi k = go
+efold var lam app ty pi k = go
   where go :: forall l' z' x . (l' x -> m (z' x)) -> Value (l' x) -> n (z' x)
         go h = \case
           Type -> ty
