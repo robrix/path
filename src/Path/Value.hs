@@ -1,13 +1,14 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TupleSections, TypeOperators #-}
 module Path.Value where
 
-import           Control.Applicative (Alternative (..))
+import           Control.Applicative (Alternative (..), Const (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Monad (ap, unless)
 import           Data.Coerce
 import           Data.Foldable (foldl', toList)
+import           Data.Functor.Identity
 import qualified Data.Set as Set
 import           GHC.Generics ((:.:) (..))
 import           Path.Name
@@ -74,7 +75,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = gfold (name id global) Lam ($$*) Type Pi pure (fmap f a)
+  a >>= f = coerce $ efold (name id global) Lam ($$*) Type Pi pure ((coerce `asTypeOf` fmap Const) . f . runIdentity) (coerce a)
 
 
 global :: Qualified -> Value a
