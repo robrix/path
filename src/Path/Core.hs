@@ -36,28 +36,6 @@ lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
-gfold :: forall m n b
-      .  (forall a . Name (m a) -> n a)
-      -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
-      -> (forall a . n a -> Plicit (n a) -> n a)
-      -> (forall a . n a)
-      -> (forall a . Usage -> n a -> n a -> n a)
-      -> (forall a . Gensym -> n a)
-      -> (forall a . Span -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> Core (m b)
-      -> n b
-gfold var lam app ty pi hole ann k = go
-  where go :: Core (m x) -> n x
-        go = \case
-          Var a -> var a
-          Lam n b -> lam n (go (k . fmap go <$> b))
-          f :$ a -> app (go f) (go <$> a)
-          Type -> ty
-          Pi m t b -> pi m (go t) (go b)
-          Hole a -> hole a
-          Ann span a -> ann span (go a)
-
 efold :: forall l m n z b
       .  ( forall a b . Coercible a b => Coercible (n a) (n b)
          , forall a b . Coercible a b => Coercible (m a) (m b)
