@@ -48,25 +48,25 @@ simplify (constraint :~ span) = do
             | m1 == m2 -> pure ()
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
-          (Pi _ t1 (Lam p1 b1) :===: Pi _ t2 (Lam p2 b2)) ::: Type
+          (Pi (_ :@ t1) (Lam p1 b1) :===: Pi (_ :@ t2) (Lam p2 b2)) ::: Type
             | p1 == p2 -> do
               go scope ctx ((t1 :===: t2) ::: Type)
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
               go scope (Context.insert (n ::: t1) ctx) ((instantiate (pure (Name n)) b1 :===: instantiate (pure (Name n)) b2) ::: Type)
-          (Pi _ t1 (Lam Im b1) :===: tm2) ::: Type -> do
+          (Pi (_ :@ t1) (Lam Im b1) :===: tm2) ::: Type -> do
             n <- exists ctx t1
             go scope ctx ((instantiate n b1 :===: tm2) ::: Type)
-          (tm1 :===: Pi _ t2 (Lam Im b2)) ::: Type -> do
+          (tm1 :===: Pi (_ :@ t2) (Lam Im b2)) ::: Type -> do
             n <- exists ctx t2
             go scope ctx ((tm1 :===: instantiate n b2) ::: Type)
-          (Lam p1 f1 :===: Lam p2 f2) ::: Pi _ t (Lam pt b)
+          (Lam p1 f1 :===: Lam p2 f2) ::: Pi (_ :@ t) (Lam pt b)
             | p1 == p2, p1 == pt -> do
               n <- gensym "lam"
               go scope (Context.insert (n ::: t) ctx) ((instantiate (pure (Name n)) f1 :===: instantiate (pure (Name n)) f2) ::: instantiate (pure (Name n)) b)
-          (t1 :===: t2) ::: Pi u t (Lam Im b) -> do
+          (t1 :===: t2) ::: Pi (u :@ t) (Lam Im b) -> do
             n <- Name <$> gensym "lam"
-            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi u t (Lam Im b))
+            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi (u :@ t) (Lam Im b))
           (f1@(Global _) :$ sp1 :===: f2@(Global _) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
             , Just t2 <- whnf scope (f2 :$ sp2) ->
@@ -83,7 +83,7 @@ simplify (constraint :~ span) = do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
                     n <- gensym "spine"
                     case Value.unpi (Name n) ty of
-                      Just (_ :< _ ::: t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
+                      Just (_ :< _ ::: _ :@ t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
                       Nothing                  -> pure ()
                   simplifySpine _ _ _ = pure ()
               t <- maybe (runReader span (freeVariable (Name f1))) pure (Context.lookup f1 ctx)
@@ -100,7 +100,7 @@ simplify (constraint :~ span) = do
 
         exists ctx ty = do
           n <- gensym "meta"
-          let f (n ::: t) = Ex :< (Name n, More) ::: t
+          let f (n ::: t) = Ex :< Name n ::: More :@ t
               ty' = Value.pis (f <$> Context.unContext ctx) ty
           modify (Signature . Map.insert n ty' . unSignature)
           pure (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars ctx))
