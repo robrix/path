@@ -39,7 +39,7 @@ prettyValue = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi (u :@ t) (Lam p b) -> let b' = instantiate (pure (Name n)) b in Just ((p :< (Name n, u) ::: t, Name n `Set.member` fvs b'), b')
+              Pi (u :@ t) (Lam p b) -> let b' = instantiate (pure (Name n)) b in Just ((p :< Name n ::: u :@ t, Name n `Set.member` fvs b'), b')
               _                -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
@@ -49,7 +49,7 @@ prettyValue = go
                   withPi _  pi   = (pretty pi <+>) . prettyPrec 11
                   arrow = blue (pretty "->")
                   l = flatAlt (space <> space <> space) mempty
-                  prettyPi (p :< (n, u) ::: t) isUsed = do
+                  prettyPi (p :< n ::: u :@ t) isUsed = do
                     t' <- withPi p u <$> go t
                     pure $! prettyPlicity isUsed (p :< if isUsed then pretty (Local n ::: t') else t')
           f :$ sp -> do
