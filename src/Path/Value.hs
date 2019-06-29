@@ -92,14 +92,14 @@ unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
 pi :: Eq a => Plicit ((a, Usage) ::: Type a) -> Value a -> Value a
-pi (p :< ((n, u) ::: t)) b = Pi u t (Lam p (bind n b))
+pi (p :< (n, u) ::: t) b = Pi u t (Lam p (bind n b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (Plicit ((a, Usage) ::: Type a)) -> Value a -> Value a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Value a -> m (Plicit ((a, Usage) ::: Type a), Value a)
-unpi n (Pi u t (Lam p b)) = pure (p :< ((n, u) ::: t), instantiate (pure n) b)
+unpi n (Pi u t (Lam p b)) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
 unpi _ _                  = empty
 
 ($$) :: Value a -> Plicit (Value a) -> Value a

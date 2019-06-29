@@ -83,7 +83,7 @@ simplify (constraint :~ span) = do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
                     n <- gensym "spine"
                     case Value.unpi (Name n) ty of
-                      Just (_ :< (_ ::: t), b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
+                      Just (_ :< _ ::: t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
                       Nothing                  -> pure ()
                   simplifySpine _ _ _ = pure ()
               t <- maybe (runReader span (freeVariable (Name f1))) pure (Context.lookup f1 ctx)
@@ -100,7 +100,7 @@ simplify (constraint :~ span) = do
 
         exists ctx ty = do
           n <- gensym "meta"
-          let f (n ::: t) = Ex :< ((Name n, More) ::: t)
+          let f (n ::: t) = Ex :< (Name n, More) ::: t
               ty' = Value.pis (f <$> Context.unContext ctx) ty
           modify (Signature . Map.insert n ty' . unSignature)
           pure (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars ctx))
