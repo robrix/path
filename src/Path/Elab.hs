@@ -42,7 +42,7 @@ assume v = do
 
 implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (m (Value Meta ::: Type Meta))))
 implicits = go Nil
-  where go names (Value (Value.Pi _ t (Value (Value.Lam Im b)))) | False = do
+  where go names (Value.Pi _ t (Value.Lam Im b)) | False = do
           v <- exists t
           go (names :> (Im :< pure (v ::: t))) (instantiate v b)
         go names _ = pure names
@@ -52,9 +52,9 @@ intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
       -> (Gensym -> m (Value Meta ::: Type Meta))
       -> m (Value Meta ::: Type Meta)
 intro (p :< x) body = do
-  _A <- exists Value.type'
+  _A <- exists Value.Type
   x <- gensym (maybe "_" showUser x)
-  _B <- x ::: _A |- exists Value.type'
+  _B <- x ::: _A |- exists Value.Type
   u <- x ::: _A |- goalIs _B (body x)
   pure (Value.lam (p :< Name x) u ::: Value.pi (p :< (Name x, More) ::: _A) _B)
 
@@ -63,19 +63,19 @@ pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
    -> (Gensym -> m (Value Meta ::: Type Meta))
    -> m (Value Meta ::: Type Meta)
 pi (p :< (x, m, t)) body = do
-  t' <- goalIs Value.type' t
+  t' <- goalIs Value.Type t
   x <- gensym (maybe "_" showUser x)
-  b' <- x ::: t' |- goalIs Value.type' (body x)
-  pure (Value.pi (p :< (Name x, m) ::: t') b' ::: Value.type')
+  b' <- x ::: t' |- goalIs Value.Type (body x)
+  pure (Value.pi (p :< (Name x, m) ::: t') b' ::: Value.Type)
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
     => m (Value Meta ::: Type Meta)
     -> Plicit (m (Value Meta ::: Type Meta))
     -> m (Value Meta ::: Type Meta)
 app f (p :< a) = do
-  _A <- exists Value.type'
+  _A <- exists Value.Type
   x <- gensym "app"
-  _B <- x ::: _A |- exists Value.type'
+  _B <- x ::: _A |- exists Value.Type
   let _F = Value.pi (p :< (Name x, case p of { Im -> zero ; Ex -> More }) ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
@@ -117,10 +117,10 @@ elab = \case
   Core (Core.Var n) -> assume n
   Core (Core.Lam n b) -> intro n (\ n' -> elab (instantiate (pure n') b))
   Core (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
-  Core Core.Type -> pure (Value.type' ::: Value.type')
+  Core Core.Type -> pure (Value.Type ::: Value.Type)
   Core (Core.Pi m t (Core (Core.Lam (p :< n) b))) -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure n') b))
   Core (Core.Pi m t b) -> pi (Ex :< (Nothing, m, elab t)) (\ _ -> elab b)
-  Core (Core.Hole h) -> (pure (Meta h) :::) <$> exists Value.type'
+  Core (Core.Hole h) -> (pure (Meta h) :::) <$> exists Value.Type
   Core (Core.Ann ann b) -> spanIs ann (elab b)
 
 
@@ -165,7 +165,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
           lookup (Local  n) = ElabC (asks (Context.lookup n))
           missing = do
-            ty <- exists Value.type'
+            ty <- exists Value.Type
             tm <- exists ty
             ty <$ unify (tm ::: ty :===: name (pure . Name) Value.global n ::: ty)
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
@@ -173,7 +173,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     span <- ask
     context <- ask
     tell (Set.fromList
-      [ (binds context ((ty1 :===: ty2) ::: Value.type')) :~ span
+      [ (binds context ((ty1 :===: ty2) ::: Value.Type)) :~ span
       , (binds context ((tm1 :===: tm2) ::: ty1))         :~ span
       ])
     runElabC k
@@ -229,8 +229,8 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
 
   let ty'' = whnf scope ty'
   (names, _) <- un (orTerm (\ n -> \case
-    Value (Value.Pi _ _ (Value (Value.Lam Im b))) | False -> Just (Im :< n, whnf scope (instantiate (pure n) b))
-    _                                                     -> Nothing)) ty''
+    Value.Pi _ _ (Value.Lam Im b) | False -> Just (Im :< n, whnf scope (instantiate (pure n) b))
+    _                                     -> Nothing)) ty''
   tm ::: _ <- runScope (define (Value.weaken ty') (elab (Core.lams names tm)))
   modify (Scope.insert name (Entry (Just tm ::: ty')))
   pure (Decl d name (tm ::: ty'))
@@ -245,7 +245,7 @@ declare :: ( Carrier sig m
         => ElabC (StateC Signature m) (Value Meta ::: Type Meta)
         -> m (Value Gensym)
 declare ty = evalState (mempty :: Signature) $ do
-  (constraints, ty') <- runElab (goalIs Value.type' ty)
+  (constraints, ty') <- runElab (goalIs Value.Type ty)
   subst <- solver constraints
   pure (Value.generalizeType (apply subst ty'))
 

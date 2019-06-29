@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TupleSections, TypeOperators #-}
 module Path.Value where
 
 import           Control.Applicative (Alternative (..))
@@ -18,26 +18,18 @@ import           Path.Usage
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
-newtype Value a = Value { unValue :: ValueF Value a }
+data Value a
+  = Type                                        -- ^ @'Type' : 'Type'@.
+  | Lam Plicity        (Value (Incr (Value a))) -- ^ A lambda abstraction.
+  | Pi Usage (Value a) (Value a)                -- ^ A ∏ type, with a 'Usage' annotation.
+  | Name a :$ Stack (Plicit (Value a))          -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-data ValueF f a
-  = Type                                -- ^ @'Type' : 'Type'@.
-  | Lam Plicity        (f (Incr (f a))) -- ^ A lambda abstraction.
-  | Pi Usage (f a) (f a)                -- ^ A ∏ type, with a 'Usage' annotation.
-  | Name a :$ Stack (Plicit (f a))      -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
-  deriving (Foldable, Functor, Traversable)
-
-deriving instance (Eq   a, forall x . Eq   x => Eq   (f x)) => Eq   (ValueF f a)
-deriving instance (Ord  a, forall x . Eq   x => Eq   (f x)
-                         , forall x . Ord  x => Ord  (f x)) => Ord  (ValueF f a)
-deriving instance (Show a, forall x . Show x => Show (f x)) => Show (ValueF f a)
 
 prettyValue :: (Carrier sig m, Member Naming sig) => Value Meta -> m Prec
 prettyValue = go
-  where go = (. unValue) $ \case
+  where go = \case
           Lam ie b -> do
-            (as, b') <- un (orTerm (unlam . Name)) (Value (Lam ie b))
+            (as, b') <- un (orTerm (unlam . Name)) (Lam ie b)
             b'' <- go b'
             pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
             where var vs (p :< n) rest
@@ -46,8 +38,8 @@ prettyValue = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Value (Pi u t (Value (Lam p b))) -> let b' = instantiate (pure (Name n)) b in Just ((p :< (Name n, u) ::: t, Name n `Set.member` fvs b'), b')
-              _                                -> Nothing)) (Value v)
+              Pi u t (Lam p b) -> let b' = instantiate (pure (Name n)) b in Just ((p :< (Name n, u) ::: t, Name n `Set.member` fvs b'), b')
+              _                                -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
@@ -78,45 +70,42 @@ instance Ord a => FreeVariables a (Value a) where
   fvs = foldMap Set.singleton
 
 instance Applicative Value where
-  pure = Value . (:$ Nil) . Local
+  pure = (:$ Nil) . Local
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = gfold (fmap Value . Lam) (name id global) ($$*) type' (fmap (fmap Value) . Pi) pure (fmap f a)
+  a >>= f = gfold Lam (name id global) ($$*) Type Pi pure (fmap f a)
 
 
 global :: Qualified -> Value a
-global = Value . (:$ Nil) . Global
+global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Value a -> Value a
-lam (pl :< n) b = Value (Lam pl (bind n b))
+lam (pl :< n) b = Lam pl (bind n b)
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Value a -> Value a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Value a -> m (Plicit a, Value a)
-unlam n (Value (Lam p b)) = pure (p :< n, instantiate (pure n) b)
-unlam _ _                 = empty
-
-type' :: Value a
-type' = Value Type
+unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
+unlam _ _         = empty
 
 pi :: Eq a => Plicit (a, Usage) ::: Type a -> Value a -> Value a
-pi (p :< (n, u) ::: t) b = Value (Pi u t (Value (Lam p (bind n b))))
+pi (p :< (n, u) ::: t) b = Pi u t (Lam p (bind n b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (Plicit (a, Usage) ::: Type a) -> Value a -> Value a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Value a -> m (Plicit (a, Usage) ::: Type a, Value a)
-unpi n (Value (Pi u t (Value (Lam p b)))) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
-unpi _ _                                  = empty
+unpi n (Pi u t (Lam p b)) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
+unpi _ _                  = empty
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
-Value (Lam  _ b) $$ (_ :< v) = instantiate v b
-Value (Pi _ _ b) $$ v        = b $$ v
-Value (n :$ vs)  $$ v        = Value (n :$ (vs :> v))
-Value _          $$ _        = error "illegal application of Type"
+Lam  _ b $$ (_ :< v) = instantiate v b
+Pi _ _ b $$ v        = b $$ v
+n :$ vs  $$ v        = n :$ (vs :> v)
+_        $$ _        = error "illegal application of Type"
 
 ($$*) :: Foldable t => Value a -> t (Plicit (Value a)) -> Value a
 v $$* sp = foldl' ($$) v sp
@@ -134,10 +123,10 @@ gfold :: forall m n b
 gfold lam var app ty pi k = go
   where go :: Value (m x) -> n x
         go = \case
-          Value (Lam p b) -> lam p (go (k . fmap go <$> b))
-          Value (f :$ a) -> app (var f) (fmap (fmap go) a)
-          Value Type -> ty
-          Value (Pi m t b) -> pi m (go t) (go b)
+          Lam p b -> lam p (go (k . fmap go <$> b))
+          f :$ a -> app (var f) (fmap (fmap go) a)
+          Type -> ty
+          Pi m t b -> pi m (go t) (go b)
 
 efold :: forall l m n z b
       .  ( forall a b . Coercible a b => Coercible (n a) (n b)
@@ -155,13 +144,13 @@ efold :: forall l m n z b
 efold lam var app ty pi k = go
   where go :: forall l' z' x . (l' x -> m (z' x)) -> Value (l' x) -> n (z' x)
         go h = \case
-          Value Type -> ty
-          Value (Lam p b) -> lam p (coerce (go
-                               (coerce (k . fmap (go h))
-                                 :: ((Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x)))
-                               (fmap coerce b))) -- FIXME: Can we avoid this fmap and just coerce harder?
-          Value (f :$ a) -> app (var (h <$> f)) (fmap (go h) <$> a)
-          Value (Pi m t b) -> pi m (go h t) (go h b)
+          Type -> ty
+          Lam p b -> lam p (coerce (go
+                       (coerce (k . fmap (go h))
+                         :: ((Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x)))
+                       (coerce b)))
+          f :$ a -> app (var (h <$> f)) (fmap (go h) <$> a)
+          Pi m t b -> pi m (go h t) (go h b)
 
 -- | Substitute occurrences of a variable with a 'Value' within another 'Value'.
 --
@@ -171,7 +160,7 @@ substitute name image = instantiate image . bind name
 
 generalizeType :: Value Meta -> Value Gensym
 generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
-  where f name = Set.singleton (Im :< (name, Zero) ::: type')
+  where f name = Set.singleton (Im :< (name, Zero) ::: Type)
 
 
 weaken :: Value Gensym -> Value Meta
