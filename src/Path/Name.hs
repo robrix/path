@@ -234,7 +234,7 @@ typedTerm (a ::: _) = a
 typedType :: a ::: b -> b
 typedType (_ ::: t) = t
 
-infix 6 :::
+infix 7 :::
 
 instance (Pretty a, Pretty b) => Pretty (a ::: b) where
   pretty (a ::: t) = pretty a <+> cyan colon <+> pretty t
