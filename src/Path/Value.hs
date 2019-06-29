@@ -98,8 +98,8 @@ pi (p :< ((n, u) ::: t)) b = Pi u t (Lam p (bind n b))
 pis :: (Eq a, Foldable t) => t (Plicit ((a, Usage) ::: Type a)) -> Value a -> Value a
 pis names body = foldr pi body names
 
-unpi :: Alternative m => a -> Value a -> m (Plicit (a, Usage) ::: Type a, Value a)
-unpi n (Pi u t (Lam p b)) = pure (p :< (n, u) ::: t, instantiate (pure n) b)
+unpi :: Alternative m => a -> Value a -> m (Plicit ((a, Usage) ::: Type a), Value a)
+unpi n (Pi u t (Lam p b)) = pure (p :< ((n, u) ::: t), instantiate (pure n) b)
 unpi _ _                  = empty
 
 ($$) :: Value a -> Plicit (Value a) -> Value a

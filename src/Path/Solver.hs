@@ -83,8 +83,8 @@ simplify (constraint :~ span) = do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
                     n <- gensym "spine"
                     case Value.unpi (Name n) ty of
-                      Just (_ ::: t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
-                      Nothing -> pure ()
+                      Just (_ :< (_ ::: t), b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
+                      Nothing                  -> pure ()
                   simplifySpine _ _ _ = pure ()
               t <- maybe (runReader span (freeVariable (Name f1))) pure (Context.lookup f1 ctx)
               simplifySpine ctx t (zip (toList sp1) (toList sp2))
