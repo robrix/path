@@ -31,18 +31,18 @@ resolveTerm :: ( Carrier sig m
                )
             => Spanned Surface.Surface
             -> m (Core Gensym)
-resolveTerm (term :~ span) = local (const span) $ Core . Ann span <$> case term of
-  Surface.Var v -> Core . Var <$> resolveName v
+resolveTerm (term :~ span) = local (const span) $ Ann span <$> case term of
+  Surface.Var v -> Var <$> resolveName v
   Surface.Lam (p :< v) b -> do
     v' <- gensym (maybe "lam" showUser v)
-    local (insertLocal v v') (Core . Lam (p :< v) . bind v' <$> resolveTerm b)
-  f Surface.:$ a -> fmap Core . (:$) <$> resolveTerm f <*> traverse resolveTerm a
-  Surface.Type -> pure (Core Type)
+    local (insertLocal v v') (Lam (p :< v) . bind v' <$> resolveTerm b)
+  f Surface.:$ a -> (:$) <$> resolveTerm f <*> traverse resolveTerm a
+  Surface.Type -> pure Type
   Surface.Pi (ie :< (v, u, t)) b -> do
     v' <- gensym (maybe "pi" showUser v)
-    fmap Core . Pi u <$> resolveTerm t <*> local (insertLocal v v') (Core . Lam (ie :< v) . bind v' <$> resolveTerm b)
-  (u, a) Surface.:-> b -> fmap Core . Pi u <$> resolveTerm a <*> resolveTerm b
-  Surface.Hole v -> Core . Hole <$> resolveMeta v
+    Pi u <$> resolveTerm t <*> local (insertLocal v v') (Lam (ie :< v) . bind v' <$> resolveTerm b)
+  (u, a) Surface.:-> b -> Pi u <$> resolveTerm a <*> resolveTerm b
+  Surface.Hole v -> Hole <$> resolveMeta v
 
 
 data Mode = Declare | Define

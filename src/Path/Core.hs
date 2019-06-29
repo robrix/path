@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving #-}
+{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables #-}
 module Path.Core where
 
 import Control.Monad (ap)
@@ -8,33 +8,25 @@ import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
-newtype Core a = Core { unCore :: CoreF Core a }
+data Core a
+  = Var (Name a)
+  | Lam (Plicit (Maybe User)) (Core (Incr (Core a)))
+  | Core a :$ Plicit (Core a)
+  | Type
+  | Pi Usage (Core a) (Core a)
+  | Hole Gensym
+  | Ann Span (Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-data CoreF f a
-  = Var (Name a)
-  | Lam (Plicit (Maybe User)) (f (Incr (f a)))
-  | f a :$ Plicit (f a)
-  | Type
-  | Pi Usage (f a) (f a)
-  | Hole Gensym
-  | Ann Span (f a)
-  deriving (Foldable, Functor, Traversable)
-
-deriving instance (Eq   a, forall x . Eq   x => Eq   (f x)) => Eq   (CoreF f a)
-deriving instance (Ord  a, forall x . Eq   x => Eq   (f x)
-                         , forall x . Ord  x => Ord  (f x)) => Ord  (CoreF f a)
-deriving instance (Show a, forall x . Show x => Show (f x)) => Show (CoreF f a)
-
 instance Applicative Core where
-  pure = Core . Var . Local
+  pure = Var . Local
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = gfold (name id (Core . Var . Global)) (fmap Core . Lam) (fmap Core . (:$)) (Core Type) (fmap (fmap Core) . Pi) (Core . Hole) (fmap Core . Ann) pure (fmap f a)
+  a >>= f = gfold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure (fmap f a)
 
 lam :: Eq a => Plicit a -> Core a -> Core a
-lam (p :< n) b = Core (Lam (p :< Nothing) (bind n b))
+lam (p :< n) b = Lam (p :< Nothing) (bind n b)
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
@@ -54,13 +46,13 @@ gfold :: forall m n b
 gfold var lam app ty pi hole ann k = go
   where go :: Core (m x) -> n x
         go = \case
-          Core (Var a) -> var a
-          Core (Lam n b) -> lam n (go (k . fmap go <$> b))
-          Core (f :$ a) -> app (go f) (go <$> a)
-          Core Type -> ty
-          Core (Pi m t b) -> pi m (go t) (go b)
-          Core (Hole a) -> hole a
-          Core (Ann span a) -> ann span (go a)
+          Var a -> var a
+          Lam n b -> lam n (go (k . fmap go <$> b))
+          f :$ a -> app (go f) (go <$> a)
+          Type -> ty
+          Pi m t b -> pi m (go t) (go b)
+          Hole a -> hole a
+          Ann span a -> ann span (go a)
 
 
 -- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
