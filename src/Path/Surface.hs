@@ -11,9 +11,9 @@ data Surface
   | Lam (Plicit (Maybe User)) (Spanned Surface)
   | Spanned Surface :$ Plicit (Spanned Surface)
   | Type
-  | Pi (Plicit (Maybe User, Usage, Spanned Surface)) (Spanned Surface)
+  | Pi (Plicit (Maybe User, Used (Spanned Surface))) (Spanned Surface)
   | Hole (Maybe String)
-  | (Usage, Spanned Surface) :-> Spanned Surface
+  | Used (Spanned Surface) :-> Spanned Surface
   deriving (Eq, Ord, Show)
 
 infixr 0 :->

@@ -14,7 +14,7 @@ import Path.Name
 import Path.Plicity
 import Path.Pretty
 import qualified Path.Surface as Surface
--- import Path.Usage
+import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
@@ -38,10 +38,10 @@ resolveTerm (term :~ span) = local (const span) $ Ann span <$> case term of
     local (insertLocal v v') (Lam (p :< v) . bind v' <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> traverse resolveTerm a
   Surface.Type -> pure Type
-  Surface.Pi (ie :< (v, u, t)) b -> do
+  Surface.Pi (ie :< (v, u :@ t)) b -> do
     v' <- gensym (maybe "pi" showUser v)
-    Pi u <$> resolveTerm t <*> local (insertLocal v v') (Lam (ie :< v) . bind v' <$> resolveTerm b)
-  (u, a) Surface.:-> b -> Pi u <$> resolveTerm a <*> resolveTerm b
+    Pi . (u :@) <$> resolveTerm t <*> local (insertLocal v v') (Lam (ie :< v) . bind v' <$> resolveTerm b)
+  u :@ a Surface.:-> b -> Pi . (u :@) <$> resolveTerm a <*> resolveTerm b
   Surface.Hole v -> Hole <$> resolveMeta v
 
 

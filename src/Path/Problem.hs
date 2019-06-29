@@ -20,6 +20,7 @@ import           Path.Name
 import           Path.Plicity (Plicit (..))
 import           Path.Pretty
 import           Path.Stack as Stack
+import           Path.Usage
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span (..), Spanned (..))
 
@@ -287,8 +288,8 @@ elab = \case
   Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure n') b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
-  Core.Pi _ t (Core.Lam _ b) -> elab t --> \ n' -> elab (instantiate (pure n') b)
-  Core.Pi _ t b -> elab t --> \ _ -> elab b
+  Core.Pi (_ :@ t) (Core.Lam _ b) -> elab t --> \ n' -> elab (instantiate (pure n') b)
+  Core.Pi (_ :@ t) b -> elab t --> \ _ -> elab b
   Core.Hole h -> (pure (Meta h) :::) <$> meta Type
   Core.Ann ann b -> spanIs ann (elab b)
 
