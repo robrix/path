@@ -3,6 +3,8 @@ module Path.Core where
 
 import Control.Monad (ap)
 import Data.Coerce
+import Data.Functor.Const
+import Data.Functor.Identity
 import GHC.Generics ((:.:) (..))
 import Path.Name
 import Path.Plicity
@@ -25,7 +27,7 @@ instance Applicative Core where
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = gfold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure (fmap f a)
+  a >>= f = coerce $ efold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure ((coerce `asTypeOf` fmap Const) . f . runIdentity) (coerce a)
 
 lam :: Eq a => Plicit a -> Core a -> Core a
 lam (p :< n) b = Lam (p :< Nothing) (bind n b)
