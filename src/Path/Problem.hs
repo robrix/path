@@ -1,27 +1,27 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
-import Control.Applicative (Alternative (..), Const (..))
-import Control.Effect
-import Control.Effect.Error
-import Control.Effect.Reader hiding (Local)
-import Control.Effect.State
-import Control.Monad (ap)
-import Data.Coerce
-import Data.Foldable (fold)
-import Data.Functor.Identity
-import Data.List (intersperse)
-import GHC.Generics ((:.:) (..))
-import Path.Constraint (Equation(..))
+import           Control.Applicative (Alternative (..), Const (..))
+import           Control.Effect
+import           Control.Effect.Error
+import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.State
+import           Control.Monad (ap)
+import           Data.Coerce
+import           Data.Foldable (fold)
+import           Data.Functor.Identity
+import           Data.List (intersperse)
+import           GHC.Generics ((:.:) (..))
+import           Path.Constraint (Equation (..))
 import qualified Path.Core as Core
-import Path.Error
-import Path.Module
-import Path.Name
-import Path.Plicity (Plicit(..))
-import Path.Pretty
-import Path.Stack as Stack
-import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span(..), Spanned(..))
+import           Path.Error
+import           Path.Module
+import           Path.Name
+import           Path.Plicity (Plicit (..))
+import           Path.Pretty
+import           Path.Stack as Stack
+import           Prelude hiding (pi)
+import           Text.Trifecta.Rendering (Span (..), Spanned (..))
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
@@ -123,7 +123,7 @@ lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unlam n (Lam t b) = pure (n ::: t, instantiate (pure n) b)
-unlam _ _                   = empty
+unlam _ _         = empty
 
 pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
 pi (n ::: t) b = Pi t (lam (n ::: t) b)
@@ -254,7 +254,7 @@ bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
   a <- m
   stack <- get @Context
   case stack of
-    Nil -> pure (Exists (e := Nothing), a)
+    Nil           -> pure (Exists (e := Nothing), a)
     _ :> e' ::: _ -> pure (e', a)
 
 solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Problem Meta -> m ()
@@ -414,7 +414,7 @@ simplifyVar v t = do
 
 contextualize :: (Carrier sig m, Member (State Context) sig) => Problem Meta -> m (Problem Meta)
 contextualize = gets . go
-  where go p Nil = p
+  where go p Nil                            = p
         go p (ctx :> Define _        ::: _) = go p ctx
         go p (ctx :> Exists (n := v) ::: t) = go (exists (Meta n := v ::: t) p) ctx
         go p (ctx :> ForAll n        ::: t) = go (lam (Name n ::: t) p) ctx
