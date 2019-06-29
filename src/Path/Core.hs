@@ -53,10 +53,3 @@ gfold var lam app ty pi hole ann k = go
           Pi m t b -> pi m (go t) (go b)
           Hole a -> hole a
           Ann span a -> ann span (go a)
-
-
--- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
---
---   prop> substitute a (pure b) (Lam (pure (S a))) === Lam (pure (S b))
-substitute :: Eq a => a -> Core a -> Core a -> Core a
-substitute name image = instantiate image . bind name
