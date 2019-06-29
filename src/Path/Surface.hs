@@ -13,7 +13,9 @@ data Surface
   | Type
   | Pi (Plicit (Maybe User, Used (Spanned Surface))) (Spanned Surface)
   | Hole (Maybe String)
-  | Used (Spanned Surface) :-> Spanned Surface
   deriving (Eq, Ord, Show)
 
-infixr 0 :->
+(-->) :: Used (Spanned Surface) -> Spanned Surface -> Surface
+t --> b = Pi (Ex :< (Nothing, t)) b
+
+infixr 0 -->

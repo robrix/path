@@ -26,10 +26,10 @@ piType = spanned (do
   Pi (p :< (Just v, fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty)) <$> functionType) <?> "dependent function type"
   where binding = ((,,) <$> name <* colon <*> optional multiplicity <*> term)
 
-functionType = spanned ((:@) <$> multiplicity <*> application <**> (flip (:->) <$ op "->" <*> functionType))
+functionType = spanned ((:@) <$> multiplicity <*> application <**> (flip (-->) <$ op "->" <*> functionType))
                 <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
                 <|> piType
-          where arrow t'@(_ :~ s2) t@(_ :~ s1) = ((More :@ t) :-> t') :~ (s1 <> s2)
+          where arrow t'@(_ :~ s2) t@(_ :~ s1) = ((More :@ t) --> t') :~ (s1 <> s2)
 
 var = spanned (Var <$> name <?> "variable")
 
