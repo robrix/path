@@ -131,7 +131,7 @@ efold var lam app ty pi k = go
           Type -> ty
           Lam p b -> lam p (coerce (go
                        (coerce (k . fmap (go h))
-                         :: ((Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x)))
+                         :: (Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x))
                        (coerce b)))
           f :$ a -> app (var (h <$> f)) (fmap (go h) <$> a)
           Pi m t b -> pi m (go h t) (go h b)

@@ -57,7 +57,7 @@ efold var lam app ty pi hole ann k = go
           Var a -> var (h <$> a)
           Lam p b -> lam p (coerce (go
                        (coerce (k . fmap (go h))
-                         :: ((Incr :.: Core :.: l') x -> m ((Incr :.: n :.: z') x)))
+                         :: (Incr :.: Core :.: l') x -> m ((Incr :.: n :.: z') x))
                        (coerce b)))
           f :$ a -> app (go h f) (go h <$> a)
           Type -> ty
