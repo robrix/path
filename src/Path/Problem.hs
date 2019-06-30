@@ -354,6 +354,22 @@ simplify :: ( Carrier sig m
          => Problem (Name Gensym)
          -> m (Problem (Name Gensym))
 simplify = \case
+  Var a -> pure (Var a)
+  Lam t b -> do
+    n <- gensym "lam"
+    t' <- simplify t
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
+    pure (lam (Local n ::: t') b')
+  f :$ a -> do
+    f' <- simplify f
+    a' <- simplify a
+    pure (f' :$ a')
+  Type -> pure Type
+  Pi t b -> do
+    n <- gensym "pi"
+    t' <- simplify t
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
+    pure (pi (Local n ::: t') b')
   Ex Nothing t b -> do
     n <- gensym "ex"
     t' <- simplify t
@@ -398,22 +414,6 @@ simplify = \case
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- lam (Local n ::: t') <$> simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
       (t1, t2) -> pure (t1 :===: t2)
-  Var a -> pure (Var a)
-  Type -> pure Type
-  Lam t b -> do
-    n <- gensym "lam"
-    t' <- simplify t
-    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
-    pure (lam (Local n ::: t') b')
-  Pi t b -> do
-    n <- gensym "pi"
-    t' <- simplify t
-    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
-    pure (pi (Local n ::: t') b')
-  f :$ a -> do
-    f' <- simplify f
-    a' <- simplify a
-    pure (f' :$ a')
 
 simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Gensym -> Problem (Name Gensym) -> m (Problem (Name Gensym))
 simplifyVar v t = do
