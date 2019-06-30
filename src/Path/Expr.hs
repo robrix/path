@@ -29,20 +29,17 @@ instance Monad Expr where
   a >>= f = efold id (Expr . Lam) (fmap Expr . (:$)) Var f a
 
 
-efold :: forall m n incr a b
+efold :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . n (incr (n a)) -> n a)
+      -> (forall a . n (Incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (incr (n a)))
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Expr a
       -> n b
-efold var lam app k = go
-  where go :: forall x y . (x -> m y) -> Expr x -> n y
-        go h = \case
-          Var a -> var (h a)
-          Expr (Lam b) -> lam (go (k . fmap (go h)) b)
-          Expr (f :$ a) -> go h f `app` go h a
+efold var lam app = ecata var $ \case
+  Lam b -> lam b
+  f :$ a -> f `app` a
 
 ecata :: forall m n a b
       .  (forall a . m a -> n a)
