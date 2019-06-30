@@ -35,7 +35,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = efold id (fmap Problem . Lam) (fmap Problem . (:$)) (Problem Type) (fmap Problem . Pi) (fmap (fmap Problem) . Ex) (fmap Problem . (:===:)) pure f a
+  a >>= f = efold id (fmap Problem . Lam) (fmap Problem . (:$)) type' (fmap Problem . Pi) (fmap (fmap Problem) . Ex) (fmap Problem . (:===:)) pure f a
 
 instance Pretty (Problem (Name Gensym)) where
   pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kfold id lam app ty pi ex eq k (var . fmap Name)
@@ -115,6 +115,10 @@ lams names body = foldr lam body names
 unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate (pure n) b)
 unlam _ _                   = empty
+
+
+type' :: Problem a
+type' = Problem Type
 
 pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
 pi (n ::: t) b = Problem (Pi t (bind n b))
@@ -219,9 +223,9 @@ intro :: ( Carrier sig m
       => (Gensym -> m (Problem (Name Gensym) ::: Problem (Name Gensym)))
       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 intro body = do
-  _A <- meta (Problem Type)
+  _A <- meta type'
   x <- gensym "intro"
-  _B <- ForAll x ::: _A |- meta (Problem Type)
+  _B <- ForAll x ::: _A |- meta type'
   u <- ForAll x ::: _A |- goalIs _B (body x)
   pure (lam (Local x ::: _A) u ::: pi (Local x ::: _A) _B)
 
@@ -233,10 +237,10 @@ intro body = do
       -> (Gensym -> m (Problem (Name Gensym) ::: Problem (Name Gensym)))
       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 t --> body = do
-  t' <- goalIs (Problem Type) t
+  t' <- goalIs type' t
   x <- gensym "pi"
-  b' <- ForAll x ::: t' |- goalIs (Problem Type) (body x)
-  pure (pi (Local x ::: t') b' ::: Problem Type)
+  b' <- ForAll x ::: t' |- goalIs type' (body x)
+  pure (pi (Local x ::: t') b' ::: type')
 
 app :: ( Carrier sig m
        , Member Naming sig
@@ -246,9 +250,9 @@ app :: ( Carrier sig m
     -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
     -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 app f a = do
-  _A <- meta (Problem Type)
+  _A <- meta type'
   x <- gensym "app"
-  _B <- ForAll x ::: _A |- meta (Problem Type)
+  _B <- ForAll x ::: _A |- meta type'
   let _F = pi (Local x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
@@ -316,9 +320,9 @@ elab = \case
   Core.Var n -> assume n
   Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
-  Core.Type -> pure (Problem Type ::: Problem Type)
+  Core.Type -> pure (type' ::: type')
   Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
-  Core.Hole h -> (pure (Local h) :::) <$> meta (Problem Type)
+  Core.Hole h -> (pure (Local h) :::) <$> meta type'
   Core.Ann ann b -> spanIs ann (elab b)
 
 elabDecl :: ( Carrier sig m
@@ -344,7 +348,7 @@ declare :: ( Carrier sig m
            )
         => m (Problem (Name Gensym) ::: Problem (Name Gensym))
         -> m (Problem (Name Gensym))
-declare ty = goalIs (Problem Type) ty >>= simplify
+declare ty = goalIs type' ty >>= simplify
 
 define :: ( Carrier sig m
           , Member (Error Doc) sig
@@ -378,7 +382,7 @@ simplify = \case
       f' <- simplify f
       a' <- simplify a
       pure (Problem (f' :$ a'))
-    Type -> pure (Problem Type)
+    Type -> pure type'
     Pi t b -> do
       n <- gensym "pi"
       t' <- simplify t
@@ -488,12 +492,12 @@ runProblem = evalState (mempty :: Context) . runReader (Span mempty mempty mempt
 
 identity, identityT, constant, constantT, constantTQ :: Problem String
 
-identity = lam ("A" ::: Problem Type) (lam ("a" ::: pure "A") (pure "a"))
-identityT = pi ("A" ::: Problem Type) (pi ("_" ::: pure "A") (pure "A"))
-constant = lam ("A" ::: Problem Type) (lam ("B" ::: Problem Type) (lam ("a" ::: pure "A") (lam ("b" ::: pure "B") (pure "a"))))
-constantT = pi ("A" ::: Problem Type) (pi ("B" ::: Problem Type) (pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))
+identity = lam ("A" ::: type') (lam ("a" ::: pure "A") (pure "a"))
+identityT = pi ("A" ::: type') (pi ("_" ::: pure "A") (pure "A"))
+constant = lam ("A" ::: type') (lam ("B" ::: type') (lam ("a" ::: pure "A") (lam ("b" ::: pure "B") (pure "a"))))
+constantT = pi ("A" ::: type') (pi ("B" ::: type') (pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))
 
 constantTQ
-  = exists ("_A" := Nothing ::: Problem Type) (pi ("A" ::: pure "_A")
-  ( exists ("_B" := Nothing ::: Problem Type) (pi ("B" ::: pure "_B")
+  = exists ("_A" := Nothing ::: type') (pi ("A" ::: pure "_A")
+  ( exists ("_B" := Nothing ::: type') (pi ("B" ::: pure "_B")
   ( pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))))
