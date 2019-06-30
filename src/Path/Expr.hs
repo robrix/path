@@ -63,3 +63,11 @@ kfold :: (a -> b)
       -> Expr x
       -> b
 kfold var lam app k h = getConst . efold (coerce var) (coerce lam) (coerce app) (coerce k) (Const . h)
+
+kcata :: (a -> b)
+      -> (forall a . ExprF (Const b) a -> b)
+      -> (Incr b -> a)
+      -> (x -> a)
+      -> Expr x
+      -> b
+kcata var alg k h = getConst . ecata (coerce var) (coerce alg) (coerce k) (Const . h)
