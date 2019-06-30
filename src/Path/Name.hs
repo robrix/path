@@ -40,6 +40,10 @@ root // s = root :/ (s, 0)
 
 infixl 6 //
 
+root :: Gensym -> String
+root (Root s) = s
+root (r :/ _) = root r
+
 
 gensym :: (Carrier sig m, Member Naming sig) => String -> m Gensym
 gensym s = send (Gensym s pure)
