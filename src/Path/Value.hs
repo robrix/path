@@ -23,9 +23,9 @@ data Value a
   | a :$ Stack (Plicit (Value a))                         -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m Prec
+prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
 prettyValue = go
-  where go :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m Prec
+  where go :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
         go = \case
           Lam ie b -> do
             (as, b') <- un (orTerm (unlam . Local . Name)) (Lam ie b)

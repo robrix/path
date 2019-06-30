@@ -1,4 +1,4 @@
-{-# LANGUAGE DefaultSignatures, FlexibleContexts #-}
+{-# LANGUAGE DefaultSignatures, DeriveTraversable, FlexibleContexts #-}
 module Path.Pretty
 ( prettyPrint
 , putDoc
@@ -96,20 +96,20 @@ tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
 tracePrettyM a = unsafePerformIO (prettyPrint a *> pure (pure ()))
 
 
-data Prec = Prec
+data Prec a = Prec
   { precPrecedence :: Maybe Int
-  , precDoc        :: Doc
+  , precDoc        :: a
   }
-  deriving (Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance Pretty Prec where
-  pretty = precDoc
+instance Pretty a => Pretty (Prec a) where
+  pretty = pretty . precDoc
 
-prec :: Int -> Doc -> Prec
+prec :: Int -> a -> Prec a
 prec = Prec . Just
 
-atom :: Doc -> Prec
+atom :: a -> Prec a
 atom = Prec Nothing
 
-prettyPrec :: Int -> Prec -> Doc
+prettyPrec :: Int -> Prec Doc -> Doc
 prettyPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a
