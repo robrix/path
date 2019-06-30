@@ -83,7 +83,7 @@ instance Pretty (Problem (Name Gensym)) where
             p1' <- prettyPrec 1 <$> p1
             p2' <- prettyPrec 1 <$> p2
             pure (prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2'))))
-          arrow = blue (pretty "->")
+          arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
           gensym = do
             ns <- ask
