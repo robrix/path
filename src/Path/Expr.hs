@@ -44,6 +44,20 @@ efold var lam app k = go
           Expr (Lam b) -> lam (go (k . fmap (go h)) b)
           Expr (f :$ a) -> go h f `app` go h a
 
+ecata :: forall m n a b
+      .  (forall a . m a -> n a)
+      -> (forall a . ExprF n a -> n a)
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (a -> m b)
+      -> Expr a
+      -> n b
+ecata var alg k = go
+  where go :: forall x y . (x -> m y) -> Expr x -> n y
+        go h = \case
+          Var a -> var (h a)
+          Expr (Lam b) -> alg (Lam (go (k . fmap (go h)) b))
+          Expr (f :$ a) -> alg (go h f :$ go h a)
+
 kfold :: (a -> b)
       -> (b -> b)
       -> (b -> b -> b)
