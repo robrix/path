@@ -65,7 +65,7 @@ instance Pretty (Problem (Name Gensym)) where
               (fvs, b') <- fmap (prettyPrec 0) <$> listen (local (n :) b)
               let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
                       | otherwise          = t'
-              pure (prec 0 (t'' <+> arrow <+> b'))
+              pure (prec 0 (t'' </> arrow <+> b'))
           ex Nothing t b = do
             n <- Local . Meta <$> gensym
             t' <- prettyPrec 1 <$> t
