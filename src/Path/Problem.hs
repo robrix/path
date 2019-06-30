@@ -10,7 +10,6 @@ import           Control.Monad (ap)
 import           Data.Foldable (fold)
 import           Data.List (intersperse)
 import qualified Data.Set as Set
-import           Path.Constraint (Equation (..))
 import qualified Path.Core as Core
 import           Path.Error
 import           Path.Module
@@ -31,15 +30,17 @@ data Problem a
   | Type
   | Pi (Problem a) (Problem (Incr (Problem a)))
   | Ex (Maybe (Problem a)) (Problem a) (Problem (Incr (Problem a)))
-  | U (Equation (Problem a))
+  | Problem a :===: Problem a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+infix 3 :===:
 
 instance Applicative Problem where
   pure = Var
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = efold Ex U id Type Lam Pi (:$) pure f a
+  a >>= f = efold Ex (:===:) id Type Lam Pi (:$) pure f a
 
 instance Pretty (Problem (Name Gensym)) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
@@ -55,9 +56,10 @@ instance Pretty (Problem (Name Gensym)) where
               v' <- prettyPrec 0 <$> go v
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') <+> magenta dot </> b'))
-            U q -> do
-              q' <- traverse go q
-              pure (prec 0 (pretty (prettyPrec 1 <$> q')))
+            p1 :===: p2 -> do
+              p1' <- prettyPrec 1 <$> go p1
+              p2' <- prettyPrec 1 <$> go p2
+              pure (prec 0 (flatAlt (p1' <+> eq <+> p2') (align (space <+> p1' </> eq <+> p2'))))
             Var (Global (_ :.: n)) -> pure (atom (pretty n))
             Var (Local n) -> pure (atom (pretty '_' <> pretty n)) -- FIXME: distinguish local & meta variables using the context
             Type -> pure (atom (yellow (pretty "Type")))
@@ -80,6 +82,7 @@ instance Pretty (Problem (Name Gensym)) where
               a' <- prettyPrec 11 <$> go a
               pure (prec 10 (f' <+> a'))
           arrow = blue (pretty "->")
+          eq = magenta (pretty "≡")
 
 instance Ord a => FreeVariables a (Problem a) where
   fvs = foldMap Set.singleton
@@ -102,7 +105,7 @@ unlet' _ _                 = empty
 (===) :: Eq a => Problem a -> Problem a -> Problem a
 p === q
   | p == q    = p
-  | otherwise = U (p :===: q)
+  | otherwise = p :===: q
 
 infixr 3 ===
 
@@ -112,7 +115,7 @@ Just p  ?===? Nothing = Just p
 Nothing ?===? Just q  = Just q
 Just p  ?===? Just q
   | p == q    = Just p
-  | otherwise = Just (U (p :===: q))
+  | otherwise = Just (p :===: q)
 
 infixr 3 ?===?
 
@@ -140,7 +143,7 @@ unpi _ _        = empty
 
 efold :: forall m n a b
       .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
-      -> (forall a . Equation (n a) -> n a)
+      -> (forall a . n a -> n a -> n a)
       -> (forall a . m a -> n a)
       -> (forall a . n a)
       -> (forall a . n a -> n (Incr (n a)) -> n a)
@@ -154,7 +157,7 @@ efold ex u var ty lam pi app k = go
   where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
           Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
-          U q -> u (go h <$> q)
+          p1 :===: p2 -> u (go h p1) (go h p2)
           Var a -> var (h a)
           Type -> ty
           Lam t b -> lam (go h t) (go (k . fmap (go h)) b)
@@ -342,39 +345,39 @@ simplify = \case
     t' <- simplify t
     b' <- Exists (n := Just v') ::: t' |- simplify (instantiate (pure (Local n)) b)
     pure (let' (Local n := v' ::: t') b')
-  U (t1 :===: t2) -> do
-    q <- (:===:) <$> simplify t1 <*> simplify t2
+  t1 :===: t2 -> do
+    q <- (,) <$> simplify t1 <*> simplify t2
     case q of
-      t1 :===: t2 | t1 == t2 -> pure t1
-      Ex v1 t1 b1 :===: Ex v2 t2 b2 -> do
+      (t1, t2) | t1 == t2 -> pure t1
+      (Ex v1 t1 b1, Ex v2 t2 b2) -> do
         n <- gensym "ex"
         t' <- simplify (t1 === t2)
         v' <- maybe (pure Nothing) (fmap Just . simplify) (v1 ?===? v2)
         (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
         pure (exists (Local n := (v' <|> bindingValue v'') ::: t') b')
-      Ex v1 t1 b1 :===: tm2 -> do
+      (Ex v1 t1 b1, tm2) -> do
         n <- gensym "ex"
         t1' <- simplify t1
         v' <- maybe (pure Nothing) (fmap Just . simplify) v1
         (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Local n)) b1 === tm2)
         pure (exists (Local n := (v' <|> bindingValue v'') ::: t1') tm1')
-      tm1 :===: Ex v2 t2 b2 -> do
+      (tm1, Ex v2 t2 b2) -> do
         n <- gensym "ex"
         t2' <- simplify t2
         v' <- maybe (pure Nothing) (fmap Just . simplify) v2
         (v'', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Local n)) b2)
         pure (exists (Local n := (v' <|> bindingValue v'') ::: t2') tm2')
-      Var (Local v1) :===: t2 -> simplifyVar v1 t2
-      t1 :===: Var (Local v2) -> simplifyVar v2 t1
-      Pi t1 b1 :===: Pi t2 b2 -> do
+      (Var (Local v1), t2) -> simplifyVar v1 t2
+      (t1, Var (Local v2)) -> simplifyVar v2 t1
+      (Pi t1 b1, Pi t2 b2) -> do
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- pi (Local n ::: t') <$> simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
-      Lam t1 b1 :===: Lam t2 b2 -> do
+      (Lam t1 b1, Lam t2 b2) -> do
         n <- gensym "lam"
         t' <- simplify (t1 === t2)
         ForAll n ::: t' |- lam (Local n ::: t') <$> simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
-      other -> pure (U other)
+      (t1, t2) -> pure (t1 :===: t2)
   Var a -> pure (Var a)
   Type -> pure Type
   Lam t b -> do
@@ -399,7 +402,7 @@ simplifyVar v t = do
     -- FIXME: occurs check
     Just (Exists (n := _) ::: _) -> pure (Local v) <$ solve (n := t)
     Just _ -> do
-      p <- contextualize (U (pure (Local v) :===: t))
+      p <- contextualize (pure (Local v) :===: t)
       ask >>= unsimplifiable . pure . (p :~)
     Nothing -> freeVariable v
 
