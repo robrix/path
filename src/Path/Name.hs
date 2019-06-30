@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
+import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
@@ -160,6 +161,10 @@ prettyQName = \case
 
 localNames :: Ord a => Set.Set (Name a) -> Set.Set a
 localNames = foldMap (name Set.singleton (const Set.empty))
+
+
+close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
+close = traverse (name (const empty) pure)
 
 
 data Meta
