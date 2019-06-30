@@ -176,8 +176,8 @@ kfold :: (a -> b)
       -> (Maybe b -> b -> b -> b)
       -> (b -> b -> b)
       -> (Incr b -> a)
-      -> (a' -> a)
-      -> Problem a'
+      -> (x -> a)
+      -> Problem x
       -> b
 kfold var lam app ty pi ex eq k h = getConst . efold (coerce var) (coerce lam) (coerce app) (coerce ty) (coerce pi) (coerce ex) (coerce eq) (coerce k) (Const . h)
 
