@@ -153,11 +153,11 @@ efold :: forall m n a b
       -> (a -> m b)
       -> Problem a
       -> n b
-efold var lam app ty pi ex u k = go
+efold var lam app ty pi ex eq k = go
   where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
           Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
-          p1 :===: p2 -> u (go h p1) (go h p2)
+          p1 :===: p2 -> eq (go h p1) (go h p2)
           Var a -> var (h a)
           Type -> ty
           Lam t b -> lam (go h t) (go (k . fmap (go h)) b)
