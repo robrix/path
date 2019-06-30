@@ -35,7 +35,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = efold id (fmap Problem . Lam) (fmap Problem . (:$)) type' (fmap Problem . Pi) (fmap (fmap Problem) . Ex) (fmap Problem . (:===:)) pure f a
+  a >>= f = efold id (fmap Problem . Lam) ($$) type' (fmap Problem . Pi) (fmap (fmap Problem) . Ex) (fmap Problem . (:===:)) pure f a
 
 instance Pretty (Problem (Name Gensym)) where
   pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kfold id lam app ty pi ex eq k (var . fmap Name)
@@ -115,6 +115,9 @@ lams names body = foldr lam body names
 unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate (pure n) b)
 unlam _ _                   = empty
+
+($$) :: Problem a -> Problem a -> Problem a
+f $$ a = Problem (f :$ a)
 
 
 type' :: Problem a
@@ -256,7 +259,7 @@ app f a = do
   let _F = pi (Local x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
-  pure (Problem (f' :$ a') ::: Problem (_F :$ a'))
+  pure (f' $$ a' ::: _F $$ a')
 
 
 goalIs :: ( Carrier sig m
@@ -381,7 +384,7 @@ simplify = \case
     f :$ a -> do
       f' <- simplify f
       a' <- simplify a
-      pure (Problem (f' :$ a'))
+      pure (f' $$ a')
     Type -> pure type'
     Pi t b -> do
       n <- gensym "pi"
