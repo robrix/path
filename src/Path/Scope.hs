@@ -22,10 +22,10 @@ instance Pretty a => Pretty (Entry a) where
   pretty (Entry (Just v  ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
 
 
-newtype Scope = Scope { unScope :: Map.Map Qualified (Entry (Type Gensym)) }
+newtype Scope = Scope { unScope :: Map.Map Qualified (Entry (Type (Name Gensym))) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
-lookup :: Qualified -> Scope -> Maybe (Entry (Type Gensym))
+lookup :: Qualified -> Scope -> Maybe (Entry (Type (Name Gensym)))
 lookup q = Map.lookup q . unScope
 
 null :: Scope -> Bool
@@ -34,13 +34,13 @@ null = Map.null . unScope
 union :: Scope -> Scope -> Scope
 union = (<>)
 
-filter :: (Qualified -> Entry (Type Gensym) -> Bool) -> Scope -> Scope
+filter :: (Qualified -> Entry (Type (Name Gensym)) -> Bool) -> Scope -> Scope
 filter = under . Map.filterWithKey
 
-insert :: Qualified -> Entry (Type Gensym) -> Scope -> Scope
+insert :: Qualified -> Entry (Type (Name Gensym)) -> Scope -> Scope
 insert q = under . Map.insert q
 
-under :: (Map.Map Qualified (Entry (Type Gensym)) -> Map.Map Qualified (Entry (Type Gensym))) -> Scope -> Scope
+under :: (Map.Map Qualified (Entry (Type (Name Gensym))) -> Map.Map Qualified (Entry (Type (Name Gensym)))) -> Scope -> Scope
 under = coerce
 
 instance Pretty Scope where

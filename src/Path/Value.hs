@@ -20,14 +20,15 @@ data Value a
   = Type                                                  -- ^ @'Type' : 'Type'@.
   | Lam Plicity (Value (Incr (Value a)))                  -- ^ A lambda abstraction.
   | Pi (Plicit (Used (Value a))) (Value (Incr (Value a))) -- ^ A ∏ type, with a 'Usage' annotation.
-  | Name a :$ Stack (Plicit (Value a))                    -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | a :$ Stack (Plicit (Value a))                         -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-prettyValue :: (Carrier sig m, Member Naming sig) => Value Meta -> m Prec
+prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m Prec
 prettyValue = go
-  where go = \case
+  where go :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m Prec
+        go = \case
           Lam ie b -> do
-            (as, b') <- un (orTerm (unlam . Name)) (Lam ie b)
+            (as, b') <- un (orTerm (unlam . Local . Name)) (Lam ie b)
             b'' <- go b'
             pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
             where var vs (p :< n) rest
@@ -36,8 +37,8 @@ prettyValue = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Name n)) b in Just ((p :< Name n ::: u :@ t, Name n `Set.member` fvs b'), b')
-              _                    -> Nothing)) v
+              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Local (Name n))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
+              _                  -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
@@ -58,24 +59,24 @@ prettyValue = go
             where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> go a
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 
-instance Pretty (Value Meta) where
+instance Pretty (Value (Name Meta)) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue
 
-instance Pretty (Value Gensym) where
-  pretty = pretty . fmap Name
+instance Pretty (Value (Name Gensym)) where
+  pretty = pretty . weaken
 
 instance Ord a => FreeVariables a (Value a) where
   fvs = foldMap Set.singleton
 
 instance Applicative Value where
-  pure = (:$ Nil) . Local
+  pure = (:$ Nil)
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = efold (name id global) Lam ($$*) Type Pi pure f a
+  a >>= f = efold id Lam ($$*) Type Pi pure f a
 
 
-global :: Qualified -> Value a
+global :: Qualified -> Value (Name a)
 global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Value a -> Value a
@@ -110,7 +111,7 @@ v $$* sp = foldl' ($$) v sp
 
 
 efold :: forall m n a b
-      .  (forall a . Name (m a) -> n a)
+      .  (forall a . m a -> n a)
       -> (forall a . Plicity -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
@@ -124,29 +125,30 @@ efold var lam app ty pi k = go
         go h = \case
           Type -> ty
           Lam p b -> lam p (go (k . fmap (go h)) b)
-          f :$ a -> app (var (h <$> f)) (fmap (go h) <$> a)
+          f :$ a -> app (var (h f)) (fmap (go h) <$> a)
           Pi t b -> pi (fmap (go h) <$> t) (go (k . fmap (go h)) b)
 
 
-generalizeType :: Value Meta -> Value Gensym
-generalizeType ty = unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
-  where f name = Set.singleton (Im :< name ::: Zero :@ Type)
+generalizeType :: Value (Name Meta) -> Value (Name Gensym)
+generalizeType ty = fmap unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
+  where f (Local name) = Set.singleton (Im :< Local name ::: Zero :@ Type)
+        f _            = Set.empty
 
 
-weaken :: Value Gensym -> Value Meta
-weaken = fmap Name
+weaken :: Value (Name Gensym) -> Value (Name Meta)
+weaken = fmap (fmap Name)
 
-strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value Meta -> m (Value Gensym)
+strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value (Name Meta) -> m (Value (Name Gensym))
 strengthen ty = do
-  let mvs = toList (metaNames (fvs ty))
+  let mvs = toList (metaNames (localNames (fvs ty)))
   unless (null mvs) $ unsolvedMetavariables mvs ty
-  pure (unsafeStrengthen <$> ty)
+  pure (fmap unsafeStrengthen <$> ty)
 
 unsafeStrengthen :: Meta -> Gensym
 unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
 
 
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Value Meta -> m a
+unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Value (Name Meta) -> m a
 unsolvedMetavariables metas ty = do
   span <- ask
   throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map (pretty . Meta) metas))) [pretty ty])

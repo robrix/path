@@ -37,7 +37,7 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
   fvs (a1 :===: a2) = fvs a1 <> fvs a2
 
 
-newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value Meta) }
+newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value (Name Meta)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 instance Pretty Substitution where
@@ -46,7 +46,7 @@ instance Pretty Substitution where
     | otherwise = encloseSep (magenta (pretty "Θ") <> space) mempty (cyan comma <> space) (map (uncurry prettyBind) (Map.toList sig)) <> hardline
     where prettyBind m t = pretty (Meta m) <+> cyan (pretty "=") <+> pretty t
 
-newtype Signature = Signature { unSignature :: Map.Map Gensym (Value Meta) }
+newtype Signature = Signature { unSignature :: Map.Map Gensym (Value (Name Meta)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 instance Pretty Signature where
@@ -62,10 +62,10 @@ unMeta :: Meta -> Maybe Gensym
 unMeta (Meta n) = Just n
 unMeta _        = Nothing
 
-instance Substitutable (Value Meta) where
+instance Substitutable (Value (Name Meta)) where
   apply (Substitution subst) val = do
     var <- val
-    fromMaybe (pure var) (unMeta var >>= (subst Map.!?))
+    fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?))
 
 instance Substitutable a => Substitutable (Equation a) where
   apply subst (s1 :===: s2) = apply subst s1 :===: apply subst s2
@@ -82,8 +82,8 @@ instance Substitutable a => Substitutable (Spanned a) where
 instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
-instance Substitutable (Constraint Meta) where
-  apply (Substitution subst) = joinT . fmap (\ var -> fromMaybe (pure var) (unMeta var >>= (subst Map.!?)))
+instance Substitutable (Constraint (Name Meta)) where
+  apply (Substitution subst) = joinT . fmap (\ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
 
 
 data Constraint a
@@ -108,7 +108,7 @@ instance Traversable Constraint where
 instance Ord a => FreeVariables a (Constraint a) where
   fvs = foldMap Set.singleton
 
-instance Pretty (Constraint Meta) where
+instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming (Root "pretty") $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
     binds <- traverse prettyBind ctx
@@ -126,12 +126,12 @@ n ::: t |- b = t :|-: bind n b
 
 infixr 1 |-
 
-binds :: Context (Type Meta) -> Equation (Value Meta) ::: Type Meta -> Constraint Meta
-binds (Context names) body = foldr (|-) (E body) (first Name <$> names)
+binds :: Context (Type (Name Meta)) -> Equation (Value (Name Meta)) ::: Type (Name Meta) -> Constraint (Name Meta)
+binds (Context names) body = foldr (|-) (E body) (first (Local . Name) <$> names)
 
-unbinds :: (Carrier sig m, Member Naming sig) => Constraint Meta -> m (Context (Type Meta), Equation (Value Meta) ::: Type Meta)
+unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Type (Name Meta)), Equation (Value (Name Meta)) ::: Type (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case
-  t :|-: b -> Right (name ::: t, instantiate (pure (Name name)) b)
+  t :|-: b -> Right (name ::: t, instantiate (pure (Local (Name name))) b)
   E q      -> Left q)
 
 

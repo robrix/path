@@ -23,8 +23,8 @@ import           Path.Value as Value
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Spanned(..))
 
-type Blocked = Set.Set (Spanned (Constraint Meta))
-type Queue = Seq.Seq (Spanned (Constraint Meta))
+type Blocked = Set.Set (Spanned (Constraint (Name Meta)))
+type Queue = Seq.Seq (Spanned (Constraint (Name Meta)))
 
 -- FIXME: we need constraint dependencies to ensure that we e.g. δ-reduce a type like Either L R and solve the π type unification constraint before we try to solve whatever we typed using it
 
@@ -34,10 +34,10 @@ simplify :: ( Carrier sig m
             , Member Naming sig
             , Member (Reader Scope) sig
             , Member (State Signature) sig
-            , Member (Writer [Spanned (Constraint Meta)]) sig
+            , Member (Writer [Spanned (Constraint (Name Meta))]) sig
             )
-         => Spanned (Constraint Meta)
-         -> m (Set.Set (Spanned (Constraint Meta)))
+         => Spanned (Constraint (Name Meta))
+         -> m (Set.Set (Spanned (Constraint (Name Meta))))
 simplify (constraint :~ span) = do
   scope <- ask
   (ctx, eqn) <- unbinds constraint
@@ -53,7 +53,7 @@ simplify (constraint :~ span) = do
               go scope ctx ((t1 :===: t2) ::: Type)
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
-              go scope (Context.insert (n ::: t1) ctx) ((instantiate (pure (Name n)) b1 :===: instantiate (pure (Name n)) b2) ::: Type)
+              go scope (Context.insert (n ::: t1) ctx) ((instantiate (pure (Local (Name n))) b1 :===: instantiate (pure (Local (Name n))) b2) ::: Type)
           (Pi (Im :< _ :@ t1) b1 :===: tm2) ::: Type -> do
             n <- exists ctx t1
             go scope ctx ((instantiate n b1 :===: tm2) ::: Type)
@@ -63,9 +63,9 @@ simplify (constraint :~ span) = do
           (Lam p1 f1 :===: Lam p2 f2) ::: Pi (pt :< _ :@ t) b
             | p1 == p2, p1 == pt -> do
               n <- gensym "lam"
-              go scope (Context.insert (n ::: t) ctx) ((instantiate (pure (Name n)) f1 :===: instantiate (pure (Name n)) f2) ::: instantiate (pure (Name n)) b)
+              go scope (Context.insert (n ::: t) ctx) ((instantiate (pure (Local (Name n))) f1 :===: instantiate (pure (Local (Name n))) f2) ::: instantiate (pure (Local (Name n))) b)
           (t1 :===: t2) ::: Pi (Im :< u :@ t) b -> do
-            n <- Name <$> gensym "lam"
+            n <- Local . Name <$> gensym "lam"
             go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi (Im :< u :@ t) b)
           (f1@(Global _) :$ sp1 :===: f2@(Global _) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
@@ -82,28 +82,28 @@ simplify (constraint :~ span) = do
             , length sp1 == length sp2 -> do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
                     n <- gensym "spine"
-                    case Value.unpi (Name n) ty of
+                    case Value.unpi (Local (Name n)) ty of
                       Just (_ :< _ ::: _ :@ t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
-                      Nothing                  -> pure ()
+                      Nothing                     -> pure ()
                   simplifySpine _ _ _ = pure ()
               t <- maybe (runReader span (freeVariable (Name f1))) pure (Context.lookup f1 ctx)
               simplifySpine ctx t (zip (toList sp1) (toList sp2))
           (tm1 :===: Lam p2 b2) ::: ty@Pi{} -> do
             n <- gensym "lam"
-            go scope ctx ((lam (p2 :< Name n) (tm1 $$ (p2 :< pure (Name n))) :===: Lam p2 b2) ::: ty)
+            go scope ctx ((lam (p2 :< Local (Name n)) (tm1 $$ (p2 :< pure (Local (Name n)))) :===: Lam p2 b2) ::: ty)
           (Lam p1 b1 :===: tm2) ::: ty@Pi{} -> do
             n <- gensym "lam"
-            go scope ctx ((Lam p1 b1 :===: lam (p1 :< Name n) (tm2 $$ (p1 :< pure (Name n)))) ::: ty)
+            go scope ctx ((Lam p1 b1 :===: lam (p1 :< Local (Name n)) (tm2 $$ (p1 :< pure (Local (Name n))))) ::: ty)
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
             | otherwise                -> tell [binds ctx c :~ span]
 
         exists ctx ty = do
           n <- gensym "meta"
-          let f (n ::: t) = Ex :< Name n ::: More :@ t
+          let f (n ::: t) = Ex :< Local (Name n) ::: More :@ t
               ty' = Value.pis (f <$> Context.unContext ctx) ty
           modify (Signature . Map.insert n ty' . unSignature)
-          pure (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars ctx))
+          pure (pure (Local (Meta n)) Value.$$* ((Ex :<) . pure . Local . Name <$> Context.vars ctx))
 
         blocked (Local (Meta _) :$ _) = True
         blocked _                     = False
@@ -122,7 +122,7 @@ solver :: ( Carrier sig m
           , Member (Reader Scope) sig
           , Member (State Signature) sig
           )
-       => Set.Set (Spanned (Constraint Meta))
+       => Set.Set (Spanned (Constraint (Name Meta)))
        -> m Substitution
 solver constraints = execState mempty $ do
   (queue, unsimplifiable) <- runState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) . execWriter $ do
@@ -140,7 +140,7 @@ step :: ( Carrier sig m
         , Member (State Queue) sig
         , Member (State Signature) sig
         , Member (State Substitution) sig
-        , Member (Writer [Spanned (Constraint Meta)]) sig
+        , Member (Writer [Spanned (Constraint (Name Meta))]) sig
         )
      => m ()
 step = do
@@ -156,36 +156,36 @@ process :: ( Carrier sig m
            , Member (State Queue) sig
            , Member (State Signature) sig
            , Member (State Substitution) sig
-           , Member (Writer [Spanned (Constraint Meta)]) sig
+           , Member (Writer [Spanned (Constraint (Name Meta))]) sig
            )
         => Substitution
-        -> Spanned (Constraint Meta)
+        -> Spanned (Constraint (Name Meta))
         -> m ()
 process (Substitution _S) c@(constraint :~ _) = do
   (_, (tm1 :===: tm2) ::: _) <- unbinds constraint
   case () of
     _ | tm1 == tm2 -> pure ()
-      | s <- Map.restrictKeys _S (metaNames (fvs c)), not (null s) -> simplify (apply (Substitution s) c) >>= enqueueAll
-      | Just (m, sp) <- pattern tm1 -> solve m (Value.lams sp tm2)
-      | Just (m, sp) <- pattern tm2 -> solve m (Value.lams sp tm1)
+      | s <- Map.restrictKeys _S (metaNames (localNames (fvs c))), not (null s) -> simplify (apply (Substitution s) c) >>= enqueueAll
+      | Just (m, sp) <- pattern tm1 -> solve m (Value.lams (fmap Local <$> sp) tm2)
+      | Just (m, sp) <- pattern tm2 -> solve m (Value.lams (fmap Local <$> sp) tm1)
       | otherwise -> block c
 
-block :: (Carrier sig m, Member (State Blocked) sig) => Spanned (Constraint Meta) -> m ()
+block :: (Carrier sig m, Member (State Blocked) sig) => Spanned (Constraint (Name Meta)) -> m ()
 block c = modify (Set.insert c)
 
-enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t (Spanned (Constraint Meta)) -> m ()
+enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t (Spanned (Constraint (Name Meta))) -> m ()
 enqueueAll = modify . flip (foldl' (Seq.|>))
 
-dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe (Spanned (Constraint Meta)))
+dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe (Spanned (Constraint (Name Meta))))
 dequeue = gets Seq.viewl >>= \case
   Seq.EmptyL -> pure Nothing
   h Seq.:< q -> Just h <$ put q
 
-pattern :: Type Meta -> Maybe (Gensym, Stack (Plicit Meta))
+pattern :: Type (Name Meta) -> Maybe (Gensym, Stack (Plicit Meta))
 pattern (Local (Meta m) :$ sp) = (,) m <$> (traverse (traverse bound) sp >>= distinct)
 pattern _                      = Nothing
 
-bound :: Type Meta -> Maybe Meta
+bound :: Type (Name Meta) -> Maybe Meta
 bound (Local v :$ Nil) = Just v
 bound _                = Nothing
 
@@ -199,7 +199,7 @@ solve :: ( Carrier sig m
          , Member (State Substitution) sig
          )
       => Gensym
-      -> Value Meta
+      -> Value (Name Meta)
       -> m ()
 solve m v = do
   let subst = Substitution (Map.singleton m v)
@@ -209,5 +209,5 @@ solve m v = do
   enqueueAll unblocked
   put blocked
 
-isBlockedOn :: Meta -> Spanned (Constraint Meta) -> Bool
-isBlockedOn m = Set.member m . fvs
+isBlockedOn :: Meta -> Spanned (Constraint (Name Meta)) -> Bool
+isBlockedOn m = Set.member (Local m) . fvs

@@ -27,7 +27,7 @@ ambiguousName name sources = do
     : map prettyQName (toList sources)))])
 
 
-unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> [Spanned (Constraint Meta)] -> m a
+unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> [Spanned (Constraint (Name Meta))] -> m a
 unsimplifiableConstraints sig constraints = throwError (fold (intersperse hardline (map unsimplifiable constraints)))
   where unsimplifiable (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty (sigFor c) <> pretty c]
-        sigFor c = let fvs' = metaNames (fvs c) in Signature (Map.filterWithKey (\ k _ -> k `Set.member` fvs') (unSignature sig))
+        sigFor c = let fvs' = metaNames (localNames (fvs c)) in Signature (Map.filterWithKey (\ k _ -> k `Set.member` fvs') (unSignature sig))

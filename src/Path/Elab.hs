@@ -34,12 +34,12 @@ import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 assume :: (Carrier sig m, Member Elab sig, Member Naming sig)
        => Name Gensym
-       -> m (Value Meta ::: Type Meta)
+       -> m (Value (Name Meta) ::: Type (Name Meta))
 assume v = do
   _A <- have v
-  implicits _A >>= foldl' app (pure (name (pure . Name) Value.global v ::: _A))
+  implicits _A >>= foldl' app (pure (name (pure . Local . Name) Value.global v ::: _A))
 
-implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (m (Value Meta ::: Type Meta))))
+implicits :: (Carrier sig m, Member Elab sig) => Type (Name Meta) -> m (Stack (Plicit (m (Value (Name Meta) ::: Type (Name Meta)))))
 implicits = go Nil
   where go names (Value.Pi (Im :< _ :@ t) b) | False = do
           v <- exists t
@@ -48,61 +48,61 @@ implicits = go Nil
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
       => Plicit (Maybe User)
-      -> (Gensym -> m (Value Meta ::: Type Meta))
-      -> m (Value Meta ::: Type Meta)
+      -> (Gensym -> m (Value (Name Meta) ::: Type (Name Meta)))
+      -> m (Value (Name Meta) ::: Type (Name Meta))
 intro (p :< x) body = do
   _A <- exists Value.Type
   x <- gensym (maybe "_" showUser x)
   _B <- x ::: _A |- exists Value.Type
   u <- x ::: _A |- goalIs _B (body x)
-  pure (Value.lam (p :< Name x) u ::: Value.pi (p :< Name x ::: More :@ _A) _B)
+  pure (Value.lam (p :< Local (Name x)) u ::: Value.pi (p :< Local (Name x) ::: More :@ _A) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
-   => Plicit (Maybe User, Usage, m (Value Meta ::: Type Meta))
-   -> (Gensym -> m (Value Meta ::: Type Meta))
-   -> m (Value Meta ::: Type Meta)
+   => Plicit (Maybe User, Usage, m (Value (Name Meta) ::: Type (Name Meta)))
+   -> (Gensym -> m (Value (Name Meta) ::: Type (Name Meta)))
+   -> m (Value (Name Meta) ::: Type (Name Meta))
 pi (p :< (x, m, t)) body = do
   t' <- goalIs Value.Type t
   x <- gensym (maybe "_" showUser x)
   b' <- x ::: t' |- goalIs Value.Type (body x)
-  pure (Value.pi (p :< Name x ::: m :@ t') b' ::: Value.Type)
+  pure (Value.pi (p :< Local (Name x) ::: m :@ t') b' ::: Value.Type)
 
 app :: (Carrier sig m, Member Elab sig, Member Naming sig)
-    => m (Value Meta ::: Type Meta)
-    -> Plicit (m (Value Meta ::: Type Meta))
-    -> m (Value Meta ::: Type Meta)
+    => m (Value (Name Meta) ::: Type (Name Meta))
+    -> Plicit (m (Value (Name Meta) ::: Type (Name Meta)))
+    -> m (Value (Name Meta) ::: Type (Name Meta))
 app f (p :< a) = do
   _A <- exists Value.Type
   x <- gensym "app"
   _B <- x ::: _A |- exists Value.Type
-  let _F = Value.pi (p :< Name x ::: case p of { Im -> zero ; Ex -> More } :@ _A) _B
+  let _F = Value.pi (p :< Local (Name x) ::: case p of { Im -> zero ; Ex -> More } :@ _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' Value.$$ (p :< a') ::: _F Value.$$ (p :< a'))
 
 
 exists :: (Carrier sig m, Member Elab sig)
-       => Type Meta
-       -> m (Value Meta)
+       => Type (Name Meta)
+       -> m (Value (Name Meta))
 exists ty = send (Exists ty pure)
 
-goalIs :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Value Meta ::: Type Meta) -> m (Value Meta)
+goalIs :: (Carrier sig m, Member Elab sig) => Type (Name Meta) -> m (Value (Name Meta) ::: Type (Name Meta)) -> m (Value (Name Meta))
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
   tm2 <- exists ty2
   tm2 <$ unify (tm1 ::: ty1 :===: tm2 ::: ty2)
 
 unify :: (Carrier sig m, Member Elab sig)
-      => Equation (Value Meta ::: Type Meta)
+      => Equation (Value (Name Meta) ::: Type (Name Meta))
       -> m ()
 unify q = send (Unify q (pure ()))
 
-(|-) :: (Carrier sig m, Member Elab sig) => Gensym ::: Type Meta -> m a -> m a
+(|-) :: (Carrier sig m, Member Elab sig) => Gensym ::: Type (Name Meta) -> m a -> m a
 b |- m = send (Bind b m pure)
 
 infix 5 |-
 
-have :: (Carrier sig m, Member Elab sig) => Name Gensym -> m (Type Meta)
+have :: (Carrier sig m, Member Elab sig) => Name Gensym -> m (Type (Name Meta))
 have n = send (Have n pure)
 
 
@@ -111,22 +111,22 @@ spanIs span = local (const span)
 
 elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span) sig)
      => Core.Core Gensym
-     -> m (Value Meta ::: Type Meta)
+     -> m (Value (Name Meta) ::: Type (Name Meta))
 elab = \case
   Core.Var n -> assume n
   Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure n') b))
   (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
   Core.Type -> pure (Value.Type ::: Value.Type)
   Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure n') b))
-  Core.Hole h -> (pure (Meta h) :::) <$> exists Value.Type
+  Core.Hole h -> (pure (Local (Meta h)) :::) <$> exists Value.Type
   Core.Ann ann b -> spanIs ann (elab b)
 
 
 data Elab m k
-  = Exists (Type Meta) (Value Meta -> k)
-  | Have (Name Gensym) (Type Meta -> k)
-  | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
-  | Unify (Equation (Value Meta ::: Type Meta)) k
+  = Exists (Type (Name Meta)) (Value (Name Meta) -> k)
+  | Have (Name Gensym) (Type (Name Meta) -> k)
+  | forall a . Bind (Gensym ::: Type (Name Meta)) (m a) (a -> k)
+  | Unify (Equation (Value (Name Meta) ::: Type (Name Meta))) k
 
 deriving instance Functor (Elab m)
 
@@ -145,27 +145,27 @@ instance Effect Elab where
     Unify  q   k -> Unify  q                        (handler (k <$ state))
 
 
-runElab :: ElabC m a -> m (Set.Set (Spanned (Constraint Meta)), a)
+runElab :: ElabC m a -> m (Set.Set (Spanned (Constraint (Name Meta))), a)
 runElab = runWriter . runReader mempty . runElabC
 
-newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (Set.Set (Spanned (Constraint Meta))) m) a }
+newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type (Name Meta))) (WriterC (Set.Set (Spanned (Constraint (Name Meta)))) m) a }
   deriving (Applicative, Functor, Monad)
 
 instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (State Signature) sig) => Carrier (Elab :+: sig) (ElabC m) where
   eff (L (Exists ty k)) = do
     ctx <- ElabC ask
     n <- gensym "meta"
-    let f (n ::: t) = Ex :< Name n ::: More :@ t
+    let f (n ::: t) = Ex :< Local (Name n) ::: More :@ t
         ty' = Value.pis (f <$> Context.unContext ctx) ty
     modify (Signature . Map.insert n ty' . unSignature)
-    k (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars (ctx :: Context (Type Meta))))
+    k (pure (Local (Meta n)) Value.$$* ((Ex :<) . pure . Local . Name <$> Context.vars (ctx :: Context (Type (Name Meta)))))
   eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
     where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
           lookup (Local  n) = ElabC (asks (Context.lookup n))
           missing = do
             ty <- exists Value.Type
             tm <- exists ty
-            ty <$ unify (tm ::: ty :===: name (pure . Name) Value.global n ::: ty)
+            ty <$ unify (tm ::: ty :===: name (pure . Local . Name) Value.global n ::: ty)
   eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
   eff (L (Unify (tm1 ::: ty1 :===: tm2 ::: ty2) k)) = ElabC $ do
     span <- ask
@@ -177,8 +177,8 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     runElabC k
   eff (R other) = ElabC (eff (R (R (handleCoercible other))))
 
-inferType :: (Carrier sig m, Member Naming sig) => m (Type Meta)
-inferType = pure . Meta <$> gensym "meta"
+inferType :: (Carrier sig m, Member Naming sig) => m (Type (Name Meta))
+inferType = pure . Local . Meta <$> gensym "meta"
 
 
 type ModuleTable = Map.Map ModuleName Scope
@@ -192,7 +192,7 @@ elabModule :: ( Carrier sig m
               , Member (State Scope) sig
               )
            => Module Qualified (Core.Core Gensym ::: Core.Core Gensym)
-           -> m (Module Qualified (Value Gensym ::: Type Gensym))
+           -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
 
@@ -219,7 +219,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Scope) sig
             )
          => Spanned (Decl Qualified (Core.Core Gensym ::: Core.Core Gensym))
-         -> m (Spanned (Decl Qualified (Value Gensym ::: Type Gensym)))
+         -> m (Spanned (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ty' <- runScope (declare (elab ty))
   modify (Scope.insert name (Entry (Nothing ::: ty')))
@@ -227,7 +227,7 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
 
   let ty'' = whnf scope ty'
   (names, _) <- un (orTerm (\ n -> \case
-    Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (instantiate (pure n) b))
+    Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (instantiate (pure (Local n)) b))
     _                            -> Nothing)) ty''
   tm ::: _ <- runScope (define (Value.weaken ty') (elab (Core.lams names tm)))
   modify (Scope.insert name (Entry (Just tm ::: ty')))
@@ -240,8 +240,8 @@ declare :: ( Carrier sig m
            , Member (Reader Scope) sig
            , Member (Reader Span) sig
            )
-        => ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-        -> m (Value Gensym)
+        => ElabC (StateC Signature m) (Value (Name Meta) ::: Type (Name Meta))
+        -> m (Value (Name Gensym))
 declare ty = evalState (mempty :: Signature) $ do
   (constraints, ty') <- runElab (goalIs Value.Type ty)
   subst <- solver constraints
@@ -254,9 +254,9 @@ define :: ( Carrier sig m
           , Member (Reader Scope) sig
           , Member (Reader Span) sig
           )
-       => Value Meta
-       -> ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-       -> m (Value Gensym ::: Type Gensym)
+       => Value (Name Meta)
+       -> ElabC (StateC Signature m) (Value (Name Meta) ::: Type (Name Meta))
+       -> m (Value (Name Gensym) ::: Type (Name Gensym))
 define ty tm = evalState (mempty :: Signature) $ do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints

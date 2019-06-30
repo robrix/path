@@ -154,6 +154,11 @@ prettyQName = \case
   Local  n -> pretty '_' <> prettyGensym n
 
 
+
+localNames :: Ord a => Set.Set (Name a) -> Set.Set a
+localNames = foldMap (name Set.singleton (const Set.empty))
+
+
 data Meta
   = Name Gensym
   | Meta Gensym
@@ -163,9 +168,6 @@ instance Pretty Meta where
   pretty = \case
     Name q -> pretty q
     Meta m -> dullblack (bold (pretty '?' <> pretty m))
-
-localNames :: Set.Set Meta -> Set.Set Gensym
-localNames = foldMap (\case { Name v -> Set.singleton v ; _ -> mempty })
 
 metaNames :: Set.Set Meta -> Set.Set Gensym
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })

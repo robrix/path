@@ -141,7 +141,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value Gensym ::: Type Gensym)) (runError loop >>= either (print @Doc) pure)
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym))) (runError loop >>= either (print @Doc) pure)
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
         parseCommand str = do
@@ -161,7 +161,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph Qualified (Value Gensym ::: Type Gensym))
+            let ms = modules (graph :: ModuleGraph Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -171,7 +171,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module Qualified (Value Gensym ::: Type Gensym)) of
+            case m :: Maybe (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym))) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
@@ -206,7 +206,7 @@ runRenamer m = do
   res <- get
   runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
 
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Scope.Scope) sig) => Spanned Surface.Surface -> m (Value Gensym ::: Type Gensym)
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Scope.Scope) sig) => Spanned Surface.Surface -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elaborate tm@(_ :~ span) = runReader span $ do
   ty <- inferType
   tm' <- runRenamer (evalState (mempty :: Signature) (runReader Define (resolveTerm tm)))
