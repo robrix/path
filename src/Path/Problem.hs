@@ -472,3 +472,16 @@ lookupBinding n = gets (Stack.find ((== n) . bindingName . typedTerm))
 
 runProblem :: Functor m => ReaderC Span (StateC Context m) a -> m a
 runProblem = evalState (mempty :: Context) . runReader (Span mempty mempty mempty)
+
+
+identity, identityT, constant, constantT, constantTQ :: Problem String
+
+identity = lam ("A" ::: Type) (lam ("a" ::: pure "A") (pure "a"))
+identityT = pi ("A" ::: Type) (pi ("_" ::: pure "A") (pure "A"))
+constant = lam ("A" ::: Type) (lam ("B" ::: Type) (lam ("a" ::: pure "A") (lam ("b" ::: pure "B") (pure "a"))))
+constantT = pi ("A" ::: Type) (pi ("B" ::: Type) (pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))
+
+constantTQ
+  = exists ("_A" := Nothing ::: Type) (pi ("A" ::: pure "_A")
+  ( exists ("_B" := Nothing ::: Type) (pi ("B" ::: pure "_B")
+  ( pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))))
