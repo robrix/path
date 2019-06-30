@@ -45,41 +45,45 @@ instance Monad Problem where
   a >>= f = efold id Lam (:$) Type Pi Ex (:===:) pure f a
 
 instance Pretty (Problem (Name Gensym)) where
-  pretty = prettyPrec 0 . snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . kfold id lam app ty pi ex eq k (var . fmap Name)
-    where var (Global v) = pure (atom (pretty (Global @Meta v)))
-          var (Local  v) = atom (pretty v) <$ tell (Set.singleton @Meta v)
+  pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kfold id lam app ty pi ex eq k (var . fmap Name)
+    where var (Global v) = pure (pretty (Global @Meta v))
+          var (Local  v) = pretty v <$ tell (Set.singleton @Meta v)
           lam t b = do
-            t' <- prettyPrec 1 <$> t
-            (n, b') <- bind Name (prettyPrec 0 <$> b)
-            pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b'))
+            t' <- withPrec 1 t
+            (n, b') <- bind Name (withPrec 0 b)
+            prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b')
           app f a = do
-            f' <- prettyPrec 10 <$> f
-            a' <- prettyPrec 11 <$> a
-            pure (prec 10 (f' <+> a'))
-          ty = pure (atom (yellow (pretty "Type")))
+            f' <- withPrec 10 f
+            a' <- withPrec 11 a
+            prec 10 (f' <+> a')
+          ty = pure (yellow (pretty "Type"))
           pi t b = do
-            t' <- prettyPrec 1 <$> t
-            (fvs, (n, b')) <- listen (bind Name (prettyPrec 0 <$> b))
+            t' <- withPrec 1 t
+            (fvs, (n, b')) <- listen (bind Name (withPrec 0 b))
             let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
                     | otherwise          = t'
-            pure (prec 0 (t'' </> arrow <+> b'))
+            prec 0 (t'' </> arrow <+> b')
           ex Nothing t b = do
-            t' <- prettyPrec 1 <$> t
-            (n, b') <- bind Meta (prettyPrec 0 <$> b)
-            pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b'))
+            t' <- withPrec 1 t
+            (n, b') <- bind Meta (withPrec 0 b)
+            prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
           ex (Just v) t b = do
-            t' <- prettyPrec 1 <$> t
-            v' <- prettyPrec 0 <$> v
-            (n, b') <- bind Meta (prettyPrec 0 <$> b)
-            pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b'))
+            t' <- withPrec 1 t
+            v' <- withPrec 0 v
+            (n, b') <- bind Meta (withPrec 0 b)
+            prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b')
           eq p1 p2 = do
-            p1' <- prettyPrec 1 <$> p1
-            p2' <- prettyPrec 1 <$> p2
-            pure (prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2'))))
+            p1' <- withPrec 1 p1
+            p2' <- withPrec 1 p2
+            prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
           k Z     = ask >>= var . Local . head
           k (S n) = local (tail @Meta) n
+          prec d' doc = do
+            d <- ask @Int
+            pure (prettyParens (d > d') doc)
+          withPrec = local . const @Int
           bind cons m = do
             ns <- ask
             let n = cons $ case ns of
