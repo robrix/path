@@ -43,8 +43,7 @@ eiter var alg k = go
           Expr (Lam b) -> alg (Lam (go (k . fmap (go h)) b))
           Expr (f :$ a) -> alg (go h f :$ go h a)
 
-ecata :: forall m a
-      .  (forall a . ExprF m a -> m a)
+ecata :: (forall a . ExprF m a -> m a)
       -> (forall a . Incr (m a) -> m (Incr (m a)))
       -> Expr (m a)
       -> m a
