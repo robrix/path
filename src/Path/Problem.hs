@@ -264,8 +264,7 @@ have :: ( Carrier sig m
         )
      => Name Gensym
      -> m (Problem (Name Gensym))
-have n = lookup n >>= maybe (freeVariable n) pure
-  where lookup n = fmap typedType <$> lookupBinding n
+have n = lookupBinding n >>= maybe (freeVariable n) (pure . typedType)
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
