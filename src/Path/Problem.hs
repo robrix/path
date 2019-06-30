@@ -89,7 +89,7 @@ instance Ord a => FreeVariables a (Problem a) where
 
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
 exists (n := Just v ::: _) (Var n') | n == n' = v
-exists (n := v ::: t)      b                  = Ex v t (bind n b)
+exists (n := v      ::: t) b                  = Ex v t (bind n b)
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unexists n (Ex Nothing t b) = pure (n ::: t, instantiate (pure n) b)
