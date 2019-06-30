@@ -6,12 +6,13 @@ import Data.Coerce (coerce)
 import Data.Functor.Const (Const (..))
 import Path.Name (Incr (..))
 
-newtype Expr a = Expr { unExpr :: ExprF Expr a }
+data Expr a
+  = Var a
+  | Expr (ExprF Expr a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 data ExprF f a
-  = Var a
-  | Lam (f (Incr (f a)))
+  = Lam (f (Incr (f a)))
   | f a :$ f a
   deriving (Foldable, Functor, Traversable)
 
@@ -21,11 +22,11 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (ExprF f a)
 
 instance Applicative Expr where
-  pure = Expr . Var
+  pure = Var
   (<*>) = ap
 
 instance Monad Expr where
-  a >>= f = efold id (Expr . Lam) (fmap Expr . (:$)) pure f a
+  a >>= f = efold id (Expr . Lam) (fmap Expr . (:$)) Var f a
 
 
 efold :: forall m n incr a b
@@ -39,7 +40,7 @@ efold :: forall m n incr a b
 efold var lam app k = go
   where go :: forall x y . (x -> m y) -> Expr x -> n y
         go h = \case
-          Expr (Var a) -> var (h a)
+          Var a -> var (h a)
           Expr (Lam b) -> lam (go (k . fmap (go h)) b)
           Expr (f :$ a) -> go h f `app` go h a
 
