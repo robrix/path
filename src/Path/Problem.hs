@@ -38,37 +38,38 @@ instance Monad Problem where
   a >>= f = eiter id Problem pure f a
 
 instance Pretty (Problem (Name Gensym)) where
-  pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kfold id lam app ty pi ex eq k (var . fmap Name)
+  pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kcata id alg k (var . fmap Name)
     where var (Global v) = pure (pretty (Global @Meta v))
           var (Local  v) = pretty v <$ tell (Set.singleton @Meta v)
-          lam t b = do
-            t' <- withPrec 1 t
-            (n, b') <- bind Name (withPrec 0 b)
-            prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b')
-          app f a = do
-            f' <- withPrec 10 f
-            a' <- withPrec 11 a
-            prec 10 (f' <+> a')
-          ty = pure (yellow (pretty "Type"))
-          pi t b = do
-            t' <- withPrec 1 t
-            (fvs, (n, b')) <- listen (bind Name (withPrec 0 b))
-            let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
-                    | otherwise          = t'
-            prec 0 (t'' </> arrow <+> b')
-          ex Nothing t b = do
-            t' <- withPrec 1 t
-            (n, b') <- bind Meta (withPrec 0 b)
-            prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
-          ex (Just v) t b = do
-            t' <- withPrec 1 t
-            v' <- withPrec 0 v
-            (n, b') <- bind Meta (withPrec 0 b)
-            prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b')
-          eq p1 p2 = do
-            p1' <- withPrec 1 p1
-            p2' <- withPrec 1 p2
-            prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
+          alg = \case
+            Lam t b -> do
+              t' <- withPrec 1 t
+              (n, b') <- bind Name (withPrec 0 b)
+              prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b')
+            f :$ a -> do
+              f' <- withPrec 10 f
+              a' <- withPrec 11 a
+              prec 10 (f' <+> a')
+            Type -> pure (yellow (pretty "Type"))
+            Pi t b -> do
+              t' <- withPrec 1 t
+              (fvs, (n, b')) <- listen (bind Name (withPrec 0 b))
+              let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
+                      | otherwise          = t'
+              prec 0 (t'' </> arrow <+> b')
+            Ex Nothing t b -> do
+              t' <- withPrec 1 t
+              (n, b') <- bind Meta (withPrec 0 b)
+              prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
+            Ex (Just v) t b -> do
+              t' <- withPrec 1 t
+              v' <- withPrec 0 v
+              (n, b') <- bind Meta (withPrec 0 b)
+              prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b')
+            p1 :===: p2 -> do
+              p1' <- withPrec 1 p1
+              p2' <- withPrec 1 p2
+              prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
           k Z     = ask >>= var . Local . head
@@ -76,7 +77,7 @@ instance Pretty (Problem (Name Gensym)) where
           prec d' doc = do
             d <- ask @Int
             pure (prettyParens (d > d') doc)
-          withPrec = local . const @Int
+          withPrec i = local @Int (const i) . getConst
           bind cons m = do
             ns <- ask
             let n = cons $ case ns of
@@ -187,27 +188,13 @@ eiter var alg k = go
             Ex v t b -> alg (Ex (go h <$> v) (go h t) (go (k . fmap (go h)) b))
             p1 :===: p2 -> alg (go h p1 :===: go h p2)
 
-kfold :: forall a b x
-      .  (a -> b)
-      -> (b -> b -> b)
-      -> (b -> b -> b)
-      -> b
-      -> (b -> b -> b)
-      -> (Maybe b -> b -> b -> b)
-      -> (b -> b -> b)
+kcata :: (a -> b)
+      -> (forall a . ProblemF (Const b) a -> b)
       -> (Incr b -> a)
       -> (x -> a)
       -> Problem x
       -> b
-kfold var lam app ty pi ex eq k h = getConst . eiter (coerce var) alg (coerce k) (Const . h)
-  where alg :: ProblemF (Const b) z -> Const b z
-        alg = \case
-          Lam t b -> coerce lam t b
-          f :$ a -> coerce app f a
-          Type -> coerce ty
-          Pi t b -> coerce pi t b
-          Ex v t b -> coerce ex v t b
-          p1 :===: p2 -> coerce eq p1 p2
+kcata var alg k h = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . h)
 
 
 type Context = Stack (Binding ::: Problem (Name Gensym))
