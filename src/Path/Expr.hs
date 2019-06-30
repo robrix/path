@@ -26,17 +26,17 @@ instance Applicative Expr where
   (<*>) = ap
 
 instance Monad Expr where
-  a >>= f = ecata id Expr Var f a
+  a >>= f = eiter id Expr Var f a
 
 
-ecata :: forall m n a b
+eiter :: forall m n a b
       .  (forall a . m a -> n a)
       -> (forall a . ExprF n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Expr a
       -> n b
-ecata var alg k = go
+eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Expr x -> n y
         go h = \case
           Var a -> var (h a)
@@ -49,4 +49,4 @@ kcata :: (a -> b)
       -> (x -> a)
       -> Expr x
       -> b
-kcata var alg k h = getConst . ecata (coerce var) (coerce alg) (coerce k) (Const . h)
+kcata var alg k h = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . h)
