@@ -26,7 +26,7 @@ instance Applicative Expr where
   (<*>) = ap
 
 instance Monad Expr where
-  a >>= f = efold id (Expr . Lam) (fmap Expr . (:$)) Var f a
+  a >>= f = ecata id Expr Var f a
 
 
 efold :: forall m n a b
