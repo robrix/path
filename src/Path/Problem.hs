@@ -80,9 +80,9 @@ instance Pretty (Problem (Name Gensym)) where
             p1 :===: p2 -> do
               p1' <- prettyPrec 1 <$> go p1
               p2' <- prettyPrec 1 <$> go p2
-              pure (prec 0 (flatAlt (p1' <+> eq <+> p2') (align (space <+> p1' </> eq <+> p2'))))
+              pure (prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2'))))
           arrow = blue (pretty "->")
-          eq = magenta (pretty "≡")
+          eq' = magenta (pretty "≡")
 
 instance Ord a => FreeVariables a (Problem a) where
   fvs = foldMap Set.singleton
