@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Expr where
 
 import Control.Monad (ap)
@@ -6,18 +6,26 @@ import Data.Coerce (coerce)
 import Data.Functor.Const (Const (..))
 import Path.Name (Incr (..))
 
-data Expr a
-  = Var a
-  | Lam (Expr (Incr (Expr a)))
-  | Expr a :$ Expr a
+newtype Expr a = Expr { unExpr :: ExprF Expr a }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+data ExprF f a
+  = Var a
+  | Lam (f (Incr (f a)))
+  | f a :$ f a
+  deriving (Foldable, Functor, Traversable)
+
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a)) => Eq   (ExprF f a)
+deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
+                         , forall a . Ord  a => Ord  (f a)) => Ord  (ExprF f a)
+deriving instance (Show a, forall a . Show a => Show (f a)) => Show (ExprF f a)
+
 instance Applicative Expr where
-  pure = Var
+  pure = Expr . Var
   (<*>) = ap
 
 instance Monad Expr where
-  a >>= f = efold id Lam (:$) Var f a
+  a >>= f = efold id (Expr . Lam) (fmap Expr . (:$)) pure f a
 
 
 efold :: forall m n incr a b
@@ -31,9 +39,9 @@ efold :: forall m n incr a b
 efold var lam app k = go
   where go :: forall x y . (x -> m y) -> Expr x -> n y
         go h = \case
-          Var a -> var (h a)
-          Lam b -> lam (go (k . fmap (go h)) b)
-          f :$ a -> go h f `app` go h a
+          Expr (Var a) -> var (h a)
+          Expr (Lam b) -> lam (go (k . fmap (go h)) b)
+          Expr (f :$ a) -> go h f `app` go h a
 
 kfold :: (a -> b)
       -> (b -> b)
