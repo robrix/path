@@ -27,7 +27,7 @@ import           Text.Trifecta.Rendering (Span (..), Spanned (..))
 data Problem a
   = Ex (Maybe (Problem a)) (Problem a) (Problem (Incr (Problem a)))
   | U (Equation (Problem a))
-  | Var (Name a)
+  | Var a
   | Type
   | Lam (Problem a) (Problem (Incr (Problem a)))
   | Pi (Problem a) (Problem (Incr (Problem a)))
@@ -35,22 +35,22 @@ data Problem a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Problem where
-  pure = Var . Local
+  pure = Var
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure f a
+  a >>= f = efold Ex U id Type Lam Pi (:$) pure f a
 
-instance Pretty (Problem Meta) where
+instance Pretty (Problem (Name Meta)) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
     where go = \case
             Ex Nothing t b -> do
-              n <- Meta <$> gensym "ex"
+              n <- Local . Meta <$> gensym "ex"
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
               pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> magenta dot </> b'))
             Ex (Just v) t b -> do
-              n <- Meta <$> gensym "let"
+              n <- Local . Meta <$> gensym "let"
               t' <- prettyPrec 1 <$> go t
               v' <- prettyPrec 0 <$> go v
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
@@ -63,17 +63,17 @@ instance Pretty (Problem Meta) where
             Var (Local n) -> pure (atom (pretty n))
             Type -> pure (atom (yellow (pretty "Type")))
             Lam t b -> do
-              n <- Name <$> gensym "lam"
+              n <- Local . Name <$> gensym "lam"
               t' <- prettyPrec 1 <$> go t
               b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
-              pure (prec 0 (pretty (cyan backslash) <+> pretty (Local n ::: t') <+> cyan dot </> b'))
+              pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') <+> cyan dot </> b'))
             Pi t b -> do
-              n <- Name <$> gensym "pi"
+              n <- Local . Name <$> gensym "pi"
               let b' = instantiate (pure n) b
               t' <- prettyPrec 1 <$> go t
               b'' <- prettyPrec 0 <$> go b'
               if n `Set.member` fvs b' then do
-                pure (prec 0 (parens (pretty (Local n ::: t')) <+> arrow <+> b''))
+                pure (prec 0 (parens (pretty (n ::: t')) <+> arrow <+> b''))
               else do
                 pure (prec 0 (pretty t' <+> arrow <+> b''))
             f :$ a -> do
@@ -86,8 +86,8 @@ instance Ord a => FreeVariables a (Problem a) where
   fvs = foldMap Set.singleton
 
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
-exists (n := Just v ::: _) (Var (Local n')) | n == n' = v
-exists (n := v ::: t)      b                          = Ex v t (bind n b)
+exists (n := Just v ::: _) (Var n') | n == n' = v
+exists (n := v ::: t)      b                  = Ex v t (bind n b)
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unexists n (Ex Nothing t b) = pure (n ::: t, instantiate (pure n) b)
@@ -142,7 +142,7 @@ unpi _ _        = empty
 efold :: forall m n a b
       .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
       -> (forall a . Equation (n a) -> n a)
-      -> (forall a . Name (m a) -> n a)
+      -> (forall a . m a -> n a)
       -> (forall a . n a)
       -> (forall a . n a -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> n (Incr (n a)) -> n a)
@@ -156,14 +156,14 @@ efold ex u var ty lam pi app k = go
         go h = \case
           Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
           U q -> u (go h <$> q)
-          Var a -> var (h <$> a)
+          Var a -> var (h a)
           Type -> ty
           Lam t b -> lam (go h t) (go (k . fmap (go h)) b)
           Pi t b -> pi (go h t) (go (k . fmap (go h)) b)
           f :$ a -> app (go h f) (go h a)
 
 
-type Context = Stack (Binding ::: Problem Meta)
+type Context = Stack (Binding ::: Problem (Name Meta))
 
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
@@ -171,7 +171,7 @@ assume :: ( Carrier sig m
           , Member (State Context) sig
           )
        => Name Gensym
-       -> m (Problem Meta ::: Problem Meta)
+       -> m (Problem (Name Meta) ::: Problem (Name Meta))
 assume v = do
   _A <- have v
   pure (Var (Name <$> v) ::: _A)
@@ -180,40 +180,40 @@ intro :: ( Carrier sig m
          , Member Naming sig
          , Member (State Context) sig
          )
-      => (Gensym -> m (Problem Meta ::: Problem Meta))
-      -> m (Problem Meta ::: Problem Meta)
+      => (Gensym -> m (Problem (Name Meta) ::: Problem (Name Meta)))
+      -> m (Problem (Name Meta) ::: Problem (Name Meta))
 intro body = do
   _A <- meta Type
   x <- gensym "intro"
   _B <- ForAll x ::: _A |- meta Type
   u <- ForAll x ::: _A |- goalIs _B (body x)
-  pure (lam (Name x ::: _A) u ::: pi (Name x ::: _A) _B)
+  pure (lam (Local (Name x) ::: _A) u ::: pi (Local (Name x) ::: _A) _B)
 
 (-->) :: ( Carrier sig m
          , Member Naming sig
          , Member (State Context) sig
          )
-      => m (Problem Meta ::: Problem Meta)
-      -> (Gensym -> m (Problem Meta ::: Problem Meta))
-      -> m (Problem Meta ::: Problem Meta)
+      => m (Problem (Name Meta) ::: Problem (Name Meta))
+      -> (Gensym -> m (Problem (Name Meta) ::: Problem (Name Meta)))
+      -> m (Problem (Name Meta) ::: Problem (Name Meta))
 t --> body = do
   t' <- goalIs Type t
   x <- gensym "pi"
   b' <- ForAll x ::: t' |- goalIs Type (body x)
-  pure (pi (Name x ::: t') b' ::: Type)
+  pure (pi (Local (Name x) ::: t') b' ::: Type)
 
 app :: ( Carrier sig m
        , Member Naming sig
        , Member (State Context) sig
        )
-    => m (Problem Meta ::: Problem Meta)
-    -> m (Problem Meta ::: Problem Meta)
-    -> m (Problem Meta ::: Problem Meta)
+    => m (Problem (Name Meta) ::: Problem (Name Meta))
+    -> m (Problem (Name Meta) ::: Problem (Name Meta))
+    -> m (Problem (Name Meta) ::: Problem (Name Meta))
 app f a = do
   _A <- meta Type
   x <- gensym "app"
   _B <- ForAll x ::: _A |- meta Type
-  let _F = pi (Name x ::: _A) _B
+  let _F = pi (Local (Name x) ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' :$ a' ::: _F :$ a')
@@ -222,20 +222,20 @@ app f a = do
 goalIs :: ( Carrier sig m
           , Member Naming sig
           )
-       => Problem Meta
-       -> m (Problem Meta ::: Problem Meta)
-       -> m (Problem Meta)
+       => Problem (Name Meta)
+       -> m (Problem (Name Meta) ::: Problem (Name Meta))
+       -> m (Problem (Name Meta))
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
   tm2 <- meta (ty1 === ty2)
   pure (tm1 === tm2)
 
-meta :: (Carrier sig m, Member Naming sig) => Problem Meta -> m (Problem Meta)
+meta :: (Carrier sig m, Member Naming sig) => Problem (Name Meta) -> m (Problem (Name Meta))
 meta ty = do
   n <- gensym "meta"
-  pure (exists (Meta n := Nothing ::: ty) (pure (Meta n)))
+  pure (exists (Local (Meta n) := Nothing ::: ty) (pure (Local (Meta n))))
 
-(|-) :: (Carrier sig m, Member (State Context) sig) => Binding ::: Problem Meta -> m a -> m a
+(|-) :: (Carrier sig m, Member (State Context) sig) => Binding ::: Problem (Name Meta) -> m a -> m a
 b |- m = do
   stack <- get
   put (stack :> b)
@@ -244,7 +244,7 @@ b |- m = do
 
 infix 3 |-
 
-bindMeta :: (Carrier sig m, Member (State Context) sig) => Gensym ::: Problem Meta -> m a -> m (Binding, a)
+bindMeta :: (Carrier sig m, Member (State Context) sig) => Gensym ::: Problem (Name Meta) -> m a -> m (Binding, a)
 bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
   a <- m
   stack <- get @Context
@@ -252,7 +252,7 @@ bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
     Nil           -> pure (Exists (e := Nothing), a)
     _ :> e' ::: _ -> pure (e', a)
 
-solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Problem Meta -> m ()
+solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Problem (Name Meta) -> m ()
 solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local (Meta var) then Exists (var := Just val) else b) ::: (t `asTypeOf` val)))
 
 have :: ( Carrier sig m
@@ -261,7 +261,7 @@ have :: ( Carrier sig m
         , Member (State Context) sig
         )
      => Name Gensym
-     -> m (Problem Meta)
+     -> m (Problem (Name Meta))
 have n = lookup (Name <$> n) >>= maybe (freeVariable n) pure
   where lookup n = fmap typedType <$> lookupBinding n
 
@@ -276,14 +276,14 @@ elab :: ( Carrier sig m
         , Member (State Context) sig
         )
      => Core.Core (Name Gensym)
-     -> m (Problem Meta ::: Problem Meta)
+     -> m (Problem (Name Meta) ::: Problem (Name Meta))
 elab = \case
   Core.Var n -> assume n
   Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
   Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
-  Core.Hole h -> (pure (Meta h) :::) <$> meta Type
+  Core.Hole h -> (pure (Local (Meta h)) :::) <$> meta Type
   Core.Ann ann b -> spanIs ann (elab b)
 
 elabDecl :: ( Carrier sig m
@@ -292,7 +292,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Context) sig
             )
          => Spanned (Decl Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym)))
-         -> m (Spanned (Decl Qualified (Problem Meta ::: Problem Meta)))
+         -> m (Spanned (Decl Qualified (Problem (Name Meta) ::: Problem (Name Meta))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ctx <- get
   ty' <- runReader ctx (declare    (elab ty))
@@ -307,8 +307,8 @@ declare :: ( Carrier sig m
            , Member (Reader Span) sig
            , Member (State Context) sig
            )
-        => m (Problem Meta ::: Problem Meta)
-        -> m (Problem Meta)
+        => m (Problem (Name Meta) ::: Problem (Name Meta))
+        -> m (Problem (Name Meta))
 declare ty = goalIs Type ty >>= simplify
 
 define :: ( Carrier sig m
@@ -317,9 +317,9 @@ define :: ( Carrier sig m
           , Member (Reader Span) sig
           , Member (State Context) sig
           )
-       => Problem Meta
-       -> m (Problem Meta ::: Problem Meta)
-       -> m (Problem Meta)
+       => Problem (Name Meta)
+       -> m (Problem (Name Meta) ::: Problem (Name Meta))
+       -> m (Problem (Name Meta))
 define ty tm = goalIs ty tm >>= simplify
 
 
@@ -329,20 +329,20 @@ simplify :: ( Carrier sig m
             , Member (Reader Span) sig
             , Member (State Context) sig
             )
-         => Problem Meta
-         -> m (Problem Meta)
+         => Problem (Name Meta)
+         -> m (Problem (Name Meta))
 simplify = \case
   Ex Nothing t b -> do
     n <- gensym "ex"
     t' <- simplify t
-    (v', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b)
-    pure (exists (Meta n := bindingValue v' ::: t') b')
+    (v', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Local (Meta n))) b)
+    pure (exists (Local (Meta n) := bindingValue v' ::: t') b')
   Ex (Just v) t b -> do
     n <- gensym "let"
     v' <- simplify v
     t' <- simplify t
-    b' <- Exists (n := Just v') ::: t' |- simplify (instantiate (pure (Meta n)) b)
-    pure (let' (Meta n := v' ::: t') b')
+    b' <- Exists (n := Just v') ::: t' |- simplify (instantiate (pure (Local (Meta n))) b)
+    pure (let' (Local (Meta n) := v' ::: t') b')
   U (t1 :===: t2) -> do
     q <- (:===:) <$> simplify t1 <*> simplify t2
     case q of
@@ -351,65 +351,65 @@ simplify = \case
         n <- gensym "ex"
         t' <- simplify (t1 === t2)
         v' <- maybe (pure Nothing) (fmap Just . simplify) (v1 ?===? v2)
-        (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === instantiate (pure (Meta n)) b2)
-        pure (exists (Meta n := (v' <|> bindingValue v'') ::: t') b')
+        (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Local (Meta n))) b1 === instantiate (pure (Local (Meta n))) b2)
+        pure (exists (Local (Meta n) := (v' <|> bindingValue v'') ::: t') b')
       Ex v1 t1 b1 :===: tm2 -> do
         n <- gensym "ex"
         t1' <- simplify t1
         v' <- maybe (pure Nothing) (fmap Just . simplify) v1
-        (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Meta n)) b1 === tm2)
-        pure (exists (Meta n := (v' <|> bindingValue v'') ::: t1') tm1')
+        (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Local (Meta n))) b1 === tm2)
+        pure (exists (Local (Meta n) := (v' <|> bindingValue v'') ::: t1') tm1')
       tm1 :===: Ex v2 t2 b2 -> do
         n <- gensym "ex"
         t2' <- simplify t2
         v' <- maybe (pure Nothing) (fmap Just . simplify) v2
-        (v'', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Meta n)) b2)
-        pure (exists (Meta n := (v' <|> bindingValue v'') ::: t2') tm2')
+        (v'', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Local (Meta n))) b2)
+        pure (exists (Local (Meta n) := (v' <|> bindingValue v'') ::: t2') tm2')
       Var (Local (Meta v1)) :===: t2 -> simplifyVar (Meta v1) t2
       t1 :===: Var (Local (Meta v2)) -> simplifyVar (Meta v2) t1
       Pi t1 b1 :===: Pi t2 b2 -> do
         n <- gensym "pi"
         t' <- simplify (t1 === t2)
-        ForAll n ::: t' |- pi (Name n ::: t') <$> simplify (instantiate (pure (Name n)) b1 === instantiate (pure (Name n)) b2)
+        ForAll n ::: t' |- pi (Local (Name n) ::: t') <$> simplify (instantiate (pure (Local (Name n))) b1 === instantiate (pure (Local (Name n))) b2)
       Lam t1 b1 :===: Lam t2 b2 -> do
         n <- gensym "lam"
         t' <- simplify (t1 === t2)
-        ForAll n ::: t' |- lam (Name n ::: t') <$> simplify (instantiate (pure (Name n)) b1 === instantiate (pure (Name n)) b2)
+        ForAll n ::: t' |- lam (Local (Name n) ::: t') <$> simplify (instantiate (pure (Local (Name n))) b1 === instantiate (pure (Local (Name n))) b2)
       other -> pure (U other)
   Var a -> pure (Var a)
   Type -> pure Type
   Lam t b -> do
     n <- gensym "lam"
     t' <- simplify t
-    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Name n)) b)
-    pure (lam (Name n ::: t') b')
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local (Name n))) b)
+    pure (lam (Local (Name n) ::: t') b')
   Pi t b -> do
     n <- gensym "pi"
     t' <- simplify t
-    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Name n)) b)
-    pure (pi (Name n ::: t') b')
+    b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local (Name n))) b)
+    pure (pi (Local (Name n) ::: t') b')
   f :$ a -> do
     f' <- simplify f
     a' <- simplify a
     pure (f' :$ a')
 
-simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Meta -> Problem Meta -> m (Problem Meta)
+simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Meta -> Problem (Name Meta) -> m (Problem (Name Meta))
 simplifyVar v t = do
   v' <- lookupBinding (Local v)
   case v' of
     -- FIXME: occurs check
-    Just (Exists (n := _) ::: _) -> pure v <$ solve (n := t)
+    Just (Exists (n := _) ::: _) -> pure (Local v) <$ solve (n := t)
     Just _ -> do
-      p <- contextualize (U (pure v :===: t))
+      p <- contextualize (U (pure (Local v) :===: t))
       ask >>= unsimplifiable . pure . (p :~)
     Nothing -> freeVariable v
 
-contextualize :: (Carrier sig m, Member (State Context) sig) => Problem Meta -> m (Problem Meta)
+contextualize :: (Carrier sig m, Member (State Context) sig) => Problem (Name Meta) -> m (Problem (Name Meta))
 contextualize = gets . go
   where go p Nil                            = p
         go p (ctx :> Define _        ::: _) = go p ctx
-        go p (ctx :> Exists (n := v) ::: t) = go (exists (Meta n := v ::: t) p) ctx
-        go p (ctx :> ForAll n        ::: t) = go (lam (Name n ::: t) p) ctx
+        go p (ctx :> Exists (n := v) ::: t) = go (exists (Local (Meta n) := v ::: t) p) ctx
+        go p (ctx :> ForAll n        ::: t) = go (lam (Local (Name n) ::: t) p) ctx
 
 
 unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
@@ -427,8 +427,8 @@ instance (Pretty a, Pretty b) => Pretty (a := b) where
 
 
 data Binding
-  = Define (Qualified := Problem Meta)
-  | Exists (Gensym := Maybe (Problem Meta))
+  = Define (Qualified := Problem (Name Meta))
+  | Exists (Gensym := Maybe (Problem (Name Meta)))
   | ForAll Gensym
   deriving (Eq, Ord, Show)
 
@@ -437,12 +437,12 @@ bindingName (Define (n := _)) = Global n
 bindingName (Exists (n := _)) = Local (Meta n)
 bindingName (ForAll  n)       = Local (Name n)
 
-bindingValue :: Binding -> Maybe (Problem Meta)
+bindingValue :: Binding -> Maybe (Problem (Name Meta))
 bindingValue (Define (_ := v)) = Just v
 bindingValue (Exists (_ := v)) = v
 bindingValue (ForAll  _)       = Nothing
 
-lookupBinding :: (Carrier sig m, Member (State Context) sig) => Name Meta -> m (Maybe (Binding ::: Problem Meta))
+lookupBinding :: (Carrier sig m, Member (State Context) sig) => Name Meta -> m (Maybe (Binding ::: Problem (Name Meta)))
 lookupBinding n = gets (Stack.find ((== n) . bindingName . typedTerm))
 
 
