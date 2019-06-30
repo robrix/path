@@ -29,18 +29,6 @@ instance Monad Expr where
   a >>= f = ecata id Expr Var f a
 
 
-efold :: forall m n a b
-      .  (forall a . m a -> n a)
-      -> (forall a . n (Incr (n a)) -> n a)
-      -> (forall a . n a -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (a -> m b)
-      -> Expr a
-      -> n b
-efold var lam app = ecata var $ \case
-  Lam b -> lam b
-  f :$ a -> f `app` a
-
 ecata :: forall m n a b
       .  (forall a . m a -> n a)
       -> (forall a . ExprF n a -> n a)
@@ -54,15 +42,6 @@ ecata var alg k = go
           Var a -> var (h a)
           Expr (Lam b) -> alg (Lam (go (k . fmap (go h)) b))
           Expr (f :$ a) -> alg (go h f :$ go h a)
-
-kfold :: (a -> b)
-      -> (b -> b)
-      -> (b -> b -> b)
-      -> (Incr b -> a)
-      -> (x -> a)
-      -> Expr x
-      -> b
-kfold var lam app k h = getConst . efold (coerce var) (coerce lam) (coerce app) (coerce k) (Const . h)
 
 kcata :: (a -> b)
       -> (forall a . ExprF (Const b) a -> b)
