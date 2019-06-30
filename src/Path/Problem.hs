@@ -1,12 +1,13 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
-import           Control.Applicative (Alternative (..))
+import           Control.Applicative (Alternative (..), Const (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Monad (ap)
+import           Data.Coerce
 import           Data.Foldable (fold)
 import           Data.List (intersperse)
 import qualified Data.Set as Set
@@ -163,6 +164,19 @@ efold var lam app ty pi ex eq k = go
           Pi t b -> pi (go h t) (go (k . fmap (go h)) b)
           Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
           p1 :===: p2 -> eq (go h p1) (go h p2)
+
+kfold :: (a -> b)
+      -> (b -> b -> b)
+      -> (b -> b -> b)
+      -> b
+      -> (b -> b -> b)
+      -> (Maybe b -> b -> b -> b)
+      -> (b -> b -> b)
+      -> (Incr b -> a)
+      -> (a' -> a)
+      -> Problem a'
+      -> b
+kfold var lam app ty pi ex eq k h = getConst . efold (coerce var) (coerce lam) (coerce app) (coerce ty) (coerce pi) (coerce ex) (coerce eq) (coerce k) (Const . h)
 
 
 type Context = Stack (Binding ::: Problem (Name Gensym))
