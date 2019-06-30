@@ -106,6 +106,28 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (ProblemF f a)
 
 
+lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
+lam (n ::: t) b = Problem (Lam t (bind n b))
+
+lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
+lams names body = foldr lam body names
+
+unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
+unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate (pure n) b)
+unlam _ _                   = empty
+
+pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
+pi (n ::: t) b = Problem (Pi t (bind n b))
+
+-- | Wrap a type in a sequence of pi bindings.
+pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
+pis names body = foldr pi body names
+
+unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
+unpi n (Problem (Pi t b)) = pure (n ::: t, instantiate (pure n) b)
+unpi _ _                  = empty
+
+
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
 exists (n := Just v ::: _) (Var n') | n == n' = v
 exists (n := v      ::: t) b                  = Problem (Ex v t (bind n b))
@@ -137,27 +159,6 @@ Just p  ?===? Just q
   | otherwise = Just (Problem (p :===: q))
 
 infixr 3 ?===?
-
-lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
-lam (n ::: t) b = Problem (Lam t (bind n b))
-
-lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
-lams names body = foldr lam body names
-
-unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate (pure n) b)
-unlam _ _                   = empty
-
-pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
-pi (n ::: t) b = Problem (Pi t (bind n b))
-
--- | Wrap a type in a sequence of pi bindings.
-pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
-pis names body = foldr pi body names
-
-unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unpi n (Problem (Pi t b)) = pure (n ::: t, instantiate (pure n) b)
-unpi _ _                  = empty
 
 
 efold :: forall m n incr a b
