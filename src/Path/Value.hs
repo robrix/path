@@ -110,13 +110,13 @@ _       $$ _        = error "illegal application of Type"
 v $$* sp = foldl' ($$) v sp
 
 
-efold :: forall m n a b
+efold :: forall m n incr a b
       .  (forall a . m a -> n a)
-      -> (forall a . Plicity -> n (Incr (n a)) -> n a)
+      -> (forall a . Plicity -> n (incr (n a)) -> n a)
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
-      -> (forall a . Plicit (Used (n a)) -> n (Incr (n a)) -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (forall a . Plicit (Used (n a)) -> n (incr (n a)) -> n a)
+      -> (forall a . Incr (n a) -> m (incr (n a)))
       -> (a -> m b)
       -> Value a
       -> n b

@@ -145,15 +145,15 @@ unpi n (Pi t b) = pure (n ::: t, instantiate (pure n) b)
 unpi _ _        = empty
 
 
-efold :: forall m n a b
+efold :: forall m n incr a b
       .  (forall a . m a -> n a)
-      -> (forall a . n a -> n (Incr (n a)) -> n a)
+      -> (forall a . n a -> n (incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
       -> (forall a . n a)
-      -> (forall a . n a -> n (Incr (n a)) -> n a)
-      -> (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
+      -> (forall a . n a -> n (incr (n a)) -> n a)
+      -> (forall a . Maybe (n a) -> n a -> n (incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (forall a . Incr (n a) -> m (incr (n a)))
       -> (a -> m b)
       -> Problem a
       -> n b
