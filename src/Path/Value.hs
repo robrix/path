@@ -1,11 +1,12 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TupleSections, TypeOperators #-}
 module Path.Value where
 
-import           Control.Applicative (Alternative (..))
+import           Control.Applicative (Alternative (..), Const (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Monad (ap, unless)
+import           Data.Coerce
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -127,6 +128,17 @@ efold var lam app ty pi k = go
           Lam p b -> lam p (go (k . fmap (go h)) b)
           f :$ a -> app (var (h f)) (fmap (go h) <$> a)
           Pi t b -> pi (fmap (go h) <$> t) (go (k . fmap (go h)) b)
+
+kfold :: (a -> b)
+      -> (Plicity -> b -> b)
+      -> (b -> Stack (Plicit b) -> b)
+      -> b
+      -> (Plicit (Used b) -> b -> b)
+      -> (Incr b -> a)
+      -> (x -> a)
+      -> Value x
+      -> b
+kfold var lam app ty pi k h = getConst . efold (coerce var) (coerce lam) (coerce app) (coerce ty) (coerce pi) (coerce k) (Const . h)
 
 
 generalizeType :: Value (Name Meta) -> Value (Name Gensym)
