@@ -52,7 +52,7 @@ instance Pretty (Problem (Name Gensym)) where
             censor (Set.delete n) $ do
               t' <- prettyPrec 1 <$> t
               b' <- prettyPrec 0 <$> local (n :) b
-              pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') <+> cyan dot </> b'))
+              pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b'))
           app f a = do
             f' <- prettyPrec 10 <$> f
             a' <- prettyPrec 11 <$> a
@@ -70,14 +70,14 @@ instance Pretty (Problem (Name Gensym)) where
             n <- Local . Meta <$> gensym
             t' <- prettyPrec 1 <$> t
             b' <- prettyPrec 0 <$> local (n :) b
-            pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> magenta dot </> b'))
+            pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b'))
           ex (Just v) t b = do
             n <- Local . Meta <$> gensym
             censor (Set.delete n) $ do
               t' <- prettyPrec 1 <$> t
               v' <- prettyPrec 0 <$> v
               b' <- prettyPrec 0 <$> local (n :) b
-              pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') <+> magenta dot </> b'))
+              pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b'))
           eq p1 p2 = do
             p1' <- prettyPrec 1 <$> p1
             p2' <- prettyPrec 1 <$> p2
