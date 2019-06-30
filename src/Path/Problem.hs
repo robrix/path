@@ -352,19 +352,19 @@ simplify = \case
       (Ex v1 t1 b1, Ex v2 t2 b2) -> do
         n <- gensym "ex"
         t' <- simplify (t1 === t2)
-        v' <- maybe (pure Nothing) (fmap Just . simplify) (v1 ?===? v2)
+        v' <- traverse simplify (v1 ?===? v2)
         (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
         pure (exists (Local n := (v' <|> bindingValue v'') ::: t') b')
       (Ex v1 t1 b1, tm2) -> do
         n <- gensym "ex"
         t1' <- simplify t1
-        v' <- maybe (pure Nothing) (fmap Just . simplify) v1
+        v' <- traverse simplify v1
         (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Local n)) b1 === tm2)
         pure (exists (Local n := (v' <|> bindingValue v'') ::: t1') tm1')
       (tm1, Ex v2 t2 b2) -> do
         n <- gensym "ex"
         t2' <- simplify t2
-        v' <- maybe (pure Nothing) (fmap Just . simplify) v2
+        v' <- traverse simplify v2
         (v'', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate (pure (Local n)) b2)
         pure (exists (Local n := (v' <|> bindingValue v'') ::: t2') tm2')
       (Var (Local v1), t2) -> simplifyVar v1 t2
