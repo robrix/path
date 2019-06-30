@@ -49,51 +49,44 @@ instance Pretty (Problem (Name Gensym)) where
     where var (Global v) = pure (atom (pretty (Global @Meta v)))
           var (Local  v) = atom (pretty v) <$ tell (Set.singleton @Meta v)
           lam t b = do
-            n <- Name <$> gensym
-            censor (Set.delete n) $ do
-              t' <- prettyPrec 1 <$> t
-              b' <- prettyPrec 0 <$> local (n :) b
-              pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b'))
+            t' <- prettyPrec 1 <$> t
+            (n, b') <- bind Name (prettyPrec 0 <$> b)
+            pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b'))
           app f a = do
             f' <- prettyPrec 10 <$> f
             a' <- prettyPrec 11 <$> a
             pure (prec 10 (f' <+> a'))
           ty = pure (atom (yellow (pretty "Type")))
           pi t b = do
-            n <- Name <$> gensym
-            censor (Set.delete n) $ do
-              t'        <-       prettyPrec 1  <$> t
-              (fvs, b') <- fmap (prettyPrec 0) <$> listen (local (n :) b)
-              let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
-                      | otherwise          = t'
-              pure (prec 0 (t'' </> arrow <+> b'))
+            t' <- prettyPrec 1 <$> t
+            (fvs, (n, b')) <- listen (bind Name (prettyPrec 0 <$> b))
+            let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
+                    | otherwise          = t'
+            pure (prec 0 (t'' </> arrow <+> b'))
           ex Nothing t b = do
-            n <- Meta <$> gensym
-            censor (Set.delete n) $ do
-              t' <- prettyPrec 1 <$> t
-              b' <- prettyPrec 0 <$> local (n :) b
-              pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b'))
+            t' <- prettyPrec 1 <$> t
+            (n, b') <- bind Meta (prettyPrec 0 <$> b)
+            pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b'))
           ex (Just v) t b = do
-            n <- Meta <$> gensym
-            censor (Set.delete n) $ do
-              t' <- prettyPrec 1 <$> t
-              v' <- prettyPrec 0 <$> v
-              b' <- prettyPrec 0 <$> local (n :) b
-              pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b'))
+            t' <- prettyPrec 1 <$> t
+            v' <- prettyPrec 0 <$> v
+            (n, b') <- bind Meta (prettyPrec 0 <$> b)
+            pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b'))
           eq p1 p2 = do
             p1' <- prettyPrec 1 <$> p1
             p2' <- prettyPrec 1 <$> p2
             pure (prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2'))))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
-          gensym = do
-            ns <- ask
-            case ns of
-              Meta (_ :/ (_, i)) :_ -> pure (Root "pretty" :/ ("", succ i))
-              Name (_ :/ (_, i)) :_ -> pure (Root "pretty" :/ ("", succ i))
-              _ -> pure (Root "pretty" :/ ("", 0))
           k Z     = ask >>= var . Local . head
           k (S n) = local (tail @Meta) n
+          bind cons m = do
+            ns <- ask
+            let n = cons $ case ns of
+                  Meta (_ :/ (_, i)) :_ -> Root "pretty" :/ ("", succ i)
+                  Name (_ :/ (_, i)) :_ -> Root "pretty" :/ ("", succ i)
+                  _ -> Root "pretty" :/ ("", 0)
+            (,) n <$> censor (Set.delete n) (local (n :) m)
 
 instance Ord a => FreeVariables a (Problem a) where
   fvs = foldMap Set.singleton
