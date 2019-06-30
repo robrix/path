@@ -119,7 +119,7 @@ repl packageSources = liftIO $ do
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Scope.Scope)
        (evalState (Resolution mempty)
-       (runNaming (Root "repl")
+       (runNaming
        (script packageSources)))))))
 
 newtype Line = Line Int64
@@ -247,6 +247,6 @@ helpDoc = tabulate2 (space <+> space) entries
 runParseModule :: FilePath -> (Module Qualified (Path.Core.Core (Name Gensym) ::: Path.Core.Core (Name Gensym)) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
 runParseModule path f = runM @IO . runError @Doc $ do
   m <- parseModule path
-  runNaming (Root "root") $ do
+  runNaming $ do
     m' <- evalState (mempty :: Resolution) (resolveModule m)
     f m'

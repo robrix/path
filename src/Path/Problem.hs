@@ -83,9 +83,9 @@ instance Pretty (Problem (Name Gensym)) where
           bind cons m = do
             ns <- ask
             let n = cons $ case ns of
-                  Meta (_ :/ (_, i)) :_ -> Root "pretty" :/ ("", succ i)
-                  Name (_ :/ (_, i)) :_ -> Root "pretty" :/ ("", succ i)
-                  _ -> Root "pretty" :/ ("", 0)
+                  Meta (p :/ (_, i)) :_ -> p :/ ("", succ i)
+                  Name (p :/ (_, i)) :_ -> p :/ ("", succ i)
+                  _ -> Root :/ ("", 0)
             (,) n <$> censor (Set.delete n) (local (n :) m)
 
 instance Ord a => FreeVariables a (Problem a) where

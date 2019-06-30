@@ -20,7 +20,7 @@ import           Prelude hiding (fail)
 import           Text.Trifecta.Rendering (Span, Spanned(..))
 
 data Gensym
-  = Root String
+  = Root
   | Gensym :/ (String, Int)
   deriving (Eq, Ord, Show)
 
@@ -28,12 +28,12 @@ infixl 6 :/
 
 instance Pretty Gensym where
   pretty = \case
-    Root s -> pretty s
+    Root -> pretty "◊"
     _ :/ (_, i) -> prettyVar i
 
 prettyGensym :: Gensym -> Doc
 prettyGensym = \case
-  Root s -> pretty s
+  Root -> pretty "◊"
   _ :/ ("", i) -> prettyVar i
   _ :/ (s, i) -> pretty s <> pretty i
 
@@ -41,10 +41,6 @@ prettyGensym = \case
 root // s = root :/ (s, 0)
 
 infixl 6 //
-
-root :: Gensym -> String
-root (Root s) = s
-root (r :/ _) = root r
 
 
 gensym :: (Carrier sig m, Member Naming sig) => String -> m Gensym
@@ -80,8 +76,8 @@ instance Effect Naming where
   handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
 
 
-runNaming :: Functor m => Gensym -> NamingC m a -> m a
-runNaming root = runReader root . evalState 0 . runNamingC
+runNaming :: Functor m => NamingC m a -> m a
+runNaming = runReader Root . evalState 0 . runNamingC
 
 newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC Gensym m) a }
   deriving (Applicative, Functor, Monad, MonadFail, MonadIO)

@@ -60,7 +60,7 @@ prettyValue = go
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 
 instance Pretty (Value (Name Meta)) where
-  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . prettyValue
+  pretty = prettyPrec 0 . run . runNaming . prettyValue
 
 instance Pretty (Value (Name Gensym)) where
   pretty = pretty . weaken

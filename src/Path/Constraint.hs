@@ -109,7 +109,7 @@ instance Ord a => FreeVariables a (Constraint a) where
   fvs = foldMap Set.singleton
 
 instance Pretty (Constraint (Name Meta)) where
-  pretty c = group . run . runNaming (Root "pretty") $ do
+  pretty c = group . run . runNaming $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
     binds <- traverse prettyBind ctx
     v1' <- prettyValue v1
