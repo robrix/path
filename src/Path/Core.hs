@@ -9,7 +9,7 @@ import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span)
 
 data Core a
-  = Var (Name a)
+  = Var a
   | Lam (Plicit (Maybe User)) (Core (Incr (Core a)))
   | Core a :$ Plicit (Core a)
   | Type
@@ -19,11 +19,11 @@ data Core a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Core where
-  pure = Var . Local
+  pure = Var
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = efold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure f a
+  a >>= f = efold id Lam (:$) Type Pi Hole Ann pure f a
 
 lam :: Eq a => Plicit a -> Core a -> Core a
 lam (p :< n) b = Lam (p :< Nothing) (bind n b)
@@ -33,7 +33,7 @@ lams names body = foldr lam body names
 
 
 efold :: forall m n a b
-      .  (forall a . Name (m a) -> n a)
+      .  (forall a . m a -> n a)
       -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Plicit (n a) -> n a)
       -> (forall a . n a)
@@ -47,7 +47,7 @@ efold :: forall m n a b
 efold var lam app ty pi hole ann k = go
   where go :: forall x y . (x -> m y) -> Core x -> n y
         go h = \case
-          Var a -> var (h <$> a)
+          Var a -> var (h a)
           Lam p b -> lam p (go (k . fmap (go h)) b)
           f :$ a -> app (go h f) (go h <$> a)
           Type -> ty

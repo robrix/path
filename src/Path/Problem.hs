@@ -275,14 +275,14 @@ elab :: ( Carrier sig m
         , Member (Reader Span) sig
         , Member (State Context) sig
         )
-     => Core.Core Gensym
+     => Core.Core (Name Gensym)
      -> m (Problem Meta ::: Problem Meta)
 elab = \case
   Core.Var n -> assume n
-  Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure n') b))
+  Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (Type ::: Type)
-  Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure n') b)
+  Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
   Core.Hole h -> (pure (Meta h) :::) <$> meta Type
   Core.Ann ann b -> spanIs ann (elab b)
 
@@ -291,7 +291,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Context) sig
             )
-         => Spanned (Decl Qualified (Core.Core Gensym ::: Core.Core Gensym))
+         => Spanned (Decl Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym)))
          -> m (Spanned (Decl Qualified (Problem Meta ::: Problem Meta)))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ctx <- get

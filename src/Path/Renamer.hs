@@ -30,17 +30,17 @@ resolveTerm :: ( Carrier sig m
                , Member (State Signature) sig
                )
             => Spanned Surface.Surface
-            -> m (Core Gensym)
+            -> m (Core (Name Gensym))
 resolveTerm (term :~ span) = local (const span) $ Ann span <$> case term of
   Surface.Var v -> Var <$> resolveName v
   Surface.Lam (p :< v) b -> do
     v' <- gensym (maybe "lam" showUser v)
-    local (insertLocal v v') (Lam (p :< v) . bind v' <$> resolveTerm b)
+    local (insertLocal v v') (Lam (p :< v) . bind (Local v') <$> resolveTerm b)
   f Surface.:$ a -> (:$) <$> resolveTerm f <*> traverse resolveTerm a
   Surface.Type -> pure Type
   Surface.Pi (ie :< v ::: u :@ t) b -> do
     v' <- gensym (maybe "pi" showUser v)
-    Pi . (ie :<) . (v :::) . (u :@) <$> resolveTerm t <*> local (insertLocal v v') (bind v' <$> resolveTerm b)
+    Pi . (ie :<) . (v :::) . (u :@) <$> resolveTerm t <*> local (insertLocal v v') (bind (Local v') <$> resolveTerm b)
   Surface.Hole v -> Hole <$> resolveMeta v
 
 
@@ -55,7 +55,7 @@ resolveDecl :: ( Carrier sig m
                , Member (State Resolution) sig
                )
             => Spanned (Decl User (Spanned Surface.Surface ::: Spanned Surface.Surface))
-            -> m (Spanned (Decl Qualified (Core Gensym ::: Core Gensym)))
+            -> m (Spanned (Decl Qualified (Core (Name Gensym) ::: Core (Name Gensym))))
 resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ do
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
@@ -80,7 +80,7 @@ resolveModule :: ( Carrier sig m
                  , Member (State Resolution) sig
                  )
               => Module User (Spanned Surface.Surface ::: Spanned Surface.Surface)
-              -> m (Module Qualified (Core Gensym ::: Core Gensym))
+              -> m (Module Qualified (Core (Name Gensym) ::: Core (Name Gensym)))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))

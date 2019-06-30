@@ -110,14 +110,14 @@ spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
 elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span) sig)
-     => Core.Core Gensym
+     => Core.Core (Name Gensym)
      -> m (Value (Name Meta) ::: Type (Name Meta))
 elab = \case
   Core.Var n -> assume n
-  Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure n') b))
+  Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure (Local n')) b))
   (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
   Core.Type -> pure (Value.Type ::: Value.Type)
-  Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure n') b))
+  Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure (Local n')) b))
   Core.Hole h -> (pure (Local (Meta h)) :::) <$> exists Value.Type
   Core.Ann ann b -> spanIs ann (elab b)
 
@@ -191,7 +191,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Scope) sig
               )
-           => Module Qualified (Core.Core Gensym ::: Core.Core Gensym)
+           => Module Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym))
            -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Scope.union <=< importModule)
@@ -218,7 +218,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Scope) sig
             )
-         => Spanned (Decl Qualified (Core.Core Gensym ::: Core.Core Gensym))
+         => Spanned (Decl Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym)))
          -> m (Spanned (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ty' <- runScope (declare (elab ty))
@@ -227,7 +227,7 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
 
   let ty'' = whnf scope ty'
   (names, _) <- un (orTerm (\ n -> \case
-    Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (instantiate (pure (Local n)) b))
+    Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
     _                            -> Nothing)) ty''
   tm ::: _ <- runScope (define (Value.weaken ty') (elab (Core.lams names tm)))
   modify (Scope.insert name (Entry (Just tm ::: ty')))
