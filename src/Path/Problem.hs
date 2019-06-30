@@ -25,13 +25,13 @@ import           Text.Trifecta.Rendering (Span (..), Spanned (..))
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
 data Problem a
-  = Ex (Maybe (Problem a)) (Problem a) (Problem (Incr (Problem a)))
-  | U (Equation (Problem a))
-  | Var a
-  | Type
+  = Var a
   | Lam (Problem a) (Problem (Incr (Problem a)))
-  | Pi (Problem a) (Problem (Incr (Problem a)))
   | Problem a :$ Problem a
+  | Type
+  | Pi (Problem a) (Problem (Incr (Problem a)))
+  | Ex (Maybe (Problem a)) (Problem a) (Problem (Incr (Problem a)))
+  | U (Equation (Problem a))
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Problem where
