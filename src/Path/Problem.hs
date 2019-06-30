@@ -62,10 +62,10 @@ instance Pretty (Problem (Name Gensym)) where
               let b' = instantiate (pure n) b
               t' <- prettyPrec 1 <$> go t
               b'' <- prettyPrec 0 <$> go b'
-              if n `Set.member` fvs b' then do
-                pure (prec 0 (parens (pretty (n ::: t')) <+> arrow <+> b''))
-              else do
-                pure (prec 0 (pretty t' <+> arrow <+> b''))
+              pure . prec 0 $ if n `Set.member` fvs b' then
+                parens (pretty (n ::: t')) <+> arrow <+> b''
+              else
+                pretty t' <+> arrow <+> b''
             Ex Nothing t b -> do
               n <- Local <$> gensym "ex"
               t' <- prettyPrec 1 <$> go t
