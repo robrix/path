@@ -158,7 +158,6 @@ prettyQName = \case
   Local  n -> pretty '_' <> prettyGensym n
 
 
-
 localNames :: Ord a => Set.Set (Name a) -> Set.Set a
 localNames = foldMap (name Set.singleton (const Set.empty))
 
