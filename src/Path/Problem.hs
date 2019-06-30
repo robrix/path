@@ -9,7 +9,6 @@ import           Control.Effect.State
 import           Control.Monad (ap)
 import           Data.Coerce
 import           Data.Foldable (fold)
-import           Data.Functor.Identity
 import           Data.List (intersperse)
 import qualified Data.Set as Set
 import           GHC.Generics ((:.:) (..))
@@ -42,7 +41,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = coerce $ efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure ((coerce `asTypeOf` fmap Const) . f . runIdentity) (coerce a)
+  a >>= f = coerce $ efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure ((coerce `asTypeOf` fmap Const) . f . getConst) (coerce a)
 
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
@@ -154,11 +153,11 @@ efold :: forall l m n z b
       -> (forall a . n a -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (l b -> m (z b))
-      -> Problem (l b)
+      -> (l (m b) -> m (z b))
+      -> Problem (l (m b))
       -> n (z b)
 efold ex u var ty lam pi app k = go
-  where go :: forall l' z' x . (l' x -> m (z' x)) -> Problem (l' x) -> n (z' x)
+  where go :: forall l' z' x . (l' (m x) -> m (z' x)) -> Problem (l' (m x)) -> n (z' x)
         go h = \case
           Ex v t b -> ex (go h <$> v) (go h t) (nest b)
           U q -> u (go h <$> q)
@@ -169,7 +168,7 @@ efold ex u var ty lam pi app k = go
           f :$ a -> app (go h f) (go h a)
           where nest b = coerce (go
                   (coerce (k . fmap (go h))
-                    :: (Incr :.: Problem :.: l') x -> m ((Incr :.: n :.: z') x))
+                    :: (Incr :.: Problem :.: l') (m x) -> m ((Incr :.: n :.: z') x))
                   (coerce b))
 
 

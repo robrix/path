@@ -8,7 +8,6 @@ import           Control.Effect.Reader hiding (Local)
 import           Control.Monad (ap, unless)
 import           Data.Coerce
 import           Data.Foldable (foldl', toList)
-import           Data.Functor.Identity
 import qualified Data.Set as Set
 import           GHC.Generics ((:.:) (..))
 import           Path.Name
@@ -75,7 +74,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = coerce $ efold (name id global) Lam ($$*) Type Pi pure ((coerce `asTypeOf` fmap Const) . f . runIdentity) (coerce a)
+  a >>= (f :: a -> Value b) = coerce $ efold (name id global) Lam ($$*) Type Pi pure ((coerce `asTypeOf` fmap Const) . f . getConst) (coerce a)
 
 
 global :: Qualified -> Value a
@@ -122,11 +121,11 @@ efold :: forall l m n z b
       -> (forall a . n a)
       -> (forall a . Plicit (Used (n a)) -> n (Incr (n a)) -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (l b -> m (z b))
-      -> Value (l b)
+      -> (l (m b) -> m (z b))
+      -> Value (l (m b))
       -> n (z b)
 efold var lam app ty pi k = go
-  where go :: forall l' z' x . (l' x -> m (z' x)) -> Value (l' x) -> n (z' x)
+  where go :: forall l' z' x . (l' (m x) -> m (z' x)) -> Value (l' (m x)) -> n (z' x)
         go h = \case
           Type -> ty
           Lam p b -> lam p (nest b)
@@ -134,7 +133,7 @@ efold var lam app ty pi k = go
           Pi t b -> pi (fmap (go h) <$> t) (nest b)
           where nest b = coerce (go
                   (coerce (k . fmap (go h))
-                    :: (Incr :.: Value :.: l') x -> m ((Incr :.: n :.: z') x))
+                    :: (Incr :.: Value :.: l') (m x) -> m ((Incr :.: n :.: z') x))
                   (coerce b))
 
 
