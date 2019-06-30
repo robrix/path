@@ -42,13 +42,13 @@ prettyValue = go
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
             pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
-            where withPi Ex More = prettyPrec 1
-                  withPi Im Zero = prettyPrec 1
-                  withPi _  pi   = (pretty pi <+>) . prettyPrec 11
+            where withPi (Ex :< More :@ t) =                   prettyPrec 1  <$> go t
+                  withPi (Im :< Zero :@ t) =                   prettyPrec 1  <$> go t
+                  withPi (_  :< pi   :@ t) = (pretty pi <+>) . prettyPrec 11 <$> go t
                   arrow = blue (pretty "->")
                   l = flatAlt (space <> space <> space) mempty
-                  prettyPi (p :< n ::: u :@ t) isUsed = do
-                    t' <- withPi p u <$> go t
+                  prettyPi (p :< n ::: t) isUsed = do
+                    t' <- withPi (p :< t)
                     pure $! prettyPlicity isUsed (p :< if isUsed then pretty (Local n ::: t') else t')
           f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
