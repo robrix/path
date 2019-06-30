@@ -6,6 +6,7 @@ import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
+import           Control.Effect.Writer
 import           Control.Monad (ap)
 import           Data.Coerce
 import           Data.Foldable (fold)
@@ -44,46 +45,48 @@ instance Monad Problem where
   a >>= f = efold id Lam (:$) Type Pi Ex (:===:) pure f a
 
 instance Pretty (Problem (Name Gensym)) where
-  pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
-    where go = \case
-            Var (Global (_ :.: n)) -> pure (atom (pretty n))
-            Var (Local n) -> pure (atom (pretty '_' <> pretty n)) -- FIXME: distinguish local & meta variables using the context
-            Lam t b -> do
-              n <- Local <$> gensym "lam"
-              t' <- prettyPrec 1 <$> go t
-              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
+  pretty = prettyPrec 0 . snd . run . runWriter @(Set.Set (Name Gensym)) . runReader (pred 0 :: Int) . kfold id lam app ty pi ex eq k var
+    where var v = atom (pretty v) <$ tell (Set.singleton @(Name Gensym) v) -- FIXME: distinguish local & meta variables using the context
+          lam t b = do
+            n <- Local <$> gensym
+            censor (Set.delete n) $ do
+              t' <- prettyPrec 1 <$> t
+              b' <- prettyPrec 0 <$> local (succ @Int) b
               pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') <+> cyan dot </> b'))
-            f :$ a -> do
-              f' <- prettyPrec 10 <$> go f
-              a' <- prettyPrec 11 <$> go a
-              pure (prec 10 (f' <+> a'))
-            Type -> pure (atom (yellow (pretty "Type")))
-            Pi t b -> do
-              n <- Local <$> gensym "pi"
-              let b' = instantiate (pure n) b
-              t' <- prettyPrec 1 <$> go t
-              b'' <- prettyPrec 0 <$> go b'
-              pure . prec 0 $ if n `Set.member` fvs b' then
-                parens (pretty (n ::: t')) <+> arrow <+> b''
-              else
-                pretty t' <+> arrow <+> b''
-            Ex Nothing t b -> do
-              n <- Local <$> gensym "ex"
-              t' <- prettyPrec 1 <$> go t
-              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
-              pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> magenta dot </> b'))
-            Ex (Just v) t b -> do
-              n <- Local <$> gensym "let"
-              t' <- prettyPrec 1 <$> go t
-              v' <- prettyPrec 0 <$> go v
-              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
+          app f a = do
+            f' <- prettyPrec 10 <$> f
+            a' <- prettyPrec 11 <$> a
+            pure (prec 10 (f' <+> a'))
+          ty = pure (atom (yellow (pretty "Type")))
+          pi t b = do
+            n <- Local <$> gensym
+            censor (Set.delete n) $ do
+              t'        <-       prettyPrec 1  <$> t
+              (fvs, b') <- fmap (prettyPrec 0) <$> listen (local (succ @Int) b)
+              let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
+                      | otherwise          = t'
+              pure (prec 0 (t'' <+> arrow <+> b'))
+          ex Nothing t b = do
+            n <- Local <$> gensym
+            t' <- prettyPrec 1 <$> t
+            b' <- prettyPrec 0 <$> local (succ @Int) b
+            pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') <+> magenta dot </> b'))
+          ex (Just v) t b = do
+            n <- Local <$> gensym
+            censor (Set.delete n) $ do
+              t' <- prettyPrec 1 <$> t
+              v' <- prettyPrec 0 <$> v
+              b' <- prettyPrec 0 <$> local (succ @Int) b
               pure (prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') <+> magenta dot </> b'))
-            p1 :===: p2 -> do
-              p1' <- prettyPrec 1 <$> go p1
-              p2' <- prettyPrec 1 <$> go p2
-              pure (prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2'))))
+          eq p1 p2 = do
+            p1' <- prettyPrec 1 <$> p1
+            p2' <- prettyPrec 1 <$> p2
+            pure (prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2'))))
           arrow = blue (pretty "->")
           eq' = magenta (pretty "≡")
+          gensym = (Root "pretty" :/) . (,) "" . succ <$> ask
+          k Z     = ask >>= var . Local . (Root "pretty" :/) . (,) ""
+          k (S n) = local (pred @Int) n
 
 instance Ord a => FreeVariables a (Problem a) where
   fvs = foldMap Set.singleton
