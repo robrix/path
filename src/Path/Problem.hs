@@ -40,7 +40,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = efold Ex (:===:) id Type Lam Pi (:$) pure f a
+  a >>= f = efold id Lam (:$) Type Pi Ex (:===:) pure f a
 
 instance Pretty (Problem (Name Gensym)) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
@@ -142,18 +142,18 @@ unpi _ _        = empty
 
 
 efold :: forall m n a b
-      .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
+      .  (forall a . m a -> n a)
+      -> (forall a . n a -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
-      -> (forall a . m a -> n a)
       -> (forall a . n a)
       -> (forall a . n a -> n (Incr (n a)) -> n a)
-      -> (forall a . n a -> n (Incr (n a)) -> n a)
+      -> (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Problem a
       -> n b
-efold ex u var ty lam pi app k = go
+efold var lam app ty pi ex u k = go
   where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
           Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
