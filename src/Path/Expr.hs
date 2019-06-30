@@ -43,6 +43,18 @@ eiter var alg k = go
           Expr (Lam b) -> alg (Lam (go (k . fmap (go h)) b))
           Expr (f :$ a) -> alg (go h f :$ go h a)
 
+ecata :: forall m a
+      .  (forall a . ExprF m a -> m a)
+      -> (forall a . Incr (m a) -> m (Incr (m a)))
+      -> Expr (m a)
+      -> m a
+ecata alg k = go id
+  where go :: forall x y . (x -> m y) -> Expr x -> m y
+        go h = \case
+          Var a -> h a
+          Expr (Lam b) -> alg (Lam (go (k . fmap (go h)) b))
+          Expr (f :$ a) -> alg (go h f :$ go h a)
+
 kcata :: (a -> b)
       -> (forall a . ExprF (Const b) a -> b)
       -> (Incr b -> a)
