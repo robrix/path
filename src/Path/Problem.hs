@@ -1,7 +1,7 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
-import           Control.Applicative (Alternative (..), Const (..))
+import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
@@ -9,9 +9,9 @@ import           Control.Effect.State
 import           Control.Monad (ap)
 import           Data.Coerce
 import           Data.Foldable (fold)
+import           Data.Functor.Identity
 import           Data.List (intersperse)
 import qualified Data.Set as Set
-import           GHC.Generics ((:.:) (..))
 import           Path.Constraint (Equation (..))
 import qualified Path.Core as Core
 import           Path.Error
@@ -41,7 +41,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = coerce $ efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure ((coerce `asTypeOf` fmap Const) . f . getConst) (coerce a)
+  a >>= f = efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure (f . runIdentity) (coerce a)
 
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
@@ -141,11 +141,8 @@ unpi n (Pi t b) = pure (n ::: t, instantiate (pure n) b)
 unpi _ _        = empty
 
 
-efold :: forall l m n z b
-      .  ( forall a b . Coercible a b => Coercible (n a) (n b)
-         , forall a b . Coercible a b => Coercible (m a) (m b)
-         )
-      => (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
+efold :: forall l m n a b
+      .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
       -> (forall a . Equation (n a) -> n a)
       -> (forall a . Name (m a) -> n a)
       -> (forall a . n a)
@@ -153,23 +150,19 @@ efold :: forall l m n z b
       -> (forall a . n a -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (l (m b) -> m (z b))
-      -> Problem (l (m b))
-      -> n (z b)
+      -> (l a -> m b)
+      -> Problem (l a)
+      -> n b
 efold ex u var ty lam pi app k = go
-  where go :: forall l' z' x . (l' (m x) -> m (z' x)) -> Problem (l' (m x)) -> n (z' x)
+  where go :: forall l' x y . (l' x -> m y) -> Problem (l' x) -> n y
         go h = \case
-          Ex v t b -> ex (go h <$> v) (go h t) (nest b)
+          Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
           U q -> u (go h <$> q)
           Var a -> var (h <$> a)
           Type -> ty
-          Lam t b -> lam (go h t) (nest b)
-          Pi t b -> pi (go h t) (nest b)
+          Lam t b -> lam (go h t) (go (k . fmap (go h)) b)
+          Pi t b -> pi (go h t) (go (k . fmap (go h)) b)
           f :$ a -> app (go h f) (go h a)
-          where nest b = coerce (go
-                  (coerce (k . fmap (go h))
-                    :: (Incr :.: Problem :.: l') (m x) -> m ((Incr :.: n :.: z') x))
-                  (coerce b))
 
 
 type Context = Stack (Binding ::: Problem Meta)

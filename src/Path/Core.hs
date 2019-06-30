@@ -1,10 +1,9 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
 module Path.Core where
 
 import Control.Monad (ap)
 import Data.Coerce
-import Data.Functor.Const
-import GHC.Generics ((:.:) (..))
+import Data.Functor.Identity
 import Path.Name
 import Path.Plicity
 import Path.Usage
@@ -26,7 +25,7 @@ instance Applicative Core where
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = coerce $ efold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure ((coerce `asTypeOf` fmap Const) . f . getConst) (coerce a)
+  a >>= f = efold (name id (Var . Global)) Lam (:$) Type Pi Hole Ann pure (f . runIdentity) (coerce a)
 
 lam :: Eq a => Plicit a -> Core a -> Core a
 lam (p :< n) b = Lam (p :< Nothing) (bind n b)
@@ -35,11 +34,8 @@ lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
-efold :: forall l m n z b
-      .  ( forall a b . Coercible a b => Coercible (n a) (n b)
-         , forall a b . Coercible a b => Coercible (m a) (m b)
-         )
-      => (forall a . Name (m a) -> n a)
+efold :: forall l m n a b
+      .  (forall a . Name (m a) -> n a)
       -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Plicit (n a) -> n a)
       -> (forall a . n a)
@@ -47,20 +43,16 @@ efold :: forall l m n z b
       -> (forall a . Gensym -> n a)
       -> (forall a . Span -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (l (m b) -> m (z b))
-      -> Core (l (m b))
-      -> n (z b)
+      -> (l a -> m b)
+      -> Core (l a)
+      -> n b
 efold var lam app ty pi hole ann k = go
-  where go :: forall l' z' x . (l' (m x) -> m (z' x)) -> Core (l' (m x)) -> n (z' x)
+  where go :: forall l' x y . (l' x -> m y) -> Core (l' x) -> n y
         go h = \case
           Var a -> var (h <$> a)
-          Lam p b -> lam p (nest b)
+          Lam p b -> lam p (go (k . fmap (go h)) b)
           f :$ a -> app (go h f) (go h <$> a)
           Type -> ty
-          Pi t b -> pi (fmap (fmap (go h)) <$> t) (nest b)
+          Pi t b -> pi (fmap (fmap (go h)) <$> t) (go (k . fmap (go h)) b)
           Hole a -> hole a
           Ann loc b -> ann loc (go h b)
-          where nest b = coerce (go
-                  (coerce (k . fmap (go h))
-                    :: (Incr :.: Core :.: l') (m x) -> m ((Incr :.: n :.: z') x))
-                  (coerce b))

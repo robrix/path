@@ -1,15 +1,15 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, TupleSections, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TupleSections, TypeOperators #-}
 module Path.Value where
 
-import           Control.Applicative (Alternative (..), Const (..))
+import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Monad (ap, unless)
 import           Data.Coerce
 import           Data.Foldable (foldl', toList)
+import           Data.Functor.Identity
 import qualified Data.Set as Set
-import           GHC.Generics ((:.:) (..))
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
@@ -74,7 +74,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= (f :: a -> Value b) = coerce $ efold (name id global) Lam ($$*) Type Pi pure ((coerce `asTypeOf` fmap Const) . f . getConst) (coerce a)
+  a >>= f = efold (name id global) Lam ($$*) Type Pi pure (f . runIdentity) (coerce a)
 
 
 global :: Qualified -> Value a
@@ -111,30 +111,23 @@ _       $$ _        = error "illegal application of Type"
 v $$* sp = foldl' ($$) v sp
 
 
-efold :: forall l m n z b
-      .  ( forall a b . Coercible a b => Coercible (n a) (n b)
-         , forall a b . Coercible a b => Coercible (m a) (m b)
-         )
-      => (forall a . Name (m a) -> n a)
+efold :: forall l m n a b
+      .  (forall a . Name (m a) -> n a)
       -> (forall a . Plicity -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
       -> (forall a . Plicit (Used (n a)) -> n (Incr (n a)) -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (l (m b) -> m (z b))
-      -> Value (l (m b))
-      -> n (z b)
+      -> (l a -> m b)
+      -> Value (l a)
+      -> n b
 efold var lam app ty pi k = go
-  where go :: forall l' z' x . (l' (m x) -> m (z' x)) -> Value (l' (m x)) -> n (z' x)
+  where go :: forall l' x y . (l' x -> m y) -> Value (l' x) -> n y
         go h = \case
           Type -> ty
-          Lam p b -> lam p (nest b)
+          Lam p b -> lam p (go (k . fmap (go h)) b)
           f :$ a -> app (var (h <$> f)) (fmap (go h) <$> a)
-          Pi t b -> pi (fmap (go h) <$> t) (nest b)
-          where nest b = coerce (go
-                  (coerce (k . fmap (go h))
-                    :: (Incr :.: Value :.: l') (m x) -> m ((Incr :.: n :.: z') x))
-                  (coerce b))
+          Pi t b -> pi (fmap (go h) <$> t) (go (k . fmap (go h)) b)
 
 
 generalizeType :: Value Meta -> Value Gensym
