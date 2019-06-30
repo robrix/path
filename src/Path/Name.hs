@@ -16,6 +16,7 @@ import qualified Data.Set as Set
 import           Path.Pretty
 import           Path.Stack
 import           Path.Usage
+import           Prelude hiding (fail)
 import           Text.Trifecta.Rendering (Span, Spanned(..))
 
 data Gensym
@@ -165,6 +166,9 @@ localNames = foldMap (name Set.singleton (const Set.empty))
 
 close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
 close = traverse (name (const empty) pure)
+
+closeFail :: (MonadFail m, Show a, Traversable t) => t (Name a) -> m (t Qualified)
+closeFail = traverse (name (fail . ("free variable: " ++) . show) pure)
 
 
 data Meta
