@@ -156,13 +156,13 @@ efold :: forall m n a b
 efold var lam app ty pi ex eq k = go
   where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
+          Var a -> var (h a)
+          Lam t b -> lam (go h t) (go (k . fmap (go h)) b)
+          f :$ a -> app (go h f) (go h a)
+          Type -> ty
+          Pi t b -> pi (go h t) (go (k . fmap (go h)) b)
           Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
           p1 :===: p2 -> eq (go h p1) (go h p2)
-          Var a -> var (h a)
-          Type -> ty
-          Lam t b -> lam (go h t) (go (k . fmap (go h)) b)
-          Pi t b -> pi (go h t) (go (k . fmap (go h)) b)
-          f :$ a -> app (go h f) (go h a)
 
 
 type Context = Stack (Binding ::: Problem (Name Gensym))
