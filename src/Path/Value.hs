@@ -6,9 +6,7 @@ import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Monad (ap, unless)
-import           Data.Coerce
 import           Data.Foldable (foldl', toList)
-import           Data.Functor.Identity
 import qualified Data.Set as Set
 import           Path.Name
 import           Path.Plicity
@@ -74,7 +72,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = efold (name id global) Lam ($$*) Type Pi pure (f . runIdentity) (coerce a)
+  a >>= f = efold (name id global) Lam ($$*) Type Pi pure f a
 
 
 global :: Qualified -> Value a
@@ -111,18 +109,18 @@ _       $$ _        = error "illegal application of Type"
 v $$* sp = foldl' ($$) v sp
 
 
-efold :: forall l m n a b
+efold :: forall m n a b
       .  (forall a . Name (m a) -> n a)
       -> (forall a . Plicity -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
       -> (forall a . Plicit (Used (n a)) -> n (Incr (n a)) -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (l a -> m b)
-      -> Value (l a)
+      -> (a -> m b)
+      -> Value a
       -> n b
 efold var lam app ty pi k = go
-  where go :: forall l' x y . (l' x -> m y) -> Value (l' x) -> n y
+  where go :: forall x y . (x -> m y) -> Value x -> n y
         go h = \case
           Type -> ty
           Lam p b -> lam p (go (k . fmap (go h)) b)

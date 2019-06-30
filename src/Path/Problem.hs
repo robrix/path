@@ -7,9 +7,7 @@ import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Monad (ap)
-import           Data.Coerce
 import           Data.Foldable (fold)
-import           Data.Functor.Identity
 import           Data.List (intersperse)
 import qualified Data.Set as Set
 import           Path.Constraint (Equation (..))
@@ -41,7 +39,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure (f . runIdentity) (coerce a)
+  a >>= f = efold Ex U (name id (Var . Global)) Type Lam Pi (:$) pure f a
 
 instance Pretty (Problem Meta) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
@@ -141,7 +139,7 @@ unpi n (Pi t b) = pure (n ::: t, instantiate (pure n) b)
 unpi _ _        = empty
 
 
-efold :: forall l m n a b
+efold :: forall m n a b
       .  (forall a . Maybe (n a) -> n a -> n (Incr (n a)) -> n a)
       -> (forall a . Equation (n a) -> n a)
       -> (forall a . Name (m a) -> n a)
@@ -150,11 +148,11 @@ efold :: forall l m n a b
       -> (forall a . n a -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
-      -> (l a -> m b)
-      -> Problem (l a)
+      -> (a -> m b)
+      -> Problem a
       -> n b
 efold ex u var ty lam pi app k = go
-  where go :: forall l' x y . (l' x -> m y) -> Problem (l' x) -> n y
+  where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
           Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
           U q -> u (go h <$> q)
