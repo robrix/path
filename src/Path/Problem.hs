@@ -45,10 +45,11 @@ instance Monad Problem where
   a >>= f = efold id Lam (:$) Type Pi Ex (:===:) pure f a
 
 instance Pretty (Problem (Name Gensym)) where
-  pretty = prettyPrec 0 . snd . run . runWriter @(Set.Set (Name Meta)) . runReader ([] @(Name Meta)) . kfold id lam app ty pi ex eq k (var . fmap Name)
-    where var v = atom (pretty v) <$ tell (Set.singleton @(Name Meta) v)
+  pretty = prettyPrec 0 . snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . kfold id lam app ty pi ex eq k (var . fmap Name)
+    where var (Global v) = pure (atom (pretty (Global @Meta v)))
+          var (Local  v) = atom (pretty v) <$ tell (Set.singleton @Meta v)
           lam t b = do
-            n <- Local . Name <$> gensym
+            n <- Name <$> gensym
             censor (Set.delete n) $ do
               t' <- prettyPrec 1 <$> t
               b' <- prettyPrec 0 <$> local (n :) b
@@ -59,7 +60,7 @@ instance Pretty (Problem (Name Gensym)) where
             pure (prec 10 (f' <+> a'))
           ty = pure (atom (yellow (pretty "Type")))
           pi t b = do
-            n <- Local . Name <$> gensym
+            n <- Name <$> gensym
             censor (Set.delete n) $ do
               t'        <-       prettyPrec 1  <$> t
               (fvs, b') <- fmap (prettyPrec 0) <$> listen (local (n :) b)
@@ -67,12 +68,12 @@ instance Pretty (Problem (Name Gensym)) where
                       | otherwise          = t'
               pure (prec 0 (t'' </> arrow <+> b'))
           ex Nothing t b = do
-            n <- Local . Meta <$> gensym
+            n <- Meta <$> gensym
             t' <- prettyPrec 1 <$> t
             b' <- prettyPrec 0 <$> local (n :) b
             pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b'))
           ex (Just v) t b = do
-            n <- Local . Meta <$> gensym
+            n <- Meta <$> gensym
             censor (Set.delete n) $ do
               t' <- prettyPrec 1 <$> t
               v' <- prettyPrec 0 <$> v
@@ -87,11 +88,11 @@ instance Pretty (Problem (Name Gensym)) where
           gensym = do
             ns <- ask
             case ns of
-              Local (Meta (_ :/ (_, i))) :_ -> pure (Root "pretty" :/ ("", succ i))
-              Local (Name (_ :/ (_, i))) :_ -> pure (Root "pretty" :/ ("", succ i))
+              Meta (_ :/ (_, i)) :_ -> pure (Root "pretty" :/ ("", succ i))
+              Name (_ :/ (_, i)) :_ -> pure (Root "pretty" :/ ("", succ i))
               _ -> pure (Root "pretty" :/ ("", 0))
-          k Z     = ask >>= var . head
-          k (S n) = local (tail @(Name Meta)) n
+          k Z     = ask >>= var . Local . head
+          k (S n) = local (tail @Meta) n
 
 instance Ord a => FreeVariables a (Problem a) where
   fvs = foldMap Set.singleton
