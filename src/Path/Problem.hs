@@ -313,7 +313,7 @@ elabDecl :: ( Carrier sig m
          -> m (Spanned (Decl Qualified (Problem (Name Gensym) ::: Problem (Name Gensym))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ctx <- get
-  ty' <- runReader ctx (declare    (elab ty))
+  ty' <- runReader ctx                                   (declare    (elab ty))
   def <- meta ty'
   tm' <- runReader (ctx :> Define (name := def) ::: ty') (define ty' (elab tm))
   put (ctx :> Define (name := tm') ::: ty')
