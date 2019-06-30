@@ -69,9 +69,10 @@ instance Pretty (Problem (Name Gensym)) where
               pure (prec 0 (t'' </> arrow <+> b'))
           ex Nothing t b = do
             n <- Meta <$> gensym
-            t' <- prettyPrec 1 <$> t
-            b' <- prettyPrec 0 <$> local (n :) b
-            pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b'))
+            censor (Set.delete n) $ do
+              t' <- prettyPrec 1 <$> t
+              b' <- prettyPrec 0 <$> local (n :) b
+              pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b'))
           ex (Just v) t b = do
             n <- Meta <$> gensym
             censor (Set.delete n) $ do
