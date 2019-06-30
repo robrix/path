@@ -35,7 +35,7 @@ instance Applicative Problem where
   (<*>) = ap
 
 instance Monad Problem where
-  a >>= f = efold id (fmap Problem . Lam) ($$) type' (fmap Problem . Pi) (fmap (fmap Problem) . Ex) (fmap Problem . (:===:)) pure f a
+  a >>= f = eiter id Problem pure f a
 
 instance Pretty (Problem (Name Gensym)) where
   pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kfold id lam app ty pi ex eq k (var . fmap Name)
@@ -168,31 +168,27 @@ Just p  ?===? Just q
 infixr 3 ?===?
 
 
-efold :: forall m n incr a b
+eiter :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . n a -> n (incr (n a)) -> n a)
-      -> (forall a . n a -> n a -> n a)
-      -> (forall a . n a)
-      -> (forall a . n a -> n (incr (n a)) -> n a)
-      -> (forall a . Maybe (n a) -> n a -> n (incr (n a)) -> n a)
-      -> (forall a . n a -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (incr (n a)))
+      -> (forall a . ProblemF n a -> n a)
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Problem a
       -> n b
-efold var lam app ty pi ex eq k = go
+eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
           Var a -> var (h a)
           Problem p -> case p of
-            Lam t b -> lam (go h t) (go (k . fmap (go h)) b)
-            f :$ a -> app (go h f) (go h a)
-            Type -> ty
-            Pi t b -> pi (go h t) (go (k . fmap (go h)) b)
-            Ex v t b -> ex (go h <$> v) (go h t) (go (k . fmap (go h)) b)
-            p1 :===: p2 -> eq (go h p1) (go h p2)
+            Lam t b -> alg (Lam (go h t) (go (k . fmap (go h)) b))
+            f :$ a -> alg (go h f :$ go h a)
+            Type -> alg Type
+            Pi t b -> alg (Pi (go h t) (go (k . fmap (go h)) b))
+            Ex v t b -> alg (Ex (go h <$> v) (go h t) (go (k . fmap (go h)) b))
+            p1 :===: p2 -> alg (go h p1 :===: go h p2)
 
-kfold :: (a -> b)
+kfold :: forall a b x
+      .  (a -> b)
       -> (b -> b -> b)
       -> (b -> b -> b)
       -> b
@@ -203,7 +199,15 @@ kfold :: (a -> b)
       -> (x -> a)
       -> Problem x
       -> b
-kfold var lam app ty pi ex eq k h = getConst . efold (coerce var) (coerce lam) (coerce app) (coerce ty) (coerce pi) (coerce ex) (coerce eq) (coerce k) (Const . h)
+kfold var lam app ty pi ex eq k h = getConst . eiter (coerce var) alg (coerce k) (Const . h)
+  where alg :: ProblemF (Const b) z -> Const b z
+        alg = \case
+          Lam t b -> coerce lam t b
+          f :$ a -> coerce app f a
+          Type -> coerce ty
+          Pi t b -> coerce pi t b
+          Ex v t b -> coerce ex v t b
+          p1 :===: p2 -> coerce eq p1 p2
 
 
 type Context = Stack (Binding ::: Problem (Name Gensym))
