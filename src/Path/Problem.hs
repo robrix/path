@@ -45,6 +45,27 @@ instance Monad Problem where
 instance Pretty (Problem (Name Gensym)) where
   pretty = prettyPrec 0 . run . runNaming (Root "pretty") . go
     where go = \case
+            Var (Global (_ :.: n)) -> pure (atom (pretty n))
+            Var (Local n) -> pure (atom (pretty '_' <> pretty n)) -- FIXME: distinguish local & meta variables using the context
+            Lam t b -> do
+              n <- Local <$> gensym "lam"
+              t' <- prettyPrec 1 <$> go t
+              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
+              pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') <+> cyan dot </> b'))
+            f :$ a -> do
+              f' <- prettyPrec 10 <$> go f
+              a' <- prettyPrec 11 <$> go a
+              pure (prec 10 (f' <+> a'))
+            Type -> pure (atom (yellow (pretty "Type")))
+            Pi t b -> do
+              n <- Local <$> gensym "pi"
+              let b' = instantiate (pure n) b
+              t' <- prettyPrec 1 <$> go t
+              b'' <- prettyPrec 0 <$> go b'
+              if n `Set.member` fvs b' then do
+                pure (prec 0 (parens (pretty (n ::: t')) <+> arrow <+> b''))
+              else do
+                pure (prec 0 (pretty t' <+> arrow <+> b''))
             Ex Nothing t b -> do
               n <- Local <$> gensym "ex"
               t' <- prettyPrec 1 <$> go t
@@ -60,27 +81,6 @@ instance Pretty (Problem (Name Gensym)) where
               p1' <- prettyPrec 1 <$> go p1
               p2' <- prettyPrec 1 <$> go p2
               pure (prec 0 (flatAlt (p1' <+> eq <+> p2') (align (space <+> p1' </> eq <+> p2'))))
-            Var (Global (_ :.: n)) -> pure (atom (pretty n))
-            Var (Local n) -> pure (atom (pretty '_' <> pretty n)) -- FIXME: distinguish local & meta variables using the context
-            Type -> pure (atom (yellow (pretty "Type")))
-            Lam t b -> do
-              n <- Local <$> gensym "lam"
-              t' <- prettyPrec 1 <$> go t
-              b' <- prettyPrec 0 <$> go (instantiate (pure n) b)
-              pure (prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') <+> cyan dot </> b'))
-            Pi t b -> do
-              n <- Local <$> gensym "pi"
-              let b' = instantiate (pure n) b
-              t' <- prettyPrec 1 <$> go t
-              b'' <- prettyPrec 0 <$> go b'
-              if n `Set.member` fvs b' then do
-                pure (prec 0 (parens (pretty (n ::: t')) <+> arrow <+> b''))
-              else do
-                pure (prec 0 (pretty t' <+> arrow <+> b''))
-            f :$ a -> do
-              f' <- prettyPrec 10 <$> go f
-              a' <- prettyPrec 11 <$> go a
-              pure (prec 10 (f' <+> a'))
           arrow = blue (pretty "->")
           eq = magenta (pretty "≡")
 
