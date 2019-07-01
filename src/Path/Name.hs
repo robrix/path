@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
 import           Control.Applicative (Alternative (..))
@@ -248,6 +248,13 @@ deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Scope f a)
 
 flattenScope :: Monad f => Scope f a -> f (Incr a)
 flattenScope = unScope >=> sequenceA
+
+foldScope :: (forall a . Incr (n a) -> m (Incr (n a)))
+          -> (forall x y . (x -> m y) -> f x -> n y)
+          -> (a -> m b)
+          -> Scope f a
+          -> Scope n b
+foldScope k go h = Scope . go (k . fmap (go h)) . unScope
 
 
 data a ::: b = a ::: b
