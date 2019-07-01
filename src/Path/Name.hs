@@ -218,6 +218,11 @@ instance Pretty Operator where
 data Incr a = Z | S a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+instance Applicative Incr where
+  pure = S
+  Z   <*> _ = Z
+  S f <*> a = f <$> a
+
 match :: Eq a => a -> a -> Incr a
 match x y | x == y    = Z
           | otherwise = S y
