@@ -34,7 +34,6 @@ resolveTerm (term :~ span) = unComp1 (Surface.eiter id (Comp1 . alg) pure pure t
         alg (f Surface.:$ a) = Core <$> ((:$) <$> ann f <*> traverse ann a)
         alg Surface.Type = pure (Core Type)
         alg (Surface.Pi t (Scope b :~ s)) = fmap Core . Pi <$> traverse (traverse (traverse ann)) t <*> (unComp1 b >>= fmap (Scope . Core . Ann s) . traverse (traverse unComp1))
-        -- alg (Surface.Pi t (Scope b :~ s)) = Core (Pi (fmap (fmap ann) <$> t) (Scope (ann (b :~ s))))
         alg (Surface.Hole v) = Core . Hole <$> resolveMeta v
 
         ann (b :~ s) = Core . Ann s <$> unComp1 b
