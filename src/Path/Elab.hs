@@ -18,7 +18,7 @@ import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import qualified Path.Core as Core
-import Path.Eval
+-- import Path.Eval
 import Path.Module
 import Path.Name
 import Path.Plicity
@@ -224,13 +224,14 @@ elabDecl :: ( Carrier sig m
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ty' <- runNamespace (declare (elab ty))
   modify (Namespace.insert name (Entry (Nothing ::: ty')))
-  scope <- get
+  -- scope <- get
 
-  let ty'' = whnf scope ty'
-  (names, _) <- un (orTerm (\ n -> \case
-    Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
-    _                            -> Nothing)) ty''
-  tm ::: _ <- runNamespace (define (Value.weaken ty') (elab (Core.lams names tm)))
+  -- let ty'' = whnf scope ty'
+  -- (names, _) <- un (orTerm (\ n -> \case
+  --   Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
+  --   _                            -> Nothing)) ty''
+  -- tm ::: _ <- runNamespace (define (Value.weaken ty') (elab (Core.lams names tm)))
+  tm ::: _ <- runNamespace (define (Value.weaken ty') (elab tm))
   modify (Namespace.insert name (Entry (Just tm ::: ty')))
   pure (Decl d name (tm ::: ty'))
 
