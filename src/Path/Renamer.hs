@@ -24,7 +24,6 @@ resolveTerm :: ( Carrier sig m
                , Member (Error Doc) sig
                , Member Naming sig
                , Member (Reader Mode) sig
-               , Member (Reader ModuleName) sig
                , Member (Reader Resolution) sig
                , Member (Reader Span) sig
                , Member (State Signature) sig
