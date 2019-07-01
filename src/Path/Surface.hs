@@ -35,7 +35,6 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Su
 lam :: Eq a => Plicit (User, a) -> Spanned (Surface a) -> Surface a
 lam (p :< (u, n)) b = Surface (Lam (p :< u) (bind n <$> b))
 
-
 ($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
 f $$ a = Surface (f :$ a)
 
