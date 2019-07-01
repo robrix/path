@@ -206,7 +206,7 @@ runRenamer m = do
   res <- get
   runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
 
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned (Surface.Surface User) -> m (Value (Name Gensym) ::: Type (Name Gensym))
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned (Surface.Surface Var) -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elaborate tm@(_ :~ span) = runReader span $ do
   ty <- inferType
   tm' <- runRenamer (evalState (mempty :: Signature) (runReader Define (resolveTerm tm)))

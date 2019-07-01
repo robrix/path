@@ -27,16 +27,18 @@ resolveTerm :: ( Carrier sig m
                , Member (Reader Span) sig
                , Member (State Signature) sig
                )
-            => Spanned (Surface.Surface User)
+            => Spanned (Surface.Surface Var)
             -> m (Core (Name Gensym))
-resolveTerm (term :~ span) = unComp1 (Surface.eiter id (Comp1 . alg) pure pure term) >>= traverse resolveName . Core . Ann span
+resolveTerm (term :~ span) = unComp1 (Surface.eiter id (Comp1 . alg) pure pure term) >>= traverse go . Core . Ann span
   where alg (Surface.Lam v (Scope b :~ s)) = unComp1 b >>= fmap (Core . Lam v . Scope . Core . Ann s) . traverse (traverse unComp1)
         alg (f Surface.:$ a) = Core <$> ((:$) <$> ann f <*> traverse ann a)
         alg Surface.Type = pure (Core Type)
         alg (Surface.Pi t (Scope b :~ s)) = fmap Core . Pi <$> traverse (traverse (traverse ann)) t <*> (unComp1 b >>= fmap (Scope . Core . Ann s) . traverse (traverse unComp1))
-        alg (Surface.Hole v) = Core . Hole <$> resolveMeta v
 
         ann (b :~ s) = Core . Ann s <$> unComp1 b
+
+        go (M m) = Local <$> resolveMeta m
+        go (U u) = resolveName u
 
 
 data Mode = Declare | Define
@@ -49,7 +51,7 @@ resolveDecl :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                )
-            => Spanned (Decl User (Spanned (Surface.Surface User) ::: Spanned (Surface.Surface User)))
+            => Spanned (Decl User (Spanned (Surface.Surface Var) ::: Spanned (Surface.Surface Var)))
             -> m (Spanned (Decl Qualified (Core (Name Gensym) ::: Core (Name Gensym))))
 resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ do
   moduleName <- ask
@@ -74,7 +76,7 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module User (Spanned (Surface.Surface User) ::: Spanned (Surface.Surface User))
+              => Module User (Spanned (Surface.Surface Var) ::: Spanned (Surface.Surface Var))
               -> m (Module Qualified (Core (Name Gensym) ::: Core (Name Gensym)))
 resolveModule m = do
   res <- get

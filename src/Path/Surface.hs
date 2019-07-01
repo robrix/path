@@ -23,7 +23,6 @@ data SurfaceF f a
   | Spanned (f a) :$ Plicit (Spanned (f a))
   | Type
   | Pi (Plicit (Maybe User ::: Used (Spanned (f a)))) (Spanned (Scope f a))
-  | Hole String
   deriving (Foldable, Functor, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (SurfaceF f a)
@@ -35,9 +34,9 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Su
 lam :: Eq a => Plicit (Maybe User, a) -> Spanned (Surface a) -> Surface a
 lam (p :< (u, n)) b = Surface (Lam (p :< u) (bind n <$> b))
 
-lam' :: Plicit (Maybe User) -> Spanned (Surface User) -> Surface User
+lam' :: Plicit (Maybe User) -> Spanned (Surface Var) -> Surface Var
 lam' (p :< Nothing) b = Surface (Lam (p :< Nothing) (Scope . fmap (S . pure) <$> b))
-lam' (p :< Just n)  b = lam (p :< (Just n, n)) b
+lam' (p :< Just n)  b = lam (p :< (Just n, U n)) b
 
 ($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
 f $$ a = Surface (f :$ a)
@@ -53,10 +52,6 @@ pi (p :< (u, n) ::: t) b = Surface (Pi (p :< u ::: t) (bind n <$> b))
 t --> b = Surface (Pi (Ex :< Nothing ::: t) (Scope . fmap (S . pure) <$> b))
 
 infixr 0 -->
-
-
-hole :: String -> Surface a
-hole = Surface . Hole
 
 
 eiter :: forall m n a b
@@ -75,4 +70,3 @@ eiter var alg k = go
             f :$ a -> alg ((go h <$> f) :$ (fmap (go h) <$> a))
             Type -> alg Type
             Pi t b -> alg (Pi (fmap (fmap (fmap (go h))) <$> t) (foldScope k go h <$> b))
-            Hole a -> alg (Hole a)

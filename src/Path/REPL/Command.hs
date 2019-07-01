@@ -9,9 +9,9 @@ import Text.Trifecta.Rendering (Spanned(..))
 data Command
   = Quit
   | Help
-  | TypeOf (Spanned (Surface User))
-  | Decl (Spanned (Decl User (Spanned (Surface User) ::: Spanned (Surface User))))
-  | Eval (Spanned (Surface User))
+  | TypeOf (Spanned (Surface Var))
+  | Decl (Spanned (Decl User (Spanned (Surface Var) ::: Spanned (Surface Var))))
+  | Eval (Spanned (Surface Var))
   | Show Info
   | Reload
   | Import (Spanned Import)
