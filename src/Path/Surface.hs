@@ -1,4 +1,4 @@
-{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Surface where
 
 import Path.Name
@@ -6,16 +6,70 @@ import Path.Plicity
 import Path.Usage
 import Text.Trifecta.Rendering (Spanned)
 
-data Surface
-  = Var User
-  | Lam (Plicit User) (Spanned Surface)
-  | Spanned Surface :$ Plicit (Spanned Surface)
-  | Type
-  | Pi (Plicit (User ::: Used (Spanned Surface))) (Spanned Surface)
-  | Hole (Maybe String)
-  deriving (Eq, Ord, Show)
+data Surface a
+  = Var a
+  | Surface (SurfaceF Surface a)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-(-->) :: Used (Spanned Surface) -> Spanned Surface -> Surface
-t --> b = Pi (Ex :< Unused ::: t) b
+instance Applicative Surface where
+  pure = Var
+  f <*> a = eiter id Surface Var (<$> a) f
+
+instance Monad Surface where
+  a >>= f = eiter id Surface Var f a
+
+data SurfaceF f a
+  = Lam (Plicit User) (Spanned (Scope f a))
+  | Spanned (f a) :$ Plicit (Spanned (f a))
+  | Type
+  | Pi (Plicit (User ::: Used (Spanned (f a)))) (Spanned (Scope f a))
+  | Hole (Maybe String)
+  deriving (Foldable, Functor, Traversable)
+
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (SurfaceF f a)
+deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
+                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (SurfaceF f a)
+deriving instance (Show a, forall a . Show a => Show (f a))          => Show (SurfaceF f a)
+
+
+lam :: Eq a => Plicit (User, a) -> Spanned (Surface a) -> Surface a
+lam (p :< (u, n)) b = Surface (Lam (p :< u) (bind n <$> b))
+
+
+($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
+f $$ a = Surface (f :$ a)
+
+
+type' :: Surface a
+type' = Surface Type
+
+pi :: Eq a => Plicit ((User, a) ::: Used (Spanned (Surface a))) -> Spanned (Surface a) -> Surface a
+pi (p :< (u, n) ::: t) b = Surface (Pi (p :< u ::: t) (bind n <$> b))
+
+(-->) :: Used (Spanned (Surface a)) -> Spanned (Surface a) -> Surface a
+t --> b = Surface (Pi (Ex :< Unused ::: t) (Scope . fmap (S . pure) <$> b))
 
 infixr 0 -->
+
+
+hole :: Maybe String -> Surface a
+hole = Surface . Hole
+
+
+eiter :: forall m n a b
+      .  (forall a . m a -> n a)
+      -> (forall a . SurfaceF n a -> n a)
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (a -> m b)
+      -> Surface a
+      -> n b
+eiter var alg k = go
+  where go :: forall x y . (x -> m y) -> Surface x -> n y
+        go h = \case
+          Var a -> var (h a)
+          Surface s -> case s of
+            Lam p b -> alg (Lam p (foldScope k go h <$> b))
+            f :$ a -> alg ((go h <$> f) :$ (fmap (go h) <$> a))
+            Type -> alg Type
+            Pi t b -> alg (Pi (fmap (fmap (fmap (go h))) <$> t) (foldScope k go h <$> b))
+            Hole a -> alg (Hole a)

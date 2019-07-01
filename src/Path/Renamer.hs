@@ -7,14 +7,13 @@ import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 -- import qualified Data.Set as Set
+import GHC.Generics ((:.:) (..))
 import Path.Core as Core
 import Path.Error
 import Path.Module
 import Path.Name
-import Path.Plicity
 import Path.Pretty
 import qualified Path.Surface as Surface
-import Path.Usage
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
@@ -28,19 +27,17 @@ resolveTerm :: ( Carrier sig m
                , Member (Reader Span) sig
                , Member (State Signature) sig
                )
-            => Spanned Surface.Surface
+            => Spanned (Surface.Surface User)
             -> m (Core (Name Gensym))
-resolveTerm (term :~ span) = local (const span) $ Core . Ann span <$> case term of
-  Surface.Var v -> Var <$> resolveName v
-  Surface.Lam (p :< v) b -> do
-    v' <- gensym (showUser v)
-    local (insertLocal v v') (Core . Lam (p :< v) . bind (Local v') <$> resolveTerm b)
-  f Surface.:$ a -> fmap Core . (:$) <$> resolveTerm f <*> traverse resolveTerm a
-  Surface.Type -> pure (Core Type)
-  Surface.Pi (ie :< v ::: u :@ t) b -> do
-    v' <- gensym (showUser v)
-    fmap Core . Pi . (ie :<) . (v :::) . (u :@) <$> resolveTerm t <*> local (insertLocal v v') (bind (Local v') <$> resolveTerm b)
-  Surface.Hole v -> Core . Hole <$> resolveMeta v
+resolveTerm (term :~ span) = unComp1 (Surface.eiter id (Comp1 . alg) pure pure term) >>= traverse resolveName . Core . Ann span
+  where alg (Surface.Lam v (Scope b :~ s)) = unComp1 b >>= fmap (Core . Lam v . Scope . Core . Ann s) . traverse (traverse unComp1)
+        alg (f Surface.:$ a) = Core <$> ((:$) <$> ann f <*> traverse ann a)
+        alg Surface.Type = pure (Core Type)
+        alg (Surface.Pi t (Scope b :~ s)) = fmap Core . Pi <$> traverse (traverse (traverse ann)) t <*> (unComp1 b >>= fmap (Scope . Core . Ann s) . traverse (traverse unComp1))
+        -- alg (Surface.Pi t (Scope b :~ s)) = Core (Pi (fmap (fmap ann) <$> t) (Scope (ann (b :~ s))))
+        alg (Surface.Hole v) = Core . Hole <$> resolveMeta v
+
+        ann (b :~ s) = Core . Ann s <$> unComp1 b
 
 
 data Mode = Declare | Define
@@ -53,7 +50,7 @@ resolveDecl :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                )
-            => Spanned (Decl User (Spanned Surface.Surface ::: Spanned Surface.Surface))
+            => Spanned (Decl User (Spanned (Surface.Surface User) ::: Spanned (Surface.Surface User)))
             -> m (Spanned (Decl Qualified (Core (Name Gensym) ::: Core (Name Gensym))))
 resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ do
   moduleName <- ask
@@ -78,7 +75,7 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module User (Spanned Surface.Surface ::: Spanned Surface.Surface)
+              => Module User (Spanned (Surface.Surface User) ::: Spanned (Surface.Surface User))
               -> m (Module Qualified (Core (Name Gensym) ::: Core (Name Gensym)))
 resolveModule m = do
   res <- get
