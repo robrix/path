@@ -30,7 +30,7 @@ import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
-import qualified Path.Scope as Scope
+import qualified Path.Namespace as Namespace
 import Path.Stack
 import qualified Path.Surface as Surface
 import Path.Value
@@ -117,7 +117,7 @@ repl packageSources = liftIO $ do
   runM (runControlIO runM
        (runREPL prefs settings
        (evalState (mempty :: ModuleTable)
-       (evalState (mempty :: Scope.Scope)
+       (evalState (mempty :: Namespace.Namespace)
        (evalState (Resolution mempty)
        (runNaming
        (script packageSources)))))))
@@ -136,7 +136,7 @@ script :: ( Carrier sig m
           , Member REPL sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
-          , Member (State Scope.Scope) sig
+          , Member (State Namespace.Namespace) sig
           , MonadIO m
           )
        => [FilePath]
@@ -157,7 +157,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm >>= print >> loop
           Show Bindings -> do
             scope <- get
-            unless (Scope.null scope) $ print scope
+            unless (Namespace.null scope) $ print scope
             loop
           Show Modules -> do
             graph <- get
@@ -167,7 +167,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
           Reload -> reload *> loop
           Command.Import i -> do
             table <- get
-            runReader (table :: ModuleTable) (importModule i) >>= modify . Scope.union
+            runReader (table :: ModuleTable) (importModule i) >>= modify . Namespace.union
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
@@ -188,7 +188,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Scope.Scope) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Namespace.Namespace) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule)))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
@@ -206,11 +206,11 @@ runRenamer m = do
   res <- get
   runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
 
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Scope.Scope) sig) => Spanned Surface.Surface -> m (Value (Name Gensym) ::: Type (Name Gensym))
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned Surface.Surface -> m (Value (Name Gensym) ::: Type (Name Gensym))
 elaborate tm@(_ :~ span) = runReader span $ do
   ty <- inferType
   tm' <- runRenamer (evalState (mempty :: Signature) (runReader Define (resolveTerm tm)))
-  runScope (define ty (elab tm'))
+  runNamespace (define ty (elab tm'))
 
 basePackage :: Package
 basePackage = Package

@@ -16,7 +16,7 @@ import           Path.Error
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
-import           Path.Scope as Scope hiding (null)
+import           Path.Namespace as Namespace hiding (null)
 import           Path.Stack
 import           Path.Usage
 import           Path.Value as Value
@@ -32,7 +32,7 @@ simplify :: ( Carrier sig m
             , Effect sig
             , Member (Error Doc) sig
             , Member Naming sig
-            , Member (Reader Scope) sig
+            , Member (Reader Namespace) sig
             , Member (State Signature) sig
             , Member (Writer [Spanned (Constraint (Name Meta))]) sig
             )
@@ -109,7 +109,7 @@ simplify (constraint :~ span) = do
         blocked _                     = False
 
         whnf scope (Global n Value.:$ sp) = do
-          entry <- Scope.lookup n scope
+          entry <- Namespace.lookup n scope
           val <- entryValue entry
           let val' = weaken val $$* sp
           maybe (pure val') pure (whnf scope val')
@@ -119,7 +119,7 @@ solver :: ( Carrier sig m
           , Effect sig
           , Member (Error Doc) sig
           , Member Naming sig
-          , Member (Reader Scope) sig
+          , Member (Reader Namespace) sig
           , Member (State Signature) sig
           )
        => Set.Set (Spanned (Constraint (Name Meta)))
@@ -135,7 +135,7 @@ step :: ( Carrier sig m
         , Effect sig
         , Member (Error Doc) sig
         , Member Naming sig
-        , Member (Reader Scope) sig
+        , Member (Reader Namespace) sig
         , Member (State Blocked) sig
         , Member (State Queue) sig
         , Member (State Signature) sig
@@ -151,7 +151,7 @@ process :: ( Carrier sig m
            , Effect sig
            , Member (Error Doc) sig
            , Member Naming sig
-           , Member (Reader Scope) sig
+           , Member (Reader Namespace) sig
            , Member (State Blocked) sig
            , Member (State Queue) sig
            , Member (State Signature) sig

@@ -1,5 +1,5 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, TypeOperators #-}
-module Path.Scope where
+module Path.Namespace where
 
 import Control.Arrow ((***))
 import Data.Coerce
@@ -22,26 +22,26 @@ instance Pretty a => Pretty (Entry a) where
   pretty (Entry (Just v  ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
 
 
-newtype Scope = Scope { unScope :: Map.Map Qualified (Entry (Type (Name Gensym))) }
+newtype Namespace = Namespace { unNamespace :: Map.Map Qualified (Entry (Type (Name Gensym))) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
-lookup :: Qualified -> Scope -> Maybe (Entry (Type (Name Gensym)))
-lookup q = Map.lookup q . unScope
+lookup :: Qualified -> Namespace -> Maybe (Entry (Type (Name Gensym)))
+lookup q = Map.lookup q . unNamespace
 
-null :: Scope -> Bool
-null = Map.null . unScope
+null :: Namespace -> Bool
+null = Map.null . unNamespace
 
-union :: Scope -> Scope -> Scope
+union :: Namespace -> Namespace -> Namespace
 union = (<>)
 
-filter :: (Qualified -> Entry (Type (Name Gensym)) -> Bool) -> Scope -> Scope
+filter :: (Qualified -> Entry (Type (Name Gensym)) -> Bool) -> Namespace -> Namespace
 filter = under . Map.filterWithKey
 
-insert :: Qualified -> Entry (Type (Name Gensym)) -> Scope -> Scope
+insert :: Qualified -> Entry (Type (Name Gensym)) -> Namespace -> Namespace
 insert q = under . Map.insert q
 
-under :: (Map.Map Qualified (Entry (Type (Name Gensym))) -> Map.Map Qualified (Entry (Type (Name Gensym)))) -> Scope -> Scope
+under :: (Map.Map Qualified (Entry (Type (Name Gensym))) -> Map.Map Qualified (Entry (Type (Name Gensym)))) -> Namespace -> Namespace
 under = coerce
 
-instance Pretty Scope where
-  pretty = tabulate2 space . map (green . pretty *** align . group . pretty) . Map.toList . unScope
+instance Pretty Namespace where
+  pretty = tabulate2 space . map (green . pretty *** align . group . pretty) . Map.toList . unNamespace

@@ -24,6 +24,7 @@ library
                      , Path.Expr
                      , Path.Module
                      , Path.Name
+                     , Path.Namespace
                      , Path.Package
                      , Path.Parser
                      , Path.Parser.Mixfix
@@ -38,7 +39,6 @@ library
                      , Path.REPL
                      , Path.REPL.Command
                      , Path.Resources
-                     , Path.Scope
                      , Path.Span
                      , Path.Solver
                      , Path.Semiring

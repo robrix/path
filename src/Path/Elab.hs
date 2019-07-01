@@ -23,7 +23,7 @@ import Path.Module
 import Path.Name
 import Path.Plicity
 import Path.Pretty
-import Path.Scope as Scope
+import Path.Namespace as Namespace
 import Path.Semiring
 import Path.Solver
 import Path.Usage
@@ -151,7 +151,7 @@ runElab = runWriter . runReader mempty . runElabC
 newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type (Name Meta))) (WriterC (Set.Set (Spanned (Constraint (Name Meta)))) m) a }
   deriving (Applicative, Functor, Monad)
 
-instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (State Signature) sig) => Carrier (Elab :+: sig) (ElabC m) where
+instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Namespace) sig, Member (Reader Span) sig, Member (State Signature) sig) => Carrier (Elab :+: sig) (ElabC m) where
   eff (L (Exists ty k)) = do
     ctx <- ElabC ask
     n <- gensym "meta"
@@ -160,7 +160,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) si
     modify (Signature . Map.insert n ty' . unSignature)
     k (pure (Local (Meta n)) Value.$$* ((Ex :<) . pure . Local . Name <$> Context.vars (ctx :: Context (Type (Name Meta)))))
   eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
-    where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
+    where lookup (Global n) = ElabC (asks (Namespace.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
           lookup (Local  n) = ElabC (asks (Context.lookup n))
           missing = do
             ty <- exists Value.Type
@@ -181,7 +181,7 @@ inferType :: (Carrier sig m, Member Naming sig) => m (Type (Name Meta))
 inferType = pure . Local . Meta <$> gensym "meta"
 
 
-type ModuleTable = Map.Map ModuleName Scope
+type ModuleTable = Map.Map ModuleName Namespace
 
 elabModule :: ( Carrier sig m
               , Effect sig
@@ -189,12 +189,12 @@ elabModule :: ( Carrier sig m
               , Member Naming sig
               , Member (Reader ModuleTable) sig
               , Member (State (Stack Doc)) sig
-              , Member (State Scope) sig
+              , Member (State Namespace) sig
               )
            => Module Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym))
            -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
-  for_ (moduleImports m) (modify . Scope.union <=< importModule)
+  for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
   decls <- for (moduleDecls m) $ \ decl ->
     (Just <$> elabDecl decl) `catchError` ((Nothing <$) . logError)
@@ -208,7 +208,7 @@ importModule :: ( Carrier sig m
                 , Member (Reader ModuleTable) sig
                 )
              => Spanned Import
-             -> m Scope
+             -> m Namespace
 importModule n@(i :~ _) = asks (Map.lookup (importModuleName i)) >>= maybe (unknownModule n) pure
 
 
@@ -216,28 +216,28 @@ elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error Doc) sig
             , Member Naming sig
-            , Member (State Scope) sig
+            , Member (State Namespace) sig
             )
          => Spanned (Decl Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym)))
          -> m (Spanned (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
-  ty' <- runScope (declare (elab ty))
-  modify (Scope.insert name (Entry (Nothing ::: ty')))
+  ty' <- runNamespace (declare (elab ty))
+  modify (Namespace.insert name (Entry (Nothing ::: ty')))
   scope <- get
 
   let ty'' = whnf scope ty'
   (names, _) <- un (orTerm (\ n -> \case
     Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
     _                            -> Nothing)) ty''
-  tm ::: _ <- runScope (define (Value.weaken ty') (elab (Core.lams names tm)))
-  modify (Scope.insert name (Entry (Just tm ::: ty')))
+  tm ::: _ <- runNamespace (define (Value.weaken ty') (elab (Core.lams names tm)))
+  modify (Namespace.insert name (Entry (Just tm ::: ty')))
   pure (Decl d name (tm ::: ty'))
 
 declare :: ( Carrier sig m
            , Effect sig
            , Member (Error Doc) sig
            , Member Naming sig
-           , Member (Reader Scope) sig
+           , Member (Reader Namespace) sig
            , Member (Reader Span) sig
            )
         => ElabC (StateC Signature m) (Value (Name Meta) ::: Type (Name Meta))
@@ -251,7 +251,7 @@ define :: ( Carrier sig m
           , Effect sig
           , Member (Error Doc) sig
           , Member Naming sig
-          , Member (Reader Scope) sig
+          , Member (Reader Namespace) sig
           , Member (Reader Span) sig
           )
        => Value (Name Meta)
@@ -263,5 +263,5 @@ define ty tm = evalState (mempty :: Signature) $ do
   let ty' = Value.generalizeType (apply subst ty)
   (::: ty') <$> Value.strengthen (apply subst tm')
 
-runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
-runScope m = get >>= flip runReader m
+runNamespace :: (Carrier sig m, Member (State Namespace) sig) => ReaderC Namespace m a -> m a
+runNamespace m = get >>= flip runReader m
