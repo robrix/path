@@ -18,7 +18,7 @@ instance Applicative Core where
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = efold id (\ p -> Core . Lam p . Scope) (fmap Core . (:$)) (Core Type) (\ t -> Core . Pi t . Scope) (Core . Hole) (fmap Core . Ann) pure f a
+  a >>= f = efold id (\ p -> Core . Lam p) (fmap Core . (:$)) (Core Type) (\ t -> Core . Pi t) (Core . Hole) (fmap Core . Ann) pure f a
 
 
 data CoreF f a
@@ -45,10 +45,10 @@ lams names body = foldr lam body names
 
 efold :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
+      -> (forall a . Plicit (Maybe User) -> Scope n a -> n a)
       -> (forall a . n a -> Plicit (n a) -> n a)
       -> (forall a . n a)
-      -> (forall a . Plicit (Maybe User ::: Used (n a)) -> n (Incr (n a)) -> n a)
+      -> (forall a . Plicit (Maybe User ::: Used (n a)) -> Scope n a -> n a)
       -> (forall a . Gensym -> n a)
       -> (forall a . Span -> n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
@@ -60,9 +60,9 @@ efold var lam app ty pi hole ann k = go
         go h = \case
           Var a -> var (h a)
           Core c -> case c of
-            Lam p (Scope b) -> lam p (go (k . fmap (go h)) b)
+            Lam p (Scope b) -> lam p (Scope (go (k . fmap (go h)) b))
             f :$ a -> app (go h f) (go h <$> a)
             Type -> ty
-            Pi t (Scope b) -> pi (fmap (fmap (go h)) <$> t) (go (k . fmap (go h)) b)
+            Pi t (Scope b) -> pi (fmap (fmap (go h)) <$> t) (Scope (go (k . fmap (go h)) b))
             Hole a -> hole a
             Ann loc b -> ann loc (go h b)
