@@ -44,7 +44,7 @@ simplify (constraint :~ span) = do
   execWriter (go scope ctx eqn)
   where go scope ctx = \case
           (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
-          (Value (Local (Meta m1) :$ _) :===: Value (Local (Meta m2) :$ _)) ::: _
+          (Local (Meta m1) :$ _ :===: Local (Meta m2) :$ _) ::: _
             | m1 == m2 -> pure ()
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
@@ -67,17 +67,17 @@ simplify (constraint :~ span) = do
           (t1 :===: t2) ::: Value (Pi (Im :< u :@ t) b) -> do
             n <- Local . Name <$> gensym "lam"
             go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Value (Pi (Im :< u :@ t) b))
-          (Value (f1@Global{} :$ sp1) :===: Value (f2@Global{} :$ sp2)) ::: ty
-            | Just t1 <- whnf scope (Value (f1 :$ sp1))
-            , Just t2 <- whnf scope (Value (f2 :$ sp2)) ->
+          (f1@Global{} :$ sp1 :===: f2@Global{} :$ sp2) ::: ty
+            | Just t1 <- whnf scope (f1 :$ sp1)
+            , Just t2 <- whnf scope (f2 :$ sp2) ->
               go scope ctx ((t1 :===: t2) ::: ty)
-          (Value (f1@Global{} :$ sp1) :===: t2) ::: ty
-            | Just t1 <- whnf scope (Value (f1 :$ sp1)) ->
+          (f1@Global{} :$ sp1 :===: t2) ::: ty
+            | Just t1 <- whnf scope (f1 :$ sp1) ->
               go scope ctx ((t1 :===: t2) ::: ty)
-          (t1 :===: Value (f2@Global{} :$ sp2)) ::: ty
-            | Just t2 <- whnf scope (Value (f2 :$ sp2)) ->
+          (t1 :===: f2@Global{} :$ sp2) ::: ty
+            | Just t2 <- whnf scope (f2 :$ sp2) ->
               go scope ctx ((t1 :===: t2) ::: ty)
-          (Value (Local (Name f1) :$ sp1) :===: Value (Local (Name f2) :$ sp2)) ::: _
+          (Local (Name f1) :$ sp1 :===: Local (Name f2) :$ sp2) ::: _
             | f1 == f2
             , length sp1 == length sp2 -> do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
@@ -105,10 +105,10 @@ simplify (constraint :~ span) = do
           modify (Signature . Map.insert n ty' . unSignature)
           pure (pure (Local (Meta n)) Value.$$* ((Ex :<) . pure . Local . Name <$> Context.vars ctx))
 
-        blocked (Value (Local (Meta _) :$ _)) = True
-        blocked _                             = False
+        blocked (Local (Meta _) :$ _) = True
+        blocked _                     = False
 
-        whnf scope (Value (Global n Value.:$ sp)) = do
+        whnf scope (Global n Value.:$ sp) = do
           entry <- Namespace.lookup n scope
           val <- entryValue entry
           let val' = weaken val $$* sp
@@ -182,12 +182,12 @@ dequeue = gets Seq.viewl >>= \case
   h Seq.:< q -> Just h <$ put q
 
 pattern :: Type (Name Meta) -> Maybe (Gensym, Stack (Plicit Meta))
-pattern (Value (Local (Meta m) :$ sp)) = (,) m <$> (traverse (traverse bound) sp >>= distinct)
-pattern _                              = Nothing
+pattern (Local (Meta m) :$ sp) = (,) m <$> (traverse (traverse bound) sp >>= distinct)
+pattern _                      = Nothing
 
 bound :: Type (Name Meta) -> Maybe Meta
-bound (Value (Local v :$ Nil)) = Just v
-bound _                        = Nothing
+bound (Local v :$ Nil) = Just v
+bound _                = Nothing
 
 distinct :: (Foldable t, Ord a) => t a -> Maybe (t a)
 distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)

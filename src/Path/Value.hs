@@ -17,21 +17,16 @@ import           Path.Usage
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
-newtype Value a = Value { unValue :: ValueF Value a }
+data Value a
+  = a :$ Stack (Plicit (Value a)) -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | Value (ValueF Value a)        -- ^ A normal term.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
 prettyValue = go
   where go :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
         go = \case
-          Value (Lam ie b) -> do
-            (as, b') <- un (orTerm (unlam . Local . Name)) (Value (Lam ie b))
-            b'' <- go b'
-            pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
-            where var vs (p :< n) rest
-                    | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n)) <+> rest
-                    | otherwise         = prettyPlicity False (p :< pretty '_')       <+> rest
-          Value (f :$ sp) -> do
+          f :$ sp -> do
             sp' <- traverse prettyArg (toList sp)
             pure (if null sp then
               atom (pretty f)
@@ -39,6 +34,13 @@ prettyValue = go
               prec 10 (hsep (pretty f : sp')))
             where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> go a
                   prettyArg (Ex :< a) = prettyPrec 11 <$> go a
+          Value (Lam ie b) -> do
+            (as, b') <- un (orTerm (unlam . Local . Name)) (Value (Lam ie b))
+            b'' <- go b'
+            pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
+            where var vs (p :< n) rest
+                    | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n)) <+> rest
+                    | otherwise         = prettyPlicity False (p :< pretty '_')       <+> rest
           Value Type -> pure (atom (yellow (pretty "Type")))
           v@(Value Pi{}) -> do
             (pis, body) <- un (orTerm (\ n -> \case
@@ -66,7 +68,7 @@ instance Ord a => FreeVariables a (Value a) where
   fvs = foldMap Set.singleton
 
 instance Applicative Value where
-  pure = Value . (:$ Nil)
+  pure = (:$ Nil)
   (<*>) = ap
 
 instance Monad Value where
@@ -75,7 +77,6 @@ instance Monad Value where
 
 data ValueF f a
   = Lam Plicity (Scope f a)              -- ^ A lambda abstraction.
-  | a :$ Stack (Plicit (f a))            -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   | Type                                 -- ^ @'Type' : 'Type'@.
   | Pi (Plicit (Used (f a))) (Scope f a) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Foldable, Functor, Traversable)
@@ -87,7 +88,7 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Va
 
 
 global :: Qualified -> Value (Name a)
-global = Value . (:$ Nil) . Global
+global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Value a -> Value a
 lam (pl :< n) b = Value (Lam pl (bind n b))
@@ -116,7 +117,7 @@ unpi _ _                       = empty
 ($$) :: Value a -> Plicit (Value a) -> Value a
 Value (Lam _ b) $$ (_ :< v) = instantiate v b
 Value (Pi _  b) $$ (_ :< v) = instantiate v b
-Value (n :$ vs) $$ v        = Value (n :$ (vs :> v))
+n :$ vs         $$ v        = n :$ (vs :> v)
 _               $$ _        = error "illegal application of Type"
 
 ($$*) :: Foldable t => Value a -> t (Plicit (Value a)) -> Value a
@@ -136,10 +137,11 @@ efold :: forall m n a b
 efold var lam app ty pi k = go
   where go :: forall x y . (x -> m y) -> Value x -> n y
         go h = \case
-          Value (Lam p b) -> lam p (foldScope k go h b)
-          Value (f :$ a) -> app (var (h f)) (fmap (go h) <$> a)
-          Value Type -> ty
-          Value (Pi t b) -> pi (fmap (go h) <$> t) (foldScope k go h b)
+          f :$ a -> app (var (h f)) (fmap (go h) <$> a)
+          Value v -> case v of
+            Lam p b -> lam p (foldScope k go h b)
+            Type -> ty
+            Pi t b -> pi (fmap (go h) <$> t) (foldScope k go h b)
 
 kfold :: (a -> b)
       -> (Plicity -> b -> b)
