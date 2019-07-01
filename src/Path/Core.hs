@@ -5,7 +5,7 @@ import Path.Name
 import Path.Plicity
 import Path.Usage
 import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span)
+import Text.Trifecta.Rendering (Spanned)
 
 data Core a
   = Var a
@@ -21,11 +21,10 @@ instance Monad Core where
 
 
 data CoreF f a
-  = Lam (Plicit (Maybe User)) (Scope f a)
-  | f a :$ Plicit (f a)
+  = Lam (Plicit (Maybe User)) (Spanned (Scope f a))
+  | Spanned (f a) :$ Plicit (Spanned (f a))
   | Type
-  | Pi (Plicit (Maybe User ::: Used (f a))) (Scope f a)
-  | Ann Span (f a)
+  | Pi (Plicit (Maybe User ::: Used (Spanned (f a)))) (Spanned (Scope f a))
   deriving (Foldable, Functor, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (CoreF f a)
@@ -46,8 +45,7 @@ eiter var alg k = go
         go h = \case
           Var a -> var (h a)
           Core c -> case c of
-            Lam p b -> alg (Lam p (foldScope k go h b))
-            f :$ a -> alg (go h f :$ (go h <$> a))
+            Lam p b -> alg (Lam p (foldScope k go h <$> b))
+            f :$ a -> alg ((go h <$> f) :$ (fmap (go h) <$> a))
             Type -> alg Type
-            Pi t b -> alg (Pi (fmap (fmap (go h)) <$> t) (foldScope k go h b))
-            Ann loc b -> alg (Ann loc (go h b))
+            Pi t b -> alg (Pi (fmap (fmap (fmap (go h))) <$> t) (foldScope k go h <$> b))

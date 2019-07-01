@@ -26,15 +26,13 @@ resolveTerm :: ( Carrier sig m
                , Member (Reader Span) sig
                , Member (State Signature) sig
                )
-            => Spanned (Surface.Surface Var)
+            => Surface.Surface Var
             -> m (Core (Name Meta))
-resolveTerm (term :~ span) = traverse go (Core (Ann span (Surface.eiter id (Core . alg) pure pure term)))
-  where alg (Surface.Lam v (Scope b :~ s)) = Lam v (Scope (ann (b :~ s)))
-        alg (f Surface.:$ a) = ann f :$ fmap ann a
+resolveTerm = traverse go . Surface.eiter id (Core . alg) pure pure
+  where alg (Surface.Lam v b) = Lam v b
+        alg (f Surface.:$ a) = f :$ a
         alg Surface.Type = Type
-        alg (Surface.Pi t (Scope b :~ s)) = Pi (fmap (fmap ann) <$> t) (Scope (ann (b :~ s)))
-
-        ann (b :~ s) = Core (Ann s b)
+        alg (Surface.Pi t b) = Pi t b
 
         go (M m) = Local . Meta <$> resolveMeta m
         go (U u) = resolveName u
@@ -52,7 +50,8 @@ resolveDecl :: ( Carrier sig m
                )
             => Spanned (Decl User (Spanned (Surface.Surface Var) ::: Spanned (Surface.Surface Var)))
             -> m (Spanned (Decl Qualified (Core (Name Meta) ::: Core (Name Meta))))
-resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ do
+-- FIXME: do something with the term/type spans
+resolveDecl (Decl d n ((tm :~ _) ::: (ty :~ _)) :~ span) = fmap (:~ span) . runReader span $ do
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
   --     generalize ty = foldr bind ty vs

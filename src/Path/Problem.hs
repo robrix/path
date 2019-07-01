@@ -314,11 +314,11 @@ elab = \case
   Core.Var (Local (Name n)) -> assume (Local n)
   Core.Var (Local (Meta n)) -> (pure (Local n) :::) <$> meta type'
   Core.Core c -> case c of
-    Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local (Name n'))) b))
-    f Core.:$ (_ :< a) -> app (elab f) (elab a)
+    Core.Lam _ b -> intro (\ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b))
+    f Core.:$ (_ :< a) -> app (elab' f) (elab' a)
     Core.Type -> pure (type' ::: type')
-    Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local (Name n'))) b)
-    Core.Ann ann b -> spanIs ann (elab b)
+    Core.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> \ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b)
+  where elab' (t :~ s) = spanIs s (elab t)
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
