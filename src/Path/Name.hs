@@ -10,7 +10,7 @@ import           Control.Effect.Sum
 import           Control.Monad ((>=>))
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
-import           Control.Monad.Trans.Class
+import           Control.Monad.Trans
 import           Data.Bifunctor
 import           Data.Function (on)
 import           Data.List.NonEmpty (NonEmpty (..))

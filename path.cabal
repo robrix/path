@@ -61,7 +61,6 @@ library
                      , parsers
                      , terminal-size
                      , text
-                     , transformers
                      , trifecta
                      , unordered-containers
   hs-source-dirs:      src
