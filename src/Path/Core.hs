@@ -25,7 +25,6 @@ data CoreF f a
   | f a :$ Plicit (f a)
   | Type
   | Pi (Plicit (Maybe User ::: Used (f a))) (Scope f a)
-  | Hole Gensym
   | Ann Span (f a)
   deriving (Foldable, Functor, Traversable)
 
@@ -58,5 +57,4 @@ eiter var alg k = go
             f :$ a -> alg (go h f :$ (go h <$> a))
             Type -> alg Type
             Pi t b -> alg (Pi (fmap (fmap (go h)) <$> t) (foldScope k go h b))
-            Hole a -> alg (Hole a)
             Ann loc b -> alg (Ann loc (go h b))
