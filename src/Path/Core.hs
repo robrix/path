@@ -32,15 +32,15 @@ lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
-efold :: forall m n incr a b
+efold :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . Plicit (Maybe User) -> n (incr (n a)) -> n a)
+      -> (forall a . Plicit (Maybe User) -> n (Incr (n a)) -> n a)
       -> (forall a . n a -> Plicit (n a) -> n a)
       -> (forall a . n a)
-      -> (forall a . Plicit (Maybe User ::: Used (n a)) -> n (incr (n a)) -> n a)
+      -> (forall a . Plicit (Maybe User ::: Used (n a)) -> n (Incr (n a)) -> n a)
       -> (forall a . Gensym -> n a)
       -> (forall a . Span -> n a -> n a)
-      -> (forall a . Incr (n a) -> m (incr (n a)))
+      -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Core a
       -> n b
