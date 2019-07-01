@@ -35,6 +35,14 @@ prettyValue = go
             where var vs (p :< n) rest
                     | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n)) <+> rest
                     | otherwise         = prettyPlicity False (p :< pretty '_')       <+> rest
+          f :$ sp -> do
+            sp' <- traverse prettyArg (toList sp)
+            pure (if null sp then
+              atom (pretty f)
+            else
+              prec 10 (hsep (pretty f : sp')))
+            where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> go a
+                  prettyArg (Ex :< a) = prettyPrec 11 <$> go a
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
@@ -51,14 +59,6 @@ prettyValue = go
                   prettyPi (p :< n ::: t) isUsed = do
                     t' <- withPi (p :< t)
                     pure $! prettyPlicity isUsed (p :< if isUsed then pretty (Local n ::: t') else t')
-          f :$ sp -> do
-            sp' <- traverse prettyArg (toList sp)
-            pure (if null sp then
-              atom (pretty f)
-            else
-              prec 10 (hsep (pretty f : sp')))
-            where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> go a
-                  prettyArg (Ex :< a) = prettyPrec 11 <$> go a
 
 instance Pretty (Value (Name Meta)) where
   pretty = prettyPrec 0 . run . runNaming . prettyValue
