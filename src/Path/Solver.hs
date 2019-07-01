@@ -44,40 +44,40 @@ simplify (constraint :~ span) = do
   execWriter (go scope ctx eqn)
   where go scope ctx = \case
           (tm1 :===: tm2) ::: _ | tm1 == tm2 -> pure ()
-          (Local (Meta m1) :$ _ :===: Local (Meta m2) :$ _) ::: _
+          (Value (Local (Meta m1) :$ _) :===: Value (Local (Meta m2) :$ _)) ::: _
             | m1 == m2 -> pure ()
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
-          (Pi (p1 :< _ :@ t1) b1 :===: Pi (p2 :< _ :@ t2) b2) ::: Type
+          (Value (Pi (p1 :< _ :@ t1) b1) :===: Value (Pi (p2 :< _ :@ t2) b2)) ::: Value Type
             | p1 == p2 -> do
-              go scope ctx ((t1 :===: t2) ::: Type)
+              go scope ctx ((t1 :===: t2) ::: type')
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
-              go scope (Context.insert (n ::: t1) ctx) ((instantiate (pure (Local (Name n))) b1 :===: instantiate (pure (Local (Name n))) b2) ::: Type)
-          (Pi (Im :< _ :@ t1) b1 :===: tm2) ::: Type -> do
+              go scope (Context.insert (n ::: t1) ctx) ((instantiate (pure (Local (Name n))) b1 :===: instantiate (pure (Local (Name n))) b2) ::: type')
+          (Value (Pi (Im :< _ :@ t1) b1) :===: tm2) ::: Value Type -> do
             n <- exists ctx t1
-            go scope ctx ((instantiate n b1 :===: tm2) ::: Type)
-          (tm1 :===: Pi (Im :< _ :@ t2) b2) ::: Type -> do
+            go scope ctx ((instantiate n b1 :===: tm2) ::: type')
+          (tm1 :===: Value (Pi (Im :< _ :@ t2) b2)) ::: Value Type -> do
             n <- exists ctx t2
-            go scope ctx ((tm1 :===: instantiate n b2) ::: Type)
-          (Lam p1 f1 :===: Lam p2 f2) ::: Pi (pt :< _ :@ t) b
+            go scope ctx ((tm1 :===: instantiate n b2) ::: type')
+          (Value (Lam p1 f1) :===: Value (Lam p2 f2)) ::: Value (Pi (pt :< _ :@ t) b)
             | p1 == p2, p1 == pt -> do
               n <- gensym "lam"
               go scope (Context.insert (n ::: t) ctx) ((instantiate (pure (Local (Name n))) f1 :===: instantiate (pure (Local (Name n))) f2) ::: instantiate (pure (Local (Name n))) b)
-          (t1 :===: t2) ::: Pi (Im :< u :@ t) b -> do
+          (t1 :===: t2) ::: Value (Pi (Im :< u :@ t) b) -> do
             n <- Local . Name <$> gensym "lam"
-            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi (Im :< u :@ t) b)
-          (f1@(Global _) :$ sp1 :===: f2@(Global _) :$ sp2) ::: ty
-            | Just t1 <- whnf scope (f1 :$ sp1)
-            , Just t2 <- whnf scope (f2 :$ sp2) ->
+            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Value (Pi (Im :< u :@ t) b))
+          (Value (f1@Global{} :$ sp1) :===: Value (f2@Global{} :$ sp2)) ::: ty
+            | Just t1 <- whnf scope (Value (f1 :$ sp1))
+            , Just t2 <- whnf scope (Value (f2 :$ sp2)) ->
               go scope ctx ((t1 :===: t2) ::: ty)
-          (f1@(Global _) :$ sp1 :===: t2) ::: ty
-            | Just t1 <- whnf scope (f1 :$ sp1) ->
+          (Value (f1@Global{} :$ sp1) :===: t2) ::: ty
+            | Just t1 <- whnf scope (Value (f1 :$ sp1)) ->
               go scope ctx ((t1 :===: t2) ::: ty)
-          (t1 :===: f2@(Global _) :$ sp2) ::: ty
-            | Just t2 <- whnf scope (f2 :$ sp2) ->
+          (t1 :===: Value (f2@Global{} :$ sp2)) ::: ty
+            | Just t2 <- whnf scope (Value (f2 :$ sp2)) ->
               go scope ctx ((t1 :===: t2) ::: ty)
-          (Local (Name f1) :$ sp1 :===: Local (Name f2) :$ sp2) ::: _
+          (Value (Local (Name f1) :$ sp1) :===: Value (Local (Name f2) :$ sp2)) ::: _
             | f1 == f2
             , length sp1 == length sp2 -> do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
@@ -88,12 +88,12 @@ simplify (constraint :~ span) = do
                   simplifySpine _ _ _ = pure ()
               t <- maybe (runReader span (freeVariable (Name f1))) pure (Context.lookup f1 ctx)
               simplifySpine ctx t (zip (toList sp1) (toList sp2))
-          (tm1 :===: Lam p2 b2) ::: ty@Pi{} -> do
+          (tm1 :===: Value (Lam p2 b2)) ::: ty@(Value Pi{}) -> do
             n <- gensym "lam"
-            go scope ctx ((lam (p2 :< Local (Name n)) (tm1 $$ (p2 :< pure (Local (Name n)))) :===: Lam p2 b2) ::: ty)
-          (Lam p1 b1 :===: tm2) ::: ty@Pi{} -> do
+            go scope ctx ((lam (p2 :< Local (Name n)) (tm1 $$ (p2 :< pure (Local (Name n)))) :===: Value (Lam p2 b2)) ::: ty)
+          (Value (Lam p1 b1) :===: tm2) ::: ty@(Value Pi{}) -> do
             n <- gensym "lam"
-            go scope ctx ((Lam p1 b1 :===: lam (p1 :< Local (Name n)) (tm2 $$ (p1 :< pure (Local (Name n))))) ::: ty)
+            go scope ctx ((Value (Lam p1 b1) :===: lam (p1 :< Local (Name n)) (tm2 $$ (p1 :< pure (Local (Name n))))) ::: ty)
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
             | otherwise                -> tell [binds ctx c :~ span]
@@ -105,10 +105,10 @@ simplify (constraint :~ span) = do
           modify (Signature . Map.insert n ty' . unSignature)
           pure (pure (Local (Meta n)) Value.$$* ((Ex :<) . pure . Local . Name <$> Context.vars ctx))
 
-        blocked (Local (Meta _) :$ _) = True
-        blocked _                     = False
+        blocked (Value (Local (Meta _) :$ _)) = True
+        blocked _                             = False
 
-        whnf scope (Global n Value.:$ sp) = do
+        whnf scope (Value (Global n Value.:$ sp)) = do
           entry <- Namespace.lookup n scope
           val <- entryValue entry
           let val' = weaken val $$* sp
@@ -182,12 +182,12 @@ dequeue = gets Seq.viewl >>= \case
   h Seq.:< q -> Just h <$ put q
 
 pattern :: Type (Name Meta) -> Maybe (Gensym, Stack (Plicit Meta))
-pattern (Local (Meta m) :$ sp) = (,) m <$> (traverse (traverse bound) sp >>= distinct)
-pattern _                      = Nothing
+pattern (Value (Local (Meta m) :$ sp)) = (,) m <$> (traverse (traverse bound) sp >>= distinct)
+pattern _                              = Nothing
 
 bound :: Type (Name Meta) -> Maybe Meta
-bound (Local v :$ Nil) = Just v
-bound _                = Nothing
+bound (Value (Local v :$ Nil)) = Just v
+bound _                        = Nothing
 
 distinct :: (Foldable t, Ord a) => t a -> Maybe (t a)
 distinct sp = sp <$ guard (length (foldMap Set.singleton sp) == length sp)
