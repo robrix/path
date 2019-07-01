@@ -34,12 +34,12 @@ resolveTerm :: ( Carrier sig m
 resolveTerm (term :~ span) = local (const span) $ Core . Ann span <$> case term of
   Surface.Var v -> Var <$> resolveName v
   Surface.Lam (p :< v) b -> do
-    v' <- gensym (maybe "lam" showUser v)
+    v' <- gensym (showUser v)
     local (insertLocal v v') (Core . Lam (p :< v) . bind (Local v') <$> resolveTerm b)
   f Surface.:$ a -> fmap Core . (:$) <$> resolveTerm f <*> traverse resolveTerm a
   Surface.Type -> pure (Core Type)
   Surface.Pi (ie :< v ::: u :@ t) b -> do
-    v' <- gensym (maybe "pi" showUser v)
+    v' <- gensym (showUser v)
     fmap Core . Pi . (ie :<) . (v :::) . (u :@) <$> resolveTerm t <*> local (insertLocal v v') (bind (Local v') <$> resolveTerm b)
   Surface.Hole v -> Core . Hole <$> resolveMeta v
 
@@ -95,9 +95,9 @@ newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name G
 instance Semigroup Resolution where
   Resolution m1 <> Resolution m2 = Resolution (Map.unionWith (fmap nub . (<>)) m1 m2)
 
-insertLocal :: Maybe User -> Gensym -> Resolution -> Resolution
-insertLocal (Just n) n' = Resolution . Map.insert n (Local n':|[]) . unResolution
-insertLocal Nothing  _  = id
+insertLocal :: User -> Gensym -> Resolution -> Resolution
+insertLocal Unused  _  = id
+insertLocal n       n' = Resolution . Map.insert n (Local n':|[]) . unResolution
 
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution

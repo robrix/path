@@ -8,14 +8,14 @@ import Text.Trifecta.Rendering (Spanned)
 
 data Surface
   = Var User
-  | Lam (Plicit (Maybe User)) (Spanned Surface)
+  | Lam (Plicit User) (Spanned Surface)
   | Spanned Surface :$ Plicit (Spanned Surface)
   | Type
-  | Pi (Plicit (Maybe User ::: Used (Spanned Surface))) (Spanned Surface)
+  | Pi (Plicit (User ::: Used (Spanned Surface))) (Spanned Surface)
   | Hole (Maybe String)
   deriving (Eq, Ord, Show)
 
 (-->) :: Used (Spanned Surface) -> Spanned Surface -> Surface
-t --> b = Pi (Ex :< Nothing ::: t) b
+t --> b = Pi (Ex :< Unused ::: t) b
 
 infixr 0 -->
