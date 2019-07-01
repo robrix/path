@@ -181,11 +181,11 @@ eiter var alg k = go
         go h = \case
           Var a -> var (h a)
           Problem p -> case p of
-            Lam t (Scope b) -> alg (Lam (go h t) (Scope (go (k . fmap (go h)) b)))
+            Lam t b -> alg (Lam (go h t) (foldScope k go h b))
             f :$ a -> alg (go h f :$ go h a)
             Type -> alg Type
-            Pi t (Scope b) -> alg (Pi (go h t) (Scope (go (k . fmap (go h)) b)))
-            Ex v t (Scope b) -> alg (Ex (go h <$> v) (go h t) (Scope (go (k . fmap (go h)) b)))
+            Pi t b -> alg (Pi (go h t) (foldScope k go h b))
+            Ex v t b -> alg (Ex (go h <$> v) (go h t) (foldScope k go h b))
             p1 :===: p2 -> alg (go h p1 :===: go h p2)
 
 kcata :: (a -> b)

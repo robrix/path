@@ -4,7 +4,7 @@ module Path.Expr where
 import Control.Monad (ap)
 import Data.Coerce (coerce)
 import Data.Functor.Const (Const (..))
-import Path.Name (Incr (..), Scope (..))
+import Path.Name (Incr (..), Scope (..), foldScope)
 
 data Expr a
   = Var a
@@ -40,7 +40,7 @@ eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Expr x -> n y
         go h = \case
           Var a -> var (h a)
-          Expr (Lam (Scope b)) -> alg (Lam (Scope (go (k . fmap (go h)) b)))
+          Expr (Lam b) -> alg (Lam (foldScope k go h b))
           Expr (f :$ a) -> alg (go h f :$ go h a)
 
 ecata :: (forall a . ExprF m a -> m a)

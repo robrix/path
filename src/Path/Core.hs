@@ -60,9 +60,9 @@ efold var lam app ty pi hole ann k = go
         go h = \case
           Var a -> var (h a)
           Core c -> case c of
-            Lam p (Scope b) -> lam p (Scope (go (k . fmap (go h)) b))
+            Lam p b -> lam p (foldScope k go h b)
             f :$ a -> app (go h f) (go h <$> a)
             Type -> ty
-            Pi t (Scope b) -> pi (fmap (fmap (go h)) <$> t) (Scope (go (k . fmap (go h)) b))
+            Pi t b -> pi (fmap (fmap (go h)) <$> t) (foldScope k go h b)
             Hole a -> hole a
             Ann loc b -> ann loc (go h b)

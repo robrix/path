@@ -74,7 +74,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = efold id (\ p -> Lam p . Scope) ($$*) Type (\ t -> Pi t . Scope) pure f a
+  a >>= f = efold id Lam ($$*) Type Pi pure f a
 
 
 global :: Qualified -> Value (Name a)
@@ -113,10 +113,10 @@ v $$* sp = foldl' ($$) v sp
 
 efold :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . Plicity -> n (Incr (n a)) -> n a)
+      -> (forall a . Plicity -> Scope n a -> n a)
       -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
       -> (forall a . n a)
-      -> (forall a . Plicit (Used (n a)) -> n (Incr (n a)) -> n a)
+      -> (forall a . Plicit (Used (n a)) -> Scope n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Value a
@@ -124,10 +124,10 @@ efold :: forall m n a b
 efold var lam app ty pi k = go
   where go :: forall x y . (x -> m y) -> Value x -> n y
         go h = \case
-          Lam p (Scope b) -> lam p (go (k . fmap (go h)) b)
+          Lam p b -> lam p (foldScope k go h b)
           f :$ a -> app (var (h f)) (fmap (go h) <$> a)
           Type -> ty
-          Pi t (Scope b) -> pi (fmap (go h) <$> t) (go (k . fmap (go h)) b)
+          Pi t b -> pi (fmap (go h) <$> t) (foldScope k go h b)
 
 kfold :: (a -> b)
       -> (Plicity -> b -> b)
