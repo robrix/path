@@ -135,19 +135,19 @@ unbinds = fmap (first Context) . un (\ name -> \case
   E q      -> Left q)
 
 
-gfoldT :: forall m n b
-       .  (forall a . Value (m a) -> n (Incr a) -> n a)
-       -> (forall a . Equation (Value (m a)) ::: Type (m a) -> n a)
-       -> (forall a . Incr (m a) -> m (Incr a))
-       -> Constraint (m b)
-       -> n b
-gfoldT bind eqn dist = go
+gfold :: forall m n b
+      .  (forall a . Value (m a) -> n (Incr a) -> n a)
+      -> (forall a . Equation (Value (m a)) ::: Type (m a) -> n a)
+      -> (forall a . Incr (m a) -> m (Incr a))
+      -> Constraint (m b)
+      -> n b
+gfold bind eqn dist = go
   where go :: Constraint (m x) -> n x
         go (v :|-: b) = bind v (go (dist <$> b))
         go (E a)      = eqn a
 
 joinT :: Constraint (Value a) -> Constraint a
-joinT = gfoldT
+joinT = gfold
   (\ v s -> join v :|-: s)
   (\ (q ::: t) -> E (fmap join q ::: join t))
   (incr (pure Z) (fmap S))
