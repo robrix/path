@@ -79,7 +79,7 @@ instance Monad Value where
 
 data ValueF f a
   = LamF Plicity (Scope f a)              -- ^ A lambda abstraction.
-  | a :$$ Stack (Plicit (f a))            -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | f a :$$ Stack (Plicit (f a))          -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   | TypeF                                 -- ^ @'Type' : 'Type'@.
   | PiF (Plicit (Used (f a))) (Scope f a) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Foldable, Functor, Traversable)
@@ -91,13 +91,13 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Va
 
 project :: Value a -> ValueF Value a
 project (Lam p b) = LamF p b
-project (f :$ a) = f :$$ a
+project (f :$ a) = (f :$ Nil) :$$ a
 project Type = TypeF
 project (Pi t b) = PiF t b
 
 embed :: ValueF Value a -> Value a
 embed (LamF p b) = Lam p b
-embed (f :$$ a) = f :$ a
+embed (f :$$ a) = f $$* a
 embed TypeF = Type
 embed (PiF t b) = Pi t b
 
