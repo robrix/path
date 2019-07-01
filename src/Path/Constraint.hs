@@ -83,7 +83,7 @@ instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
 instance Substitutable (Constraint (Name Meta)) where
-  apply (Substitution subst) = joinT . fmap (\ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
+  apply (Substitution subst) = bindConstraint (\ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
 
 
 data Constraint a
@@ -141,16 +141,17 @@ gfold :: forall m n b
       -> (forall a . Incr (m a) -> m (Incr a))
       -> Constraint (m b)
       -> n b
-gfold bind eqn dist = go
+gfold bindConstraint eqn dist = go
   where go :: Constraint (m x) -> n x
-        go (v :|-: b) = bind v (go (dist <$> b))
+        go (v :|-: b) = bindConstraint v (go (dist <$> b))
         go (E a)      = eqn a
 
-joinT :: Constraint (Value a) -> Constraint a
-joinT = gfold
+bindConstraint :: (a -> Value b) -> Constraint a -> Constraint b
+bindConstraint f = gfold
   (\ v s -> join v :|-: s)
   (\ (q ::: t) -> E (fmap join q ::: join t))
   (incr (pure Z) (fmap S))
+  . fmap f
 
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
@@ -159,4 +160,4 @@ bind name = fmap (match name)
 
 -- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
 instantiate :: Value a -> Constraint (Incr a) -> Constraint a
-instantiate t b = joinT (subst t . fmap pure <$> b)
+instantiate t = bindConstraint (subst t . fmap pure)
