@@ -11,6 +11,7 @@ import           Control.Monad ((>=>))
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Data.Bifunctor
+import           Data.Function (on)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -239,9 +240,13 @@ instantiate t b = b >>= subst t
 newtype Scope f a = Scope { unScope :: f (Incr (f a)) }
   deriving (Foldable, Functor, Traversable)
 
-deriving instance (Eq   a, forall a . Eq   a => Eq   (f a)) => Eq   (Scope f a)
-deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
-                         , forall a . Ord  a => Ord  (f a)) => Ord  (Scope f a)
+instance (Monad f, Eq  a, forall a . Eq  a => Eq  (f a)) => Eq  (Scope f a) where
+  (==) = (==) `on` flattenScope
+
+instance (Monad f, Ord a, forall a . Eq  a => Eq  (f a)
+                        , forall a . Ord a => Ord (f a)) => Ord (Scope f a) where
+  compare = compare `on` flattenScope
+
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Scope f a)
 
 flattenScope :: Monad f => Scope f a -> f (Incr a)
