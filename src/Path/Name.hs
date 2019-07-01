@@ -10,6 +10,7 @@ import           Control.Effect.Sum
 import           Control.Monad ((>=>), ap)
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
+import           Control.Monad.Trans.Class
 import           Data.Bifunctor
 import           Data.Function (on)
 import           Data.List.NonEmpty (NonEmpty (..))
@@ -256,6 +257,9 @@ instance (Monad f) => Applicative (Scope f) where
 
 instance Monad f => Monad (Scope f) where
   Scope e >>= f = Scope (e >>= incr (pure Z) (>>= unScope . f))
+
+instance MonadTrans Scope where
+  lift = Scope . pure . S
 
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
