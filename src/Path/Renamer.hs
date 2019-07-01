@@ -91,10 +91,6 @@ newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name G
 instance Semigroup Resolution where
   Resolution m1 <> Resolution m2 = Resolution (Map.unionWith (fmap nub . (<>)) m1 m2)
 
-insertLocal :: User -> Gensym -> Resolution -> Resolution
-insertLocal Unused  _  = id
-insertLocal n       n' = Resolution . Map.insert n (Local n':|[]) . unResolution
-
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution
 
