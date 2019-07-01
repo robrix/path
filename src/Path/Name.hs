@@ -223,6 +223,9 @@ subst a = incr a id
 incr :: b -> (a -> b) -> Incr a -> b
 incr z s = \case { Z -> z ; S a -> s a }
 
+flatten :: Monad f => f (Incr (f a)) -> f (Incr a)
+flatten b = b >>= sequenceA
+
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: (Applicative f, Eq a) => a -> f a -> f (Incr (f a))
 bind name = fmap (fmap pure . match name)
