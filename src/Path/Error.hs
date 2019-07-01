@@ -19,7 +19,7 @@ freeVariable name = do
   span <- ask
   throwError (prettyErr span (pretty "free variable" <+> squotes (pretty name)) [])
 
-ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty (Name Gensym) -> m a
+ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty (Name Meta) -> m a
 ambiguousName name sources = do
   span <- ask
   throwError (prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep

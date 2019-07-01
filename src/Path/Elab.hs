@@ -110,15 +110,17 @@ spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
 elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span) sig)
-     => Core.Core (Name Gensym)
+     => Core.Core (Name Meta)
      -> m (Value (Name Meta) ::: Type (Name Meta))
 elab = \case
-  Core.Var n -> assume n
+  Core.Var (Global n) -> assume (Global n)
+  Core.Var (Local (Name n)) -> assume (Local n)
+  Core.Var (Local (Meta n)) -> (pure (Local (Meta n)) :::) <$> exists Value.Type
   Core.Core c -> case c of
-    Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure (Local n')) b))
+    Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure (Local (Name n'))) b))
     (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
     Core.Type -> pure (Value.Type ::: Value.Type)
-    Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure (Local n')) b))
+    Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure (Local (Name n'))) b))
     Core.Hole h -> (pure (Local (Meta h)) :::) <$> exists Value.Type
     Core.Ann ann b -> spanIs ann (elab b)
 
@@ -192,7 +194,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym))
+           => Module Qualified (Core.Core (Name Meta) ::: Core.Core (Name Meta))
            -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
@@ -219,7 +221,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Namespace) sig
             )
-         => Spanned (Decl Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym)))
+         => Spanned (Decl Qualified (Core.Core (Name Meta) ::: Core.Core (Name Meta)))
          -> m (Spanned (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ty' <- runNamespace (declare (elab ty))

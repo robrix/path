@@ -28,7 +28,7 @@ resolveTerm :: ( Carrier sig m
                , Member (State Signature) sig
                )
             => Spanned (Surface.Surface Var)
-            -> m (Core (Name Gensym))
+            -> m (Core (Name Meta))
 resolveTerm (term :~ span) = unComp1 (Surface.eiter id (Comp1 . alg) pure pure term) >>= traverse go . Core . Ann span
   where alg (Surface.Lam v (Scope b :~ s)) = unComp1 b >>= fmap (Core . Lam v . Scope . Core . Ann s) . traverse (traverse unComp1)
         alg (f Surface.:$ a) = Core <$> ((:$) <$> ann f <*> traverse ann a)
@@ -37,7 +37,7 @@ resolveTerm (term :~ span) = unComp1 (Surface.eiter id (Comp1 . alg) pure pure t
 
         ann (b :~ s) = Core . Ann s <$> unComp1 b
 
-        go (M m) = Local <$> resolveMeta m
+        go (M m) = Local . Meta <$> resolveMeta m
         go (U u) = resolveName u
 
 
@@ -52,7 +52,7 @@ resolveDecl :: ( Carrier sig m
                , Member (State Resolution) sig
                )
             => Spanned (Decl User (Spanned (Surface.Surface Var) ::: Spanned (Surface.Surface Var)))
-            -> m (Spanned (Decl Qualified (Core (Name Gensym) ::: Core (Name Gensym))))
+            -> m (Spanned (Decl Qualified (Core (Name Meta) ::: Core (Name Meta))))
 resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ do
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
@@ -77,7 +77,7 @@ resolveModule :: ( Carrier sig m
                  , Member (State Resolution) sig
                  )
               => Module User (Spanned (Surface.Surface Var) ::: Spanned (Surface.Surface Var))
-              -> m (Module Qualified (Core (Name Gensym) ::: Core (Name Gensym)))
+              -> m (Module Qualified (Core (Name Meta) ::: Core (Name Meta)))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -86,7 +86,7 @@ resolveModule m = do
   where amongImports q = any (flip inModule q . importModuleName . unSpanned) (moduleImports m)
         unSpanned (a :~ _) = a
 
-newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Gensym)) }
+newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Meta)) }
   deriving (Eq, Monoid, Ord, Show)
 
 instance Semigroup Resolution where
@@ -95,7 +95,7 @@ instance Semigroup Resolution where
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution
 
-lookupName :: User -> Resolution -> Maybe (NonEmpty (Name Gensym))
+lookupName :: User -> Resolution -> Maybe (NonEmpty (Name Meta))
 lookupName n = Map.lookup n . unResolution
 
 resolveName :: ( Carrier sig m
@@ -106,13 +106,13 @@ resolveName :: ( Carrier sig m
                , Member (Reader Span) sig
                )
             => User
-            -> m (Name Gensym)
+            -> m (Name Meta)
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
   res <- case mode of
-    Declare -> maybe ((:| []) . Local <$> gensym "") pure res
-    Define  -> maybe (freeVariable v)                pure res
+    Declare -> maybe ((:| []) . Local . Name <$> gensym "") pure res
+    Define  -> maybe (freeVariable v)                       pure res
   unambiguous v res
 
 resolveMeta :: ( Carrier sig m
@@ -129,7 +129,7 @@ resolveMeta m = do
       n <- gensym m
       n <$ modify (Map.insert m n)
 
-filterResolution :: (Name Gensym -> Bool) -> Resolution -> Resolution
+filterResolution :: (Name Meta -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
@@ -138,7 +138,7 @@ unambiguous :: ( Carrier sig m
                , Member (Reader Span) sig
                )
             => User
-            -> NonEmpty (Name Gensym)
-            -> m (Name Gensym)
+            -> NonEmpty (Name Meta)
+            -> m (Name Meta)
 unambiguous _ (q:|[]) = pure q
 unambiguous v (q:|qs) = ambiguousName v (q :| qs)
