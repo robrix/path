@@ -307,15 +307,17 @@ elab :: ( Carrier sig m
         , Member (Reader Span) sig
         , Member (State Context) sig
         )
-     => Core.Core (Name Gensym)
+     => Core.Core (Name Meta)
      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 elab = \case
-  Core.Var n -> assume n
+  Core.Var (Global n) -> assume (Global n)
+  Core.Var (Local (Name n)) -> assume (Local n)
+  Core.Var (Local (Meta n)) -> (pure (Local n) :::) <$> meta type'
   Core.Core c -> case c of
-    Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
+    Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local (Name n'))) b))
     f Core.:$ (_ :< a) -> app (elab f) (elab a)
     Core.Type -> pure (type' ::: type')
-    Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
+    Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local (Name n'))) b)
     Core.Ann ann b -> spanIs ann (elab b)
 
 elabDecl :: ( Carrier sig m
@@ -323,7 +325,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Context) sig
             )
-         => Spanned (Decl Qualified (Core.Core (Name Gensym) ::: Core.Core (Name Gensym)))
+         => Spanned (Decl Qualified (Core.Core (Name Meta) ::: Core.Core (Name Meta)))
          -> m (Spanned (Decl Qualified (Problem (Name Gensym) ::: Problem (Name Gensym))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ctx <- get
