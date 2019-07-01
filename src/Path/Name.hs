@@ -225,14 +225,6 @@ subst a = incr a id
 incr :: b -> (a -> b) -> Incr a -> b
 incr z s = \case { Z -> z ; S a -> s a }
 
--- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
-bind :: (Applicative f, Eq a) => a -> f a -> Scope f a
-bind name = Scope . fmap (fmap pure . match name)
-
--- | Substitute a term for the free variable in a given term, producing a closed term.
-instantiate :: Monad f => f a -> Scope f a -> f a
-instantiate t = unScope >=> subst t
-
 
 newtype Scope f a = Scope { unScope :: f (Incr (f a)) }
   deriving (Foldable, Functor, Traversable)
@@ -245,6 +237,14 @@ instance (Monad f, Ord a, forall a . Eq  a => Eq  (f a)
   compare = compare `on` flattenScope
 
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Scope f a)
+
+-- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
+bind :: (Applicative f, Eq a) => a -> f a -> Scope f a
+bind name = Scope . fmap (fmap pure . match name)
+
+-- | Substitute a term for the free variable in a given term, producing a closed term.
+instantiate :: Monad f => f a -> Scope f a -> f a
+instantiate t = unScope >=> subst t
 
 flattenScope :: Monad f => Scope f a -> f (Incr a)
 flattenScope = unScope >=> sequenceA
