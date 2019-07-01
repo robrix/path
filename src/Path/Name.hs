@@ -151,7 +151,7 @@ name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
 name _     global (Global n) = global n
 
-inModule :: ModuleName -> Name Gensym -> Bool
+inModule :: ModuleName -> Name a -> Bool
 inModule m (Global (m' :.: _)) = m == m'
 inModule _ _                   = False
 
