@@ -118,16 +118,15 @@ resolveMeta :: ( Carrier sig m
                , Member Naming sig
                , Member (State Signature) sig
                )
-            => Maybe String
+            => String
             -> m Gensym
-resolveMeta (Just m) = do
+resolveMeta m = do
   found <- gets (Map.lookup m)
   case found of
     Just meta -> pure meta
     Nothing   -> do
       n <- gensym m
       n <$ modify (Map.insert m n)
-resolveMeta Nothing = gensym "meta"
 
 filterResolution :: (Name Gensym -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution

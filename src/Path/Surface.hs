@@ -23,7 +23,7 @@ data SurfaceF f a
   | Spanned (f a) :$ Plicit (Spanned (f a))
   | Type
   | Pi (Plicit (Maybe User ::: Used (Spanned (f a)))) (Spanned (Scope f a))
-  | Hole (Maybe String)
+  | Hole String
   deriving (Foldable, Functor, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (SurfaceF f a)
@@ -55,7 +55,7 @@ t --> b = Surface (Pi (Ex :< Nothing ::: t) (Scope . fmap (S . pure) <$> b))
 infixr 0 -->
 
 
-hole :: Maybe String -> Surface a
+hole :: String -> Surface a
 hole = Surface . Hole
 
 

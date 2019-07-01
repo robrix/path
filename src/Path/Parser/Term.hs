@@ -42,7 +42,7 @@ lambda = (do
         bind v vv = wrap v <$> spanned vv
         wrap (a :~ v1) (b :~ v2) = Surface.lam' a b :~ (v1 <> v2)
 
-hole = spanned (Surface.hole <$ char '?' <*> optional (ident (IdentifierStyle "hole" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)))
+hole = spanned (Surface.hole <$ char '?' <*> ident (IdentifierStyle "hole" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
 
 atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
 
