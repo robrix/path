@@ -312,10 +312,10 @@ elab :: ( Carrier sig m
      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 elab = \case
   Core.Var n -> assume n
-  Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
+  Core.Lam _ (Scope b) -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (type' ::: type')
-  Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
+  Core.Pi (_ :< _ ::: _ :@ t) (Scope b) -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
   Core.Hole h -> (pure (Local h) :::) <$> meta type'
   Core.Ann ann b -> spanIs ann (elab b)
 

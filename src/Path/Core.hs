@@ -10,10 +10,10 @@ import Text.Trifecta.Rendering (Span)
 
 data Core a
   = Var a
-  | Lam (Plicit (Maybe User)) (Core (Incr (Core a)))
+  | Lam (Plicit (Maybe User)) (Scope Core a)
   | Core a :$ Plicit (Core a)
   | Type
-  | Pi (Plicit (Maybe User ::: Used (Core a))) (Core (Incr (Core a)))
+  | Pi (Plicit (Maybe User ::: Used (Core a))) (Scope Core a)
   | Hole Gensym
   | Ann Span (Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -23,10 +23,10 @@ instance Applicative Core where
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = efold id Lam (:$) Type Pi Hole Ann pure f a
+  a >>= f = efold id (\ p -> Lam p . Scope) (:$) Type (\ t -> Pi t . Scope) Hole Ann pure f a
 
 lam :: Eq a => Plicit a -> Core a -> Core a
-lam (p :< n) b = Lam (p :< Nothing) (bind n b)
+lam (p :< n) b = Lam (p :< Nothing) (Scope (bind n b))
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
@@ -48,9 +48,9 @@ efold var lam app ty pi hole ann k = go
   where go :: forall x y . (x -> m y) -> Core x -> n y
         go h = \case
           Var a -> var (h a)
-          Lam p b -> lam p (go (k . fmap (go h)) b)
+          Lam p (Scope b) -> lam p (go (k . fmap (go h)) b)
           f :$ a -> app (go h f) (go h <$> a)
           Type -> ty
-          Pi t b -> pi (fmap (fmap (go h)) <$> t) (go (k . fmap (go h)) b)
+          Pi t (Scope b) -> pi (fmap (fmap (go h)) <$> t) (go (k . fmap (go h)) b)
           Hole a -> hole a
           Ann loc b -> ann loc (go h b)
