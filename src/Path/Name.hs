@@ -93,16 +93,19 @@ instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) whe
 data User
   = Id String
   | Op Operator
+  | Unused
   deriving (Eq, Ord, Show)
 
 instance Pretty User where
   pretty = \case
     Id s  -> pretty s
     Op op -> parens (pretty op)
+    Unused -> pretty '_'
 
 showUser :: User -> String
 showUser (Id s) = s
 showUser (Op o) = showOperator o
+showUser Unused = "_"
 
 
 data ModuleName
