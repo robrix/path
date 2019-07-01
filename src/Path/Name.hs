@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
 import           Control.Applicative (Alternative (..))
@@ -233,6 +233,15 @@ bind name = fmap (fmap pure . match name)
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate :: Monad f => f a -> f (Incr (f a)) -> f a
 instantiate t b = b >>= subst t
+
+
+newtype Scope f a = Scope { unScope :: f (Incr (f a)) }
+  deriving (Foldable, Functor, Traversable)
+
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a)) => Eq   (Scope f a)
+deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
+                         , forall a . Ord  a => Ord  (f a)) => Ord  (Scope f a)
+deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Scope f a)
 
 
 data a ::: b = a ::: b
