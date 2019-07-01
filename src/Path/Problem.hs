@@ -23,8 +23,6 @@ import           Path.Usage
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span (..), Spanned (..))
 
--- FIXME: represent errors explicitly in the tree
--- FIXME: represent spans explicitly in the tree
 data Problem a
   = Var a
   | Problem (ProblemF Problem a)
@@ -90,6 +88,8 @@ instance Ord a => FreeVariables a (Problem a) where
   fvs = foldMap Set.singleton
 
 
+-- FIXME: represent errors explicitly in the tree
+-- FIXME: represent spans explicitly in the tree
 data ProblemF f a
   = Lam (f a) (f (Incr (f a)))
   | f a :$ f a
