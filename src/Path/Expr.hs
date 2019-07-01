@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving #-}
 module Path.Expr where
 
-import Control.Monad (ap)
 import Data.Coerce (coerce)
 import Data.Functor.Const (Const (..))
 import Path.Name (Incr (..), Scope (..), foldScope)
@@ -13,7 +12,7 @@ data Expr a
 
 instance Applicative Expr where
   pure = Var
-  (<*>) = ap
+  f <*> a = eiter id Expr Var (<$> a) f
 
 instance Monad Expr where
   a >>= f = eiter id Expr Var f a

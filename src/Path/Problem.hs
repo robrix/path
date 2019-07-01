@@ -7,7 +7,6 @@ import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad (ap)
 import           Data.Coerce
 import           Data.Foldable (fold)
 import           Data.List (intersperse)
@@ -30,10 +29,10 @@ data Problem a
 
 instance Applicative Problem where
   pure = Var
-  (<*>) = ap
+  f <*> a = eiter id Problem Var (<$> a) f
 
 instance Monad Problem where
-  a >>= f = eiter id Problem pure f a
+  a >>= f = eiter id Problem Var f a
 
 instance Pretty (Problem (Name Gensym)) where
   pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kcata id alg k (var . fmap Name)

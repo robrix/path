@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Core where
 
-import Control.Monad (ap)
 import Path.Name
 import Path.Plicity
 import Path.Usage
@@ -15,10 +14,10 @@ data Core a
 
 instance Applicative Core where
   pure = Var
-  (<*>) = ap
+  f <*> a = eiter id Core Var (<$> a) f
 
 instance Monad Core where
-  a >>= f = eiter id Core pure f a
+  a >>= f = eiter id Core Var f a
 
 
 data CoreF f a

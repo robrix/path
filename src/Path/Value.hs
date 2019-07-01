@@ -5,7 +5,7 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
-import           Control.Monad (ap, unless)
+import           Control.Monad (unless)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -70,7 +70,7 @@ instance Ord a => FreeVariables a (Value a) where
 
 instance Applicative Value where
   pure = (:$ Nil)
-  (<*>) = ap
+  f <*> a = eiter id embed pure (<$> a) f
 
 instance Monad Value where
   a >>= f = eiter id embed pure f a
