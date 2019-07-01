@@ -7,7 +7,6 @@ import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 -- import qualified Data.Set as Set
-import GHC.Generics ((:.:) (..))
 import Path.Core as Core
 import Path.Error
 import Path.Module
@@ -29,13 +28,13 @@ resolveTerm :: ( Carrier sig m
                )
             => Spanned (Surface.Surface Var)
             -> m (Core (Name Meta))
-resolveTerm (term :~ span) = unComp1 (Surface.eiter id (Comp1 . alg) pure pure term) >>= traverse go . Core . Ann span
-  where alg (Surface.Lam v (Scope b :~ s)) = unComp1 b >>= fmap (Core . Lam v . Scope . Core . Ann s) . traverse (traverse unComp1)
-        alg (f Surface.:$ a) = Core <$> ((:$) <$> ann f <*> traverse ann a)
-        alg Surface.Type = pure (Core Type)
-        alg (Surface.Pi t (Scope b :~ s)) = fmap Core . Pi <$> traverse (traverse (traverse ann)) t <*> (unComp1 b >>= fmap (Scope . Core . Ann s) . traverse (traverse unComp1))
+resolveTerm (term :~ span) = traverse go (Core (Ann span (Surface.eiter id (Core . alg) pure pure term)))
+  where alg (Surface.Lam v (Scope b :~ s)) = Lam v (Scope (ann (b :~ s)))
+        alg (f Surface.:$ a) = ann f :$ fmap ann a
+        alg Surface.Type = Type
+        alg (Surface.Pi t (Scope b :~ s)) = Pi (fmap (fmap ann) <$> t) (Scope (ann (b :~ s)))
 
-        ann (b :~ s) = Core . Ann s <$> unComp1 b
+        ann (b :~ s) = Core (Ann s b)
 
         go (M m) = Local . Meta <$> resolveMeta m
         go (U u) = resolveName u
