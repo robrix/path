@@ -7,6 +7,7 @@ import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Sum
+import           Control.Monad ((>=>))
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Data.Bifunctor
@@ -242,6 +243,9 @@ deriving instance (Eq   a, forall a . Eq   a => Eq   (f a)) => Eq   (Scope f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a)) => Ord  (Scope f a)
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Scope f a)
+
+flattenScope :: Monad f => Scope f a -> f (Incr a)
+flattenScope = unScope >=> sequenceA
 
 
 data a ::: b = a ::: b
