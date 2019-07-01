@@ -64,11 +64,11 @@ resolveDecl (Decl d n (tm ::: ty) :~ span) = fmap (:~ span) . runReader span $ d
   --       n' <- gensym (showUser n)
   --       local (insertLocal (Just n) n') $
   --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
-  (ty', tm') <- evalState (mempty :: Signature) $
-    (,) <$> runResolution (runReader Declare (resolveTerm ty))
-        <*  modify (insertGlobal n moduleName)
-        <*> runResolution (runReader Define  (resolveTerm tm))
-  pure (Decl d (moduleName :.: n) (tm' ::: ty'))
+  res <- evalState (mempty :: Signature) $
+    flip (:::) <$> runResolution (runReader Declare (resolveTerm ty))
+               <*  modify (insertGlobal n moduleName)
+               <*> runResolution (runReader Define  (resolveTerm tm))
+  pure (Decl d (moduleName :.: n) res)
 
 runResolution :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
 runResolution m = get >>= \ res -> runReader res m
