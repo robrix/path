@@ -73,7 +73,7 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = efold id Lam ($$*) Type Pi pure f a
+  a >>= f = eiter id embed pure f a
 
 
 data ValueF f a
@@ -135,23 +135,20 @@ _       $$ _        = error "illegal application of Type"
 v $$* sp = foldl' ($$) v sp
 
 
-efold :: forall m n a b
+eiter :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . Plicity -> Scope n a -> n a)
-      -> (forall a . n a -> Stack (Plicit (n a)) -> n a)
-      -> (forall a . n a)
-      -> (forall a . Plicit (Used (n a)) -> Scope n a -> n a)
+      -> (forall a . ValueF n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Value a
       -> n b
-efold var lam app ty pi k = go
+eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Value x -> n y
         go h = \case
-          Lam p b -> lam p (foldScope k go h b)
-          f :$ a -> app (var (h f)) (fmap (go h) <$> a)
-          Type -> ty
-          Pi t b -> pi (fmap (go h) <$> t) (foldScope k go h b)
+          Lam p b -> alg (LamF p (foldScope k go h b))
+          f :$ a -> alg (var (h f) :$$ (fmap (go h) <$> a))
+          Type -> alg TypeF
+          Pi t b -> alg (PiF (fmap (go h) <$> t) (foldScope k go h b))
 
 
 generalizeType :: Value (Name Meta) -> Value (Name Gensym)
