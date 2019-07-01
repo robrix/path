@@ -36,10 +36,10 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
 
 
-lam :: Eq a => Plicit a -> Core a -> Core a
-lam (p :< n) b = Core (Lam (p :< Nothing) (bind n b))
+lam :: Eq a => Plicit (Maybe User, a) -> Core a -> Core a
+lam (p :< (u, n)) b = Core (Lam (p :< u) (bind n b))
 
-lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
+lams :: (Eq a, Foldable t) => t (Plicit (Maybe User, a)) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
