@@ -1,13 +1,13 @@
 {-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
-import           Control.Applicative (Alternative (..))
+import           Control.Applicative (Alternative (..), liftA2)
 import           Control.Effect
 import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Sum
-import           Control.Monad ((>=>), ap)
+import           Control.Monad ((>=>))
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class
@@ -251,9 +251,9 @@ instance (Monad f, Ord a, forall a . Eq  a => Eq  (f a)
 
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Scope f a)
 
-instance (Monad f) => Applicative (Scope f) where
+instance Applicative f => Applicative (Scope f) where
   pure = Scope . pure . S . pure
-  (<*>) = ap
+  Scope f <*> Scope a = Scope (liftA2 (liftA2 (<*>)) f a)
 
 instance Monad f => Monad (Scope f) where
   Scope e >>= f = Scope (e >>= incr (pure Z) (>>= unScope . f))
