@@ -41,7 +41,7 @@ assume v = do
 
 implicits :: (Carrier sig m, Member Elab sig) => Type (Name Meta) -> m (Stack (Plicit (m (Value (Name Meta) ::: Type (Name Meta)))))
 implicits = go Nil
-  where go names (Value.Pi (Im :< _ :@ t) b) | False = do
+  where go names (Value.Pi (Im :< _ :@ t) (Scope b)) | False = do
           v <- exists t
           go (names :> (Im :< pure (v ::: t))) (instantiate v b)
         go names _ = pure names
@@ -227,7 +227,7 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
 
   let ty'' = whnf scope ty'
   (names, _) <- un (orTerm (\ n -> \case
-    Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
+    Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) (unScope b)))
     _                            -> Nothing)) ty''
   tm ::: _ <- runNamespace (define (Value.weaken ty') (elab (Core.lams names tm)))
   modify (Namespace.insert name (Entry (Just tm ::: ty')))

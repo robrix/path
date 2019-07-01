@@ -18,30 +18,11 @@ import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
 data Value a
-  = Lam Plicity (Value (Incr (Value a)))                  -- ^ A lambda abstraction.
-  | a :$ Stack (Plicit (Value a))                         -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
-  | Type                                                  -- ^ @'Type' : 'Type'@.
-  | Pi (Plicit (Used (Value a))) (Value (Incr (Value a))) -- ^ A ∏ type, with a 'Usage' annotation.
-  deriving (Foldable, Functor, Show, Traversable)
-
-instance Eq  a => Eq  (Value a) where
-  Lam p1 b1 == Lam p2 b2 = p1 == p2 && flatten b1 == flatten b2
-  f1 :$ a1  == f2 :$ a2  = f1 == f2 && a1 == a2
-  Type      == Type      = True
-  Pi t1 b1  == Pi t2 b2  = t1 == t2 && flatten b1 == flatten b2
-  _         == _         = False
-
-instance Ord a => Ord (Value a) where
-  Lam p1 b1  `compare` Lam p2 b2  = p1 `compare` p2 <> flatten b1 `compare` flatten b2
-  Lam _  _   `compare` _          = LT
-  _          `compare` Lam _  _   = GT
-  (f1 :$ a1) `compare` (f2 :$ a2) = f1 `compare` f2 <> a1 `compare` a2
-  (_  :$ _)  `compare` _          = LT
-  _          `compare` (_  :$ _)  = GT
-  Type       `compare` Type       = EQ
-  Type       `compare` _          = LT
-  _          `compare` Type       = GT
-  Pi t1 b1   `compare` Pi t2 b2   = t1 `compare` t2 <> flatten b1 `compare` flatten b2
+  = Lam Plicity (Scope Value a)                  -- ^ A lambda abstraction.
+  | a :$ Stack (Plicit (Value a))                -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | Type                                         -- ^ @'Type' : 'Type'@.
+  | Pi (Plicit (Used (Value a))) (Scope Value a) -- ^ A ∏ type, with a 'Usage' annotation.
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
 prettyValue = go
@@ -65,7 +46,7 @@ prettyValue = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Local (Name n))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
+              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Local (Name n))) (unScope b) in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
               _                  -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
@@ -93,36 +74,36 @@ instance Applicative Value where
   (<*>) = ap
 
 instance Monad Value where
-  a >>= f = efold id Lam ($$*) Type Pi pure f a
+  a >>= f = efold id (\ p -> Lam p . Scope) ($$*) Type (\ t -> Pi t . Scope) pure f a
 
 
 global :: Qualified -> Value (Name a)
 global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Value a -> Value a
-lam (pl :< n) b = Lam pl (bind n b)
+lam (pl :< n) b = Lam pl (Scope (bind n b))
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Value a -> Value a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Value a -> m (Plicit a, Value a)
-unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
+unlam n (Lam p b) = pure (p :< n, instantiate (pure n) (unScope b))
 unlam _ _         = empty
 
 pi :: Eq a => Plicit (a ::: Used (Type a)) -> Value a -> Value a
-pi (p :< n ::: t) b = Pi (p :< t) (bind n b)
+pi (p :< n ::: t) b = Pi (p :< t) (Scope (bind n b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Type a))) -> Value a -> Value a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Value a -> m (Plicit (a ::: Used (Type a)), Value a)
-unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (pure n) b)
+unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (pure n) (unScope b))
 unpi _ _               = empty
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
-Lam _ b $$ (_ :< v) = instantiate v b
-Pi _  b $$ (_ :< v) = instantiate v b
+Lam _ b $$ (_ :< v) = instantiate v (unScope b)
+Pi _  b $$ (_ :< v) = instantiate v (unScope b)
 n :$ vs $$ v        = n :$ (vs :> v)
 _       $$ _        = error "illegal application of Type"
 
@@ -143,10 +124,10 @@ efold :: forall m n a b
 efold var lam app ty pi k = go
   where go :: forall x y . (x -> m y) -> Value x -> n y
         go h = \case
-          Lam p b -> lam p (go (k . fmap (go h)) b)
+          Lam p (Scope b) -> lam p (go (k . fmap (go h)) b)
           f :$ a -> app (var (h f)) (fmap (go h) <$> a)
           Type -> ty
-          Pi t b -> pi (fmap (go h) <$> t) (go (k . fmap (go h)) b)
+          Pi t (Scope b) -> pi (fmap (go h) <$> t) (go (k . fmap (go h)) b)
 
 kfold :: (a -> b)
       -> (Plicity -> b -> b)
