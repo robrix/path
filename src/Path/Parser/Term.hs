@@ -41,7 +41,7 @@ lambda = (do
         binding = name <|> Unused <$ token (string "_")
         bind [] = term
         bind (v:vv) = wrap v <$> spanned (bind vv)
-          where wrap ((p :< a) :~ v1) (b :~ v2) = Surface.lam (p :< (a, a)) b :~ (v1 <> v2)
+        wrap ((p :< a) :~ v1) (b :~ v2) = Surface.lam (p :< (a, a)) b :~ (v1 <> v2)
 
 hole = spanned (Surface.hole <$ char '?' <*> optional (ident (IdentifierStyle "hole" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)))
 
