@@ -85,7 +85,7 @@ resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
   modify (<> res)
-  pure (m { moduleDecls = decls })
+  pure m { moduleDecls = decls }
   where amongImports q = any (flip inModule q . importModuleName . unSpanned) (moduleImports m)
         unSpanned (a :~ _) = a
 
