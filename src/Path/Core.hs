@@ -18,7 +18,7 @@ instance Applicative Core where
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = efold id (\ p -> Core . Lam p) (fmap Core . (:$)) (Core Type) (\ t -> Core . Pi t) (Core . Hole) (fmap Core . Ann) pure f a
+  a >>= f = eiter id Core pure f a
 
 
 data CoreF f a
@@ -43,26 +43,21 @@ lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
-efold :: forall m n a b
+eiter :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . Plicit (Maybe User) -> Scope n a -> n a)
-      -> (forall a . n a -> Plicit (n a) -> n a)
-      -> (forall a . n a)
-      -> (forall a . Plicit (Maybe User ::: Used (n a)) -> Scope n a -> n a)
-      -> (forall a . Gensym -> n a)
-      -> (forall a . Span -> n a -> n a)
+      -> (forall a . CoreF n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
       -> Core a
       -> n b
-efold var lam app ty pi hole ann k = go
+eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Core x -> n y
         go h = \case
           Var a -> var (h a)
           Core c -> case c of
-            Lam p b -> lam p (foldScope k go h b)
-            f :$ a -> app (go h f) (go h <$> a)
-            Type -> ty
-            Pi t b -> pi (fmap (fmap (go h)) <$> t) (foldScope k go h b)
-            Hole a -> hole a
-            Ann loc b -> ann loc (go h b)
+            Lam p b -> alg (Lam p (foldScope k go h b))
+            f :$ a -> alg (go h f :$ (go h <$> a))
+            Type -> alg Type
+            Pi t b -> alg (Pi (fmap (fmap (go h)) <$> t) (foldScope k go h b))
+            Hole a -> alg (Hole a)
+            Ann loc b -> alg (Ann loc (go h b))
