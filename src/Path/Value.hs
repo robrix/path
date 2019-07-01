@@ -18,10 +18,10 @@ import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
 data Value a
-  = Type                                                  -- ^ @'Type' : 'Type'@.
-  | Lam Plicity (Value (Incr (Value a)))                  -- ^ A lambda abstraction.
-  | Pi (Plicit (Used (Value a))) (Value (Incr (Value a))) -- ^ A ∏ type, with a 'Usage' annotation.
+  = Lam Plicity (Value (Incr (Value a)))                  -- ^ A lambda abstraction.
   | a :$ Stack (Plicit (Value a))                         -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | Type                                                  -- ^ @'Type' : 'Type'@.
+  | Pi (Plicit (Used (Value a))) (Value (Incr (Value a))) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
