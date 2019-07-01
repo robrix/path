@@ -87,22 +87,22 @@ instance Substitutable (Constraint (Name Meta)) where
 
 
 data Constraint a
-  = Value a :|-: Constraint (Incr a)
+  = Value a :|-: Constraint (Incr (Value a))
   | E (Equation (Value a) ::: Type a)
   deriving (Eq, Ord, Show)
 
 infixr 1 :|-:
 
 instance Foldable Constraint where
-  foldMap f (v :|-: s)    = foldMap f v <> foldMap (foldMap f) s
+  foldMap f (v :|-: s)    = foldMap f v <> foldMap (foldMap (foldMap f)) s
   foldMap f (E (q ::: t)) = foldMap (foldMap f) q <> foldMap f t
 
 instance Functor Constraint where
-  fmap f (v :|-: s)    = fmap f v :|-: fmap (fmap f) s
+  fmap f (v :|-: s)    = fmap f v :|-: fmap (fmap (fmap f)) s
   fmap f (E (q ::: t)) = E (fmap (fmap f) q ::: fmap f t)
 
 instance Traversable Constraint where
-  traverse f (v :|-: s)    = (:|-:) <$> traverse f v <*> traverse (traverse f) s
+  traverse f (v :|-: s)    = (:|-:) <$> traverse f v <*> traverse (traverse (traverse f)) s
   traverse f (E (q ::: t)) = fmap E . (:::) <$> traverse (traverse f) q <*> traverse f t
 
 instance Ord a => FreeVariables a (Constraint a) where
@@ -136,30 +136,30 @@ unbinds = fmap (first Context) . un (\ name -> \case
 
 
 efold :: forall m n a b
-      .  (forall a . Value (m a) -> n (Incr a) -> n a)
+      .  (forall a . Value (m a) -> n (Incr (Value (m a))) -> n a)
       -> (forall a . Equation (Value (m a)) ::: Type (m a) -> n a)
-      -> (forall a . Incr (m a) -> m (Incr a))
+      -> (forall a . Incr a -> m (Incr a))
       -> (a -> m b)
       -> Constraint a
       -> n b
 efold bind eqn k = go
   where go :: forall x y . (x -> m y) -> Constraint x -> n y
         go h = \case
-          v :|-: b -> bind (h <$> v) (go (k . fmap h) b)
+          v :|-: b -> bind (h <$> v) (go (k . fmap (fmap h)) b)
           E (q ::: t) -> eqn ((fmap h <$> q) ::: (h <$> t))
 
 bindConstraint :: (a -> Value b) -> Constraint a -> Constraint b
 bindConstraint f = efold
-  (\ v s -> join v :|-: s)
+  (\ v s -> join v :|-: fmap (fmap join) s)
   (\ (q ::: t) -> E (fmap join q ::: join t))
-  (incr (pure Z) (fmap S))
+  pure
   f
 
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
-bind :: Eq a => a -> Constraint a -> Constraint (Incr a)
-bind name = fmap (match name)
+bind :: Eq a => a -> Constraint a -> Constraint (Incr (Value a))
+bind name = fmap (fmap pure . match name)
 
 -- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
-instantiate :: Value a -> Constraint (Incr a) -> Constraint a
-instantiate t = bindConstraint (subst t . fmap pure)
+instantiate :: Value a -> Constraint (Incr (Value a)) -> Constraint a
+instantiate t = bindConstraint (subst t)
