@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Core where
 
 import Control.Monad (ap)
@@ -10,12 +10,7 @@ import Text.Trifecta.Rendering (Span)
 
 data Core a
   = Var a
-  | Lam (Plicit (Maybe User)) (Scope Core a)
-  | Core a :$ Plicit (Core a)
-  | Type
-  | Pi (Plicit (Maybe User ::: Used (Core a))) (Scope Core a)
-  | Hole Gensym
-  | Ann Span (Core a)
+  | Core (CoreF Core a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative Core where
@@ -23,10 +18,26 @@ instance Applicative Core where
   (<*>) = ap
 
 instance Monad Core where
-  a >>= f = efold id (\ p -> Lam p . Scope) (:$) Type (\ t -> Pi t . Scope) Hole Ann pure f a
+  a >>= f = efold id (\ p -> Core . Lam p . Scope) (fmap Core . (:$)) (Core Type) (\ t -> Core . Pi t . Scope) (Core . Hole) (fmap Core . Ann) pure f a
+
+
+data CoreF f a
+  = Lam (Plicit (Maybe User)) (Scope f a)
+  | f a :$ Plicit (f a)
+  | Type
+  | Pi (Plicit (Maybe User ::: Used (f a))) (Scope f a)
+  | Hole Gensym
+  | Ann Span (f a)
+  deriving (Foldable, Functor, Traversable)
+
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (CoreF f a)
+deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
+                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (CoreF f a)
+deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
+
 
 lam :: Eq a => Plicit a -> Core a -> Core a
-lam (p :< n) b = Lam (p :< Nothing) (bind n b)
+lam (p :< n) b = Core (Lam (p :< Nothing) (bind n b))
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
@@ -48,9 +59,10 @@ efold var lam app ty pi hole ann k = go
   where go :: forall x y . (x -> m y) -> Core x -> n y
         go h = \case
           Var a -> var (h a)
-          Lam p (Scope b) -> lam p (go (k . fmap (go h)) b)
-          f :$ a -> app (go h f) (go h <$> a)
-          Type -> ty
-          Pi t (Scope b) -> pi (fmap (fmap (go h)) <$> t) (go (k . fmap (go h)) b)
-          Hole a -> hole a
-          Ann loc b -> ann loc (go h b)
+          Core c -> case c of
+            Lam p (Scope b) -> lam p (go (k . fmap (go h)) b)
+            f :$ a -> app (go h f) (go h <$> a)
+            Type -> ty
+            Pi t (Scope b) -> pi (fmap (fmap (go h)) <$> t) (go (k . fmap (go h)) b)
+            Hole a -> hole a
+            Ann loc b -> ann loc (go h b)

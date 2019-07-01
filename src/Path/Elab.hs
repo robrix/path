@@ -114,12 +114,13 @@ elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span)
      -> m (Value (Name Meta) ::: Type (Name Meta))
 elab = \case
   Core.Var n -> assume n
-  Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure (Local n')) b))
-  (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
-  Core.Type -> pure (Value.Type ::: Value.Type)
-  Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure (Local n')) b))
-  Core.Hole h -> (pure (Local (Meta h)) :::) <$> exists Value.Type
-  Core.Ann ann b -> spanIs ann (elab b)
+  Core.Core c -> case c of
+    Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure (Local n')) b))
+    (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
+    Core.Type -> pure (Value.Type ::: Value.Type)
+    Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure (Local n')) b))
+    Core.Hole h -> (pure (Local (Meta h)) :::) <$> exists Value.Type
+    Core.Ann ann b -> spanIs ann (elab b)
 
 
 data Elab m k
