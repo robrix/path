@@ -24,7 +24,7 @@ type' = spanned (Surface.type' <$ keyword "Type")
 
 piType = spanned (do
   p :< (v, mult, ty) <- plicit binding (parens binding) <* op "->"
-  Surface.pi (p :< (v, v) ::: fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty) <$> functionType) <?> "dependent function type"
+  Surface.pi (p :< (Just v, v) ::: fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty) <$> functionType) <?> "dependent function type"
   where binding = ((,,) <$> name <* colon <*> optional multiplicity <*> term)
 
 functionType = spanned ((:@) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType))
@@ -38,9 +38,9 @@ lambda = (do
   vs <- op "\\" *> some pattern <* dot
   foldr bind term vs) <?> "lambda"
   where pattern = spanned (plicit binding binding) <?> "pattern"
-        binding = name <|> Unused <$ token (string "_")
+        binding = Just <$> name <|> Nothing <$ token (string "_")
         bind v vv = wrap v <$> spanned vv
-        wrap ((p :< a) :~ v1) (b :~ v2) = Surface.lam (p :< (a, a)) b :~ (v1 <> v2)
+        wrap (a :~ v1) (b :~ v2) = Surface.lam' a b :~ (v1 <> v2)
 
 hole = spanned (Surface.hole <$ char '?' <*> optional (ident (IdentifierStyle "hole" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier)))
 

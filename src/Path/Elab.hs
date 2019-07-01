@@ -47,23 +47,23 @@ implicits = go Nil
         go names _ = pure names
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
-      => Plicit User
+      => Plicit (Maybe User)
       -> (Gensym -> m (Value (Name Meta) ::: Type (Name Meta)))
       -> m (Value (Name Meta) ::: Type (Name Meta))
 intro (p :< x) body = do
   _A <- exists Value.Type
-  x <- gensym (showUser x)
+  x <- gensym (maybe "intro" showUser x)
   _B <- x ::: _A |- exists Value.Type
   u <- x ::: _A |- goalIs _B (body x)
   pure (Value.lam (p :< Local (Name x)) u ::: Value.pi (p :< Local (Name x) ::: More :@ _A) _B)
 
 pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
-   => Plicit (User, Usage, m (Value (Name Meta) ::: Type (Name Meta)))
+   => Plicit (Maybe User, Usage, m (Value (Name Meta) ::: Type (Name Meta)))
    -> (Gensym -> m (Value (Name Meta) ::: Type (Name Meta)))
    -> m (Value (Name Meta) ::: Type (Name Meta))
 pi (p :< (x, m, t)) body = do
   t' <- goalIs Value.Type t
-  x <- gensym (showUser x)
+  x <- gensym (maybe "pi" showUser x)
   b' <- x ::: t' |- goalIs Value.Type (body x)
   pure (Value.pi (p :< Local (Name x) ::: m :@ t') b' ::: Value.Type)
 

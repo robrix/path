@@ -21,10 +21,10 @@ instance Monad Core where
 
 
 data CoreF f a
-  = Lam (Plicit User) (Scope f a)
+  = Lam (Plicit (Maybe User)) (Scope f a)
   | f a :$ Plicit (f a)
   | Type
-  | Pi (Plicit (User ::: Used (f a))) (Scope f a)
+  | Pi (Plicit (Maybe User ::: Used (f a))) (Scope f a)
   | Hole Gensym
   | Ann Span (f a)
   deriving (Foldable, Functor, Traversable)
@@ -35,10 +35,10 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
 
 
-lam :: Eq a => Plicit (User, a) -> Core a -> Core a
+lam :: Eq a => Plicit (Maybe User, a) -> Core a -> Core a
 lam (p :< (u, n)) b = Core (Lam (p :< u) (bind n b))
 
-lams :: (Eq a, Foldable t) => t (Plicit (User, a)) -> Core a -> Core a
+lams :: (Eq a, Foldable t) => t (Plicit (Maybe User, a)) -> Core a -> Core a
 lams names body = foldr lam body names
 
 
