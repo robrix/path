@@ -41,7 +41,7 @@ assume v = do
 
 implicits :: (Carrier sig m, Member Elab sig) => Type (Name Meta) -> m (Stack (Plicit (m (Value (Name Meta) ::: Type (Name Meta)))))
 implicits = go Nil
-  where go names (Value.Pi (Im :< _ :@ t) (Scope b)) | False = do
+  where go names (Value.Pi (Im :< _ :@ t) b) | False = do
           v <- exists t
           go (names :> (Im :< pure (v ::: t))) (instantiate v b)
         go names _ = pure names
@@ -114,10 +114,10 @@ elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span)
      -> m (Value (Name Meta) ::: Type (Name Meta))
 elab = \case
   Core.Var n -> assume n
-  Core.Lam n (Scope b) -> intro n (\ n' -> elab (instantiate (pure (Local n')) b))
+  Core.Lam n b -> intro n (\ n' -> elab (instantiate (pure (Local n')) b))
   (f Core.:$ (p :< a)) -> app (elab f) (p :< elab a)
   Core.Type -> pure (Value.Type ::: Value.Type)
-  Core.Pi (p :< n ::: m :@ t) (Scope b) -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure (Local n')) b))
+  Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (instantiate (pure (Local n')) b))
   Core.Hole h -> (pure (Local (Meta h)) :::) <$> exists Value.Type
   Core.Ann ann b -> spanIs ann (elab b)
 
@@ -227,7 +227,7 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
 
   let ty'' = whnf scope ty'
   (names, _) <- un (orTerm (\ n -> \case
-    Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) (unScope b)))
+    Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
     _                            -> Nothing)) ty''
   tm ::: _ <- runNamespace (define (Value.weaken ty') (elab (Core.lams names tm)))
   modify (Namespace.insert name (Entry (Just tm ::: ty')))

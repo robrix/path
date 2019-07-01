@@ -108,13 +108,13 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Pr
 
 
 lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
-lam (n ::: t) b = Problem (Lam t (Scope (bind n b)))
+lam (n ::: t) b = Problem (Lam t (bind n b))
 
 lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate (pure n) (unScope b))
+unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate (pure n) b)
 unlam _ _                   = empty
 
 ($$) :: Problem a -> Problem a -> Problem a
@@ -125,30 +125,30 @@ type' :: Problem a
 type' = Problem Type
 
 pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
-pi (n ::: t) b = Problem (Pi t (Scope (bind n b)))
+pi (n ::: t) b = Problem (Pi t (bind n b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unpi n (Problem (Pi t b)) = pure (n ::: t, instantiate (pure n) (unScope b))
+unpi n (Problem (Pi t b)) = pure (n ::: t, instantiate (pure n) b)
 unpi _ _                  = empty
 
 
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
 exists (n := Just v ::: _) (Var n') | n == n' = v
-exists (n := v      ::: t) b                  = Problem (Ex v t (Scope (bind n b)))
+exists (n := v      ::: t) b                  = Problem (Ex v t (bind n b))
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unexists n (Problem (Ex Nothing t b)) = pure (n ::: t, instantiate (pure n) (unScope b))
+unexists n (Problem (Ex Nothing t b)) = pure (n ::: t, instantiate (pure n) b)
 unexists _ _                          = empty
 
 let' :: Eq a => a := Problem a ::: Problem a -> Problem a -> Problem a
-let' (n := v ::: t) b = Problem (Ex (Just v) t (Scope (bind n b)))
+let' (n := v ::: t) b = Problem (Ex (Just v) t (bind n b))
 
 unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Problem a)
-unlet' n (Problem (Ex (Just v) t b)) = pure (n := v ::: t, instantiate (pure n) (unScope b))
+unlet' n (Problem (Ex (Just v) t b)) = pure (n := v ::: t, instantiate (pure n) b)
 unlet' _ _                           = empty
 
 (===) :: Eq a => Problem a -> Problem a -> Problem a
@@ -312,10 +312,10 @@ elab :: ( Carrier sig m
      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 elab = \case
   Core.Var n -> assume n
-  Core.Lam _ (Scope b) -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
+  Core.Lam _ b -> intro (\ n' -> elab (instantiate (pure (Local n')) b))
   f Core.:$ (_ :< a) -> app (elab f) (elab a)
   Core.Type -> pure (type' ::: type')
-  Core.Pi (_ :< _ ::: _ :@ t) (Scope b) -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
+  Core.Pi (_ :< _ ::: _ :@ t) b -> elab t --> \ n' -> elab (instantiate (pure (Local n')) b)
   Core.Hole h -> (pure (Local h) :::) <$> meta type'
   Core.Ann ann b -> spanIs ann (elab b)
 
@@ -367,7 +367,7 @@ simplify :: ( Carrier sig m
 simplify = \case
   Var a -> pure (Var a)
   Problem p -> case p of
-    Lam t (Scope b) -> do
+    Lam t b -> do
       n <- gensym "lam"
       t' <- simplify t
       b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
@@ -377,17 +377,17 @@ simplify = \case
       a' <- simplify a
       pure (f' $$ a')
     Type -> pure type'
-    Pi t (Scope b) -> do
+    Pi t b -> do
       n <- gensym "pi"
       t' <- simplify t
       b' <- ForAll n ::: t' |- simplify (instantiate (pure (Local n)) b)
       pure (pi (Local n ::: t') b')
-    Ex Nothing t (Scope b) -> do
+    Ex Nothing t b -> do
       n <- gensym "ex"
       t' <- simplify t
       (v', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Local n)) b)
       pure (exists (Local n := bindingValue v' ::: t') b')
-    Ex (Just v) t (Scope b) -> do
+    Ex (Just v) t b -> do
       n <- gensym "let"
       v' <- simplify v
       t' <- simplify t
@@ -397,19 +397,19 @@ simplify = \case
       q <- (,) <$> simplify t1 <*> simplify t2
       case q of
         (t1, t2) | t1 == t2 -> pure t1
-        (Problem (Ex v1 t1 (Scope b1)), Problem (Ex v2 t2 (Scope b2))) -> do
+        (Problem (Ex v1 t1 b1), Problem (Ex v2 t2 b2)) -> do
           n <- gensym "ex"
           t' <- simplify (t1 === t2)
           v' <- traverse simplify (v1 ?===? v2)
           (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
           pure (exists (Local n := (v' <|> bindingValue v'') ::: t') b')
-        (Problem (Ex v1 t1 (Scope b1)), tm2) -> do
+        (Problem (Ex v1 t1 b1), tm2) -> do
           n <- gensym "ex"
           t1' <- simplify t1
           v' <- traverse simplify v1
           (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate (pure (Local n)) b1 === tm2)
           pure (exists (Local n := (v' <|> bindingValue v'') ::: t1') tm1')
-        (tm1, Problem (Ex v2 t2 (Scope b2))) -> do
+        (tm1, Problem (Ex v2 t2 b2)) -> do
           n <- gensym "ex"
           t2' <- simplify t2
           v' <- traverse simplify v2
@@ -417,11 +417,11 @@ simplify = \case
           pure (exists (Local n := (v' <|> bindingValue v'') ::: t2') tm2')
         (Var (Local v1), t2) -> simplifyVar v1 t2
         (t1, Var (Local v2)) -> simplifyVar v2 t1
-        (Problem (Pi t1 (Scope b1)), Problem (Pi t2 (Scope b2))) -> do
+        (Problem (Pi t1 b1), Problem (Pi t2 b2)) -> do
           n <- gensym "pi"
           t' <- simplify (t1 === t2)
           ForAll n ::: t' |- pi (Local n ::: t') <$> simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)
-        (Problem (Lam t1 (Scope b1)), Problem (Lam t2 (Scope b2))) -> do
+        (Problem (Lam t1 b1), Problem (Lam t2 b2)) -> do
           n <- gensym "lam"
           t' <- simplify (t1 === t2)
           ForAll n ::: t' |- lam (Local n ::: t') <$> simplify (instantiate (pure (Local n)) b1 === instantiate (pure (Local n)) b2)

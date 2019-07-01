@@ -46,7 +46,7 @@ prettyValue = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Local (Name n))) (unScope b) in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
+              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Local (Name n))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
               _                  -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
@@ -81,29 +81,29 @@ global :: Qualified -> Value (Name a)
 global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Value a -> Value a
-lam (pl :< n) b = Lam pl (Scope (bind n b))
+lam (pl :< n) b = Lam pl (bind n b)
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Value a -> Value a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Value a -> m (Plicit a, Value a)
-unlam n (Lam p b) = pure (p :< n, instantiate (pure n) (unScope b))
+unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
 pi :: Eq a => Plicit (a ::: Used (Type a)) -> Value a -> Value a
-pi (p :< n ::: t) b = Pi (p :< t) (Scope (bind n b))
+pi (p :< n ::: t) b = Pi (p :< t) (bind n b)
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Type a))) -> Value a -> Value a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Value a -> m (Plicit (a ::: Used (Type a)), Value a)
-unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (pure n) (unScope b))
+unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (pure n) b)
 unpi _ _               = empty
 
 ($$) :: Value a -> Plicit (Value a) -> Value a
-Lam _ b $$ (_ :< v) = instantiate v (unScope b)
-Pi _  b $$ (_ :< v) = instantiate v (unScope b)
+Lam _ b $$ (_ :< v) = instantiate v b
+Pi _  b $$ (_ :< v) = instantiate v b
 n :$ vs $$ v        = n :$ (vs :> v)
 _       $$ _        = error "illegal application of Type"
 

@@ -26,7 +26,7 @@ instance Monad Core where
   a >>= f = efold id (\ p -> Lam p . Scope) (:$) Type (\ t -> Pi t . Scope) Hole Ann pure f a
 
 lam :: Eq a => Plicit a -> Core a -> Core a
-lam (p :< n) b = Lam (p :< Nothing) (Scope (bind n b))
+lam (p :< n) b = Lam (p :< Nothing) (bind n b)
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
