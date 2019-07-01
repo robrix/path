@@ -172,7 +172,7 @@ instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Namespace
     context <- ask
     tell (Set.fromList
       [ (binds context ((ty1 :===: ty2) ::: Value.Type)) :~ span
-      , (binds context ((tm1 :===: tm2) ::: ty1))         :~ span
+      , (binds context ((tm1 :===: tm2) ::: ty1))        :~ span
       ])
     runElabC k
   eff (R other) = ElabC (eff (R (R (handleCoercible other))))
