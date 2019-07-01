@@ -149,11 +149,10 @@ efold bind eqn k = go
           E (q ::: t) -> eqn ((fmap h <$> q) ::: (h <$> t))
 
 bindConstraint :: (a -> Value b) -> Constraint a -> Constraint b
-bindConstraint f = efold
+bindConstraint = efold
   (\ v s -> join v :|-: fmap (fmap join) s)
   (\ (q ::: t) -> E (fmap join q ::: join t))
   pure
-  f
 
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
