@@ -223,6 +223,10 @@ instance Applicative Incr where
   Z   <*> _ = Z
   S f <*> a = f <$> a
 
+instance Monad Incr where
+  Z   >>= _ = Z
+  S a >>= f = f a
+
 match :: Eq a => a -> a -> Incr a
 match x y | x == y    = Z
           | otherwise = S y
