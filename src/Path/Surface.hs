@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Surface where
 
+import Control.Monad.Trans
 import Path.Name
 import Path.Plicity
 import Path.Usage
@@ -35,7 +36,7 @@ lam :: Eq a => Plicit (Maybe User, a) -> Spanned (Surface a) -> Surface a
 lam (p :< (u, n)) b = Surface (Lam (p :< u) (bind n <$> b))
 
 lam' :: Plicit (Maybe User) -> Spanned (Surface Var) -> Surface Var
-lam' (p :< Nothing) b = Surface (Lam (p :< Nothing) (Scope . fmap (S . pure) <$> b))
+lam' (p :< Nothing) b = Surface (Lam (p :< Nothing) (lift <$> b))
 lam' (p :< Just n)  b = lam (p :< (Just n, U n)) b
 
 ($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
@@ -49,7 +50,7 @@ pi :: Eq a => Plicit ((Maybe User, a) ::: Used (Spanned (Surface a))) -> Spanned
 pi (p :< (u, n) ::: t) b = Surface (Pi (p :< u ::: t) (bind n <$> b))
 
 (-->) :: Used (Spanned (Surface a)) -> Spanned (Surface a) -> Surface a
-t --> b = Surface (Pi (Ex :< Nothing ::: t) (Scope . fmap (S . pure) <$> b))
+t --> b = Surface (Pi (Ex :< Nothing ::: t) (lift <$> b))
 
 infixr 0 -->
 
