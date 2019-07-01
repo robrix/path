@@ -17,7 +17,6 @@ import Data.Traversable (for)
 import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
-import qualified Path.Core as Core
 -- import Path.Eval
 import Path.Module
 import Path.Name
@@ -26,6 +25,7 @@ import Path.Pretty
 import Path.Namespace as Namespace
 import Path.Semiring
 import Path.Solver
+import qualified Path.Surface as Surface
 import Path.Usage
 import Path.Value (Type, Value(..))
 import qualified Path.Value as Value
@@ -110,17 +110,17 @@ spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
 elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span) sig)
-     => Core.Core (Name Meta)
+     => Surface.Surface (Name Meta)
      -> m (Value (Name Meta) ::: Type (Name Meta))
 elab = \case
-  Core.Var (Global n) -> assume (Global n)
-  Core.Var (Local (Name n)) -> assume (Local n)
-  Core.Var (Local (Meta n)) -> (pure (Local (Meta n)) :::) <$> exists Value.Type
-  Core.Core c -> case c of
-    Core.Lam n b -> intro n (\ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b))
-    (f Core.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
-    Core.Type -> pure (Value.Type ::: Value.Type)
-    Core.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab' t)) (\ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b))
+  Surface.Var (Global n) -> assume (Global n)
+  Surface.Var (Local (Name n)) -> assume (Local n)
+  Surface.Var (Local (Meta n)) -> (pure (Local (Meta n)) :::) <$> exists Value.Type
+  Surface.Surface c -> case c of
+    Surface.Lam n b -> intro n (\ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b))
+    (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
+    Surface.Type -> pure (Value.Type ::: Value.Type)
+    Surface.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab' t)) (\ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b))
   where elab' (t :~ s) = spanIs s (elab t)
 
 
@@ -193,7 +193,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module Qualified (Core.Core (Name Meta) ::: Core.Core (Name Meta))
+           => Module Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta))
            -> m (Module Qualified (Value (Name Gensym) ::: Type (Name Gensym)))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
@@ -220,7 +220,7 @@ elabDecl :: ( Carrier sig m
             , Member Naming sig
             , Member (State Namespace) sig
             )
-         => Spanned (Decl Qualified (Core.Core (Name Meta) ::: Core.Core (Name Meta)))
+         => Spanned (Decl Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)))
          -> m (Spanned (Decl Qualified (Value (Name Gensym) ::: Type (Name Gensym))))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ty' <- runNamespace (declare (elab ty))
@@ -231,7 +231,7 @@ elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader s
   -- (names, _) <- un (orTerm (\ n -> \case
   --   Value.Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
   --   _                            -> Nothing)) ty''
-  -- tm ::: _ <- runNamespace (define (Value.weaken ty') (elab (Core.lams names tm)))
+  -- tm ::: _ <- runNamespace (define (Value.weaken ty') (elab (Surface.lams names tm)))
   tm ::: _ <- runNamespace (define (Value.weaken ty') (elab tm))
   modify (Namespace.insert name (Entry (Just tm ::: ty')))
   pure (Decl d name (tm ::: ty'))

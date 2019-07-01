@@ -7,12 +7,11 @@ import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
 -- import qualified Data.Set as Set
-import Path.Core as Core
 import Path.Error
 import Path.Module
 import Path.Name
 import Path.Pretty
-import qualified Path.Surface as Surface
+import Path.Surface as Surface
 import Prelude hiding (pi)
 import Text.Trifecta.Rendering (Span, Spanned(..))
 
@@ -26,15 +25,10 @@ resolveTerm :: ( Carrier sig m
                , Member (Reader Span) sig
                , Member (State Signature) sig
                )
-            => Surface.Surface Var
-            -> m (Core (Name Meta))
-resolveTerm = traverse go . Surface.eiter id (Core . alg) pure pure
-  where alg (Surface.Lam v b) = Lam v b
-        alg (f Surface.:$ a) = f :$ a
-        alg Surface.Type = Type
-        alg (Surface.Pi t b) = Pi t b
-
-        go (M m) = Local . Meta <$> resolveMeta m
+            => Surface Var
+            -> m (Surface (Name Meta))
+resolveTerm = traverse go
+  where go (M m) = Local . Meta <$> resolveMeta m
         go (U u) = resolveName u
 
 
@@ -48,8 +42,8 @@ resolveDecl :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                )
-            => Spanned (Decl User (Spanned (Surface.Surface Var) ::: Spanned (Surface.Surface Var)))
-            -> m (Spanned (Decl Qualified (Core (Name Meta) ::: Core (Name Meta))))
+            => Spanned (Decl User (Spanned (Surface Var) ::: Spanned (Surface Var)))
+            -> m (Spanned (Decl Qualified (Surface (Name Meta) ::: Surface (Name Meta))))
 -- FIXME: do something with the term/type spans
 resolveDecl (Decl d n ((tm :~ _) ::: (ty :~ _)) :~ span) = fmap (:~ span) . runReader span $ do
   moduleName <- ask
@@ -58,7 +52,7 @@ resolveDecl (Decl d n ((tm :~ _) ::: (ty :~ _)) :~ span) = fmap (:~ span) . runR
   --     bind n ty = do
   --       n' <- gensym (showUser n)
   --       local (insertLocal (Just n) n') $
-  --         Pi (Im :< (Just n, Zero, Type)) . Core.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
+  --         Pi (Im :< (Just n, Zero, Type)) . Surface.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
   res <- evalState (mempty :: Signature) $
     flip (:::) <$> runResolution (runReader Declare (resolveTerm ty))
                <*  modify (insertGlobal n moduleName)
@@ -74,8 +68,8 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module User (Spanned (Surface.Surface Var) ::: Spanned (Surface.Surface Var))
-              -> m (Module Qualified (Core (Name Meta) ::: Core (Name Meta)))
+              => Module User (Spanned (Surface Var) ::: Spanned (Surface Var))
+              -> m (Module Qualified (Surface (Name Meta) ::: Surface (Name Meta)))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))

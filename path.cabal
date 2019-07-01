@@ -17,7 +17,6 @@ library
                      , Path.CLI
                      , Path.Constraint
                      , Path.Context
-                     , Path.Core
                      , Path.Elab
                      , Path.Error
                      , Path.Eval

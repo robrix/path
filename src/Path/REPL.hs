@@ -18,7 +18,6 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
-import qualified Path.Core
 import Path.Elab
 import Path.Eval
 import Path.Module as Module
@@ -244,7 +243,7 @@ helpDoc = tabulate2 (space <+> space) entries
           ]
         w = align . fillSep . map pretty . words
 
-runParseModule :: FilePath -> (Module Qualified (Path.Core.Core (Name Meta) ::: Path.Core.Core (Name Meta)) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
+runParseModule :: FilePath -> (Module Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
 runParseModule path f = runM @IO . runError @Doc $ do
   m <- parseModule path
   runNaming $ do
