@@ -155,10 +155,10 @@ inModule :: ModuleName -> Name a -> Bool
 inModule m (Global (m' :.: _)) = m == m'
 inModule _ _                   = False
 
-prettyQName :: Name Gensym -> Doc
+prettyQName :: Pretty a => Name a -> Doc
 prettyQName = \case
   Global n -> pretty n
-  Local  n -> pretty '_' <> prettyGensym n
+  Local  n -> pretty n
 
 
 localNames :: Ord a => Set.Set (Name a) -> Set.Set a
