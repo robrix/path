@@ -22,7 +22,26 @@ data Value a
   | a :$ Stack (Plicit (Value a))                         -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   | Type                                                  -- ^ @'Type' : 'Type'@.
   | Pi (Plicit (Used (Value a))) (Value (Incr (Value a))) -- ^ A ∏ type, with a 'Usage' annotation.
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+  deriving (Foldable, Functor, Show, Traversable)
+
+instance Eq  a => Eq  (Value a) where
+  Lam p1 b1 == Lam p2 b2 = p1 == p2 && flatten b1 == flatten b2
+  f1 :$ a1  == f2 :$ a2  = f1 == f2 && a1 == a2
+  Type      == Type      = True
+  Pi t1 b1  == Pi t2 b2  = t1 == t2 && flatten b1 == flatten b2
+  _         == _         = False
+
+instance Ord a => Ord (Value a) where
+  Lam p1 b1  `compare` Lam p2 b2  = p1 `compare` p2 <> flatten b1 `compare` flatten b2
+  Lam _  _   `compare` _          = LT
+  _          `compare` Lam _  _   = GT
+  (f1 :$ a1) `compare` (f2 :$ a2) = f1 `compare` f2 <> a1 `compare` a2
+  (_  :$ _)  `compare` _          = LT
+  _          `compare` (_  :$ _)  = GT
+  Type       `compare` Type       = EQ
+  Type       `compare` _          = LT
+  _          `compare` Type       = GT
+  Pi t1 b1   `compare` Pi t2 b2   = t1 `compare` t2 <> flatten b1 `compare` flatten b2
 
 prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
 prettyValue = go
