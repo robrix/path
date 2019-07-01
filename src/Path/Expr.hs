@@ -11,6 +11,14 @@ data Expr a
   | Expr (ExprF Expr a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+instance Applicative Expr where
+  pure = Var
+  (<*>) = ap
+
+instance Monad Expr where
+  a >>= f = eiter id Expr Var f a
+
+
 data ExprF f a
   = Lam (Scope f a)
   | f a :$ f a
@@ -20,13 +28,6 @@ deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Ex
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (ExprF f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ExprF f a)
-
-instance Applicative Expr where
-  pure = Var
-  (<*>) = ap
-
-instance Monad Expr where
-  a >>= f = eiter id Expr Var f a
 
 
 eiter :: forall m n a b
