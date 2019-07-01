@@ -135,23 +135,25 @@ unbinds = fmap (first Context) . un (\ name -> \case
   E q      -> Left q)
 
 
-gfold :: forall m n b
+efold :: forall m n a b
       .  (forall a . Value (m a) -> n (Incr a) -> n a)
       -> (forall a . Equation (Value (m a)) ::: Type (m a) -> n a)
       -> (forall a . Incr (m a) -> m (Incr a))
-      -> Constraint (m b)
+      -> (a -> m b)
+      -> Constraint a
       -> n b
-gfold bindConstraint eqn dist = go
-  where go :: Constraint (m x) -> n x
-        go (v :|-: b) = bindConstraint v (go (dist <$> b))
-        go (E a)      = eqn a
+efold bind eqn k = go
+  where go :: forall x y . (x -> m y) -> Constraint x -> n y
+        go h = \case
+          v :|-: b -> bind (h <$> v) (go (k . fmap h) b)
+          E (q ::: t) -> eqn ((fmap h <$> q) ::: (h <$> t))
 
 bindConstraint :: (a -> Value b) -> Constraint a -> Constraint b
-bindConstraint f = gfold
+bindConstraint f = efold
   (\ v s -> join v :|-: s)
   (\ (q ::: t) -> E (fmap join q ::: join t))
   (incr (pure Z) (fmap S))
-  . fmap f
+  f
 
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
