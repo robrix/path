@@ -7,7 +7,7 @@ import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Sum
-import           Control.Monad ((>=>))
+import           Control.Monad ((>=>), ap)
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Data.Bifunctor
@@ -249,6 +249,14 @@ instance (Monad f, Ord a, forall a . Eq  a => Eq  (f a)
   compare = compare `on` flattenScope
 
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Scope f a)
+
+instance (Monad f) => Applicative (Scope f) where
+  pure = Scope . pure . S . pure
+  (<*>) = ap
+
+instance Monad f => Monad (Scope f) where
+  Scope e >>= f = Scope (e >>= incr (pure Z) (>>= unScope . f))
+
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: (Applicative f, Eq a) => a -> f a -> Scope f a
