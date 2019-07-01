@@ -124,9 +124,9 @@ efold :: forall m n incr a b
 efold var lam app ty pi k = go
   where go :: forall x y . (x -> m y) -> Value x -> n y
         go h = \case
-          Type -> ty
           Lam p b -> lam p (go (k . fmap (go h)) b)
           f :$ a -> app (var (h f)) (fmap (go h) <$> a)
+          Type -> ty
           Pi t b -> pi (fmap (go h) <$> t) (go (k . fmap (go h)) b)
 
 kfold :: (a -> b)
