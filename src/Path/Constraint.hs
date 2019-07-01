@@ -157,7 +157,7 @@ bindConstraint = efold
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
 bind :: Eq a => a -> Constraint a -> Constraint (Incr (Value a))
-bind name = fmap (fmap pure . match name)
+bind name = fmap (match name)
 
 -- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
 instantiate :: Value a -> Constraint (Incr (Value a)) -> Constraint a

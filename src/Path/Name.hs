@@ -228,9 +228,9 @@ instance Monad Incr where
   Z   >>= _ = Z
   S a >>= f = f a
 
-match :: Eq a => a -> a -> Incr a
+match :: (Applicative f, Eq a) => a -> a -> Incr (f a)
 match x y | x == y    = Z
-          | otherwise = S y
+          | otherwise = S (pure y)
 
 subst :: a -> Incr a -> a
 subst a = incr a id
@@ -264,7 +264,7 @@ instance MonadTrans Scope where
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: (Applicative f, Eq a) => a -> f a -> Scope f a
-bind name = Scope . fmap (fmap pure . match name)
+bind name = Scope . fmap (match name)
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate :: Monad f => f a -> Scope f a -> f a
