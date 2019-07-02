@@ -151,9 +151,8 @@ eiter var alg k = go
 
 
 generalizeType :: Core (Name Meta) -> Core (Name Gensym)
-generalizeType ty = fmap unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
-  where f (Local name) = Set.singleton (Im :< Local name ::: Zero :@ Type)
-        f _            = Set.empty
+generalizeType ty = uncurry pis (traverse (traverse f) ty)
+  where f v = let name = case v of { Name n -> n ; Meta n -> n } in (Set.singleton (Im :< Local name ::: Zero :@ Type), name)
 
 
 weaken :: Core (Name Gensym) -> Core (Name Meta)
