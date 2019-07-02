@@ -246,8 +246,11 @@ incr :: b -> (a -> b) -> Incr a -> b
 incr z s = \case { Z -> z ; S a -> s a }
 
 
-newtype Scope f a = Scope { unScope :: f (Incr (f a)) }
+newtype Scope f a = Scope (f (Incr (f a)))
   deriving (Foldable, Functor, Traversable)
+
+unScope :: Scope f a -> f (Incr (f a))
+unScope (Scope s) = s
 
 instance (Monad f, Eq  a, forall a . Eq  a => Eq  (f a)) => Eq  (Scope f a) where
   (==) = (==) `on` flattenScope
