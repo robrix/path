@@ -241,3 +241,10 @@ data Assoc = LAssoc | RAssoc | NonAssoc
 
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a
 fvs = foldMap Set.singleton
+
+
+newtype Ignored a = Ignored a
+  deriving (Foldable, Functor, Show, Traversable)
+
+instance Eq  (Ignored a) where _ == _ = True
+instance Ord (Ignored a) where compare _ _ = EQ
