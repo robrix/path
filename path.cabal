@@ -20,7 +20,6 @@ library
                      , Path.Elab
                      , Path.Error
                      , Path.Eval
-                     , Path.Expr
                      , Path.Module
                      , Path.Name
                      , Path.Namespace
