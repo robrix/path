@@ -17,6 +17,7 @@ library
                      , Path.CLI
                      , Path.Constraint
                      , Path.Context
+                     , Path.Core
                      , Path.Elab
                      , Path.Error
                      , Path.Eval
@@ -44,7 +45,6 @@ library
                      , Path.Stack
                      , Path.Surface
                      , Path.Usage
-                     , Path.Value
   other-modules:       Paths_path
   -- other-extensions:
   build-depends:       ansi-wl-pprint

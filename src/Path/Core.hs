@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeOperators #-}
-module Path.Value where
+module Path.Core where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect
@@ -16,16 +16,16 @@ import           Path.Usage
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
-data Value a
-  = Lam Plicity (Scope Value a)                  -- ^ A lambda abstraction.
-  | a :$ Stack (Plicit (Value a))                -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+data Core a
+  = Lam Plicity (Scope Core a)                  -- ^ A lambda abstraction.
+  | a :$ Stack (Plicit (Core a))                -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   | Type                                         -- ^ @'Type' : 'Type'@.
-  | Pi (Plicit (Used (Value a))) (Scope Value a) -- ^ A ∏ type, with a 'Usage' annotation.
+  | Pi (Plicit (Used (Core a))) (Scope Core a) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-prettyValue :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
-prettyValue = go
-  where go :: (Carrier sig m, Member Naming sig) => Value (Name Meta) -> m (Prec Doc)
+prettyCore :: (Carrier sig m, Member Naming sig) => Core (Name Meta) -> m (Prec Doc)
+prettyCore = go
+  where go :: (Carrier sig m, Member Naming sig) => Core (Name Meta) -> m (Prec Doc)
         go = \case
           Lam ie b -> do
             (as, b') <- un (orTerm (unlam . Local . Name)) (Lam ie b)
@@ -59,91 +59,91 @@ prettyValue = go
                     t' <- withPi (p :< t)
                     pure $! prettyPlicity isUsed (p :< if isUsed then pretty (Local n ::: t') else t')
 
-instance Pretty (Value (Name Meta)) where
-  pretty = prettyPrec 0 . run . runNaming . prettyValue
+instance Pretty (Core (Name Meta)) where
+  pretty = prettyPrec 0 . run . runNaming . prettyCore
 
-instance Pretty (Value (Name Gensym)) where
+instance Pretty (Core (Name Gensym)) where
   pretty = pretty . weaken
 
-instance Ord a => FreeVariables a (Value a) where
+instance Ord a => FreeVariables a (Core a) where
   fvs = foldMap Set.singleton
 
-instance Applicative Value where
+instance Applicative Core where
   pure = (:$ Nil)
   f <*> a = eiter id embed pure (<$> a) f
 
-instance Monad Value where
+instance Monad Core where
   a >>= f = eiter id embed pure f a
 
 
-data ValueF f a
+data CoreF f a
   = LamF Plicity (Scope f a)              -- ^ A lambda abstraction.
   | f a :$$ Stack (Plicit (f a))          -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   | TypeF                                 -- ^ @'Type' : 'Type'@.
   | PiF (Plicit (Used (f a))) (Scope f a) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Foldable, Functor, Traversable)
 
-deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (ValueF f a)
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (CoreF f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
-                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (ValueF f a)
-deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ValueF f a)
+                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (CoreF f a)
+deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
 
-project :: Value a -> ValueF Value a
+project :: Core a -> CoreF Core a
 project (Lam p b) = LamF p b
 project (f :$ a) = (f :$ Nil) :$$ a
 project Type = TypeF
 project (Pi t b) = PiF t b
 
-embed :: ValueF Value a -> Value a
+embed :: CoreF Core a -> Core a
 embed (LamF p b) = Lam p b
 embed (f :$$ a) = f $$* a
 embed TypeF = Type
 embed (PiF t b) = Pi t b
 
 
-global :: Qualified -> Value (Name a)
+global :: Qualified -> Core (Name a)
 global = (:$ Nil) . Global
 
-lam :: Eq a => Plicit a -> Value a -> Value a
+lam :: Eq a => Plicit a -> Core a -> Core a
 lam (pl :< n) b = Lam pl (bind n b)
 
-lams :: (Eq a, Foldable t) => t (Plicit a) -> Value a -> Value a
+lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
-unlam :: Alternative m => a -> Value a -> m (Plicit a, Value a)
+unlam :: Alternative m => a -> Core a -> m (Plicit a, Core a)
 unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
 unlam _ _         = empty
 
-pi :: Eq a => Plicit (a ::: Used (Type a)) -> Value a -> Value a
+pi :: Eq a => Plicit (a ::: Used (Type a)) -> Core a -> Core a
 pi (p :< n ::: t) b = Pi (p :< t) (bind n b)
 
 -- | Wrap a type in a sequence of pi bindings.
-pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Type a))) -> Value a -> Value a
+pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Type a))) -> Core a -> Core a
 pis names body = foldr pi body names
 
-unpi :: Alternative m => a -> Value a -> m (Plicit (a ::: Used (Type a)), Value a)
+unpi :: Alternative m => a -> Core a -> m (Plicit (a ::: Used (Type a)), Core a)
 unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (pure n) b)
 unpi _ _               = empty
 
-($$) :: Value a -> Plicit (Value a) -> Value a
+($$) :: Core a -> Plicit (Core a) -> Core a
 Lam _ b $$ (_ :< v) = instantiate v b
 Pi _  b $$ (_ :< v) = instantiate v b
 n :$ vs $$ v        = n :$ (vs :> v)
 _       $$ _        = error "illegal application of Type"
 
-($$*) :: Foldable t => Value a -> t (Plicit (Value a)) -> Value a
+($$*) :: Foldable t => Core a -> t (Plicit (Core a)) -> Core a
 v $$* sp = foldl' ($$) v sp
 
 
 eiter :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . ValueF n a -> n a)
+      -> (forall a . CoreF n a -> n a)
       -> (forall a . Incr (n a) -> m (Incr (n a)))
       -> (a -> m b)
-      -> Value a
+      -> Core a
       -> n b
 eiter var alg k = go
-  where go :: forall x y . (x -> m y) -> Value x -> n y
+  where go :: forall x y . (x -> m y) -> Core x -> n y
         go h = \case
           Lam p b -> alg (LamF p (foldScope k go h b))
           f :$ a -> alg (var (h f) :$$ (fmap (go h) <$> a))
@@ -151,16 +151,16 @@ eiter var alg k = go
           Pi t b -> alg (PiF (fmap (go h) <$> t) (foldScope k go h b))
 
 
-generalizeType :: Value (Name Meta) -> Value (Name Gensym)
+generalizeType :: Core (Name Meta) -> Core (Name Gensym)
 generalizeType ty = fmap unsafeStrengthen <$> pis (foldMap f (fvs ty)) ty
   where f (Local name) = Set.singleton (Im :< Local name ::: Zero :@ Type)
         f _            = Set.empty
 
 
-weaken :: Value (Name Gensym) -> Value (Name Meta)
+weaken :: Core (Name Gensym) -> Core (Name Meta)
 weaken = fmap (fmap Name)
 
-strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Value (Name Meta) -> m (Value (Name Gensym))
+strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Core (Name Meta) -> m (Core (Name Gensym))
 strengthen ty = do
   let mvs = toList (metaNames (localNames (fvs ty)))
   unless (null mvs) $ unsolvedMetavariables mvs ty
@@ -170,13 +170,13 @@ unsafeStrengthen :: Meta -> Gensym
 unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
 
 
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Value (Name Meta) -> m a
+unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Core (Name Meta) -> m a
 unsolvedMetavariables metas ty = do
   span <- ask
   throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map (pretty . Meta) metas))) [pretty ty])
 
 
-type Type = Value
+type Type = Core
 
 
 -- $setup

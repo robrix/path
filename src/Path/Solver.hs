@@ -12,6 +12,7 @@ import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
 import           Path.Constraint
 import           Path.Context as Context
+import           Path.Core as Core
 import           Path.Error
 import           Path.Name
 import           Path.Plicity
@@ -19,7 +20,6 @@ import           Path.Pretty
 import           Path.Namespace as Namespace hiding (null)
 import           Path.Stack
 import           Path.Usage
-import           Path.Value as Value
 import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Spanned(..))
 
@@ -66,7 +66,7 @@ simplify (constraint :~ span) = do
               go scope (Context.insert (n ::: t) ctx) ((instantiate (pure (Local (Name n))) f1 :===: instantiate (pure (Local (Name n))) f2) ::: instantiate (pure (Local (Name n))) b)
           (t1 :===: t2) ::: Pi (Im :< u :@ t) b -> do
             n <- Local . Name <$> gensym "lam"
-            go scope ctx ((Value.lam (Im :< n) t1 :===: Value.lam (Im :< n) t2) ::: Pi (Im :< u :@ t) b)
+            go scope ctx ((Core.lam (Im :< n) t1 :===: Core.lam (Im :< n) t2) ::: Pi (Im :< u :@ t) b)
           (f1@(Global _) :$ sp1 :===: f2@(Global _) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
             , Just t2 <- whnf scope (f2 :$ sp2) ->
@@ -82,7 +82,7 @@ simplify (constraint :~ span) = do
             , length sp1 == length sp2 -> do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
                     n <- gensym "spine"
-                    case Value.unpi (Local (Name n)) ty of
+                    case Core.unpi (Local (Name n)) ty of
                       Just (_ :< _ ::: _ :@ t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
                       Nothing                     -> pure ()
                   simplifySpine _ _ _ = pure ()
@@ -101,14 +101,14 @@ simplify (constraint :~ span) = do
         exists ctx ty = do
           n <- gensym "meta"
           let f (n ::: t) = Ex :< Local (Name n) ::: More :@ t
-              ty' = Value.pis (f <$> Context.unContext ctx) ty
+              ty' = Core.pis (f <$> Context.unContext ctx) ty
           modify (Signature . Map.insert n ty' . unSignature)
-          pure (pure (Local (Meta n)) Value.$$* ((Ex :<) . pure . Local . Name <$> Context.vars ctx))
+          pure (pure (Local (Meta n)) Core.$$* ((Ex :<) . pure . Local . Name <$> Context.vars ctx))
 
         blocked (Local (Meta _) :$ _) = True
         blocked _                     = False
 
-        whnf scope (Global n Value.:$ sp) = do
+        whnf scope (Global n Core.:$ sp) = do
           entry <- Namespace.lookup n scope
           val <- entryValue entry
           let val' = weaken val $$* sp
@@ -166,8 +166,8 @@ process (Substitution _S) c@(constraint :~ _) = do
   case () of
     _ | tm1 == tm2 -> pure ()
       | s <- Map.restrictKeys _S (metaNames (localNames (fvs c))), not (null s) -> simplify (apply (Substitution s) c) >>= enqueueAll
-      | Just (m, sp) <- pattern tm1 -> solve m (Value.lams (fmap Local <$> sp) tm2)
-      | Just (m, sp) <- pattern tm2 -> solve m (Value.lams (fmap Local <$> sp) tm1)
+      | Just (m, sp) <- pattern tm1 -> solve m (Core.lams (fmap Local <$> sp) tm2)
+      | Just (m, sp) <- pattern tm2 -> solve m (Core.lams (fmap Local <$> sp) tm1)
       | otherwise -> block c
 
 block :: (Carrier sig m, Member (State Blocked) sig) => Spanned (Constraint (Name Meta)) -> m ()
@@ -199,7 +199,7 @@ solve :: ( Carrier sig m
          , Member (State Substitution) sig
          )
       => Gensym
-      -> Value (Name Meta)
+      -> Core (Name Meta)
       -> m ()
 solve m v = do
   let subst = Substitution (Map.singleton m v)

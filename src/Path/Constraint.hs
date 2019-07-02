@@ -18,9 +18,9 @@ import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import           Path.Context
+import           Path.Core (Type, Core, prettyCore)
 import           Path.Name hiding (bind, instantiate)
 import           Path.Pretty
-import           Path.Value (Type, Value, prettyValue)
 import           Text.Trifecta.Rendering (Spanned (..))
 
 data Equation a
@@ -37,7 +37,7 @@ instance FreeVariables v a => FreeVariables v (Equation a) where
   fvs (a1 :===: a2) = fvs a1 <> fvs a2
 
 
-newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Value (Name Meta)) }
+newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Core (Name Meta)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 instance Pretty Substitution where
@@ -46,7 +46,7 @@ instance Pretty Substitution where
     | otherwise = encloseSep (magenta (pretty "Θ") <> space) mempty (cyan comma <> space) (map (uncurry prettyBind) (Map.toList sig)) <> hardline
     where prettyBind m t = pretty (Meta m) <+> cyan (pretty "=") <+> pretty t
 
-newtype Signature = Signature { unSignature :: Map.Map Gensym (Value (Name Meta)) }
+newtype Signature = Signature { unSignature :: Map.Map Gensym (Core (Name Meta)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
 instance Pretty Signature where
@@ -62,7 +62,7 @@ unMeta :: Meta -> Maybe Gensym
 unMeta (Meta n) = Just n
 unMeta _        = Nothing
 
-instance Substitutable (Value (Name Meta)) where
+instance Substitutable (Core (Name Meta)) where
   apply (Substitution subst) val = do
     var <- val
     fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?))
@@ -87,8 +87,8 @@ instance Substitutable (Constraint (Name Meta)) where
 
 
 data Constraint a
-  = Value a :|-: Constraint (Incr (Value a))
-  | E (Equation (Value a) ::: Type a)
+  = Core a :|-: Constraint (Incr (Core a))
+  | E (Equation (Core a) ::: Type a)
   deriving (Eq, Ord, Show)
 
 infixr 1 :|-:
@@ -112,13 +112,13 @@ instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
     binds <- traverse prettyBind ctx
-    v1' <- prettyValue v1
-    v2' <- prettyValue v2
-    t'  <- prettyValue t
+    v1' <- prettyCore v1
+    v2' <- prettyCore v2
+    t'  <- prettyCore t
     pure (cat (zipWith (<>) (l : repeat s) (toList binds) <> map (flatAlt mempty space <>) [ magenta (pretty "⊢") <+> prettyPrec 0 v1', magenta (pretty "≡") <+> prettyPrec 0 v2', cyan colon <+> prettyPrec 0 t' ]))
     where l = magenta (pretty "Γ") <> space
           s = softbreak <> cyan comma <> space
-          prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyValue t
+          prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyCore t
 
 
 (|-) :: Eq a => a ::: Type a -> Constraint a -> Constraint a
@@ -126,18 +126,18 @@ n ::: t |- b = t :|-: bind n b
 
 infixr 1 |-
 
-binds :: Context (Type (Name Meta)) -> Equation (Value (Name Meta)) ::: Type (Name Meta) -> Constraint (Name Meta)
+binds :: Context (Type (Name Meta)) -> Equation (Core (Name Meta)) ::: Type (Name Meta) -> Constraint (Name Meta)
 binds (Context names) body = foldr (|-) (E body) (first (Local . Name) <$> names)
 
-unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Type (Name Meta)), Equation (Value (Name Meta)) ::: Type (Name Meta))
+unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Type (Name Meta)), Equation (Core (Name Meta)) ::: Type (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case
   t :|-: b -> Right (name ::: t, instantiate (pure (Local (Name name))) b)
   E q      -> Left q)
 
 
 efold :: forall m n a b
-      .  (forall a . Value (m a) -> n (Incr (Value (m a))) -> n a)
-      -> (forall a . Equation (Value (m a)) ::: Type (m a) -> n a)
+      .  (forall a . Core (m a) -> n (Incr (Core (m a))) -> n a)
+      -> (forall a . Equation (Core (m a)) ::: Type (m a) -> n a)
       -> (forall a . Incr a -> m (Incr a))
       -> (a -> m b)
       -> Constraint a
@@ -148,7 +148,7 @@ efold bind eqn k = go
           v :|-: b -> bind (h <$> v) (go (k . fmap (fmap h)) b)
           E (q ::: t) -> eqn ((fmap h <$> q) ::: (h <$> t))
 
-bindConstraint :: (a -> Value b) -> Constraint a -> Constraint b
+bindConstraint :: (a -> Core b) -> Constraint a -> Constraint b
 bindConstraint = efold
   (\ v s -> join v :|-: fmap (fmap join) s)
   (\ (q ::: t) -> E (fmap join q ::: join t))
@@ -156,9 +156,9 @@ bindConstraint = efold
 
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
-bind :: Eq a => a -> Constraint a -> Constraint (Incr (Value a))
+bind :: Eq a => a -> Constraint a -> Constraint (Incr (Core a))
 bind name = fmap (match name)
 
--- | Substitute a 'Value' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
-instantiate :: Value a -> Constraint (Incr (Value a)) -> Constraint a
+-- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
+instantiate :: Core a -> Constraint (Incr (Core a)) -> Constraint a
 instantiate t = bindConstraint (subst t)

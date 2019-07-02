@@ -4,9 +4,9 @@ module Path.Namespace where
 import Control.Arrow ((***))
 import Data.Coerce
 import qualified Data.Map as Map
+import Path.Core
 import Path.Name
 import Path.Pretty
-import Path.Value
 
 newtype Entry a = Entry { unEntry :: Maybe a ::: a }
   deriving (Eq, Ord, Show)
