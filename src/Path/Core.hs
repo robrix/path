@@ -25,40 +25,38 @@ data Core a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 prettyCore :: (Carrier sig m, Member Naming sig) => Core (Name Meta) -> m (Prec Doc)
-prettyCore = go
-  where go :: (Carrier sig m, Member Naming sig) => Core (Name Meta) -> m (Prec Doc)
-        go = \case
-          Lam ie b -> do
-            (as, b') <- un (orTerm (unlam . Local . Name)) (Lam ie b)
-            b'' <- go b'
-            pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
-            where var vs (p :< n) rest
-                    | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n)) <+> rest
-                    | otherwise         = prettyPlicity False (p :< pretty '_')       <+> rest
-          f :$ sp -> do
-            sp' <- traverse prettyArg (toList sp)
-            pure (if null sp then
-              atom (pretty f)
-            else
-              prec 10 (hsep (pretty f : sp')))
-            where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> go a
-                  prettyArg (Ex :< a) = prettyPrec 11 <$> go a
-          Type -> pure (atom (yellow (pretty "Type")))
-          v@Pi{} -> do
-            (pis, body) <- un (orTerm (\ n -> \case
-              Pi (p :< u :@ t) b -> let b' = instantiate (const (pure (Local (Name n)))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
-              _                  -> Nothing)) v
-            pis' <- traverse (uncurry prettyPi) pis
-            body' <- go body
-            pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
-            where withPi (Ex :< More :@ t) =                   prettyPrec 1  <$> go t
-                  withPi (Im :< Zero :@ t) =                   prettyPrec 1  <$> go t
-                  withPi (_  :< pi   :@ t) = (pretty pi <+>) . prettyPrec 11 <$> go t
-                  arrow = blue (pretty "->")
-                  l = flatAlt (space <> space <> space) mempty
-                  prettyPi (p :< n ::: t) isUsed = do
-                    t' <- withPi (p :< t)
-                    pure $! prettyPlicity isUsed (p :< if isUsed then pretty (Local n ::: t') else t')
+prettyCore = \case
+  Lam ie b -> do
+    (as, b') <- un (orTerm (unlam . Local . Name)) (Lam ie b)
+    b'' <- prettyCore b'
+    pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
+    where var vs (p :< n) rest
+            | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n)) <+> rest
+            | otherwise         = prettyPlicity False (p :< pretty '_')       <+> rest
+  f :$ sp -> do
+    sp' <- traverse prettyArg (toList sp)
+    pure (if null sp then
+      atom (pretty f)
+    else
+      prec 10 (hsep (pretty f : sp')))
+    where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> prettyCore a
+          prettyArg (Ex :< a) = prettyPrec 11 <$> prettyCore a
+  Type -> pure (atom (yellow (pretty "Type")))
+  v@Pi{} -> do
+    (pis, body) <- un (orTerm (\ n -> \case
+      Pi (p :< u :@ t) b -> let b' = instantiate (const (pure (Local (Name n)))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
+      _                  -> Nothing)) v
+    pis' <- traverse (uncurry prettyPi) pis
+    body' <- prettyCore body
+    pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
+    where withPi (Ex :< More :@ t) =                   prettyPrec 1  <$> prettyCore t
+          withPi (Im :< Zero :@ t) =                   prettyPrec 1  <$> prettyCore t
+          withPi (_  :< pi   :@ t) = (pretty pi <+>) . prettyPrec 11 <$> prettyCore t
+          arrow = blue (pretty "->")
+          l = flatAlt (space <> space <> space) mempty
+          prettyPi (p :< n ::: t) isUsed = do
+            t' <- withPi (p :< t)
+            pure $! prettyPlicity isUsed (p :< if isUsed then pretty (Local n ::: t') else t')
 
 instance Pretty (Core (Name Meta)) where
   pretty = prettyPrec 0 . run . runNaming . prettyCore
