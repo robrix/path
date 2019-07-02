@@ -15,9 +15,10 @@ import           Path.Context as Context
 import           Path.Core as Core
 import           Path.Error
 import           Path.Name
+import           Path.Namespace as Namespace hiding (null)
 import           Path.Plicity
 import           Path.Pretty
-import           Path.Namespace as Namespace hiding (null)
+import           Path.Scope
 import           Path.Stack
 import           Path.Usage
 import           Prelude hiding (pi)

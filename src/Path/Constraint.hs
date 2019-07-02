@@ -19,8 +19,9 @@ import           Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import           Path.Context
 import           Path.Core (Type, Core, prettyCore)
-import           Path.Name hiding (bind, instantiate)
+import           Path.Name
 import           Path.Pretty
+import           Path.Scope hiding (bind, instantiate)
 import           Text.Trifecta.Rendering (Spanned (..))
 
 data Equation a

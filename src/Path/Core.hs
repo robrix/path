@@ -10,6 +10,7 @@ import qualified Data.Set as Set
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
+import           Path.Scope
 import           Path.Stack as Stack
 import           Path.Usage
 import           Prelude hiding (pi)

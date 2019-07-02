@@ -22,9 +22,10 @@ import qualified Path.Core as Core
 -- import Path.Eval
 import Path.Module
 import Path.Name
+import Path.Namespace as Namespace
 import Path.Plicity
 import Path.Pretty
-import Path.Namespace as Namespace
+import Path.Scope
 import Path.Semiring
 import Path.Solver
 import qualified Path.Surface as Surface

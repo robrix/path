@@ -4,6 +4,7 @@ module Path.Surface where
 import Control.Monad.Trans
 import Path.Name
 import Path.Plicity
+import Path.Scope
 import Path.Usage
 import Text.Trifecta.Rendering (Spanned)
 

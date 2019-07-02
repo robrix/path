@@ -3,7 +3,7 @@ module Path.Expr where
 
 import Data.Coerce (coerce)
 import Data.Functor.Const (Const (..))
-import Path.Name (Incr (..), Scope (..), foldScope)
+import Path.Scope (Incr (..), Scope (..), foldScope)
 
 data Expr a
   = Var a
@@ -45,9 +45,10 @@ eiter var alg k = go
 
 ecata :: (forall a . ExprF m a -> m a)
       -> (forall a . Incr (m a) -> m (Incr (m a)))
-      -> Expr (m a)
-      -> m a
-ecata alg k = eiter id alg k id
+      -> (a -> m b)
+      -> Expr a
+      -> m b
+ecata = eiter id
 
 kcata :: (a -> b)
       -> (forall a . ExprF (Const b) a -> b)

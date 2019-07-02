@@ -16,6 +16,7 @@ import           Path.Module
 import           Path.Name
 import           Path.Plicity (Plicit (..))
 import           Path.Pretty
+import           Path.Scope
 import           Path.Stack as Stack
 import qualified Path.Surface as Surface
 import           Path.Usage
