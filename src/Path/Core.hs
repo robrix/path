@@ -69,9 +69,6 @@ instance Pretty (Core (Name Gensym)) where
 instance Pretty (Core Qualified) where
   pretty = pretty @(Core (Name Meta)) . fmap Global
 
-instance Ord a => FreeVariables a (Core a) where
-  fvs = foldMap Set.singleton
-
 instance Applicative Core where
   pure = (:$ Nil)
   f <*> a = eiter id embed pure (<$> a) f

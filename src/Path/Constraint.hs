@@ -34,9 +34,6 @@ instance Pretty a => Pretty (Equation a) where
   pretty (t1 :===: t2) = flatAlt (pretty t1 <+> eq <+> pretty t2) (align (space <+> pretty t1 </> eq <+> pretty t2))
     where eq = magenta (pretty "≡")
 
-instance FreeVariables v a => FreeVariables v (Equation a) where
-  fvs = foldMap fvs
-
 
 newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Core (Name Meta)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
@@ -105,9 +102,6 @@ instance Functor Constraint where
 instance Traversable Constraint where
   traverse f (v :|-: s)    = (:|-:) <$> traverse f v <*> traverse (traverse (traverse f)) s
   traverse f (E (q ::: t)) = fmap E . (:::) <$> traverse (traverse f) q <*> traverse f t
-
-instance Ord a => FreeVariables a (Constraint a) where
-  fvs = foldMap Set.singleton
 
 instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do

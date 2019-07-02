@@ -166,7 +166,7 @@ process (Substitution _S) c@(constraint :~ _) = do
   (_, (tm1 :===: tm2) ::: _) <- unbinds constraint
   case () of
     _ | tm1 == tm2 -> pure ()
-      | s <- Map.restrictKeys _S (metaNames (localNames (fvs c))), not (null s) -> simplify (apply (Substitution s) c) >>= enqueueAll
+      | s <- Map.restrictKeys _S (metaNames (localNames (fvs constraint))), not (null s) -> simplify (apply (Substitution s) c) >>= enqueueAll
       | Just (m, sp) <- pattern tm1 -> solve m (Core.lams (fmap Local <$> sp) tm2)
       | Just (m, sp) <- pattern tm2 -> solve m (Core.lams (fmap Local <$> sp) tm1)
       | otherwise -> block c
@@ -211,4 +211,4 @@ solve m v = do
   put blocked
 
 isBlockedOn :: Meta -> Spanned (Constraint (Name Meta)) -> Bool
-isBlockedOn m = Set.member (Local m) . fvs
+isBlockedOn m = Set.member (Local m) . foldMap fvs

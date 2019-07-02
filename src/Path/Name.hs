@@ -11,13 +11,10 @@ import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
-import qualified Data.Map as Map
 import qualified Data.Set as Set
 import           Path.Pretty
 import           Path.Stack
-import           Path.Usage
 import           Prelude hiding (fail)
-import           Text.Trifecta.Rendering (Span, Spanned(..))
 
 data Gensym
   = Root
@@ -237,40 +234,10 @@ infix 7 :::
 instance (Pretty a, Pretty b) => Pretty (a ::: b) where
   pretty (a ::: t) = pretty a <+> cyan colon <+> pretty t
 
-instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a ::: b) where
-  fvs (a ::: b) = fvs a <> fvs b
-
 
 data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
 
 
-class Ord v => FreeVariables v a where
-  fvs :: a -> Set.Set v
-
-instance Ord v => FreeVariables v () where
-  fvs _ = Set.empty
-
-instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a, b) where
-  fvs (a, b) = fvs a <> fvs b
-
-instance (FreeVariables v key, FreeVariables v value) => FreeVariables v (Map.Map key value) where
-  fvs = fvs . Map.toList
-
-instance FreeVariables v a => FreeVariables v [a] where
-  fvs = foldMap fvs
-
-instance Ord v => FreeVariables v v where
-  fvs = Set.singleton
-
-instance Ord v => FreeVariables v (Set.Set v) where
-  fvs = id
-
-instance Ord v => FreeVariables v Usage where
-  fvs _ = Set.empty
-
-instance Ord v => FreeVariables v Span where
-  fvs _ = mempty
-
-instance FreeVariables v a => FreeVariables v (Spanned a) where
-  fvs (a :~ _) = fvs a
+fvs :: (Foldable t, Ord a) => t a -> Set.Set a
+fvs = foldMap Set.singleton

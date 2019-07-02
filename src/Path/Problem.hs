@@ -85,9 +85,6 @@ instance Pretty (Problem (Name Gensym)) where
                   _ -> Root :/ ("", 0)
             (,) n <$> censor (Set.delete n) (local (n :) m)
 
-instance Ord a => FreeVariables a (Problem a) where
-  fvs = foldMap Set.singleton
-
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
