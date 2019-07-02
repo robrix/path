@@ -32,7 +32,7 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Ex
 eiter :: forall m n a b
       .  (forall a . m a -> n a)
       -> (forall a . ExprF n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (forall a . Incr () (n a) -> m (Incr () (n a)))
       -> (a -> m b)
       -> Expr a
       -> n b
@@ -44,7 +44,7 @@ eiter var alg k = go
           Expr (f :$ a) -> alg (go h f :$ go h a)
 
 ecata :: (forall a . ExprF m a -> m a)
-      -> (forall a . Incr (m a) -> m (Incr (m a)))
+      -> (forall a . Incr () (m a) -> m (Incr () (m a)))
       -> (a -> m b)
       -> Expr a
       -> m b
@@ -52,7 +52,7 @@ ecata = eiter id
 
 kcata :: (a -> b)
       -> (forall a . ExprF (Const b) a -> b)
-      -> (Incr b -> a)
+      -> (Incr () b -> a)
       -> (x -> a)
       -> Expr x
       -> b

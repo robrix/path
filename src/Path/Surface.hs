@@ -59,7 +59,7 @@ infixr 0 -->
 eiter :: forall m n a b
       .  (forall a . m a -> n a)
       -> (forall a . SurfaceF n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (forall a . Incr () (n a) -> m (Incr () (n a)))
       -> (a -> m b)
       -> Surface a
       -> n b

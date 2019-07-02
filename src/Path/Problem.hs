@@ -70,8 +70,8 @@ instance Pretty (Problem (Name Gensym)) where
               prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
-          k Z     = ask >>= var . Local . head
-          k (S n) = local (tail @Meta) n
+          k (Z ()) = ask >>= var . Local . head
+          k (S n)  = local (tail @Meta) n
           prec d' doc = do
             d <- ask @Int
             pure (prettyParens (d > d') doc)
@@ -172,7 +172,7 @@ infixr 3 ?===?
 eiter :: forall m n a b
       .  (forall a . m a -> n a)
       -> (forall a . ProblemF n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (forall a . Incr () (n a) -> m (Incr () (n a)))
       -> (a -> m b)
       -> Problem a
       -> n b
@@ -190,7 +190,7 @@ eiter var alg k = go
 
 kcata :: (a -> b)
       -> (forall a . ProblemF (Const b) a -> b)
-      -> (Incr b -> a)
+      -> (Incr () b -> a)
       -> (x -> a)
       -> Problem x
       -> b

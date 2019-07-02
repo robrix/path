@@ -21,7 +21,7 @@ import           Path.Context
 import           Path.Core (Type, Core, prettyCore)
 import           Path.Name
 import           Path.Pretty
-import           Path.Scope hiding (bind, instantiate)
+import           Path.Scope hiding (bind, instantiate, match)
 import           Text.Trifecta.Rendering (Spanned (..))
 
 data Equation a
@@ -88,7 +88,7 @@ instance Substitutable (Constraint (Name Meta)) where
 
 
 data Constraint a
-  = Core a :|-: Constraint (Incr (Core a))
+  = Core a :|-: Constraint (Incr () (Core a))
   | E (Equation (Core a) ::: Type a)
   deriving (Eq, Ord, Show)
 
@@ -137,9 +137,9 @@ unbinds = fmap (first Context) . un (\ name -> \case
 
 
 efold :: forall m n a b
-      .  (forall a . Core (m a) -> n (Incr (Core (m a))) -> n a)
+      .  (forall a . Core (m a) -> n (Incr () (Core (m a))) -> n a)
       -> (forall a . Equation (Core (m a)) ::: Type (m a) -> n a)
-      -> (forall a . Incr a -> m (Incr a))
+      -> (forall a . Incr () a -> m (Incr () a))
       -> (a -> m b)
       -> Constraint a
       -> n b
@@ -157,9 +157,13 @@ bindConstraint = efold
 
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
-bind :: Eq a => a -> Constraint a -> Constraint (Incr (Core a))
+bind :: Eq a => a -> Constraint a -> Constraint (Incr () (Core a))
 bind name = fmap (match name)
 
 -- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
-instantiate :: Core a -> Constraint (Incr (Core a)) -> Constraint a
-instantiate t = bindConstraint (subst t)
+instantiate :: Core a -> Constraint (Incr () (Core a)) -> Constraint a
+instantiate t = bindConstraint (fromIncr (const t))
+
+match :: (Applicative f, Eq a) => a -> a -> Incr () (f a)
+match x y | x == y    = Z ()
+          | otherwise = S (pure y)

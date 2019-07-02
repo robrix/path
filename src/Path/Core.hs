@@ -141,7 +141,7 @@ v $$* sp = foldl' ($$) v sp
 eiter :: forall m n a b
       .  (forall a . m a -> n a)
       -> (forall a . CoreF n a -> n a)
-      -> (forall a . Incr (n a) -> m (Incr (n a)))
+      -> (forall a . Incr () (n a) -> m (Incr () (n a)))
       -> (a -> m b)
       -> Core a
       -> n b

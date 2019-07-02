@@ -6,33 +6,33 @@ import Control.Monad ((>=>))
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Function (on)
 
-data Incr a = Z | S a
+data Incr a b = Z a | S b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance Applicative Incr where
+instance Applicative (Incr a) where
   pure = S
-  Z   <*> _ = Z
+  Z e <*> _ = Z e
   S f <*> a = f <$> a
 
-instance Monad Incr where
-  Z   >>= _ = Z
+instance Monad (Incr a) where
+  Z e >>= _ = Z e
   S a >>= f = f a
 
-match :: (Applicative f, Eq a) => a -> a -> Incr (f a)
-match x y | x == y    = Z
-          | otherwise = S (pure y)
+match :: Applicative f => (b -> Maybe a) -> b -> Incr a (f b)
+match f x | Just y <- f x = Z y
+          | otherwise     = S (pure x)
 
-subst :: a -> Incr a -> a
-subst a = incr a id
+fromIncr :: (a -> b) -> Incr a b -> b
+fromIncr a = incr a id
 
-incr :: b -> (a -> b) -> Incr a -> b
-incr z s = \case { Z -> z ; S a -> s a }
+incr :: (a -> c) -> (b -> c) -> Incr a b -> c
+incr z s = \case { Z a -> z a ; S b -> s b }
 
 
-newtype Scope f a = Scope (f (Incr (f a)))
+newtype Scope f a = Scope (f (Incr () (f a)))
   deriving (Foldable, Functor, Traversable)
 
-unScope :: Scope f a -> f (Incr (f a))
+unScope :: Scope f a -> f (Incr () (f a))
 unScope (Scope s) = s
 
 instance (Monad f, Eq  a, forall a . Eq  a => Eq  (f a)) => Eq  (Scope f a) where
@@ -49,7 +49,7 @@ instance Applicative f => Applicative (Scope f) where
   Scope f <*> Scope a = Scope (liftA2 (liftA2 (<*>)) f a)
 
 instance Monad f => Monad (Scope f) where
-  Scope e >>= f = Scope (e >>= incr (pure Z) (>>= unScope . f))
+  Scope e >>= f = Scope (e >>= incr (pure . Z) (>>= unScope . f))
 
 instance MonadTrans Scope where
   lift = Scope . pure . S
@@ -57,16 +57,18 @@ instance MonadTrans Scope where
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: (Applicative f, Eq a) => a -> f a -> Scope f a
-bind name = Scope . fmap (match name) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+bind name = Scope . fmap (match eq) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+  where eq x | name == x = Just ()
+             | otherwise = Nothing
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate :: Monad f => f a -> Scope f a -> f a
-instantiate t = unScope >=> subst t
+instantiate t = unScope >=> fromIncr (const t)
 
-flattenScope :: Monad f => Scope f a -> f (Incr a)
+flattenScope :: Monad f => Scope f a -> f (Incr () a)
 flattenScope = unScope >=> sequenceA
 
-foldScope :: (forall a . Incr (n a) -> m (Incr (n a)))
+foldScope :: (forall a . Incr () (n a) -> m (Incr () (n a)))
           -> (forall x y . (x -> m y) -> f x -> n y)
           -> (a -> m b)
           -> Scope f a
