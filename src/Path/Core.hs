@@ -5,7 +5,6 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
-import           Control.Monad (unless)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -161,13 +160,26 @@ weaken :: Core (Name Gensym) -> Core (Name Meta)
 weaken = fmap (fmap Name)
 
 strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Core (Name Meta) -> m (Core (Name Gensym))
-strengthen ty = do
-  let mvs = toList (metaNames (localNames (fvs ty)))
-  unless (null mvs) $ unsolvedMetavariables mvs ty
-  pure (fmap unsafeStrengthen <$> ty)
+strengthen ty = case traverse (traverse strengthenVar) ty of
+  Failure e -> unsolvedMetavariables (toList e) ty
+  Success a -> pure a
+  where strengthenVar (Name n) = Success n
+        strengthenVar (Meta m) = Failure (Set.singleton m)
 
 unsafeStrengthen :: Meta -> Gensym
 unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
+
+data Validation e a
+  = Failure e
+  | Success a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Semigroup e => Applicative (Validation e) where
+  pure = Success
+  Failure e1 <*> Failure e2 = Failure (e1 <> e2)
+  Failure e1 <*> _          = Failure e1
+  _          <*> Failure e2 = Failure e2
+  Success f  <*> Success a  = Success (f a)
 
 
 unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Core (Name Meta) -> m a
