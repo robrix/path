@@ -35,7 +35,7 @@ instance Pretty a => Pretty (Equation a) where
     where eq = magenta (pretty "≡")
 
 instance FreeVariables v a => FreeVariables v (Equation a) where
-  fvs (a1 :===: a2) = fvs a1 <> fvs a2
+  fvs = foldMap fvs
 
 
 newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Core (Name Meta)) }
