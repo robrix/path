@@ -165,9 +165,6 @@ strengthen ty = case traverse (traverse strengthenVar) ty of
   where strengthenVar (Name n) = Success n
         strengthenVar (Meta m) = Failure (Set.singleton m)
 
-unsafeStrengthen :: Meta -> Gensym
-unsafeStrengthen = \case { Name n -> n ; _ -> undefined }
-
 data Validation e a
   = Failure e
   | Success a
