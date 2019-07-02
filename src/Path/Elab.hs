@@ -44,7 +44,7 @@ implicits :: (Carrier sig m, Member Elab sig) => Type (Name Meta) -> m (Stack (P
 implicits = go Nil
   where go names (Core.Pi (Im :< _ :@ t) b) | False = do
           v <- exists t
-          go (names :> (Im :< pure (v ::: t))) (instantiate v b)
+          go (names :> (Im :< pure (v ::: t))) (instantiate (const v) b)
         go names _ = pure names
 
 intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
@@ -118,10 +118,10 @@ elab = \case
   Surface.Var (Local (Name n)) -> assume (Local n)
   Surface.Var (Local (Meta n)) -> (pure (Local (Meta n)) :::) <$> exists Core.Type
   Surface.Surface c -> case c of
-    Surface.Lam n b -> intro n (\ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b))
+    Surface.Lam n b -> intro n (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
     (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
     Surface.Type -> pure (Core.Type ::: Core.Type)
-    Surface.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab' t)) (\ n' -> elab' (instantiate (pure (Local (Name n'))) <$> b))
+    Surface.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab' t)) (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
   where elab' (t :~ s) = spanIs s (elab t)
 
 

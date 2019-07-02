@@ -5,6 +5,7 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
+import           Control.Monad (guard)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -17,10 +18,10 @@ import           Prelude hiding (pi)
 import           Text.Trifecta.Rendering (Span)
 
 data Core a
-  = Lam Plicity (Scope Core a)                  -- ^ A lambda abstraction.
-  | a :$ Stack (Plicit (Core a))                -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
-  | Type                                         -- ^ @'Type' : 'Type'@.
-  | Pi (Plicit (Used (Core a))) (Scope Core a) -- ^ A ∏ type, with a 'Usage' annotation.
+  = Lam Plicity (Scope () Core a)                 -- ^ A lambda abstraction.
+  | a :$ Stack (Plicit (Core a))                  -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | Type                                          -- ^ @'Type' : 'Type'@.
+  | Pi (Plicit (Used (Core a))) (Scope () Core a) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 prettyCore :: (Carrier sig m, Member Naming sig) => Core (Name Meta) -> m (Prec Doc)
@@ -45,7 +46,7 @@ prettyCore = go
           Type -> pure (atom (yellow (pretty "Type")))
           v@Pi{} -> do
             (pis, body) <- un (orTerm (\ n -> \case
-              Pi (p :< u :@ t) b -> let b' = instantiate (pure (Local (Name n))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
+              Pi (p :< u :@ t) b -> let b' = instantiate (const (pure (Local (Name n)))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
               _                  -> Nothing)) v
             pis' <- traverse (uncurry prettyPi) pis
             body' <- go body
@@ -80,10 +81,10 @@ instance Monad Core where
 
 
 data CoreF f a
-  = LamF Plicity (Scope f a)              -- ^ A lambda abstraction.
-  | f a :$$ Stack (Plicit (f a))          -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
-  | TypeF                                 -- ^ @'Type' : 'Type'@.
-  | PiF (Plicit (Used (f a))) (Scope f a) -- ^ A ∏ type, with a 'Usage' annotation.
+  = LamF Plicity (Scope () f a)              -- ^ A lambda abstraction.
+  | f a :$$ Stack (Plicit (f a))             -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | TypeF                                    -- ^ @'Type' : 'Type'@.
+  | PiF (Plicit (Used (f a))) (Scope () f a) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Foldable, Functor, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (CoreF f a)
@@ -108,29 +109,29 @@ global :: Qualified -> Core (Name a)
 global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Core a -> Core a
-lam (pl :< n) b = Lam pl (bind n b)
+lam (pl :< n) b = Lam pl (bind (guard . (== n)) b)
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Core a -> m (Plicit a, Core a)
-unlam n (Lam p b) = pure (p :< n, instantiate (pure n) b)
+unlam n (Lam p b) = pure (p :< n, instantiate (const (pure n)) b)
 unlam _ _         = empty
 
 pi :: Eq a => Plicit (a ::: Used (Type a)) -> Core a -> Core a
-pi (p :< n ::: t) b = Pi (p :< t) (bind n b)
+pi (p :< n ::: t) b = Pi (p :< t) (bind (guard . (== n)) b)
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Type a))) -> Core a -> Core a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Core a -> m (Plicit (a ::: Used (Type a)), Core a)
-unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (pure n) b)
+unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (const (pure n)) b)
 unpi _ _               = empty
 
 ($$) :: Core a -> Plicit (Core a) -> Core a
-Lam _ b $$ (_ :< v) = instantiate v b
-Pi _  b $$ (_ :< v) = instantiate v b
+Lam _ b $$ (_ :< v) = instantiate (const v) b
+Pi _  b $$ (_ :< v) = instantiate (const v) b
 n :$ vs $$ v        = n :$ (vs :> v)
 _       $$ _        = error "illegal application of Type"
 

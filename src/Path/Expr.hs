@@ -19,7 +19,7 @@ instance Monad Expr where
 
 
 data ExprF f a
-  = Lam (Scope f a)
+  = Lam (Scope () f a)
   | f a :$ f a
   deriving (Foldable, Functor, Traversable)
 
