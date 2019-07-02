@@ -39,9 +39,9 @@ library
                      , Path.REPL
                      , Path.REPL.Command
                      , Path.Resources
-                     , Path.Span
-                     , Path.Solver
                      , Path.Semiring
+                     , Path.Solver
+                     , Path.Span
                      , Path.Stack
                      , Path.Surface
                      , Path.Usage
