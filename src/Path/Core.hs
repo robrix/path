@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
 module Path.Core where
 
 import           Control.Applicative (Alternative (..))
@@ -62,7 +62,10 @@ instance Pretty (Core (Name Meta)) where
   pretty = prettyPrec 0 . run . runNaming . prettyCore
 
 instance Pretty (Core (Name Gensym)) where
-  pretty = pretty . weaken
+  pretty = pretty . fmap (fmap Name)
+
+instance Pretty (Core Qualified) where
+  pretty = pretty @(Core (Name Meta)) . fmap Global
 
 instance Ord a => FreeVariables a (Core a) where
   fvs = foldMap Set.singleton
@@ -150,20 +153,20 @@ eiter var alg k = go
           Pi t b -> alg (PiF (fmap (go h) <$> t) (foldScope k go h b))
 
 
-generalizeType :: Core (Name Meta) -> Core (Name Gensym)
-generalizeType ty = uncurry pis (traverse (traverse f) ty)
+generalizeType :: Core (Name Meta) -> Core Qualified
+generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
   where f v = let name = case v of { Name n -> n ; Meta n -> n } in (Set.singleton (Im :< Local name ::: Zero :@ Type), name)
 
 
-weaken :: Core (Name Gensym) -> Core (Name Meta)
-weaken = fmap (fmap Name)
+weaken :: Functor f => f Qualified -> f (Name a)
+weaken = fmap Global
 
-strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Core (Name Meta) -> m (Core (Name Gensym))
-strengthen ty = case traverse (traverse strengthenVar) ty of
+strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Core (Name Meta) -> m (Core Qualified)
+strengthen ty = case traverse strengthenVar ty of
   Failure e -> unsolvedMetavariables (toList e) ty
   Success a -> pure a
-  where strengthenVar (Name n) = Success n
-        strengthenVar (Meta m) = Failure (Set.singleton m)
+  where strengthenVar (Global q) = Success q
+        strengthenVar (Local v)  = Failure (Set.singleton v)
 
 data Validation e a
   = Failure e
@@ -178,10 +181,10 @@ instance Semigroup e => Applicative (Validation e) where
   Success f  <*> Success a  = Success (f a)
 
 
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Gensym] -> Core (Name Meta) -> m a
+unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Meta] -> Core (Name Meta) -> m a
 unsolvedMetavariables metas ty = do
   span <- ask
-  throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map (pretty . Meta) metas))) [pretty ty])
+  throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty metas))) [pretty ty])
 
 
 type Type = Core

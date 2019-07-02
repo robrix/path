@@ -194,7 +194,7 @@ elabModule :: ( Carrier sig m
               , Member (State Namespace) sig
               )
            => Module Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta))
-           -> m (Module Qualified (Core (Name Gensym) ::: Type (Name Gensym)))
+           -> m (Module Qualified (Core Qualified ::: Type Qualified))
 elabModule m = namespace (show (moduleName m)) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
@@ -221,7 +221,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Namespace) sig
             )
          => Spanned (Decl Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)))
-         -> m (Spanned (Decl Qualified (Core (Name Gensym) ::: Type (Name Gensym))))
+         -> m (Spanned (Decl Qualified (Core Qualified ::: Type Qualified)))
 elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
   ty' <- runNamespace (declare (elab ty))
   modify (Namespace.insert name (Entry (Nothing ::: ty')))
@@ -244,7 +244,7 @@ declare :: ( Carrier sig m
            , Member (Reader Span) sig
            )
         => ElabC (StateC Signature m) (Core (Name Meta) ::: Type (Name Meta))
-        -> m (Core (Name Gensym))
+        -> m (Core Qualified)
 declare ty = evalState (mempty :: Signature) $ do
   (constraints, ty') <- runElab (goalIs Core.Type ty)
   subst <- solver constraints
@@ -259,7 +259,7 @@ define :: ( Carrier sig m
           )
        => Core (Name Meta)
        -> ElabC (StateC Signature m) (Core (Name Meta) ::: Type (Name Meta))
-       -> m (Core (Name Gensym) ::: Type (Name Gensym))
+       -> m (Core Qualified ::: Type Qualified)
 define ty tm = evalState (mempty :: Signature) $ do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
