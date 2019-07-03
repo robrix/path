@@ -182,11 +182,11 @@ dequeue = gets Seq.viewl >>= \case
   Seq.EmptyL -> pure Nothing
   h Seq.:< q -> Just h <$ put q
 
-pattern :: Type (Name Meta) -> Maybe (Gensym, Stack (Plicit Meta))
+pattern :: Core (Name Meta) -> Maybe (Gensym, Stack (Plicit Meta))
 pattern (Local (Meta m) :$ sp) = (,) m <$> (traverse (traverse bound) sp >>= distinct)
 pattern _                      = Nothing
 
-bound :: Type (Name Meta) -> Maybe Meta
+bound :: Core (Name Meta) -> Maybe Meta
 bound (Local v :$ Nil) = Just v
 bound _                = Nothing
 

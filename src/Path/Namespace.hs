@@ -22,10 +22,10 @@ instance Pretty a => Pretty (Entry a) where
   pretty (Entry (Just v  ::: ty)) = align $ cyan colon <+> pretty ty <> hardline <> cyan (pretty "=") <+> pretty v
 
 
-newtype Namespace = Namespace { unNamespace :: Map.Map Qualified (Entry (Type Qualified)) }
+newtype Namespace = Namespace { unNamespace :: Map.Map Qualified (Entry (Core Qualified)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
 
-lookup :: Qualified -> Namespace -> Maybe (Entry (Type Qualified))
+lookup :: Qualified -> Namespace -> Maybe (Entry (Core Qualified))
 lookup q = Map.lookup q . unNamespace
 
 null :: Namespace -> Bool
@@ -34,13 +34,13 @@ null = Map.null . unNamespace
 union :: Namespace -> Namespace -> Namespace
 union = (<>)
 
-filter :: (Qualified -> Entry (Type Qualified) -> Bool) -> Namespace -> Namespace
+filter :: (Qualified -> Entry (Core Qualified) -> Bool) -> Namespace -> Namespace
 filter = under . Map.filterWithKey
 
-insert :: Qualified -> Entry (Type Qualified) -> Namespace -> Namespace
+insert :: Qualified -> Entry (Core Qualified) -> Namespace -> Namespace
 insert q = under . Map.insert q
 
-under :: (Map.Map Qualified (Entry (Type Qualified)) -> Map.Map Qualified (Entry (Type Qualified))) -> Namespace -> Namespace
+under :: (Map.Map Qualified (Entry (Core Qualified)) -> Map.Map Qualified (Entry (Core Qualified))) -> Namespace -> Namespace
 under = coerce
 
 instance Pretty Namespace where

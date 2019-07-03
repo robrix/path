@@ -18,7 +18,7 @@ import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
 import           Path.Context
-import           Path.Core (Type, Core, prettyCore)
+import           Path.Core (Core, prettyCore)
 import           Path.Name
 import           Path.Pretty
 import           Path.Scope hiding (bind, instantiate, match)
@@ -86,7 +86,7 @@ instance Substitutable (Constraint (Name Meta)) where
 
 data Constraint a
   = Core a :|-: Constraint (Incr () (Core a))
-  | E (Equation (Core a) ::: Type a)
+  | E (Equation (Core a) ::: Core a)
   deriving (Eq, Ord, Show)
 
 infixr 1 :|-:
@@ -116,15 +116,15 @@ instance Pretty (Constraint (Name Meta)) where
           prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyCore t
 
 
-(|-) :: Eq a => a ::: Type a -> Constraint a -> Constraint a
+(|-) :: Eq a => a ::: Core a -> Constraint a -> Constraint a
 n ::: t |- b = t :|-: bind n b
 
 infixr 1 |-
 
-binds :: Context (Type (Name Meta)) -> Equation (Core (Name Meta)) ::: Type (Name Meta) -> Constraint (Name Meta)
+binds :: Context (Core (Name Meta)) -> Equation (Core (Name Meta)) ::: Core (Name Meta) -> Constraint (Name Meta)
 binds (Context names) body = foldr (|-) (E body) (first (Local . Name) <$> names)
 
-unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Type (Name Meta)), Equation (Core (Name Meta)) ::: Type (Name Meta))
+unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Core (Name Meta)), Equation (Core (Name Meta)) ::: Core (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case
   t :|-: b -> Right (name ::: t, instantiate (pure (Local (Name name))) b)
   E q      -> Left q)
@@ -132,7 +132,7 @@ unbinds = fmap (first Context) . un (\ name -> \case
 
 efold :: forall m n a b
       .  (forall a . Core (m a) -> n (Incr () (Core (m a))) -> n a)
-      -> (forall a . Equation (Core (m a)) ::: Type (m a) -> n a)
+      -> (forall a . Equation (Core (m a)) ::: Core (m a) -> n a)
       -> (forall a . Incr () a -> m (Incr () a))
       -> (a -> m b)
       -> Constraint a

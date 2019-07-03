@@ -111,14 +111,14 @@ unlam :: Alternative m => a -> Core a -> m (Plicit a, Core a)
 unlam n (Lam p b) = pure (p :< n, instantiate (const (pure n)) b)
 unlam _ _         = empty
 
-pi :: Eq a => Plicit (a ::: Used (Type a)) -> Core a -> Core a
+pi :: Eq a => Plicit (a ::: Used (Core a)) -> Core a -> Core a
 pi (p :< n ::: t) b = Pi (p :< t) (bind (guard . (== n)) b)
 
 -- | Wrap a type in a sequence of pi bindings.
-pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Type a))) -> Core a -> Core a
+pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Core a))) -> Core a -> Core a
 pis names body = foldr pi body names
 
-unpi :: Alternative m => a -> Core a -> m (Plicit (a ::: Used (Type a)), Core a)
+unpi :: Alternative m => a -> Core a -> m (Plicit (a ::: Used (Core a)), Core a)
 unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (const (pure n)) b)
 unpi _ _               = empty
 
@@ -180,9 +180,6 @@ unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader 
 unsolvedMetavariables metas ty = do
   span <- ask
   throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty metas))) [pretty ty])
-
-
-type Type = Core
 
 
 -- $setup
