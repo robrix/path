@@ -58,11 +58,11 @@ intro (p :< x) body = do
   u <- x ::: _A |- goalIs _B (body x)
   pure (Core.lam (p :< Local (Name x)) u ::: Core.pi (p :< Local (Name x) ::: More :@ _A) _B)
 
-pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
-   => Plicit (Maybe User, Usage, m (Core (Name Meta) ::: Core (Name Meta)))
-   -> (Gensym -> m (Core (Name Meta) ::: Core (Name Meta)))
-   -> m (Core (Name Meta) ::: Core (Name Meta))
-pi (p :< (x, m, t)) body = do
+(-->) :: (Carrier sig m, Member Elab sig, Member Naming sig)
+      => Plicit (Maybe User, Usage, m (Core (Name Meta) ::: Core (Name Meta)))
+      -> (Gensym -> m (Core (Name Meta) ::: Core (Name Meta)))
+      -> m (Core (Name Meta) ::: Core (Name Meta))
+(p :< (x, m, t)) --> body = do
   t' <- goalIs Core.Type t
   x <- gensym (maybe "pi" showUser x)
   b' <- x ::: t' |- goalIs Core.Type (body x)
@@ -121,7 +121,7 @@ elab = \case
     Surface.Lam n b -> intro (unIgnored <$> n) (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
     (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
     Surface.Type -> pure (Core.Type ::: Core.Type)
-    Surface.Pi (p :< Ignored n ::: m :@ t) b -> pi (p :< (n, m, elab' t)) (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
+    Surface.Pi (p :< Ignored n ::: m :@ t) b -> (p :< (n, m, elab' t)) --> \ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b)
   where elab' (t :~ s) = spanIs s (elab t)
 
 
