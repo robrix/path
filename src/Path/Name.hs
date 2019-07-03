@@ -243,6 +243,19 @@ fvs :: (Foldable t, Ord a) => t a -> Set.Set a
 fvs = foldMap Set.singleton
 
 
+data Named a b = Named (Ignored a) b
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+named :: a -> b -> Named a b
+named = Named . Ignored
+
+namedName :: Named a b -> a
+namedName (Named (Ignored a) _) = a
+
+namedValue :: Named a b -> b
+namedValue (Named _ b) = b
+
+
 newtype Ignored a = Ignored a
   deriving (Foldable, Functor, Show, Traversable)
 
