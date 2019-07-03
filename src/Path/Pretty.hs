@@ -10,7 +10,6 @@ module Path.Pretty
 , prettyVar
 , prettyParens
 , prettyBraces
-, prettySpanned
 , tabulate2
 , tracePrettyM
 , Prec(..)
@@ -87,9 +86,6 @@ prettyParens False = id
 prettyBraces :: Bool -> Doc -> Doc
 prettyBraces True = braces
 prettyBraces False = id
-
-prettySpanned :: Pretty a => Spanned a -> Doc
-prettySpanned (a :~ s) = pretty a <> hardline <> pretty (render s)
 
 
 -- | Debugging helper.
