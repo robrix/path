@@ -48,8 +48,8 @@ f $$ a = Surface (f :$ a)
 type' :: Surface a
 type' = Surface Type
 
-pi :: Eq a => Plicit ((Maybe User, a) ::: Used (Spanned (Surface a))) -> Spanned (Surface a) -> Surface a
-pi (p :< (u, n) ::: t) b = Surface (Pi (p :< Ignored u ::: t) (bind ((Ignored u <$) . guard . (== n)) <$> b))
+pi :: Eq a => Plicit (Named (Maybe User) a ::: Used (Spanned (Surface a))) -> Spanned (Surface a) -> Surface a
+pi (p :< (Named u n) ::: t) b = Surface (Pi (p :< u ::: t) (bind ((u <$) . guard . (== n)) <$> b))
 
 (-->) :: Used (Spanned (Surface a)) -> Spanned (Surface a) -> Surface a
 t --> b = Surface (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))

@@ -24,7 +24,7 @@ type' = spanned (Surface.type' <$ keyword "Type")
 
 piType = spanned (do
   p :< (v, mult, ty) <- plicit binding (parens binding) <* op "->"
-  Surface.pi (p :< (Just v, U v) ::: fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty) <$> functionType) <?> "dependent function type"
+  Surface.pi (p :< named (Just v) (U v) ::: fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty) <$> functionType) <?> "dependent function type"
   where binding = ((,,) <$> name <* colon <*> optional multiplicity <*> term)
 
 functionType = spanned ((:@) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType))
