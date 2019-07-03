@@ -31,3 +31,7 @@ unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signatur
 unsimplifiableConstraints sig constraints = throwError (fold (intersperse hardline (map unsimplifiable constraints)))
   where unsimplifiable (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty (sigFor c) <> pretty c]
         sigFor c = let fvs' = metaNames (localNames (fvs c)) in Signature (Map.filterWithKey (\ k _ -> k `Set.member` fvs') (unSignature sig))
+
+
+runSpanned :: Carrier sig m => (a -> ReaderC Span m b) -> Spanned a -> m (Spanned b)
+runSpanned f v@(_ :~ s) = runReader s (traverse f v)
