@@ -9,6 +9,7 @@ import           Control.Effect.State
 import           Control.Effect.Sum
 import           Control.Monad.Fail
 import           Control.Monad.IO.Class
+import           Data.Bifoldable
 import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
@@ -219,6 +220,9 @@ instance Pretty Operator where
 
 data a ::: b = a ::: b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Bifoldable (:::) where
+  bifoldMap f g (a ::: b) = f a <> g b
 
 instance Bifunctor (:::) where
   bimap f g (a ::: b) = f a ::: g b
