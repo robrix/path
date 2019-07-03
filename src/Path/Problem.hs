@@ -8,6 +8,9 @@ import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad (guard)
+import           Data.Bifoldable
+import           Data.Bifunctor
+import           Data.Bitraversable
 import           Data.Coerce
 import           Data.Foldable (fold)
 import           Data.List (intersperse)
@@ -455,6 +458,15 @@ data a := b = a := b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 infix 1 :=
+
+instance Bifoldable (:=) where
+  bifoldMap f g (a := b) = f a <> g b
+
+instance Bifunctor (:=) where
+  bimap f g (a := b) = f a := g b
+
+instance Bitraversable (:=) where
+  bitraverse f g (a := b) = (:=) <$> f a <*> g b
 
 instance (Pretty a, Pretty b) => Pretty (a := b) where
   pretty (a := b) = pretty a <+> magenta (pretty "=") <+> pretty b
