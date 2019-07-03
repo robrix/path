@@ -100,6 +100,9 @@ newtype Eqn a = Eqn { unEqn :: Equation (Core a) ::: Core a }
 instance Traversable Eqn where
   traverse f  = fmap Eqn . bitraverse (traverse (traverse f)) (traverse f) . unEqn
 
+instance RModule Constraint Core where
+  (>>==) = flip bindConstraint
+
 instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
