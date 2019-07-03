@@ -11,7 +11,6 @@ module Path.Parser
 , reservedWords
 , op
 , ErrInfo
-, Span(..)
 , Delta(..)
 ) where
 
