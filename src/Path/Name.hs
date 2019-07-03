@@ -248,3 +248,6 @@ newtype Ignored a = Ignored a
 
 instance Eq  (Ignored a) where _ == _ = True
 instance Ord (Ignored a) where compare _ _ = EQ
+
+unIgnored :: Ignored a -> a
+unIgnored (Ignored a) = a
