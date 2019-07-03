@@ -35,11 +35,11 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Su
 
 
 lam :: Eq a => Plicit (Named (Maybe User) a) -> Spanned (Surface a) -> Surface a
-lam (p :< (Named u n)) b = Surface (Lam (p :< u) (bind ((u <$) . guard . (== n)) <$> b))
+lam (p :< Named u n) b = Surface (Lam (p :< u) (bind ((u <$) . guard . (== n)) <$> b))
 
 lam' :: Plicit (Maybe User) -> Spanned (Surface Var) -> Surface Var
 lam' (p :< Nothing) b = Surface (Lam (p :< Ignored Nothing) (lift <$> b))
-lam' (p :< Just n)  b = lam (p :< (named (Just n) (U n))) b
+lam' (p :< Just n)  b = lam (p :< named (Just n) (U n)) b
 
 ($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
 f $$ a = Surface (f :$ a)
@@ -49,7 +49,7 @@ type' :: Surface a
 type' = Surface Type
 
 pi :: Eq a => Plicit (Named (Maybe User) a ::: Used (Spanned (Surface a))) -> Spanned (Surface a) -> Surface a
-pi (p :< (Named u n) ::: t) b = Surface (Pi (p :< u ::: t) (bind ((u <$) . guard . (== n)) <$> b))
+pi (p :< Named u n ::: t) b = Surface (Pi (p :< u ::: t) (bind ((u <$) . guard . (== n)) <$> b))
 
 (-->) :: Used (Spanned (Surface a)) -> Spanned (Surface a) -> Surface a
 t --> b = Surface (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))
