@@ -142,7 +142,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph (Core Qualified ::: Core Qualified)) (runError loop >>= either (print @Doc) pure)
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph (Core Qualified)) (runError loop >>= either (print @Doc) pure)
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
         parseCommand str = do
@@ -162,7 +162,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph (Core Quali
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph (Core Qualified ::: Core Qualified))
+            let ms = modules (graph :: ModuleGraph (Core Qualified))
             unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
             loop
           Reload -> reload *> loop
@@ -172,7 +172,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph (Core Quali
             loop
           Command.Doc moduleName -> do
             m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module (Core Qualified ::: Core Qualified)) of
+            case m :: Maybe (Module (Core Qualified)) of
               Just m -> case moduleDocs m of
                 Just d  -> print (pretty d)
                 Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
@@ -244,7 +244,7 @@ helpDoc = tabulate2 (space <+> space) entries
           ]
         w = align . fillSep . map pretty . words
 
-runParseModule :: FilePath -> (Module (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
+runParseModule :: FilePath -> (Module (Surface.Surface (Name Meta)) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
 runParseModule path f = runM @IO . runError @Doc $ do
   m <- parseModule path
   runNaming $ do

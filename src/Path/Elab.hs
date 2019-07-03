@@ -193,8 +193,8 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta))
-           -> m (Module (Core Qualified ::: Core Qualified))
+           => Module (Surface.Surface (Name Meta))
+           -> m (Module (Core Qualified))
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
@@ -221,9 +221,9 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             , Member (State Namespace) sig
             )
-         => Spanned (Decl (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)))
-         -> m (Spanned (Decl (Core Qualified ::: Core Qualified)))
-elabDecl = runSpanned $ \ (Decl d name (tm ::: ty)) -> namespace (show name) $ do
+         => Spanned (Decl (Surface.Surface (Name Meta)))
+         -> m (Spanned (Decl (Core Qualified)))
+elabDecl = runSpanned $ \ (Decl d name tm ty) -> namespace (show name) $ do
   ty' <- runNamespace (declare (elab ty))
   moduleName <- ask
   modify (Namespace.insert (moduleName :.: name) (Entry (Nothing ::: ty')))
@@ -236,7 +236,7 @@ elabDecl = runSpanned $ \ (Decl d name (tm ::: ty)) -> namespace (show name) $ d
   -- tm ::: _ <- runNamespace (define (weaken ty') (elab (Surface.lams names tm)))
   tm ::: _ <- runNamespace (define (weaken ty') (elab tm))
   modify (Namespace.insert (moduleName :.: name) (Entry (Just tm ::: ty')))
-  pure (Decl d name (tm ::: ty'))
+  pure (Decl d name tm ty')
 
 declare :: ( Carrier sig m
            , Effect sig

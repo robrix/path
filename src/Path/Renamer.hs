@@ -42,10 +42,10 @@ resolveDecl :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                )
-            => Spanned (Decl (Spanned (Surface Var) ::: Spanned (Surface Var)))
-            -> m (Spanned (Decl (Surface (Name Meta) ::: Surface (Name Meta))))
+            => Spanned (Decl (Spanned (Surface Var)))
+            -> m (Spanned (Decl (Surface (Name Meta))))
 -- FIXME: do something with the term/type spans
-resolveDecl = runSpanned $ \ (Decl d n ((tm :~ _) ::: (ty :~ _))) -> do
+resolveDecl = runSpanned $ \ (Decl d n (tm :~ _) (ty :~ _)) -> do
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
   --     generalize ty = foldr bind ty vs
@@ -53,11 +53,11 @@ resolveDecl = runSpanned $ \ (Decl d n ((tm :~ _) ::: (ty :~ _))) -> do
   --       n' <- gensym (showUser n)
   --       local (insertLocal (Just n) n') $
   --         Pi (Im :< (Just n, Zero, Type)) . Surface.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
-  res <- evalState (mempty :: Signature) $
+  tm' ::: ty' <- evalState (mempty :: Signature) $
     flip (:::) <$> runResolution (runReader Declare (resolveTerm ty))
                <*  modify (insertGlobal n moduleName)
                <*> runResolution (runReader Define  (resolveTerm tm))
-  pure (Decl d n res)
+  pure (Decl d n tm' ty')
 
 runResolution :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
 runResolution m = get >>= \ res -> runReader res m
@@ -68,8 +68,8 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module (Spanned (Surface Var) ::: Spanned (Surface Var))
-              -> m (Module (Surface (Name Meta) ::: Surface (Name Meta)))
+              => Module (Spanned (Surface Var))
+              -> m (Module (Surface (Name Meta)))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))

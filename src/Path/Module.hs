@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase, TypeOperators #-}
 module Path.Module where
 
 import Control.Effect
@@ -32,14 +32,18 @@ newtype Import = Import { importModuleName :: ModuleName }
 data Decl a = Decl
   { declDocs :: Maybe String
   , declName :: User
-  , declBody :: a
+  , declTerm :: a
+  , declType :: a
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+declBody :: Decl a -> a ::: a
+declBody d = declTerm d ::: declType d
+
 instance Pretty a => Pretty (Decl a) where
-  pretty (Decl docs v a) = case docs of
-    Nothing -> pretty v <+> magenta (pretty "=") <+> pretty a
-    Just ds -> pretty ds <> hardline <> pretty v <+> magenta (pretty "=") <+> pretty a
+  pretty (Decl docs v tm ty) = case docs of
+    Nothing -> pretty v <+> magenta (pretty "=") <+> pretty (tm ::: ty)
+    Just ds -> pretty ds <> hardline <> pretty v <+> magenta (pretty "=") <+> pretty (tm ::: ty)
 
 
 newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module a) }
