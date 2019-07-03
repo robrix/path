@@ -11,7 +11,7 @@ module Path.Constraint
 ) where
 
 import           Control.Effect
-import           Control.Monad (guard)
+import           Control.Monad (guard, join)
 import           Data.Bifunctor (first)
 import           Data.Bitraversable (bitraverse)
 import           Data.Foldable (toList)
@@ -101,8 +101,7 @@ instance Traversable Eqn where
   traverse f  = fmap Eqn . bitraverse (traverse (traverse f)) (traverse f) . unEqn
 
 instance RModule Constraint Core where
-  (ty :|-: b)       >>== f = (ty >>= f) :|-: (b >>== f)
-  E (Eqn (q ::: t)) >>== f = E (Eqn (fmap (>>= f) q ::: (t >>= f)))
+  m >>== f = efold (\ v s -> join v :|-: (s >>== id)) (\ (q ::: t) -> E (Eqn (fmap join q ::: join t))) pure f m
 
 instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do
@@ -129,3 +128,17 @@ unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Co
 unbinds = fmap (first Context) . un (\ name -> \case
   t :|-: b  -> Right (name ::: t, instantiateH (const (pure (Local (Name name)))) b)
   E (Eqn q) -> Left q)
+
+
+efold :: forall m n a b
+      .  (forall a . Core (m a) -> ScopeH () n Core (m a) -> n a)
+      -> (forall a . Equation (Core (m a)) ::: Core (m a) -> n a)
+      -> (forall a . Incr () a -> m (Incr () a))
+      -> (a -> m b)
+      -> Constraint a
+      -> n b
+efold bind eqn k = go
+  where go :: forall x y . (x -> m y) -> Constraint x -> n y
+        go h = \case
+          v :|-: b          -> bind (h <$> v) (ScopeH (go (k . fmap (fmap h)) (unScopeH b)))
+          E (Eqn (q ::: t)) -> eqn ((fmap h <$> q) ::: (h <$> t))
