@@ -52,6 +52,9 @@ instance Applicative f => Applicative (Scope a f) where
 instance Monad f => Monad (Scope a f) where
   Scope e >>= f = Scope (e >>= incr (pure . Z) (>>= unScope . f))
 
+instance Monad f => RModule (Scope a f) f where
+  Scope m >>== f = Scope (fmap (>>= f) <$> m)
+
 instance MonadTrans (Scope a) where
   lift = Scope . pure . S
 
