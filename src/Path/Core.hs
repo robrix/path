@@ -141,11 +141,11 @@ eiter :: forall m n a b
       -> n b
 eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Core x -> n y
-        go h = \case
-          Lam p b -> alg (LamF p (foldScope k go h b))
-          f :$ a -> alg (var (h f) :$$ (fmap (go h) <$> a))
-          Type -> alg TypeF
-          Pi t b -> alg (PiF (fmap (go h) <$> t) (foldScope k go h b))
+        go h = alg . \case
+          Lam p b -> LamF p (foldScope k go h b)
+          f :$ a -> var (h f) :$$ (fmap (go h) <$> a)
+          Type -> TypeF
+          Pi t b -> PiF (fmap (go h) <$> t) (foldScope k go h b)
 
 
 generalizeType :: Core (Name Meta) -> Core Qualified

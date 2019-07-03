@@ -68,8 +68,8 @@ eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Surface x -> n y
         go h = \case
           Var a -> var (h a)
-          Surface s -> case s of
-            Lam p b -> alg (Lam p (foldScope k go h <$> b))
-            f :$ a -> alg ((go h <$> f) :$ (fmap (go h) <$> a))
-            Type -> alg Type
-            Pi t b -> alg (Pi (fmap (fmap (fmap (go h))) <$> t) (foldScope k go h <$> b))
+          Surface s -> alg $ case s of
+            Lam p b -> Lam p (foldScope k go h <$> b)
+            f :$ a -> (go h <$> f) :$ (fmap (go h) <$> a)
+            Type -> Type
+            Pi t b -> Pi (fmap (fmap (fmap (go h))) <$> t) (foldScope k go h <$> b)

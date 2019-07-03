@@ -181,13 +181,13 @@ eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
           Var a -> var (h a)
-          Problem p -> case p of
-            Lam t b -> alg (Lam (go h t) (foldScope k go h b))
-            f :$ a -> alg (go h f :$ go h a)
-            Type -> alg Type
-            Pi t b -> alg (Pi (go h t) (foldScope k go h b))
-            Ex v t b -> alg (Ex (go h <$> v) (go h t) (foldScope k go h b))
-            p1 :===: p2 -> alg (go h p1 :===: go h p2)
+          Problem p -> alg $ case p of
+            Lam t b -> Lam (go h t) (foldScope k go h b)
+            f :$ a -> go h f :$ go h a
+            Type -> Type
+            Pi t b -> Pi (go h t) (foldScope k go h b)
+            Ex v t b -> Ex (go h <$> v) (go h t) (foldScope k go h b)
+            p1 :===: p2 -> go h p1 :===: go h p2
 
 kcata :: (a -> b)
       -> (forall a . ProblemF (Const b) a -> b)
