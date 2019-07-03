@@ -33,12 +33,10 @@ prettyCore = \case
     where var vs (p :< n) rest
             | n `Set.member` vs = prettyPlicity False (p :< pretty (Local n)) <+> rest
             | otherwise         = prettyPlicity False (p :< pretty '_')       <+> rest
+  f :$ Nil -> pure (atom (pretty f))
   f :$ sp -> do
     sp' <- traverse prettyArg (toList sp)
-    pure (if null sp then
-      atom (pretty f)
-    else
-      prec 10 (hsep (pretty f : sp')))
+    pure (prec 10 (hsep (pretty f : sp')))
     where prettyArg (Im :< a) = prettyBraces True . prettyPrec 0 <$> prettyCore a
           prettyArg (Ex :< a) = prettyPrec 11 <$> prettyCore a
   Type -> pure (atom (yellow (pretty "Type")))
