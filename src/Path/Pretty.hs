@@ -36,17 +36,26 @@ putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
-prettyNotice :: Maybe Doc -> Span -> Doc -> [Doc] -> Doc
+data Level
+  = Error
+  | Warn
+  deriving (Eq, Ord, Show)
+
+instance Pretty Level where
+  pretty Error = red (pretty "error")
+  pretty Warn  = magenta (pretty "warning")
+
+prettyNotice :: Maybe Level -> Span -> Doc -> [Doc] -> Doc
 prettyNotice lvl s msg ctx = vsep
-  ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon)) lvl </> msg))
+  ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) lvl </> msg))
   : pretty (render s)
   : ctx)
 
 prettyErr :: Span -> Doc -> [Doc] -> Doc
-prettyErr = prettyNotice (Just (red (pretty "error")))
+prettyErr = prettyNotice (Just Error)
 
 prettyWarn :: Span -> Doc -> [Doc] -> Doc
-prettyWarn = prettyNotice (Just (magenta (pretty "warning")))
+prettyWarn = prettyNotice (Just Warn)
 
 prettyInfo :: Span -> Doc -> [Doc] -> Doc
 prettyInfo = prettyNotice Nothing
