@@ -22,10 +22,10 @@ instance Monad Surface where
   a >>= f = eiter id Surface Var f a
 
 data SurfaceF f a
-  = Lam (Plicit (Maybe User)) (Spanned (Scope () f a))
+  = Lam (Plicit (Ignored (Maybe User))) (Spanned (Scope () f a))
   | Spanned (f a) :$ Plicit (Spanned (f a))
   | Type
-  | Pi (Plicit (Maybe User ::: Used (Spanned (f a)))) (Spanned (Scope () f a))
+  | Pi (Plicit (Ignored (Maybe User) ::: Used (Spanned (f a)))) (Spanned (Scope () f a))
   deriving (Foldable, Functor, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (SurfaceF f a)
@@ -35,10 +35,10 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Su
 
 
 lam :: Eq a => Plicit (Maybe User, a) -> Spanned (Surface a) -> Surface a
-lam (p :< (u, n)) b = Surface (Lam (p :< u) (bind (guard . (== n)) <$> b))
+lam (p :< (u, n)) b = Surface (Lam (p :< Ignored u) (bind (guard . (== n)) <$> b))
 
 lam' :: Plicit (Maybe User) -> Spanned (Surface Var) -> Surface Var
-lam' (p :< Nothing) b = Surface (Lam (p :< Nothing) (lift <$> b))
+lam' (p :< Nothing) b = Surface (Lam (p :< Ignored Nothing) (lift <$> b))
 lam' (p :< Just n)  b = lam (p :< (Just n, U n)) b
 
 ($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
@@ -49,10 +49,10 @@ type' :: Surface a
 type' = Surface Type
 
 pi :: Eq a => Plicit ((Maybe User, a) ::: Used (Spanned (Surface a))) -> Spanned (Surface a) -> Surface a
-pi (p :< (u, n) ::: t) b = Surface (Pi (p :< u ::: t) (bind (guard . (== n)) <$> b))
+pi (p :< (u, n) ::: t) b = Surface (Pi (p :< Ignored u ::: t) (bind (guard . (== n)) <$> b))
 
 (-->) :: Used (Spanned (Surface a)) -> Spanned (Surface a) -> Surface a
-t --> b = Surface (Pi (Ex :< Nothing ::: t) (lift <$> b))
+t --> b = Surface (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))
 
 infixr 0 -->
 

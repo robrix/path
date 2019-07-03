@@ -118,10 +118,10 @@ elab = \case
   Surface.Var (Local (Name n)) -> assume (Local n)
   Surface.Var (Local (Meta n)) -> (pure (Local (Meta n)) :::) <$> exists Core.Type
   Surface.Surface c -> case c of
-    Surface.Lam n b -> intro n (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
+    Surface.Lam n b -> intro (unIgnored <$> n) (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
     (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
     Surface.Type -> pure (Core.Type ::: Core.Type)
-    Surface.Pi (p :< n ::: m :@ t) b -> pi (p :< (n, m, elab' t)) (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
+    Surface.Pi (p :< Ignored n ::: m :@ t) b -> pi (p :< (n, m, elab' t)) (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
   where elab' (t :~ s) = spanIs s (elab t)
 
 
