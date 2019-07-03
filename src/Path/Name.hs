@@ -243,6 +243,16 @@ instance (Pretty a, Pretty b) => Pretty (a ::: b) where
   pretty (a ::: t) = pretty a <+> cyan colon <+> pretty t
 
 
+-- | A functor composing two functors on the inside of a bifunctor. Can be used with @-XDerivingVia@ to derive 'Foldable', 'Functor', and 'Traversable' instances given 'Bifoldable', 'Bifunctor', and 'Bitraversable' instances for @p@ respectively.
+newtype Comp2 p f g a = Comp2 { unComp2 :: p (f a) (g a) }
+
+instance (Bifoldable p, Foldable f, Foldable g) => Foldable (Comp2 p f g) where
+  foldMap f = bifoldMap (foldMap f) (foldMap f) . unComp2
+
+instance (Bifunctor p, Functor f, Functor g) => Functor (Comp2 p f g) where
+  fmap f = Comp2 . bimap (fmap f) (fmap f) . unComp2
+
+
 data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
 
