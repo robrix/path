@@ -118,8 +118,9 @@ repl packageSources = liftIO $ do
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Namespace.Namespace)
        (evalState (Resolution mempty)
+       (runReader (ModuleName "(interpreter)")
        (runNaming
-       (script packageSources)))))))
+       (script packageSources))))))))
 
 newtype Line = Line Int64
 
@@ -133,6 +134,7 @@ script :: ( Carrier sig m
           , Effect sig
           , Member Naming sig
           , Member REPL sig
+          , Member (Reader ModuleName) sig
           , Member (State ModuleTable) sig
           , Member (State Resolution) sig
           , Member (State Namespace.Namespace) sig
@@ -199,10 +201,10 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all @[] (`notElem` map (importModuleName . unSpanned) (moduleImports m))
 
-runRenamer :: (Carrier sig m, Member (State Resolution) sig) => ReaderC ModuleName (ReaderC Resolution m) a -> m a
+runRenamer :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
 runRenamer m = do
   res <- get
-  runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
+  runReader (res :: Resolution) m
 
 elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned (Surface.Surface Var) -> m (Spanned (Core Qualified ::: Core Qualified))
 elaborate = runSpanned $ \ tm -> do
