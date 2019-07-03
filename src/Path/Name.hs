@@ -11,6 +11,7 @@ import           Control.Monad.Fail
 import           Control.Monad.IO.Class
 import           Data.Bifoldable
 import           Data.Bifunctor
+import           Data.Bitraversable
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Path.Pretty
@@ -226,6 +227,9 @@ instance Bifoldable (:::) where
 
 instance Bifunctor (:::) where
   bimap f g (a ::: b) = f a ::: g b
+
+instance Bitraversable (:::) where
+  bitraverse f g (a ::: b) = (:::) <$> f a <*> g b
 
 typedTerm :: a ::: b -> a
 typedTerm (a ::: _) = a
