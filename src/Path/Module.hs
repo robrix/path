@@ -72,7 +72,7 @@ cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m
 
 
 loadOrder :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph a -> m [Module a]
-loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.elems (unModuleGraph g)) loopM)))
+loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (modules g) loopM)))
   where loopM m = do
           visited <- gets (Set.member (moduleName m))
           unless visited . local (Set.insert (moduleName m)) $ do
