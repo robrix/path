@@ -193,9 +193,9 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta))
-           -> m (Module Qualified (Core Qualified ::: Core Qualified))
-elabModule m = namespace (show (moduleName m)) $ do
+           => Module (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta))
+           -> m (Module (Core Qualified ::: Core Qualified))
+elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
   decls <- for (moduleDecls m) $ \ decl ->
@@ -218,13 +218,15 @@ elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error Doc) sig
             , Member Naming sig
+            , Member (Reader ModuleName) sig
             , Member (State Namespace) sig
             )
-         => Spanned (Decl Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)))
-         -> m (Spanned (Decl Qualified (Core Qualified ::: Core Qualified)))
+         => Spanned (Decl (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)))
+         -> m (Spanned (Decl (Core Qualified ::: Core Qualified)))
 elabDecl = runSpanned $ \ (Decl d name (tm ::: ty)) -> namespace (show name) $ do
   ty' <- runNamespace (declare (elab ty))
-  modify (Namespace.insert name (Entry (Nothing ::: ty')))
+  moduleName <- ask
+  modify (Namespace.insert (moduleName :.: name) (Entry (Nothing ::: ty')))
   -- scope <- get
 
   -- let ty'' = whnf scope ty'
@@ -233,7 +235,7 @@ elabDecl = runSpanned $ \ (Decl d name (tm ::: ty)) -> namespace (show name) $ d
   --   _                      -> Nothing)) ty''
   -- tm ::: _ <- runNamespace (define (weaken ty') (elab (Surface.lams names tm)))
   tm ::: _ <- runNamespace (define (weaken ty') (elab tm))
-  modify (Namespace.insert name (Entry (Just tm ::: ty')))
+  modify (Namespace.insert (moduleName :.: name) (Entry (Just tm ::: ty')))
   pure (Decl d name (tm ::: ty'))
 
 declare :: ( Carrier sig m

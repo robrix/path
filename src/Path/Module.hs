@@ -17,45 +17,45 @@ import Path.Name
 import Path.Pretty
 import Path.Span
 
-data Module v a = Module
+data Module a = Module
   { moduleName    :: ModuleName
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
   , moduleImports :: [Spanned Import]
-  , moduleDecls   :: [Spanned (Decl v a)]
+  , moduleDecls   :: [Spanned (Decl a)]
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
-data Decl v a = Decl
+data Decl a = Decl
   { declDocs :: Maybe String
-  , declName :: v
+  , declName :: User
   , declBody :: a
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance (Pretty v, Pretty a) => Pretty (Decl v a) where
+instance Pretty a => Pretty (Decl a) where
   pretty (Decl docs v a) = case docs of
     Nothing -> pretty v <+> magenta (pretty "=") <+> pretty a
     Just ds -> pretty ds <> hardline <> pretty v <+> magenta (pretty "=") <+> pretty a
 
 
-newtype ModuleGraph v a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module v a) }
+newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module a) }
   deriving (Eq, Ord, Show)
 
-moduleGraph :: [Module v a] -> ModuleGraph v a
+moduleGraph :: [Module a] -> ModuleGraph a
 moduleGraph = ModuleGraph . Map.fromList . map ((,) . moduleName <*> id)
 
-modules :: ModuleGraph v a -> [Module v a]
+modules :: ModuleGraph a -> [Module a]
 modules = Map.elems . unModuleGraph
 
 
-lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph v a -> Spanned Import -> m (Module v a)
+lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph a -> Spanned Import -> m (Module a)
 lookupModule g i = maybe (unknownModule i) pure (Map.lookup (importModuleName (unSpanned i)) (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph v a -> Spanned Import -> m ()
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph a -> Spanned Import -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
           let name = importModuleName (unSpanned n)
@@ -67,7 +67,7 @@ cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m
             pure (n :| [])
 
 
-loadOrder :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph v a -> m [Module v a]
+loadOrder :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph a -> m [Module a]
 loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (Map.elems (unModuleGraph g)) loopM)))
   where loopM m = do
           visited <- gets (Set.member (moduleName m))
