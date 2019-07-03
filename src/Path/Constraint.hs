@@ -83,7 +83,7 @@ instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
 instance Substitutable (Constraint (Name Meta)) where
-  apply (Substitution subst) = bindConstraint (\ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
+  apply (Substitution subst) = (>>== \ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
 
 
 data Constraint a
@@ -101,7 +101,7 @@ instance Traversable Eqn where
   traverse f  = fmap Eqn . bitraverse (traverse (traverse f)) (traverse f) . unEqn
 
 instance RModule Constraint Core where
-  (>>==) = flip bindConstraint
+  m >>== f = efold (\ v s -> join v :|-: fmap (fmap join) s) (\ (q ::: t) -> E (Eqn (fmap join q ::: join t))) pure f m
 
 instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do
@@ -143,12 +143,6 @@ efold bind eqn k = go
           v :|-: b          -> bind (h <$> v) (go (k . fmap (fmap h)) b)
           E (Eqn (q ::: t)) -> eqn ((fmap h <$> q) ::: (h <$> t))
 
-bindConstraint :: (a -> Core b) -> Constraint a -> Constraint b
-bindConstraint = efold
-  (\ v s -> join v :|-: fmap (fmap join) s)
-  (\ (q ::: t) -> E (Eqn (fmap join q ::: join t)))
-  pure
-
 
 -- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
 bind :: Eq a => a -> Constraint a -> Constraint (Incr () (Core a))
@@ -156,7 +150,7 @@ bind name = fmap (match name)
 
 -- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
 instantiate :: Core a -> Constraint (Incr () (Core a)) -> Constraint a
-instantiate t = bindConstraint (fromIncr (const t))
+instantiate t = (>>== fromIncr (const t))
 
 match :: (Applicative f, Eq a) => a -> a -> Incr () (f a)
 match x y | x == y    = Z ()
