@@ -193,8 +193,8 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module (Surface.Surface (Name Meta))
-           -> m (Module (Core Qualified))
+           => Module (Spanned (Surface.Surface (Name Meta)))
+           -> m (Module (Spanned (Core Qualified)))
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
@@ -221,12 +221,12 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             , Member (State Namespace) sig
             )
-         => Spanned (Decl (Surface.Surface (Name Meta)))
-         -> m (Spanned (Decl (Core Qualified)))
-elabDecl = runSpanned $ \ (Decl d name tm ty) -> namespace (show name) $ do
-  ty' <- runNamespace (declare (elab ty))
+         => Decl (Spanned (Surface.Surface (Name Meta)))
+         -> m (Decl (Spanned (Core Qualified)))
+elabDecl (Decl d name tm ty) = namespace (show name) $ do
+  ty' <- runSpanned (runNamespace . declare . elab) ty
   moduleName <- ask
-  modify (Namespace.insert (moduleName :.: name) (Entry (Nothing ::: ty')))
+  modify (Namespace.insert (moduleName :.: name) (Entry (Nothing ::: unSpanned ty')))
   -- scope <- get
 
   -- let ty'' = whnf scope ty'
@@ -234,9 +234,9 @@ elabDecl = runSpanned $ \ (Decl d name tm ty) -> namespace (show name) $ do
   --   Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
   --   _                      -> Nothing)) ty''
   -- tm ::: _ <- runNamespace (define (weaken ty') (elab (Surface.lams names tm)))
-  tm ::: _ <- runNamespace (define (weaken ty') (elab tm))
-  modify (Namespace.insert (moduleName :.: name) (Entry (Just tm ::: ty')))
-  pure (Decl d name tm ty')
+  (tm' ::: _) :~ s <- runSpanned (runNamespace . define (weaken (unSpanned ty')) . elab) tm
+  modify (Namespace.insert (moduleName :.: name) (Entry (Just tm' ::: unSpanned ty')))
+  pure (Decl d name (tm' :~ s) ty')
 
 declare :: ( Carrier sig m
            , Effect sig

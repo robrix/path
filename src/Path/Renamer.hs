@@ -42,10 +42,10 @@ resolveDecl :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                )
-            => Spanned (Decl (Spanned (Surface Var)))
-            -> m (Spanned (Decl (Surface (Name Meta))))
+            => Decl (Spanned (Surface Var))
+            -> m (Decl (Spanned (Surface (Name Meta))))
 -- FIXME: do something with the term/type spans
-resolveDecl = runSpanned $ \ (Decl d n (tm :~ _) (ty :~ _)) -> do
+resolveDecl (Decl d n tm ty) =  do
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
   --     generalize ty = foldr bind ty vs
@@ -54,9 +54,9 @@ resolveDecl = runSpanned $ \ (Decl d n (tm :~ _) (ty :~ _)) -> do
   --       local (insertLocal (Just n) n') $
   --         Pi (Im :< (Just n, Zero, Type)) . Surface.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
   tm' ::: ty' <- evalState (mempty :: Signature) $
-    flip (:::) <$> runResolution (runReader Declare (resolveTerm ty))
+    flip (:::) <$> runSpanned (runResolution . runReader Declare . resolveTerm) ty
                <*  modify (insertGlobal n moduleName)
-               <*> runResolution (runReader Define  (resolveTerm tm))
+               <*> runSpanned (runResolution . runReader Define  . resolveTerm) tm
   pure (Decl d n tm' ty')
 
 runResolution :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
@@ -69,7 +69,7 @@ resolveModule :: ( Carrier sig m
                  , Member (State Resolution) sig
                  )
               => Module (Spanned (Surface Var))
-              -> m (Module (Surface (Name Meta)))
+              -> m (Module (Spanned (Surface (Name Meta))))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))

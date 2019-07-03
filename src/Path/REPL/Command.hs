@@ -10,7 +10,7 @@ data Command
   = Quit
   | Help
   | TypeOf (Spanned (Surface Var))
-  | Decl (Spanned (Decl (Spanned (Surface Var))))
+  | Decl (Decl (Spanned (Surface Var)))
   | Eval (Spanned (Surface Var))
   | Show Info
   | Reload

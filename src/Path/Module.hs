@@ -22,7 +22,7 @@ data Module a = Module
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
   , moduleImports :: [Spanned Import]
-  , moduleDecls   :: [Spanned (Decl a)]
+  , moduleDecls   :: [Decl a]
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
