@@ -11,7 +11,7 @@ module Path.Constraint
 ) where
 
 import           Control.Effect
-import           Control.Monad (join)
+import           Control.Monad (guard, join)
 import           Data.Bifunctor (first)
 import           Data.Bitraversable (bitraverse)
 import           Data.Foldable (toList)
@@ -87,7 +87,7 @@ instance Substitutable (Constraint (Name Meta)) where
 
 
 data Constraint a
-  = Core a :|-: Constraint (Incr () (Core a))
+  = Core a :|-: ScopeH () Constraint Core a
   | E (Eqn a)
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
@@ -101,7 +101,7 @@ instance Traversable Eqn where
   traverse f  = fmap Eqn . bitraverse (traverse (traverse f)) (traverse f) . unEqn
 
 instance RModule Constraint Core where
-  m >>== f = efold (\ v s -> join v :|-: fmap (fmap join) s) (\ (q ::: t) -> E (Eqn (fmap join q ::: join t))) pure f m
+  m >>== f = efold (\ v s -> join v :|-: (s >>== id)) (\ (q ::: t) -> E (Eqn (fmap join q ::: join t))) pure f m
 
 instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do
@@ -117,7 +117,7 @@ instance Pretty (Constraint (Name Meta)) where
 
 
 (|-) :: Eq a => a ::: Core a -> Constraint a -> Constraint a
-n ::: t |- b = t :|-: bind n b
+n ::: t |- b = t :|-: bindH (guard . (== n)) b
 
 infixr 1 |-
 
@@ -126,12 +126,12 @@ binds (Context names) body = foldr (|-) (E (Eqn body)) (first (Local . Name) <$>
 
 unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Core (Name Meta)), Equation (Core (Name Meta)) ::: Core (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case
-  t :|-: b  -> Right (name ::: t, instantiate (pure (Local (Name name))) b)
+  t :|-: b  -> Right (name ::: t, instantiateH (const (pure (Local (Name name)))) b)
   E (Eqn q) -> Left q)
 
 
 efold :: forall m n a b
-      .  (forall a . Core (m a) -> n (Incr () (Core (m a))) -> n a)
+      .  (forall a . Core (m a) -> ScopeH () n Core (m a) -> n a)
       -> (forall a . Equation (Core (m a)) ::: Core (m a) -> n a)
       -> (forall a . Incr () a -> m (Incr () a))
       -> (a -> m b)
@@ -140,18 +140,5 @@ efold :: forall m n a b
 efold bind eqn k = go
   where go :: forall x y . (x -> m y) -> Constraint x -> n y
         go h = \case
-          v :|-: b          -> bind (h <$> v) (go (k . fmap (fmap h)) b)
+          v :|-: b          -> bind (h <$> v) (ScopeH (go (k . fmap (fmap h)) (unScopeH b)))
           E (Eqn (q ::: t)) -> eqn ((fmap h <$> q) ::: (h <$> t))
-
-
--- | Bind occurrences of a name in a 'Constraint', producing a 'Scope' in which the name is bound.
-bind :: Eq a => a -> Constraint a -> Constraint (Incr () (Core a))
-bind name = fmap (match name)
-
--- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Constraint'.
-instantiate :: Core a -> Constraint (Incr () (Core a)) -> Constraint a
-instantiate t = (>>== fromIncr (const t))
-
-match :: (Applicative f, Eq a) => a -> a -> Incr () (f a)
-match x y | x == y    = Z ()
-          | otherwise = S (pure y)
