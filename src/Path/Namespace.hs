@@ -4,6 +4,7 @@ module Path.Namespace where
 import Control.Arrow ((***))
 import Data.Bifoldable
 import Data.Bifunctor
+import Data.Bitraversable
 import Data.Coerce
 import Data.Functor.Identity
 import qualified Data.Map as Map
@@ -14,6 +15,9 @@ import Path.Pretty
 newtype Entry a = Entry { unEntry :: Maybe a ::: a }
   deriving (Eq, Ord, Show)
   deriving (Foldable, Functor) via (Bi (:::) Maybe Identity)
+
+instance Traversable Entry where
+  traverse f  = fmap Entry . bitraverse (traverse f) f . unEntry
 
 entryType :: Entry a -> a
 entryType = typedType . unEntry
