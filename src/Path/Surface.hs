@@ -34,12 +34,12 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (SurfaceF f a)
 
 
-lam :: Eq a => Plicit (Maybe User, a) -> Spanned (Surface a) -> Surface a
-lam (p :< (u, n)) b = Surface (Lam (p :< Ignored u) (bind ((Ignored u <$) . guard . (== n)) <$> b))
+lam :: Eq a => Plicit (Named (Maybe User) a) -> Spanned (Surface a) -> Surface a
+lam (p :< (Named u n)) b = Surface (Lam (p :< u) (bind ((u <$) . guard . (== n)) <$> b))
 
 lam' :: Plicit (Maybe User) -> Spanned (Surface Var) -> Surface Var
 lam' (p :< Nothing) b = Surface (Lam (p :< Ignored Nothing) (lift <$> b))
-lam' (p :< Just n)  b = lam (p :< (Just n, U n)) b
+lam' (p :< Just n)  b = lam (p :< (named (Just n) (U n))) b
 
 ($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
 f $$ a = Surface (f :$ a)
