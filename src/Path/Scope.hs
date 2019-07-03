@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
+{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
 module Path.Scope where
 
 import Control.Applicative (liftA2)
@@ -72,3 +72,50 @@ foldScope :: (forall a . Incr z (n a) -> m (Incr z (n a)))
           -> Scope z f a
           -> Scope z n b
 foldScope k go h = Scope . go (k . fmap (go h)) . unScope
+
+
+-- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
+newtype ScopeH a f g b = ScopeH (f (Incr a (g b)))
+  deriving (Foldable, Functor, Traversable)
+
+unScopeH :: ScopeH a f g b -> f (Incr a (g b))
+unScopeH (ScopeH s) = s
+
+instance (RModule f g, Eq  a, Eq  b, forall a . Eq  a => Eq  (f a)) => Eq  (ScopeH a f g b) where
+  (==) = (==) `on` flattenScopeH
+
+instance (RModule f g, Ord a, Ord b, forall a . Eq  a => Eq  (f a)
+                                   , forall a . Ord a => Ord (f a)) => Ord (ScopeH a f g b) where
+  compare = compare `on` flattenScopeH
+
+deriving instance (Show a, Show b, forall a . Show a => Show (f a)
+                                 , forall a . Show a => Show (g a)) => Show (ScopeH a f g b)
+
+instance (Applicative f, Applicative g) => Applicative (ScopeH a f g) where
+  pure = ScopeH . pure . S . pure
+  ScopeH f <*> ScopeH a = ScopeH (liftA2 (liftA2 (<*>)) f a)
+
+instance (Functor f, Monad m) => RModule (ScopeH b f m) m where
+  ScopeH s >>== k = ScopeH (fmap (>>= k) <$> s)
+
+instance Applicative f => MonadTrans (ScopeH a f) where
+  lift = ScopeH . pure . S
+
+
+-- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
+bindH :: (Functor f, Applicative g) => (b -> Maybe a) -> f b -> ScopeH a f g b
+bindH f = ScopeH . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+
+-- | Substitute a term for the free variable in a given term, producing a closed term.
+instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
+instantiateH f = unScopeH >==> fromIncr f
+
+flattenScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
+flattenScopeH = unScopeH >==> sequenceA
+
+
+class (Functor f, Monad m) => RModule f m where
+  (>>==) :: f a -> (a -> m b) -> f b
+
+(>==>) :: RModule f m => (a -> f b) -> (b -> m c) -> a -> f c
+f >==> g = \x -> f x >>== g
