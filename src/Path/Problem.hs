@@ -21,11 +21,11 @@ import           Path.Name
 import           Path.Plicity (Plicit (..))
 import           Path.Pretty
 import           Path.Scope
+import           Path.Span
 import           Path.Stack as Stack
 import qualified Path.Surface as Surface
 import           Path.Usage
 import           Prelude hiding (pi)
-import           Text.Trifecta.Rendering (Span (..), Spanned (..))
 
 data Problem a
   = Var a

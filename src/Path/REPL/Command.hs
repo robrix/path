@@ -3,8 +3,8 @@ module Path.REPL.Command where
 
 import Path.Module
 import Path.Name
+import Path.Span (Spanned(..))
 import Path.Surface
-import Text.Trifecta.Rendering (Spanned(..))
 
 data Command
   = Quit

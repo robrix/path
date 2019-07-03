@@ -40,6 +40,7 @@ library
                      , Path.Scope
                      , Path.Semiring
                      , Path.Solver
+                     , Path.Span
                      , Path.Stack
                      , Path.Surface
                      , Path.Usage

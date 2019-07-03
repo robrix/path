@@ -6,8 +6,8 @@ import Control.Monad.Trans
 import Path.Name
 import Path.Plicity
 import Path.Scope
+import Path.Span
 import Path.Usage
-import Text.Trifecta.Rendering (Spanned)
 
 data Surface a
   = Var a

@@ -19,10 +19,10 @@ import           Path.Namespace as Namespace hiding (null)
 import           Path.Plicity
 import           Path.Pretty
 import           Path.Scope
+import           Path.Span (Spanned(..))
 import           Path.Stack
 import           Path.Usage
 import           Prelude hiding (pi)
-import           Text.Trifecta.Rendering (Spanned(..))
 
 type Blocked = Set.Set (Spanned (Constraint (Name Meta)))
 type Queue = Seq.Seq (Spanned (Constraint (Name Meta)))

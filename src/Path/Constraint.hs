@@ -22,7 +22,7 @@ import           Path.Core (Core, prettyCore)
 import           Path.Name
 import           Path.Pretty
 import           Path.Scope hiding (bind, instantiate, match)
-import           Text.Trifecta.Rendering (Spanned (..))
+import           Path.Span
 
 data Equation a
   = a :===: a

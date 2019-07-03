@@ -11,9 +11,9 @@ import Path.Error
 import Path.Module
 import Path.Name
 import Path.Pretty
+import Path.Span
 import Path.Surface as Surface
 import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span, Spanned(..))
 
 type Signature = Map.Map String Gensym
 

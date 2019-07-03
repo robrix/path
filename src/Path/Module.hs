@@ -15,7 +15,7 @@ import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Path.Name
 import Path.Pretty
-import Text.Trifecta.Rendering (Spanned(..))
+import Path.Span (Spanned(..))
 
 data Module v a = Module
   { moduleName    :: ModuleName

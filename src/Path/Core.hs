@@ -12,10 +12,10 @@ import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
 import           Path.Scope
+import           Path.Span (Span)
 import           Path.Stack as Stack
 import           Path.Usage
 import           Prelude hiding (pi)
-import           Text.Trifecta.Rendering (Span)
 
 data Core a
   = Lam Plicity (Scope () Core a)                 -- ^ A lambda abstraction.

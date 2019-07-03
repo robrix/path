@@ -22,11 +22,12 @@ module Path.Pretty
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
+import Path.Span
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
 import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
-import Text.Trifecta.Rendering (Span(..), Spanned(..), render)
+import Text.Trifecta.Rendering (render)
 
 prettyPrint :: (Pretty a, MonadIO m) => a -> m ()
 prettyPrint = putDoc . pretty

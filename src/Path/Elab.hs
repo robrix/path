@@ -18,7 +18,6 @@ import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import Path.Core
-import Path.Error (runSpanned)
 -- import Path.Eval
 import Path.Module
 import Path.Name
@@ -28,10 +27,10 @@ import Path.Pretty
 import Path.Scope
 import Path.Semiring
 import Path.Solver
+import Path.Span
 import qualified Path.Surface as Surface
 import Path.Usage
 import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 assume :: (Carrier sig m, Member Elab sig, Member Naming sig)
        => Name Gensym

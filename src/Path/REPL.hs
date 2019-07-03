@@ -20,10 +20,10 @@ import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Core
 import Path.Elab
-import Path.Error (runSpanned)
 import Path.Eval
 import Path.Module as Module
 import Path.Name
+import qualified Path.Namespace as Namespace
 import Path.Package
 import Path.Parser (Delta(..), parseString, whole)
 import Path.Parser.Module (parseModule)
@@ -31,13 +31,12 @@ import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
-import qualified Path.Namespace as Namespace
+import Path.Span
 import Path.Stack
 import qualified Path.Surface as Surface
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
-import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
 data REPL (m :: * -> *) k
   = Prompt String (Maybe String -> k)
