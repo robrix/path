@@ -36,20 +36,20 @@ putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
-prettyNotice :: Span -> Maybe Doc -> Doc -> [Doc] -> Doc
-prettyNotice s lvl msg ctx = vsep
+prettyNotice :: Maybe Doc -> Span -> Doc -> [Doc] -> Doc
+prettyNotice lvl s msg ctx = vsep
   ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon)) lvl </> msg))
   : pretty (render s)
   : ctx)
 
 prettyErr :: Span -> Doc -> [Doc] -> Doc
-prettyErr s = prettyNotice s (Just (red (pretty "error")))
+prettyErr = prettyNotice (Just (red (pretty "error")))
 
 prettyWarn :: Span -> Doc -> [Doc] -> Doc
-prettyWarn s = prettyNotice s (Just (magenta (pretty "warning")))
+prettyWarn = prettyNotice (Just (magenta (pretty "warning")))
 
 prettyInfo :: Span -> Doc -> [Doc] -> Doc
-prettyInfo s = prettyNotice s Nothing
+prettyInfo = prettyNotice Nothing
 
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
