@@ -45,7 +45,7 @@ resolveDecl :: ( Carrier sig m
             => Spanned (Decl User (Spanned (Surface Var) ::: Spanned (Surface Var)))
             -> m (Spanned (Decl Qualified (Surface (Name Meta) ::: Surface (Name Meta))))
 -- FIXME: do something with the term/type spans
-resolveDecl (Decl d n ((tm :~ _) ::: (ty :~ _)) :~ span) = fmap (:~ span) . runReader span $ do
+resolveDecl = runSpanned $ \ (Decl d n ((tm :~ _) ::: (ty :~ _))) -> do
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
   --     generalize ty = foldr bind ty vs

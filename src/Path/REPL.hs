@@ -20,6 +20,7 @@ import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Core
 import Path.Elab
+import Path.Error (runSpanned)
 import Path.Eval
 import Path.Module as Module
 import Path.Name
@@ -149,11 +150,11 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
-          TypeOf tm -> elaborate tm >>= print . typedType >> loop
+          TypeOf tm -> elaborate tm >>= print . typedType . unSpanned >> loop
           Command.Decl decl -> do
             _ <- runRenamer (resolveDecl decl) >>= elabDecl
             loop
-          Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm >>= print >> loop
+          Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm . unSpanned >>= print >> loop
           Show Bindings -> do
             scope <- get
             unless (Namespace.null scope) $ print scope
@@ -205,8 +206,8 @@ runRenamer m = do
   res <- get
   runReader (res :: Resolution) (runReader (ModuleName "(interpreter)") m)
 
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned (Surface.Surface Var) -> m (Core Qualified ::: Core Qualified)
-elaborate (tm :~ span) = runReader span $ do
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned (Surface.Surface Var) -> m (Spanned (Core Qualified ::: Core Qualified))
+elaborate = runSpanned $ \ tm -> do
   ty <- inferType
   tm' <- runRenamer (evalState (mempty :: Signature) (runReader Define (resolveTerm tm)))
   runNamespace (define ty (elab tm'))

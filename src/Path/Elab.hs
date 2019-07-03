@@ -18,6 +18,7 @@ import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import Path.Core
+import Path.Error (runSpanned)
 -- import Path.Eval
 import Path.Module
 import Path.Name
@@ -222,7 +223,7 @@ elabDecl :: ( Carrier sig m
             )
          => Spanned (Decl Qualified (Surface.Surface (Name Meta) ::: Surface.Surface (Name Meta)))
          -> m (Spanned (Decl Qualified (Core Qualified ::: Core Qualified)))
-elabDecl (Decl d name (tm ::: ty) :~ span) = namespace (show name) . runReader span . fmap (:~ span) $ do
+elabDecl = runSpanned $ \ (Decl d name (tm ::: ty)) -> namespace (show name) $ do
   ty' <- runNamespace (declare (elab ty))
   modify (Namespace.insert name (Entry (Nothing ::: ty')))
   -- scope <- get
