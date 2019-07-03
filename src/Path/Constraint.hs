@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, DerivingVia, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
 module Path.Constraint
 ( Equation (..)
 , Substitution (..)
@@ -13,10 +13,12 @@ module Path.Constraint
 import           Control.Effect
 import           Control.Monad (join)
 import           Data.Bifunctor (first)
+import           Data.Bitraversable (bitraverse)
 import           Data.Foldable (toList)
 import qualified Data.Map as Map
 import           Data.Maybe (fromMaybe)
 import qualified Data.Set as Set
+import           GHC.Generics ((:.:) (..))
 import           Path.Context
 import           Path.Core (Core, prettyCore)
 import           Path.Name
@@ -86,22 +88,17 @@ instance Substitutable (Constraint (Name Meta)) where
 
 data Constraint a
   = Core a :|-: Constraint (Incr () (Core a))
-  | E (Equation (Core a) ::: Core a)
-  deriving (Eq, Ord, Show)
+  | E (Eqn a)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 infixr 1 :|-:
 
-instance Foldable Constraint where
-  foldMap f (v :|-: s)    = foldMap f v <> foldMap (foldMap (foldMap f)) s
-  foldMap f (E (q ::: t)) = foldMap (foldMap f) q <> foldMap f t
+newtype Eqn a = Eqn { unEqn :: Equation (Core a) ::: Core a }
+  deriving (Eq, Ord, Show)
+  deriving (Foldable, Functor) via (Comp2 (:::) (Equation :.: Core) Core)
 
-instance Functor Constraint where
-  fmap f (v :|-: s)    = fmap f v :|-: fmap (fmap (fmap f)) s
-  fmap f (E (q ::: t)) = E (fmap (fmap f) q ::: fmap f t)
-
-instance Traversable Constraint where
-  traverse f (v :|-: s)    = (:|-:) <$> traverse f v <*> traverse (traverse (traverse f)) s
-  traverse f (E (q ::: t)) = fmap E . (:::) <$> traverse (traverse f) q <*> traverse f t
+instance Traversable Eqn where
+  traverse f  = fmap Eqn . bitraverse (traverse (traverse f)) (traverse f) . unEqn
 
 instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do
@@ -122,12 +119,12 @@ n ::: t |- b = t :|-: bind n b
 infixr 1 |-
 
 binds :: Context (Core (Name Meta)) -> Equation (Core (Name Meta)) ::: Core (Name Meta) -> Constraint (Name Meta)
-binds (Context names) body = foldr (|-) (E body) (first (Local . Name) <$> names)
+binds (Context names) body = foldr (|-) (E (Eqn body)) (first (Local . Name) <$> names)
 
 unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Core (Name Meta)), Equation (Core (Name Meta)) ::: Core (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case
-  t :|-: b -> Right (name ::: t, instantiate (pure (Local (Name name))) b)
-  E q      -> Left q)
+  t :|-: b  -> Right (name ::: t, instantiate (pure (Local (Name name))) b)
+  E (Eqn q) -> Left q)
 
 
 efold :: forall m n a b
@@ -140,13 +137,13 @@ efold :: forall m n a b
 efold bind eqn k = go
   where go :: forall x y . (x -> m y) -> Constraint x -> n y
         go h = \case
-          v :|-: b -> bind (h <$> v) (go (k . fmap (fmap h)) b)
-          E (q ::: t) -> eqn ((fmap h <$> q) ::: (h <$> t))
+          v :|-: b          -> bind (h <$> v) (go (k . fmap (fmap h)) b)
+          E (Eqn (q ::: t)) -> eqn ((fmap h <$> q) ::: (h <$> t))
 
 bindConstraint :: (a -> Core b) -> Constraint a -> Constraint b
 bindConstraint = efold
   (\ v s -> join v :|-: fmap (fmap join) s)
-  (\ (q ::: t) -> E (fmap join q ::: join t))
+  (\ (q ::: t) -> E (Eqn (fmap join q ::: join t)))
   pure
 
 
