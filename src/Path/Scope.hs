@@ -5,6 +5,7 @@ import Control.Applicative (liftA2)
 import Control.Monad ((>=>))
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Function (on)
+import Data.List (elemIndex)
 
 data Incr a b = Z a | S b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -58,6 +59,9 @@ instance MonadTrans (Scope a) where
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
 bind f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+
+bindSimultaneous :: (Applicative f, Eq a) => [(a, f a)] -> [Scope Int f a]
+bindSimultaneous bs = map (bind (`elemIndex` map fst bs) . snd) bs
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate :: Monad f => (a -> f b) -> Scope a f b -> f b
