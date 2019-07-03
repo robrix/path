@@ -198,7 +198,6 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Qualified (
         runDeps = evalState ([] :: [ModuleName])
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all @[] (`notElem` map (importModuleName . unSpanned) (moduleImports m))
-        unSpanned (a :~ _) = a
 
 runRenamer :: (Carrier sig m, Member (State Resolution) sig) => ReaderC ModuleName (ReaderC Resolution m) a -> m a
 runRenamer m = do
