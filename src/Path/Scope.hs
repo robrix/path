@@ -74,7 +74,7 @@ bindSimultaneous bs = map (bind (`elemIndex` map fst bs) . snd) bs
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate :: Monad f => (a -> f b) -> Scope a f b -> f b
-instantiate f = unScope >=> fromIncr f
+instantiate f = instantiateEither (either f pure)
 
 instantiateEither :: Monad f => (Either a b -> f c) -> Scope a f b -> f c
 instantiateEither f = unScope >=> incr (f . Left) (>>= f . Right)
