@@ -127,7 +127,7 @@ n ::: t |- b = t :|-: bindH (guard . (== n)) b
 
 infixr 1 |-
 
-binds :: Context (Core (Name Meta)) -> Equation (Core (Name Meta)) ::: Core (Name Meta) -> Constraint Core (Name Meta)
+binds :: Applicative f => Context (f (Name Meta)) -> Equation (f (Name Meta)) ::: f (Name Meta) -> Constraint f (Name Meta)
 binds (Context names) body = foldr (|-) (E (Eqn body)) (first (Local . Name) <$> names)
 
 unbinds :: (Carrier sig m, Member Naming sig) => Constraint Core (Name Meta) -> m (Context (Core (Name Meta)), Equation (Core (Name Meta)) ::: Core (Name Meta))
