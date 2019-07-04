@@ -8,7 +8,7 @@ import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((<=<))
 import Data.Bifunctor (first)
-import Data.Foldable (foldl', for_)
+import Data.Foldable (for_)
 import Data.Functor.Const
 import Data.List (elemIndex)
 import qualified Data.Map as Map
@@ -19,7 +19,6 @@ import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import Path.Core
--- import Path.Eval
 import Path.Module
 import Path.Name
 import Path.Namespace as Namespace
@@ -45,20 +44,7 @@ assume :: ( Carrier sig m
        -> m (Core (Name Meta) ::: Core (Name Meta))
 assume v = do
   _A <- have v
-  implicits _A >>= foldl' app (pure (name (pure . Local . Name) global v ::: _A))
-
-implicits :: ( Carrier sig m
-             , Member Naming sig
-             , Member (Reader (Context (Core (Name Meta)))) sig
-             , Member (State Signature) sig
-             )
-           => Core (Name Meta)
-           -> m (Stack (Plicit (m (Core (Name Meta) ::: Core (Name Meta)))))
-implicits = go Nil
-  where go names (Pi (Im :< _ :@ t) b) | False = do
-          v <- exists t
-          go (names :> (Im :< pure (v ::: t))) (instantiate1 v b)
-        go names _ = pure names
+  pure (name (pure . Local . Name) global v ::: _A)
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -255,13 +241,6 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty' <- runSpanned (runNamespace . declare . elab) ty
   moduleName <- ask
   modify (Namespace.insert (moduleName :.: name) (Entry (Nothing ::: unSpanned ty')))
-  -- scope <- get
-
-  -- let ty'' = whnf scope ty'
-  -- (names, _) <- un (orTerm (\ n -> \case
-  --   Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate1 (Local n) b))
-  --   _                      -> Nothing)) ty''
-  -- tm ::: _ <- runNamespace (define (weaken ty') (elab (Surface.lams names tm)))
   (tm' ::: _) :~ s <- runSpanned (runNamespace . define (weaken (unSpanned ty')) . elab) tm
   modify (Namespace.insert (moduleName :.: name) (Entry (Just tm' ::: unSpanned ty')))
   pure (Decl name d (tm' :~ s) ty')
