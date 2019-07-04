@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, DerivingVia, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, DerivingVia, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Constraint
 ( Equation (..)
 , Substitution (..)
@@ -83,28 +83,33 @@ instance Substitutable a => Substitutable (Spanned a) where
 instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
-instance Substitutable (Constraint (Name Meta)) where
+instance Substitutable (Constraint Core (Name Meta)) where
   apply (Substitution subst) = (>>=* \ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
 
 
-data Constraint a
-  = Core a :|-: ScopeH () Constraint Core a
-  | E (Eqn a)
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+data Constraint f a
+  = f a :|-: ScopeH () (Constraint f) f a
+  | E (Eqn f a)
+  deriving (Foldable, Functor, Traversable)
 
 infixr 1 :|-:
 
-newtype Eqn a = Eqn { unEqn :: Equation (Core a) ::: Core a }
-  deriving (Eq, Ord, Show)
-  deriving (Foldable, Functor) via (Comp2 (:::) (Equation :.: Core) Core)
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Constraint f a)
+deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
+                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Constraint f a)
+deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Constraint f a)
 
-instance Traversable Eqn where
+newtype Eqn f a = Eqn { unEqn :: Equation (f a) ::: f a }
+  deriving (Eq, Ord, Show)
+  deriving (Foldable, Functor) via (Comp2 (:::) (Equation :.: f) f)
+
+instance Traversable f => Traversable (Eqn f) where
   traverse f  = fmap Eqn . bitraverse (traverse (traverse f)) (traverse f) . unEqn
 
-instance RModule Constraint Core where
+instance Monad f => RModule (Constraint f) f where
   m >>=* f = efold (\ v s -> join v :|-: joinr s) (\ (q ::: t) -> E (Eqn (fmap join q ::: join t))) pure f m
 
-instance Pretty (Constraint (Name Meta)) where
+instance Pretty (Constraint Core (Name Meta)) where
   pretty c = group . run . runNaming $ do
     (Context ctx, (v1 :===: v2) ::: t) <- unbinds c
     binds <- traverse prettyBind ctx
@@ -117,29 +122,30 @@ instance Pretty (Constraint (Name Meta)) where
           prettyBind (n ::: t) = pretty . (Name n :::) . prettyPrec 0 <$> prettyCore t
 
 
-(|-) :: Eq a => a ::: Core a -> Constraint a -> Constraint a
+(|-) :: (Applicative f, Eq a) => a ::: f a -> Constraint f a -> Constraint f a
 n ::: t |- b = t :|-: bindH (guard . (== n)) b
 
 infixr 1 |-
 
-binds :: Context (Core (Name Meta)) -> Equation (Core (Name Meta)) ::: Core (Name Meta) -> Constraint (Name Meta)
+binds :: Context (Core (Name Meta)) -> Equation (Core (Name Meta)) ::: Core (Name Meta) -> Constraint Core (Name Meta)
 binds (Context names) body = foldr (|-) (E (Eqn body)) (first (Local . Name) <$> names)
 
-unbinds :: (Carrier sig m, Member Naming sig) => Constraint (Name Meta) -> m (Context (Core (Name Meta)), Equation (Core (Name Meta)) ::: Core (Name Meta))
+unbinds :: (Carrier sig m, Member Naming sig) => Constraint Core (Name Meta) -> m (Context (Core (Name Meta)), Equation (Core (Name Meta)) ::: Core (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case
   t :|-: b  -> Right (name ::: t, instantiateH (const (pure (Local (Name name)))) b)
   E (Eqn q) -> Left q)
 
 
-efold :: forall m n a b
-      .  (forall a . Core (m a) -> ScopeH () n Core (m a) -> n a)
-      -> (forall a . Equation (Core (m a)) ::: Core (m a) -> n a)
+efold :: forall m n f a b
+      .  Functor f
+      => (forall a . f (m a) -> ScopeH () n f (m a) -> n a)
+      -> (forall a . Equation (f (m a)) ::: f (m a) -> n a)
       -> (forall a . Incr () a -> m (Incr () a))
       -> (a -> m b)
-      -> Constraint a
+      -> Constraint f a
       -> n b
 efold bind eqn k = go
-  where go :: forall x y . (x -> m y) -> Constraint x -> n y
+  where go :: forall x y . (x -> m y) -> Constraint f x -> n y
         go h = \case
           v :|-: b          -> bind (h <$> v) (ScopeH (go (k . fmap (fmap h)) (unScopeH b)))
           E (Eqn (q ::: t)) -> eqn ((fmap h <$> q) ::: (h <$> t))

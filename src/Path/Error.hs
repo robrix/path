@@ -9,6 +9,7 @@ import Data.List (intersperse)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Path.Core
 import Path.Constraint
 import Path.Name
 import Path.Pretty
@@ -27,7 +28,7 @@ ambiguousName name sources = do
     : map prettyQName (toList sources)))])
 
 
-unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> [Spanned (Constraint (Name Meta))] -> m a
+unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> [Spanned (Constraint Core (Name Meta))] -> m a
 unsimplifiableConstraints sig constraints = throwError (fold (intersperse hardline (map unsimplifiable constraints)))
   where unsimplifiable (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty (sigFor c) <> pretty c]
         sigFor c = let fvs' = metaNames (localNames (fvs c)) in Signature (Map.filterWithKey (\ k _ -> k `Set.member` fvs') (unSignature sig))

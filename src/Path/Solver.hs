@@ -24,8 +24,8 @@ import           Path.Stack
 import           Path.Usage
 import           Prelude hiding (pi)
 
-type Blocked = Set.Set (Spanned (Constraint (Name Meta)))
-type Queue = Seq.Seq (Spanned (Constraint (Name Meta)))
+type Blocked = Set.Set (Spanned (Constraint Core (Name Meta)))
+type Queue = Seq.Seq (Spanned (Constraint Core (Name Meta)))
 
 -- FIXME: we need constraint dependencies to ensure that we e.g. δ-reduce a type like Either L R and solve the π type unification constraint before we try to solve whatever we typed using it
 
@@ -35,10 +35,10 @@ simplify :: ( Carrier sig m
             , Member Naming sig
             , Member (Reader Namespace) sig
             , Member (State Signature) sig
-            , Member (Writer [Spanned (Constraint (Name Meta))]) sig
+            , Member (Writer [Spanned (Constraint Core (Name Meta))]) sig
             )
-         => Spanned (Constraint (Name Meta))
-         -> m (Set.Set (Spanned (Constraint (Name Meta))))
+         => Spanned (Constraint Core (Name Meta))
+         -> m (Set.Set (Spanned (Constraint Core (Name Meta))))
 simplify (constraint :~ span) = do
   scope <- ask
   (ctx, eqn) <- unbinds constraint
@@ -123,7 +123,7 @@ solver :: ( Carrier sig m
           , Member (Reader Namespace) sig
           , Member (State Signature) sig
           )
-       => Set.Set (Spanned (Constraint (Name Meta)))
+       => Set.Set (Spanned (Constraint Core (Name Meta)))
        -> m Substitution
 solver constraints = execState mempty $ do
   (queue, unsimplifiable) <- runState (Seq.empty :: Queue) . evalState (Set.empty :: Blocked) . execWriter $ do
@@ -141,7 +141,7 @@ step :: ( Carrier sig m
         , Member (State Queue) sig
         , Member (State Signature) sig
         , Member (State Substitution) sig
-        , Member (Writer [Spanned (Constraint (Name Meta))]) sig
+        , Member (Writer [Spanned (Constraint Core (Name Meta))]) sig
         )
      => m ()
 step = do
@@ -157,10 +157,10 @@ process :: ( Carrier sig m
            , Member (State Queue) sig
            , Member (State Signature) sig
            , Member (State Substitution) sig
-           , Member (Writer [Spanned (Constraint (Name Meta))]) sig
+           , Member (Writer [Spanned (Constraint Core (Name Meta))]) sig
            )
         => Substitution
-        -> Spanned (Constraint (Name Meta))
+        -> Spanned (Constraint Core (Name Meta))
         -> m ()
 process (Substitution _S) c@(constraint :~ _) = do
   (_, (tm1 :===: tm2) ::: _) <- unbinds constraint
@@ -171,13 +171,13 @@ process (Substitution _S) c@(constraint :~ _) = do
       | Just (m, sp) <- pattern tm2 -> solve m (Core.lams (fmap Local <$> sp) tm1)
       | otherwise -> block c
 
-block :: (Carrier sig m, Member (State Blocked) sig) => Spanned (Constraint (Name Meta)) -> m ()
+block :: (Carrier sig m, Member (State Blocked) sig) => Spanned (Constraint Core (Name Meta)) -> m ()
 block c = modify (Set.insert c)
 
-enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t (Spanned (Constraint (Name Meta))) -> m ()
+enqueueAll :: (Carrier sig m, Member (State Queue) sig, Foldable t) => t (Spanned (Constraint Core (Name Meta))) -> m ()
 enqueueAll = modify . flip (foldl' (Seq.|>))
 
-dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe (Spanned (Constraint (Name Meta))))
+dequeue :: (Carrier sig m, Member (State Queue) sig) => m (Maybe (Spanned (Constraint Core (Name Meta))))
 dequeue = gets Seq.viewl >>= \case
   Seq.EmptyL -> pure Nothing
   h Seq.:< q -> Just h <$ put q
@@ -210,5 +210,5 @@ solve m v = do
   enqueueAll unblocked
   put blocked
 
-isBlockedOn :: Meta -> Spanned (Constraint (Name Meta)) -> Bool
+isBlockedOn :: Meta -> Spanned (Constraint Core (Name Meta)) -> Bool
 isBlockedOn m = Set.member (Local m) . foldMap fvs
