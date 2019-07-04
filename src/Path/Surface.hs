@@ -68,13 +68,13 @@ eiter :: forall m n a b
       -> n b
 eiter var alg k = go
   where go :: forall x y . (x -> m y) -> Surface x -> n y
-        go h = \case
-          Var a -> var (h a)
+        go free = \case
+          Var a -> var (free a)
           Surface s -> alg $ case s of
-            Lam p b -> Lam p (foldScope k go h <$> b)
-            f :$ a -> (go h <$> f) :$ (fmap (go h) <$> a)
+            Lam p b -> Lam p (foldScope k go free <$> b)
+            f :$ a -> (go free <$> f) :$ (fmap (go free) <$> a)
             Type -> Type
-            Pi t b -> Pi (fmap (fmap (fmap (go h))) <$> t) (foldScope k go h <$> b)
+            Pi t b -> Pi (fmap (fmap (fmap (go free))) <$> t) (foldScope k go free <$> b)
 
 kcata :: (a -> b)
       -> (forall a . SurfaceF (Const b) a -> b)
@@ -82,4 +82,4 @@ kcata :: (a -> b)
       -> (x -> a)
       -> Surface x
       -> b
-kcata var alg k h = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . h)
+kcata var alg k free = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . free)
