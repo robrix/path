@@ -150,8 +150,8 @@ unify (tm1 ::: ty1 :===: tm2 ::: ty2) = do
   span <- ask
   context <- asks (fmap (first (Local . Name)) . unContext)
   tell (Set.fromList
-    [ (binds context ((ty1 :===: ty2) ::: Type)) :~ span
-    , (binds context ((tm1 :===: tm2) ::: ty1))  :~ span
+    [ binds context ((ty1 :===: ty2) ::: Type) :~ span
+    , binds context ((tm1 :===: tm2) ::: ty1)  :~ span
     ])
 
 (|-) :: (Carrier sig m, Member (Reader (Context (Core (Name Meta)))) sig) => Gensym ::: Core (Name Meta) -> m a -> m a
