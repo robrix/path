@@ -40,11 +40,14 @@ assume :: ( Carrier sig m
           , Member (State Signature) sig
           , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
           )
-       => Name Gensym
+       => Qualified
        -> m (Core (Name Meta) ::: Core (Name Meta))
-assume v = do
-  _A <- have v
-  pure (name (pure . Local . Name) global v ::: _A)
+assume n = lookup n >>= fmap (global n :::) . maybe missing pure
+  where lookup n = asks (Namespace.lookup n) >>= pure . fmap (weaken . entryType)
+        missing = do
+          ty <- exists Type
+          tm <- exists ty
+          ty <$ unify (tm ::: ty :===: global n ::: ty)
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -145,23 +148,6 @@ b |- m = local (Context.insert b) m
 
 infix 5 |-
 
-have :: ( Carrier sig m
-        , Member Naming sig
-        , Member (Reader (Context (Core (Name Meta)))) sig
-        , Member (Reader Namespace) sig
-        , Member (Reader Span) sig
-        , Member (State Signature) sig
-        , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
-        )
-     => Name Gensym -> m (Core (Name Meta))
-have n = lookup n >>= maybe missing pure
-  where lookup (Global n) = asks (Namespace.lookup n) >>= pure . fmap (weaken . entryType)
-        lookup (Local  n) = asks (Context.lookup n)
-        missing = do
-          ty <- exists Type
-          tm <- exists ty
-          ty <$ unify (tm ::: ty :===: name (pure . Local . Name) global n ::: ty)
-
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
@@ -176,7 +162,7 @@ elab :: ( Carrier sig m
         )
      => Surface.Surface Qualified
      -> m (Core (Name Meta) ::: Core (Name Meta))
-elab = Surface.kcata id alg bound (assume . Global)
+elab = Surface.kcata id alg bound assume
   where bound (Z _) = asks @(Context (Core (Name Meta))) (first (pure . Local . Name) . Stack.head . unContext)
         bound (S m) = local @(Context (Core (Name Meta))) (Context . Stack.tail . unContext) m
         alg = \case
