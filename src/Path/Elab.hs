@@ -66,10 +66,10 @@ intro (p :< _) body = do
          , Member (State Signature) sig
          , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
          )
-      => Plicit (Maybe User, Usage, m (Core (Name Meta) ::: Core (Name Meta)))
+      => Plicit (Maybe User, Used (m (Core (Name Meta) ::: Core (Name Meta))))
       -> m (Core (Name Meta) ::: Core (Name Meta))
       -> m (Core (Name Meta) ::: Core (Name Meta))
-(p :< (_, m, t)) --> body = do
+(p :< (_, m :@ t)) --> body = do
   t' <- goalIs Type t
   x <- fresh
   b' <- x ::: t' |- goalIs Type body
@@ -163,7 +163,7 @@ elab = Surface.kcata id alg bound assume
           Surface.Lam n b -> intro (unIgnored <$> n) (elab' (unScope <$> b))
           (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
           Surface.Type -> pure (Type ::: Type)
-          Surface.Pi (p :< Ignored n ::: m :@ t) b -> (p :< (n, m, elab' t)) --> elab' (unScope <$> b)
+          Surface.Pi (p :< Ignored n ::: t) b -> (p :< (n, elab' <$> t)) --> elab' (unScope <$> b)
         elab' (t :~ s) = spanIs s (getConst t)
 
 type ElabC m = ReaderC (Context (Core (Name Meta))) (WriterC (Set.Set (Spanned (Constraint Core (Name Meta)))) m)
