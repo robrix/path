@@ -30,12 +30,6 @@ instance Pretty Gensym where
     Root -> pretty "◊"
     _ :/ (_, i) -> prettyVar i
 
-prettyGensym :: Gensym -> Doc
-prettyGensym = \case
-  Root -> pretty "◊"
-  _ :/ ("", i) -> prettyVar i
-  _ :/ (s, i) -> pretty s <> pretty i
-
 (//) :: Gensym -> String -> Gensym
 root // s = root :/ (s, 0)
 
