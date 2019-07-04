@@ -76,6 +76,9 @@ bindSimultaneous bs = map (bind (`elemIndex` map fst bs) . snd) bs
 instantiate :: Monad f => (a -> f b) -> Scope a f b -> f b
 instantiate f = unScope >=> fromIncr f
 
+instantiateEither :: Monad f => (Either a b -> f c) -> Scope a f b -> f c
+instantiateEither f = unScope >=> incr (f . Left) (>>= f . Right)
+
 flattenScope :: Monad f => Scope a f b -> f (Incr a b)
 flattenScope = unScope >=> sequenceA
 
