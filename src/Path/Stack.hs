@@ -41,3 +41,7 @@ filter keep = \case
 drop :: Int -> Stack a -> Stack a
 drop n (xs :> _) | n > 0 = drop (pred n) xs
 drop _ _                 = Nil
+
+head :: Stack a -> a
+head (_ :> a) = a
+head _        = error "Path.Stack.head: empty list"

@@ -74,7 +74,7 @@ instance Pretty (Problem (Name Gensym)) where
               prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
-          k (Z ()) = ask >>= var . Local . head
+          k (Z ()) = ask >>= var . Local . Prelude.head
           k (S n)  = local (tail @Meta) n
           prec d' doc = do
             d <- ask @Int
