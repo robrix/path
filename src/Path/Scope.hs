@@ -40,11 +40,11 @@ unScope :: Scope a f b -> f (Incr a (f b))
 unScope (Scope s) = s
 
 instance (Monad f, Eq  a, Eq  b, forall a . Eq  a => Eq  (f a)) => Eq  (Scope a f b) where
-  (==) = (==) `on` flattenScope
+  (==) = (==) `on` fromScope
 
 instance (Monad f, Ord a, Ord b, forall a . Eq  a => Eq  (f a)
                                , forall a . Ord a => Ord (f a)) => Ord (Scope a f b) where
-  compare = compare `on` flattenScope
+  compare = compare `on` fromScope
 
 deriving instance (Show a, Show b, forall a . Show a => Show (f a)) => Show (Scope a f b)
 
@@ -79,8 +79,8 @@ instantiate f = instantiateEither (either f pure)
 instantiateEither :: Monad f => (Either a b -> f c) -> Scope a f b -> f c
 instantiateEither f = unScope >=> incr (f . Left) (>>= f . Right)
 
-flattenScope :: Monad f => Scope a f b -> f (Incr a b)
-flattenScope = unScope >=> sequenceA
+fromScope :: Monad f => Scope a f b -> f (Incr a b)
+fromScope = unScope >=> sequenceA
 
 foldScope :: (forall a . Incr z (n a) -> m (Incr z (n a)))
           -> (forall x y . (x -> m y) -> f x -> n y)
@@ -98,11 +98,11 @@ unScopeH :: ScopeH a f g b -> f (Incr a (g b))
 unScopeH (ScopeH s) = s
 
 instance (RModule f g, Eq  a, Eq  b, forall a . Eq  a => Eq  (f a)) => Eq  (ScopeH a f g b) where
-  (==) = (==) `on` flattenScopeH
+  (==) = (==) `on` fromScopeH
 
 instance (RModule f g, Ord a, Ord b, forall a . Eq  a => Eq  (f a)
                                    , forall a . Ord a => Ord (f a)) => Ord (ScopeH a f g b) where
-  compare = compare `on` flattenScopeH
+  compare = compare `on` fromScopeH
 
 deriving instance (Show a, Show b, forall a . Show a => Show (f a)
                                  , forall a . Show a => Show (g a)) => Show (ScopeH a f g b)
@@ -126,5 +126,5 @@ bindH f = ScopeH . fmap (match (toEither f)) -- FIXME: succ as little of the exp
 instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
 instantiateH f = unScopeH >==> fromIncr f
 
-flattenScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
-flattenScopeH = unScopeH >==> sequenceA
+fromScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
+fromScopeH = unScopeH >==> sequenceA
