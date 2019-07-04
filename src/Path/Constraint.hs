@@ -130,7 +130,7 @@ infixr 1 |-
 binds :: Applicative f => Context (f (Name Meta)) -> Equation (f (Name Meta)) ::: f (Name Meta) -> Constraint f (Name Meta)
 binds (Context names) body = foldr (|-) (E (Eqn body)) (first (Local . Name) <$> names)
 
-unbinds :: (Carrier sig m, Member Naming sig) => Constraint Core (Name Meta) -> m (Context (Core (Name Meta)), Equation (Core (Name Meta)) ::: Core (Name Meta))
+unbinds :: (Carrier sig m, Member Naming sig, Monad f) => Constraint f (Name Meta) -> m (Context (f (Name Meta)), Equation (f (Name Meta)) ::: f (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case
   t :|-: b  -> Right (name ::: t, instantiateH (const (pure (Local (Name name)))) b)
   E (Eqn q) -> Left q)
