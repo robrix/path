@@ -66,6 +66,9 @@ instance MonadTrans (Scope a) where
 bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
 bind f = Scope . fmap (match (toEither f)) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
+bindEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
+bindEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+
 bindSimultaneous :: (Applicative f, Eq a) => [(a, f a)] -> [Scope Int f a]
 bindSimultaneous bs = map (bind (`elemIndex` map fst bs) . snd) bs
 
