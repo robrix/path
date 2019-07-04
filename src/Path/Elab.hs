@@ -193,8 +193,8 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module (Spanned (Surface.Surface (Name Meta)))
-           -> m (Module (Spanned (Core Qualified)))
+           => Module (Surface.Surface (Name Meta))
+           -> m (Module (Core Qualified))
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
@@ -221,8 +221,8 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             , Member (State Namespace) sig
             )
-         => Decl (Spanned (Surface.Surface (Name Meta)))
-         -> m (Decl (Spanned (Core Qualified)))
+         => Decl (Surface.Surface (Name Meta))
+         -> m (Decl (Core Qualified))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty' <- runSpanned (runNamespace . declare . elab) ty
   moduleName <- ask

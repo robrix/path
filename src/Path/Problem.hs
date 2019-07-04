@@ -328,15 +328,15 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             , Member (State Context) sig
             )
-         => Spanned (Decl (Surface.Surface (Name Meta)))
-         -> m (Spanned (Decl (Problem (Name Gensym))))
-elabDecl = runSpanned $ \ (Decl name d tm ty) -> namespace (show name) $ do
+         => Decl (Surface.Surface (Name Meta))
+         -> m (Decl (Problem (Name Gensym)))
+elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ctx <- get
-  ty' <- runReader ctx                                   (declare    (elab ty))
-  def <- meta ty'
+  ty' <- runSpanned (runReader ctx . declare . elab) ty
+  def <- meta (unSpanned ty')
   moduleName <- ask
-  tm' <- runReader (ctx :> Define (moduleName :.: name := def) ::: ty') (define ty' (elab tm))
-  put (ctx :> Define (moduleName :.: name := tm') ::: ty')
+  tm' <- runSpanned (runReader (ctx :> Define (moduleName :.: name := def) ::: unSpanned ty') . define (unSpanned ty') . elab) tm
+  put (ctx :> Define (moduleName :.: name := unSpanned tm') ::: unSpanned ty')
   pure (Decl name d tm' ty')
 
 declare :: ( Carrier sig m

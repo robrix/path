@@ -32,18 +32,18 @@ newtype Import = Import { importModuleName :: ModuleName }
 data Decl a = Decl
   { declName :: User
   , declDocs :: Maybe String
-  , declTerm :: a
-  , declType :: a
+  , declTerm :: Spanned a
+  , declType :: Spanned a
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 declBody :: Decl a -> a ::: a
-declBody d = declTerm d ::: declType d
+declBody d = unSpanned (declTerm d) ::: unSpanned (declType d)
 
 instance Pretty a => Pretty (Decl a) where
-  pretty (Decl v docs tm ty) = case docs of
-    Nothing -> pretty v <+> magenta (pretty "=") <+> pretty (tm ::: ty)
-    Just ds -> pretty ds <> hardline <> pretty v <+> magenta (pretty "=") <+> pretty (tm ::: ty)
+  pretty d@(Decl v docs _ _) = case docs of
+    Nothing -> pretty v <+> magenta (pretty "=") <+> pretty (declBody d)
+    Just ds -> pretty ds <> hardline <> pretty v <+> magenta (pretty "=") <+> pretty (declBody d)
 
 
 newtype ModuleGraph a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module a) }

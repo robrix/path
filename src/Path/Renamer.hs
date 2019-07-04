@@ -42,8 +42,8 @@ resolveDecl :: ( Carrier sig m
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                )
-            => Decl (Spanned (Surface Var))
-            -> m (Decl (Spanned (Surface (Name Meta))))
+            => Decl (Surface Var)
+            -> m (Decl (Surface (Name Meta)))
 -- FIXME: do something with the term/type spans
 resolveDecl (Decl n d tm ty) =  do
   moduleName <- ask
@@ -68,8 +68,8 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module (Spanned (Surface Var))
-              -> m (Module (Spanned (Surface (Name Meta))))
+              => Module (Surface Var)
+              -> m (Module (Surface (Name Meta)))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
