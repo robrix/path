@@ -54,10 +54,11 @@ resolveDecl (Decl n d tm ty) =  do
   --       local (insertLocal (Just n) n') $
   --         Pi (Im :< (Just n, Zero, Type)) . Surface.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
   tm' ::: ty' <- evalState (mempty :: Signature) $
-    flip (:::) <$> runSpanned (runResolution . runReader Declare . resolveTerm) ty
+    flip (:::) <$> runSpanned (run Declare) ty
                <*  modify (insertGlobal n moduleName)
-               <*> runSpanned (runResolution . runReader Define  . resolveTerm) tm
+               <*> runSpanned (run Define)  tm
   pure (Decl n d tm' ty')
+  where run d = runResolution . runReader d . resolveTerm
 
 runResolution :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
 runResolution m = get >>= \ res -> runReader res m
