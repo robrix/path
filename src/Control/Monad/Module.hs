@@ -18,3 +18,16 @@ joinr = (>>=* id)
 
 instance (Functor f, RModule g h) => RModule (f :.: g) h where
   Comp1 a >>=* f = Comp1 (fmap (>>=* f) a)
+
+
+class (Functor f, Monad m) => LModule m f where
+  (*>>=) :: m a -> (a -> f b) -> f b
+
+(*>=>) :: LModule m f => (a -> m b) -> (b -> f c) -> (a -> f c)
+f *>=> g = \x -> f x *>>= g
+
+(*<=<) :: LModule m f => (b -> f c) -> (a -> m b) -> (a -> f c)
+g *<=< f = \x -> f x *>>= g
+
+joinl :: LModule m f => m (f a) -> f a
+joinl = (*>>= id)
