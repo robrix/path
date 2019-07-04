@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
 import           Control.Applicative (Alternative (..), Const (..))
@@ -38,8 +38,11 @@ instance Applicative Problem where
 instance Monad Problem where
   a >>= f = eiter id Problem Var f a
 
+newtype P = P { unP :: Int }
+  deriving (Eq, Num, Ord, Show)
+
 instance Pretty (Problem (Name Gensym)) where
-  pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (0 :: Int) . kcata id alg k (var . fmap Name)
+  pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (P 0) . kcata id alg k (var . fmap Name)
     where var (Global v) = pure (pretty (Global @Meta v))
           var (Local  v) = pretty v <$ tell (Set.singleton @Meta v)
           alg = \case
@@ -76,9 +79,9 @@ instance Pretty (Problem (Name Gensym)) where
           k (Z ()) = ask >>= var . Local . Prelude.head
           k (S n)  = local (Prelude.tail @Meta) n
           prec d' doc = do
-            d <- ask @Int
+            d <- ask @P
             pure (prettyParens (d > d') doc)
-          withPrec i = local @Int (const i) . getConst
+          withPrec i = local @P (const i) . getConst
           bind cons m = do
             ns <- ask
             let n = cons $ case ns of
