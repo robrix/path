@@ -43,7 +43,7 @@ implicits :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (N
 implicits = go Nil
   where go names (Pi (Im :< _ :@ t) b) | False = do
           v <- exists t
-          go (names :> (Im :< pure (v ::: t))) (instantiate (const v) b)
+          go (names :> (Im :< pure (v ::: t))) (instantiate1 v b)
         go names _ = pure names
 
 intro :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint (Name Meta))))) sig)
@@ -201,7 +201,7 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
 
   -- let ty'' = whnf scope ty'
   -- (names, _) <- un (orTerm (\ n -> \case
-  --   Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate (pure (Local n)) b))
+  --   Pi (Im :< _) b | False -> Just (Im :< Local n, whnf scope (instantiate1 (Local n) b))
   --   _                      -> Nothing)) ty''
   -- tm ::: _ <- runNamespace (define (weaken ty') (elab (Surface.lams names tm)))
   (tm' ::: _) :~ s <- runSpanned (runNamespace . define (weaken (unSpanned ty')) . elab) tm
