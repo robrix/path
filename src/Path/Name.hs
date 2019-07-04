@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
 import           Control.Applicative (Alternative (..))
@@ -18,26 +18,18 @@ import           Path.Pretty
 import           Path.Stack
 import           Prelude hiding (fail)
 
-data Gensym
-  = Root
-  | Gensym :/ (String, Int)
+data Gensym = Gensym (Stack String) Int
   deriving (Eq, Ord, Show)
 
-infixl 6 :/
-
 instance Pretty Gensym where
-  pretty = \case
-    Root -> pretty "◊"
-    _ :/ (_, i) -> prettyVar i
+  pretty (Gensym _ i) = prettyVar i
 
-(//) :: Gensym -> String -> Gensym
-root // s = root :/ (s, 0)
-
-infixl 6 //
+prime :: Gensym -> Gensym
+prime (Gensym s i) = Gensym s (succ i)
 
 
-gensym :: (Carrier sig m, Member Naming sig) => m Gensym
-gensym = send (Gensym pure)
+fresh :: (Carrier sig m, Member Naming sig) => m Gensym
+fresh = send (Fresh pure)
 
 namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
 namespace s m = send (Namespace s m pure)
@@ -55,29 +47,29 @@ unH from = go Nil
           Left  b -> pure (names, b)
 
 data Naming m k
-  = Gensym (Gensym -> k)
+  = Fresh (Gensym -> k)
   | forall a . Namespace String (m a) (a -> k)
 
 deriving instance Functor (Naming m)
 
 instance HFunctor Naming where
-  hmap _ (Gensym        k) = Gensym            k
+  hmap _ (Fresh         k) = Fresh             k
   hmap f (Namespace s m k) = Namespace s (f m) k
 
 instance Effect Naming where
-  handle state handler (Gensym        k) = Gensym                             (handler . (<$ state) . k)
+  handle state handler (Fresh         k) = Fresh                              (handler . (<$ state) . k)
   handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
 
 
 runNaming :: Functor m => NamingC m a -> m a
-runNaming = runReader Root . evalState 0 . runNamingC
+runNaming = runReader Nil . evalState 0 . runNamingC
 
-newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC Gensym m) a }
+newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC (Stack String) m) a }
   deriving (Applicative, Functor, Monad, MonadFail, MonadIO)
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
-  eff (L (Gensym        k)) = NamingC (StateC (\ i -> (:/ ("", i)) <$> ask >>= runState (succ i) . runNamingC . k))
-  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (// s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
+  eff (L (Fresh         k)) = NamingC (asks Gensym <*> get <* modify (succ @Int) >>= runNamingC . k)
+  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (:> s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
   eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
 

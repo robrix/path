@@ -53,7 +53,7 @@ simplify (constraint :~ span) = do
           (Pi (p1 :< _ :@ t1) b1 :===: Pi (p2 :< _ :@ t2) b2) ::: Type
             | p1 == p2 -> do
               go scope ctx ((t1 :===: t2) ::: Type)
-              n <- gensym
+              n <- fresh
               -- FIXME: this should insert some sort of dependency
               go scope (Context.insert (n ::: t1) ctx) ((instantiate1 (pure (Local (Name n))) b1 :===: instantiate1 (pure (Local (Name n))) b2) ::: Type)
           (Pi (Im :< _ :@ t1) b1 :===: tm2) ::: Type -> do
@@ -64,10 +64,10 @@ simplify (constraint :~ span) = do
             go scope ctx ((tm1 :===: instantiate1 n b2) ::: Type)
           (Lam p1 f1 :===: Lam p2 f2) ::: Pi (pt :< _ :@ t) b
             | p1 == p2, p1 == pt -> do
-              n <- gensym
+              n <- fresh
               go scope (Context.insert (n ::: t) ctx) ((instantiate1 (pure (Local (Name n))) f1 :===: instantiate1 (pure (Local (Name n))) f2) ::: instantiate1 (pure (Local (Name n))) b)
           (t1 :===: t2) ::: Pi (Im :< u :@ t) b -> do
-            n <- Local . Name <$> gensym
+            n <- Local . Name <$> fresh
             go scope ctx ((Core.lam (Im :< n) t1 :===: Core.lam (Im :< n) t2) ::: Pi (Im :< u :@ t) b)
           (f1@(Global _) :$ sp1 :===: f2@(Global _) :$ sp2) ::: ty
             | Just t1 <- whnf scope (f1 :$ sp1)
@@ -83,7 +83,7 @@ simplify (constraint :~ span) = do
             | f1 == f2
             , length sp1 == length sp2 -> do
               let simplifySpine ctx ty ((_ :< a1, _ :< a2) : as) = do
-                    n <- gensym
+                    n <- fresh
                     case Core.unpi (Local (Name n)) ty of
                       Just (_ :< _ ::: _ :@ t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
                       Nothing                     -> pure ()
@@ -91,17 +91,17 @@ simplify (constraint :~ span) = do
               t <- maybe (runReader span (freeVariable (Name f1))) pure (Context.lookup f1 ctx)
               simplifySpine ctx t (zip (toList sp1) (toList sp2))
           (tm1 :===: Lam p2 b2) ::: ty@Pi{} -> do
-            n <- gensym
+            n <- fresh
             go scope ctx ((lam (p2 :< Local (Name n)) (tm1 $$ (p2 :< pure (Local (Name n)))) :===: Lam p2 b2) ::: ty)
           (Lam p1 b1 :===: tm2) ::: ty@Pi{} -> do
-            n <- gensym
+            n <- fresh
             go scope ctx ((Lam p1 b1 :===: lam (p1 :< Local (Name n)) (tm2 $$ (p1 :< pure (Local (Name n))))) ::: ty)
           c@((t1 :===: t2) ::: _)
             | blocked t1 || blocked t2 -> tell (Set.singleton (binds (first (Local . Name) <$> unContext ctx) c :~ span))
             | otherwise                -> tell [binds (first (Local . Name) <$> unContext ctx) c :~ span]
 
         exists ctx ty = do
-          n <- gensym
+          n <- fresh
           let f (n ::: t) = Ex :< Local (Name n) ::: More :@ t
               ty' = Core.pis (f <$> Context.unContext ctx) ty
           modify (Signature . Map.insert n ty' . unSignature)

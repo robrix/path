@@ -28,7 +28,7 @@ prettyCore = \case
   Lam ie b -> do
     (as, b') <- un (\case
       Lam p b -> Just $ do
-        n <- gensym
+        n <- fresh
         pure (p :< Local (Name n), instantiate1 (pure (Local (Name n))) b)
       _ -> Nothing) (Lam ie b)
     b'' <- prettyCore b'
@@ -46,7 +46,7 @@ prettyCore = \case
   v@Pi{} -> do
     (pis, body) <- un (\case
       Pi (p :< u :@ t) b -> Just $ do
-        n <- gensym
+        n <- fresh
         let b' = instantiate1 (pure (Local (Name n))) b
         pure ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
       _                  -> Nothing) v

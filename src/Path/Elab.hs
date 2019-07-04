@@ -54,7 +54,7 @@ intro :: ( Carrier sig m
       -> m (Core (Name Meta) ::: Core (Name Meta))
 intro (p :< _) body = do
   _A <- exists Type
-  x <- gensym
+  x <- fresh
   _B <- x ::: _A |- exists Type
   u <- x ::: _A |- goalIs _B body
   pure (lam (p :< Local (Name x)) u ::: pi (p :< Local (Name x) ::: More :@ _A) _B)
@@ -71,7 +71,7 @@ intro (p :< _) body = do
       -> m (Core (Name Meta) ::: Core (Name Meta))
 (p :< (_, m, t)) --> body = do
   t' <- goalIs Type t
-  x <- gensym
+  x <- fresh
   b' <- x ::: t' |- goalIs Type body
   pure (pi (p :< Local (Name x) ::: m :@ t') b' ::: Type)
 
@@ -87,7 +87,7 @@ app :: ( Carrier sig m
     -> m (Core (Name Meta) ::: Core (Name Meta))
 app f (p :< a) = do
   _A <- exists Type
-  x <- gensym
+  x <- fresh
   _B <- x ::: _A |- exists Type
   let _F = pi (p :< Local (Name x) ::: case p of { Im -> zero ; Ex -> More } :@ _A) _B
   f' <- goalIs _F f
@@ -104,7 +104,7 @@ exists :: ( Carrier sig m
        -> m (Core (Name Meta))
 exists ty = do
   ctx <- ask
-  n <- gensym
+  n <- fresh
   let f (n ::: t) = Ex :< Local (Name n) ::: More :@ t
       ty' = pis (f <$> Context.unContext ctx) ty
   modify (Signature . Map.insert n ty' . unSignature)
@@ -173,7 +173,7 @@ runElab = runWriter . runReader mempty
 
 
 inferType :: (Carrier sig m, Member Naming sig) => m (Core (Name Meta))
-inferType = pure . Local . Meta <$> gensym
+inferType = pure . Local . Meta <$> fresh
 
 
 type ModuleTable = Map.Map ModuleName Namespace
