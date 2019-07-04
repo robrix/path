@@ -84,7 +84,7 @@ instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
 instance Substitutable (Constraint (Name Meta)) where
-  apply (Substitution subst) = (>>== \ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
+  apply (Substitution subst) = (>>=* \ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
 
 
 data Constraint a
@@ -102,7 +102,7 @@ instance Traversable Eqn where
   traverse f  = fmap Eqn . bitraverse (traverse (traverse f)) (traverse f) . unEqn
 
 instance RModule Constraint Core where
-  m >>== f = efold (\ v s -> join v :|-: (s >>== id)) (\ (q ::: t) -> E (Eqn (fmap join q ::: join t))) pure f m
+  m >>=* f = efold (\ v s -> join v :|-: (s >>=* id)) (\ (q ::: t) -> E (Eqn (fmap join q ::: join t))) pure f m
 
 instance Pretty (Constraint (Name Meta)) where
   pretty c = group . run . runNaming $ do

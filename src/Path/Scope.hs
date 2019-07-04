@@ -56,7 +56,7 @@ instance Monad f => Monad (Scope a f) where
   Scope e >>= f = Scope (e >>= incr (pure . Z) (>>= unScope . f))
 
 instance Monad f => RModule (Scope a f) f where
-  Scope m >>== f = Scope (fmap (>>= f) <$> m)
+  Scope m >>=* f = Scope (fmap (>>= f) <$> m)
 
 instance MonadTrans (Scope a) where
   lift = Scope . pure . S
@@ -121,7 +121,7 @@ instance (Applicative f, Applicative g) => Applicative (ScopeH a f g) where
   ScopeH f <*> ScopeH a = ScopeH (liftA2 (liftA2 (<*>)) f a)
 
 instance (Functor f, Monad m) => RModule (ScopeH b f m) m where
-  ScopeH s >>== k = ScopeH (fmap (>>= k) <$> s)
+  ScopeH s >>=* k = ScopeH (fmap (>>= k) <$> s)
 
 instance Applicative f => MonadTrans (ScopeH a f) where
   lift = ScopeH . pure . S
@@ -133,10 +133,10 @@ bindH f = ScopeH . fmap (match (toEither f)) -- FIXME: succ as little of the exp
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
-instantiateH f = unScopeH >==> fromIncr f
+instantiateH f = unScopeH >=>* fromIncr f
 
 fromScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
-fromScopeH = unScopeH >==> sequenceA
+fromScopeH = unScopeH >=>* sequenceA
 
 toScopeH :: (Functor f, Applicative g) => f (Incr a b) -> ScopeH a f g b
 toScopeH = ScopeH . fmap (fmap pure)
