@@ -12,6 +12,9 @@ f >=>* g = \x -> f x >>=* g
 (<=<*) :: RModule f m => (b -> m c) -> (a -> f b) -> (a -> f c)
 g <=<* f = \x -> f x >>=* g
 
+joinr :: RModule f m => f (m a) -> f a
+joinr = (>>=* id)
+
 
 instance (Functor f, RModule g h) => RModule (f :.: g) h where
   Comp1 a >>=* f = Comp1 (fmap (>>=* f) a)
