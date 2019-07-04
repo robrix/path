@@ -60,7 +60,6 @@ resolveModule m = do
   modify (<> res)
   pure m { moduleDecls = decls }
   where amongImports q = any (flip inModule q . importModuleName . unSpanned) (moduleImports m)
-        unSpanned (a :~ _) = a
 
 newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Gensym)) }
   deriving (Eq, Monoid, Ord, Show)
