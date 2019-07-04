@@ -82,6 +82,9 @@ instantiateEither f = unScope >=> incr (f . Left) (>>= f . Right)
 fromScope :: Monad f => Scope a f b -> f (Incr a b)
 fromScope = unScope >=> sequenceA
 
+toScope :: Applicative f => f (Incr a b) -> Scope a f b
+toScope = Scope . fmap (fmap pure)
+
 foldScope :: (forall a . Incr z (n a) -> m (Incr z (n a)))
           -> (forall x y . (x -> m y) -> f x -> n y)
           -> (a -> m b)
@@ -128,3 +131,6 @@ instantiateH f = unScopeH >==> fromIncr f
 
 fromScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
 fromScopeH = unScopeH >==> sequenceA
+
+toScopeH :: (Functor f, Applicative g) => f (Incr a b) -> ScopeH a f g b
+toScopeH = ScopeH . fmap (fmap pure)
