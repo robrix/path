@@ -74,7 +74,7 @@ instance Pretty (Problem (Name Gensym)) where
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
           k (Z ()) = ask >>= var . Local . Prelude.head
-          k (S n)  = local (tail @Meta) n
+          k (S n)  = local (Prelude.tail @Meta) n
           prec d' doc = do
             d <- ask @Int
             pure (prettyParens (d > d') doc)

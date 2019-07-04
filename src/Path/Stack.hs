@@ -45,3 +45,7 @@ drop _ _                 = Nil
 head :: Stack a -> a
 head (_ :> a) = a
 head _        = error "Path.Stack.head: empty stack"
+
+tail :: Stack a -> Stack a
+tail (as :> _) = as
+tail _         = error "Path.Stack.tail: empty stack"
