@@ -6,7 +6,6 @@ import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
--- import qualified Data.Set as Set
 import Path.Error
 import Path.Module
 import Path.Name
@@ -26,12 +25,6 @@ resolveDecl :: ( Carrier sig m
 -- FIXME: do something with the term/type spans
 resolveDecl (Decl n d tm ty) =  do
   moduleName <- ask
-  -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
-  --     generalize ty = foldr bind ty vs
-  --     bind n ty = do
-  --       n' <- gensym (showUser n)
-  --       local (insertLocal (Just n) n') $
-  --         Pi (Im :< (Just n, Zero, Type)) . Surface.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
   tm' ::: ty' <- flip (:::)
     <$> runSpanned (runResolution . traverse resolveName) ty
     <*  modify (insertGlobal n moduleName)
