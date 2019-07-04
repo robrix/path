@@ -83,10 +83,6 @@ instance Pretty User where
     Id s  -> pretty s
     Op op -> parens (pretty op)
 
-showUser :: User -> String
-showUser (Id s) = s
-showUser (Op o) = showOperator o
-
 
 data ModuleName
   = ModuleName String
