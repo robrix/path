@@ -6,3 +6,6 @@ class (Functor f, Monad m) => RModule f m where
 
 (>==>) :: RModule f m => (a -> f b) -> (b -> m c) -> a -> f c
 f >==> g = \x -> f x >>== g
+
+(<==<) :: RModule f m => (b -> m c) -> (a -> f b) -> a -> f c
+g <==< f = \x -> f x >>== g
