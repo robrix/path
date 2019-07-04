@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveTraversable, DerivingVia, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Constraint
 ( Equation (..)
-, Substitution (..)
+, Substitution
 , Signature (..)
 , Substitutable (..)
 , Constraint (..)
@@ -38,14 +38,7 @@ instance Pretty a => Pretty (Equation a) where
     where eq = magenta (pretty "≡")
 
 
-newtype Substitution = Substitution { unSubstitution :: Map.Map Gensym (Core (Name Meta)) }
-  deriving (Eq, Monoid, Ord, Semigroup, Show)
-
-instance Pretty Substitution where
-  pretty (Substitution sig)
-    | null sig  = mempty
-    | otherwise = encloseSep (magenta (pretty "Θ") <> space) mempty (cyan comma <> space) (map (uncurry prettyBind) (Map.toList sig)) <> hardline
-    where prettyBind m t = pretty (Meta m) <+> cyan (pretty "=") <+> pretty t
+type Substitution = Map.Map Gensym (Core (Name Meta))
 
 newtype Signature = Signature { unSignature :: Map.Map Gensym (Core (Name Meta)) }
   deriving (Eq, Monoid, Ord, Semigroup, Show)
@@ -64,7 +57,7 @@ unMeta (Meta n) = Just n
 unMeta _        = Nothing
 
 instance Substitutable (Core (Name Meta)) where
-  apply (Substitution subst) val = do
+  apply subst val = do
     var <- val
     fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?))
 
@@ -84,7 +77,7 @@ instance Substitutable a => Substitutable (Context a) where
   apply subst = fmap (apply subst)
 
 instance Substitutable (Constraint Core (Name Meta)) where
-  apply (Substitution subst) = (>>=* \ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
+  apply subst = (>>=* \ var -> fromMaybe (pure var) (name unMeta (const Nothing) var >>= (subst Map.!?)))
 
 
 data Constraint f a
