@@ -20,12 +20,12 @@ freeVariable name = do
   span <- ask
   throwError (prettyErr span (pretty "free variable" <+> squotes (pretty name)) [])
 
-ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty (Name Gensym) -> m a
+ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Qualified -> m a
 ambiguousName name sources = do
   span <- ask
   throwError (prettyErr span (pretty "ambiguous name" <+> squotes (pretty name)) [nest 2 (vsep
     ( pretty "it could refer to"
-    : map prettyQName (toList sources)))])
+    : map pretty (toList sources)))])
 
 
 unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signature -> [Spanned (Constraint Core (Name Meta))] -> m a

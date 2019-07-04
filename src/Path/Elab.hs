@@ -188,9 +188,9 @@ elab :: ( Carrier sig m
         , Member (State Signature) sig
         , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
         )
-     => Surface.Surface (Name Gensym)
+     => Surface.Surface Qualified
      -> m (Core (Name Meta) ::: Core (Name Meta))
-elab = Surface.kcata id alg bound assume
+elab = Surface.kcata id alg bound (assume . Global)
   where bound (Z _) = asks @(Context (Core (Name Meta))) (first (pure . Local . Name) . Stack.head . unContext)
         bound (S m) = local @(Context (Core (Name Meta))) (Context . Stack.tail . unContext) m
         alg = \case
@@ -220,13 +220,13 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module Surface.Surface (Name Gensym)
+           => Module Surface.Surface Qualified
            -> m (Module Core Qualified)
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
   decls <- for (moduleDecls m) $ \ decl ->
-    (Just . fmap (bind (`elemIndex` map qualified (moduleDecls m))) <$> elabDecl (instantiate (pure . Global . qualified . (moduleDecls m !!)) <$> decl)) `catchError` ((Nothing <$) . logError)
+    (Just . fmap (bind (`elemIndex` map qualified (moduleDecls m))) <$> elabDecl (instantiate (pure . qualified . (moduleDecls m !!)) <$> decl)) `catchError` ((Nothing <$) . logError)
   pure m { moduleDecls = catMaybes decls }
   where qualified = (moduleName m :.:) . declName
 
@@ -249,7 +249,7 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             , Member (State Namespace) sig
             )
-         => Decl (Surface.Surface (Name Gensym))
+         => Decl (Surface.Surface Qualified)
          -> m (Decl (Core Qualified))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty' <- runSpanned (runNamespace . declare . elab) ty

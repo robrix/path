@@ -145,15 +145,6 @@ name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
 name _     global (Global n) = global n
 
-inModule :: ModuleName -> Name a -> Bool
-inModule m (Global (m' :.: _)) = m == m'
-inModule _ _                   = False
-
-prettyQName :: Pretty a => Name a -> Doc
-prettyQName = \case
-  Global n -> pretty n
-  Local  n -> pretty n
-
 
 localNames :: Ord a => Set.Set (Name a) -> Set.Set a
 localNames = foldMap (name Set.singleton (const Set.empty))
