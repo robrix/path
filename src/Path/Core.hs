@@ -72,25 +72,25 @@ instance Monad Core where
   a >>= f = eiter id embed pure f a
 
 
-data CoreF f a
-  = LamF Plicity (Scope () f a)              -- ^ A lambda abstraction.
-  | f a :$$ Stack (Plicit (f a))             -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
-  | TypeF                                    -- ^ @'Type' : 'Type'@.
-  | PiF (Plicit (Used (f a))) (Scope () f a) -- ^ A ∏ type, with a 'Usage' annotation.
+data CoreF v f a
+  = LamF Plicity (Scope v f a)              -- ^ A lambda abstraction.
+  | f a :$$ Stack (Plicit (f a))            -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
+  | TypeF                                   -- ^ @'Type' : 'Type'@.
+  | PiF (Plicit (Used (f a))) (Scope v f a) -- ^ A ∏ type, with a 'Usage' annotation.
   deriving (Foldable, Functor, Traversable)
 
-deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (CoreF f a)
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (CoreF () f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
-                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (CoreF f a)
-deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
+                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (CoreF () f a)
+deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF () f a)
 
-project :: Core a -> CoreF Core a
+project :: Core a -> CoreF () Core a
 project (Lam p b) = LamF p b
 project (f :$ a) = (f :$ Nil) :$$ a
 project Type = TypeF
 project (Pi t b) = PiF t b
 
-embed :: CoreF Core a -> Core a
+embed :: CoreF () Core a -> Core a
 embed (LamF p b) = Lam p b
 embed (f :$$ a) = f $$* a
 embed TypeF = Type
@@ -133,7 +133,7 @@ v $$* sp = foldl' ($$) v sp
 
 eiter :: forall m n a b
       .  (forall a . m a -> n a)
-      -> (forall a . CoreF n a -> n a)
+      -> (forall a . CoreF () n a -> n a)
       -> (forall a . Incr () (n a) -> m (Incr () (n a)))
       -> (a -> m b)
       -> Core a
