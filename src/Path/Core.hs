@@ -41,7 +41,7 @@ prettyCore = \case
   Type -> pure (atom (yellow (pretty "Type")))
   v@Pi{} -> do
     (pis, body) <- un (orTerm (\ n -> \case
-      Pi (p :< u :@ t) b -> let b' = instantiate (const (pure (Local (Name n)))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
+      Pi (p :< u :@ t) b -> let b' = instantiate1 (pure (Local (Name n))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
       _                  -> Nothing)) v
     pis' <- traverse (uncurry prettyPi) pis
     body' <- prettyCore body
@@ -107,7 +107,7 @@ lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Core a -> m (Plicit a, Core a)
-unlam n (Lam p b) = pure (p :< n, instantiate (const (pure n)) b)
+unlam n (Lam p b) = pure (p :< n, instantiate1 (pure n) b)
 unlam _ _         = empty
 
 pi :: Eq a => Plicit (a ::: Used (Core a)) -> Core a -> Core a
@@ -118,12 +118,12 @@ pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Core a))) -> Core a -> Core 
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Core a -> m (Plicit (a ::: Used (Core a)), Core a)
-unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate (const (pure n)) b)
+unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate1 (pure n) b)
 unpi _ _               = empty
 
 ($$) :: Core a -> Plicit (Core a) -> Core a
-Lam _ b $$ (_ :< v) = instantiate (const v) b
-Pi _  b $$ (_ :< v) = instantiate (const v) b
+Lam _ b $$ (_ :< v) = instantiate1 v b
+Pi _  b $$ (_ :< v) = instantiate1 v b
 n :$ vs $$ v        = n :$ (vs :> v)
 _       $$ _        = error "illegal application of Type"
 
