@@ -17,34 +17,17 @@ import Prelude hiding (pi)
 
 type Signature = Map.Map String Gensym
 
-resolveTerm :: ( Carrier sig m
-               , Member (Error Doc) sig
-               , Member Naming sig
-               , Member (Reader Mode) sig
-               , Member (Reader Resolution) sig
-               , Member (Reader Span) sig
-               , Member (State Signature) sig
-               , Traversable t
-               )
-            => t Var
-            -> m (t (Name Meta))
-resolveTerm = traverse go
-  where go (M m) = Local . Meta <$> resolveMeta m
-        go (U u) = resolveName u
-
-
 data Mode = Declare | Define
   deriving (Eq, Ord, Show)
 
 resolveDecl :: ( Carrier sig m
-               , Effect sig
                , Member (Error Doc) sig
                , Member Naming sig
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
                , Traversable t
                )
-            => Decl (t Var)
+            => Decl (t User)
             -> m (Decl (t (Name Meta)))
 -- FIXME: do something with the term/type spans
 resolveDecl (Decl n d tm ty) =  do
@@ -55,12 +38,12 @@ resolveDecl (Decl n d tm ty) =  do
   --       n' <- gensym (showUser n)
   --       local (insertLocal (Just n) n') $
   --         Pi (Im :< (Just n, Zero, Type)) . Surface.bind (Local n') <$> ty -- FIXME: insert metavariables for the type
-  tm' ::: ty' <- evalState (mempty :: Signature) $
-    flip (:::) <$> runSpanned (run Declare) ty
-               <*  modify (insertGlobal n moduleName)
-               <*> runSpanned (run Define)  tm
+  tm' ::: ty' <- flip (:::)
+    <$> runSpanned (run Declare) ty
+    <*  modify (insertGlobal n moduleName)
+    <*> runSpanned (run Define)  tm
   pure (Decl n d tm' ty')
-  where run d = runResolution . runReader d . resolveTerm
+  where run d = runResolution . runReader d . traverse resolveName
 
 runResolution :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
 runResolution m = get >>= \ res -> runReader res m
@@ -71,7 +54,7 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module Surface Var
+              => Module Surface User
               -> m (Module Surface (Name Meta))
 resolveModule m = do
   res <- get

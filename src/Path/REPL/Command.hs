@@ -9,9 +9,9 @@ import Path.Surface
 data Command
   = Quit
   | Help
-  | TypeOf (Spanned (Surface Var))
-  | Decl (Decl (Surface Var))
-  | Eval (Spanned (Surface Var))
+  | TypeOf (Spanned (Surface User))
+  | Decl (Decl (Surface User))
+  | Eval (Spanned (Surface User))
   | Show Info
   | Reload
   | Import (Spanned Import)

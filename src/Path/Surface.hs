@@ -39,9 +39,9 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Su
 lam :: Eq a => Plicit (Named (Maybe User) a) -> Spanned (Surface a) -> Surface a
 lam (p :< Named u n) b = Surface (Lam (p :< u) (bind ((u <$) . guard . (== n)) <$> b))
 
-lam' :: Plicit (Maybe User) -> Spanned (Surface Var) -> Surface Var
+lam' :: Plicit (Maybe User) -> Spanned (Surface User) -> Surface User
 lam' (p :< Nothing) b = Surface (Lam (p :< Ignored Nothing) (lift <$> b))
-lam' (p :< Just n)  b = lam (p :< named (Just n) (U n)) b
+lam' (p :< Just n)  b = lam (p :< named (Just n) n) b
 
 ($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
 f $$ a = Surface (f :$ a)

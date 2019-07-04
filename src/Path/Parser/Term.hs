@@ -12,7 +12,7 @@ import qualified Path.Surface as Surface
 import Path.Usage
 import Text.Trifecta hiding ((:@))
 
-type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Surface Var))
+type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Surface User))
 
 term = functionType
 
@@ -23,7 +23,7 @@ type' = spanned (Surface.type' <$ keyword "Type")
 
 piType = spanned (do
   p :< (v, mult, ty) <- plicit binding (parens binding) <* op "->"
-  Surface.pi (p :< named (Just v) (U v) ::: fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty) <$> functionType) <?> "dependent function type"
+  Surface.pi (p :< named (Just v) v ::: fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty) <$> functionType) <?> "dependent function type"
   where binding = ((,,) <$> name <* colon <*> optional multiplicity <*> term)
 
 functionType = spanned ((:@) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType))
@@ -31,7 +31,7 @@ functionType = spanned ((:@) <$> multiplicity <*> application <**> (flip (Surfac
            <|> piType
   where arrow t'@(_ :~ s2) t@(_ :~ s1) = (More :@ t Surface.--> t') :~ (s1 <> s2)
 
-var = spanned (pure . U <$> name <?> "variable")
+var = spanned (pure <$> name <?> "variable")
 
 lambda = (do
   vs <- op "\\" *> some pattern <* dot

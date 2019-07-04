@@ -21,7 +21,7 @@ help = Help <$ token (string ":h") <|> Help <$ token (string ":?") <|> Help <$ t
 
 typeof = TypeOf <$ (token (string ":t") <|> token (string ":type")) <*> term <?> "type of"
 
-decl = Decl . snd <$> M.declaration
+decl = Decl <$> M.declaration
 
 eval = Eval <$> term <?> "term"
 
