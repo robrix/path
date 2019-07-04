@@ -44,4 +44,4 @@ drop _ _                 = Nil
 
 head :: Stack a -> a
 head (_ :> a) = a
-head _        = error "Path.Stack.head: empty list"
+head _        = error "Path.Stack.head: empty stack"
