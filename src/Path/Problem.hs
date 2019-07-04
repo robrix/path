@@ -203,7 +203,7 @@ type Context = Stack (Binding ::: Problem (Name Gensym))
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
           , Member (Reader Span) sig
-          , Member (State Context) sig
+          , Member (Reader Context) sig
           )
        => Name Gensym
        -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
@@ -213,7 +213,7 @@ assume v = do
 
 intro :: ( Carrier sig m
          , Member Naming sig
-         , Member (State Context) sig
+         , Member (Reader Context) sig
          )
       => (Gensym -> m (Problem (Name Gensym) ::: Problem (Name Gensym)))
       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
@@ -226,7 +226,7 @@ intro body = do
 
 (-->) :: ( Carrier sig m
          , Member Naming sig
-         , Member (State Context) sig
+         , Member (Reader Context) sig
          )
       => m (Problem (Name Gensym) ::: Problem (Name Gensym))
       -> (Gensym -> m (Problem (Name Gensym) ::: Problem (Name Gensym)))
@@ -239,7 +239,7 @@ t --> body = do
 
 app :: ( Carrier sig m
        , Member Naming sig
-       , Member (State Context) sig
+       , Member (Reader Context) sig
        )
     => m (Problem (Name Gensym) ::: Problem (Name Gensym))
     -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
@@ -270,19 +270,15 @@ meta ty = do
   n <- gensym "meta"
   pure (exists (Local n := Nothing ::: ty) (pure (Local n)))
 
-(|-) :: (Carrier sig m, Member (State Context) sig) => Binding ::: Problem (Name Gensym) -> m a -> m a
-b |- m = do
-  stack <- get
-  put (stack :> b)
-  a <- m
-  a <$ put stack
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem (Name Gensym) -> m a -> m a
+b |- m = local (:> b) m
 
 infix 3 |-
 
-bindMeta :: (Carrier sig m, Member (State Context) sig) => Gensym ::: Problem (Name Gensym) -> m a -> m (Binding, a)
+bindMeta :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Problem (Name Gensym) -> m a -> m (Binding, a)
 bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
   a <- m
-  stack <- get @Context
+  stack <- ask @Context
   case stack of
     Nil           -> pure (Exists (e := Nothing), a)
     _ :> e' ::: _ -> pure (e', a)
@@ -293,11 +289,11 @@ solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Lo
 have :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member (Reader Span) sig
-        , Member (State Context) sig
+        , Member (Reader Context) sig
         )
      => Name Gensym
      -> m (Problem (Name Gensym))
-have n = lookupBinding n >>= maybe (freeVariable n) (pure . typedType)
+have n = asks (lookupBinding n) >>= maybe (freeVariable n) (pure . typedType)
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
@@ -307,7 +303,7 @@ elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member Naming sig
         , Member (Reader Span) sig
-        , Member (State Context) sig
+        , Member (Reader Context) sig
         )
      => Surface.Surface (Name Meta)
      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
@@ -342,6 +338,7 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
 declare :: ( Carrier sig m
            , Member (Error Doc) sig
            , Member Naming sig
+           , Member (Reader Context) sig
            , Member (Reader Span) sig
            , Member (State Context) sig
            )
@@ -352,6 +349,7 @@ declare ty = goalIs type' ty >>= simplify
 define :: ( Carrier sig m
           , Member (Error Doc) sig
           , Member Naming sig
+          , Member (Reader Context) sig
           , Member (Reader Span) sig
           , Member (State Context) sig
           )
@@ -364,12 +362,13 @@ define ty tm = goalIs ty tm >>= simplify
 simplify :: ( Carrier sig m
             , Member (Error Doc) sig
             , Member Naming sig
+            , Member (Reader Context) sig
             , Member (Reader Span) sig
             , Member (State Context) sig
             )
          => Problem (Name Gensym)
          -> m (Problem (Name Gensym))
-simplify = \case
+simplify = withContext . \case
   Var a -> pure (Var a)
   Problem p -> case p of
     Lam t b -> do
@@ -431,10 +430,11 @@ simplify = \case
           t' <- simplify (t1 === t2)
           ForAll n ::: t' |- lam (Local n ::: t') <$> simplify (instantiate (const (pure (Local n))) b1 === instantiate (const (pure (Local n))) b2)
         (t1, t2) -> pure (Problem (t1 :===: t2))
+  where withContext m = get @Context >>= \ ctx -> local (const ctx) m
 
 simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Gensym -> Problem (Name Gensym) -> m (Problem (Name Gensym))
 simplifyVar v t = do
-  v' <- lookupBinding (Local v)
+  v' <- gets (lookupBinding (Local v))
   case v' of
     -- FIXME: occurs check
     Just (Exists (n := _) ::: _) -> pure (Local v) <$ solve (n := t)
@@ -490,8 +490,8 @@ bindingValue (Define (_ := v)) = Just v
 bindingValue (Exists (_ := v)) = v
 bindingValue (ForAll  _)       = Nothing
 
-lookupBinding :: (Carrier sig m, Member (State Context) sig) => Name Gensym -> m (Maybe (Binding ::: Problem (Name Gensym)))
-lookupBinding n = gets (Stack.find ((== n) . bindingName . typedTerm))
+lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Problem (Name Gensym))
+lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
 
 
 runProblem :: Functor m => ReaderC Span (StateC Context m) a -> m a
