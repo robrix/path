@@ -42,9 +42,10 @@ resolveDecl :: ( Carrier sig m
                , Member Naming sig
                , Member (Reader ModuleName) sig
                , Member (State Resolution) sig
+               , Traversable t
                )
-            => Decl (Surface Var)
-            -> m (Decl (Surface (Name Meta)))
+            => Decl (t Var)
+            -> m (Decl (t (Name Meta)))
 -- FIXME: do something with the term/type spans
 resolveDecl (Decl n d tm ty) =  do
   moduleName <- ask
