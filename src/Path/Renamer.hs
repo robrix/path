@@ -45,7 +45,7 @@ resolveDecl :: ( Carrier sig m
             => Decl (Spanned (Surface Var))
             -> m (Decl (Spanned (Surface (Name Meta))))
 -- FIXME: do something with the term/type spans
-resolveDecl (Decl d n tm ty) =  do
+resolveDecl (Decl n d tm ty) =  do
   moduleName <- ask
   -- let vs = fvs ty Set.\\ Map.keysSet (unResolution res)
   --     generalize ty = foldr bind ty vs
@@ -57,7 +57,7 @@ resolveDecl (Decl d n tm ty) =  do
     flip (:::) <$> runSpanned (runResolution . runReader Declare . resolveTerm) ty
                <*  modify (insertGlobal n moduleName)
                <*> runSpanned (runResolution . runReader Define  . resolveTerm) tm
-  pure (Decl d n tm' ty')
+  pure (Decl n d tm' ty')
 
 runResolution :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
 runResolution m = get >>= \ res -> runReader res m

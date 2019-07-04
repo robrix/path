@@ -33,7 +33,7 @@ declaration = do
   docs <- optional docs
   ((name, name'), ty) <- absoluteIndentation ((,) <$> slicedWith (,) name <* op ":" <*> term)
   tm <- absoluteIndentation (token (text (Text.decodeUtf8 name')) *> op "=" *> term)
-  pure (Module.Decl docs name tm ty)
+  pure (Module.Decl name docs tm ty)
 
 docs :: TokenParsing m => m String
 docs = runUnlined (fmap unlines . (:) <$> firstLine <*> many line)

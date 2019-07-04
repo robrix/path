@@ -223,7 +223,7 @@ elabDecl :: ( Carrier sig m
             )
          => Decl (Spanned (Surface.Surface (Name Meta)))
          -> m (Decl (Spanned (Core Qualified)))
-elabDecl (Decl d name tm ty) = namespace (show name) $ do
+elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty' <- runSpanned (runNamespace . declare . elab) ty
   moduleName <- ask
   modify (Namespace.insert (moduleName :.: name) (Entry (Nothing ::: unSpanned ty')))
@@ -236,7 +236,7 @@ elabDecl (Decl d name tm ty) = namespace (show name) $ do
   -- tm ::: _ <- runNamespace (define (weaken ty') (elab (Surface.lams names tm)))
   (tm' ::: _) :~ s <- runSpanned (runNamespace . define (weaken (unSpanned ty')) . elab) tm
   modify (Namespace.insert (moduleName :.: name) (Entry (Just tm' ::: unSpanned ty')))
-  pure (Decl d name (tm' :~ s) ty')
+  pure (Decl name d (tm' :~ s) ty')
 
 declare :: ( Carrier sig m
            , Effect sig

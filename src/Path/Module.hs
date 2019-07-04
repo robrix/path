@@ -30,8 +30,8 @@ newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
 
 data Decl a = Decl
-  { declDocs :: Maybe String
-  , declName :: User
+  { declName :: User
+  , declDocs :: Maybe String
   , declTerm :: a
   , declType :: a
   }
@@ -41,7 +41,7 @@ declBody :: Decl a -> a ::: a
 declBody d = declTerm d ::: declType d
 
 instance Pretty a => Pretty (Decl a) where
-  pretty (Decl docs v tm ty) = case docs of
+  pretty (Decl v docs tm ty) = case docs of
     Nothing -> pretty v <+> magenta (pretty "=") <+> pretty (tm ::: ty)
     Just ds -> pretty ds <> hardline <> pretty v <+> magenta (pretty "=") <+> pretty (tm ::: ty)
 
