@@ -67,7 +67,7 @@ bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
 bind f = bindEither (toEither f)
 
 bind1 :: (Applicative f, Eq a) => a -> f a -> Scope () f a
-bind1 n = bindEither (toEither (guard . (== n)))
+bind1 n = bind (guard . (== n))
 
 bindEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
 bindEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
