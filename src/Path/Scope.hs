@@ -76,6 +76,9 @@ bindSimultaneous :: (Applicative f, Eq a) => [(a, f a)] -> [Scope Int f a]
 bindSimultaneous bs = map (bind (`elemIndex` map fst bs) . snd) bs
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
+instantiate1 :: Monad f => f b -> Scope a f b -> f b
+instantiate1 t = instantiate (const t)
+
 instantiate :: Monad f => (a -> f b) -> Scope a f b -> f b
 instantiate f = instantiateEither (either f pure)
 
