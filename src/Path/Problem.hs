@@ -215,13 +215,13 @@ intro :: ( Carrier sig m
          , Member Naming sig
          , Member (Reader Context) sig
          )
-      => (Gensym -> m (Problem (Name Gensym) ::: Problem (Name Gensym)))
+      => m (Problem (Name Gensym) ::: Problem (Name Gensym))
       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 intro body = do
   _A <- meta type'
   x <- gensym "intro"
   _B <- ForAll x ::: _A |- meta type'
-  u <- ForAll x ::: _A |- goalIs _B (body x)
+  u <- ForAll x ::: _A |- goalIs _B body
   pure (lam (Local x ::: _A) u ::: pi (Local x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
@@ -229,12 +229,12 @@ intro body = do
          , Member (Reader Context) sig
          )
       => m (Problem (Name Gensym) ::: Problem (Name Gensym))
-      -> (Gensym -> m (Problem (Name Gensym) ::: Problem (Name Gensym)))
+      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
 t --> body = do
   t' <- goalIs type' t
   x <- gensym "pi"
-  b' <- ForAll x ::: t' |- goalIs type' (body x)
+  b' <- ForAll x ::: t' |- goalIs type' body
   pure (pi (Local x ::: t') b' ::: type')
 
 app :: ( Carrier sig m
@@ -314,10 +314,10 @@ elab = Surface.kcata id alg bound free
         bound (Z _) = asks @Context (first (Var . bindingName) . Stack.head)
         bound (S m) = local @Context (Stack.drop 1) m
         alg = \case
-          Surface.Lam _ b -> intro (const (elab' (unScope <$> b)))
+          Surface.Lam _ b -> intro (elab' (unScope <$> b))
           f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
           Surface.Type -> pure (type' ::: type')
-          Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> const (elab' (unScope <$> b))
+          Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> elab' (unScope <$> b)
         elab' (t :~ s) = spanIs s (getConst t)
 
 elabDecl :: ( Carrier sig m
