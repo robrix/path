@@ -102,16 +102,6 @@ showUser (Id s) = s
 showUser (Op o) = showOperator o
 
 
-data Var
-  = M String
-  | U User
-  deriving (Eq, Ord, Show)
-
-instance Pretty Var where
-  pretty (M s) = dullblack (bold (pretty '?' <> pretty s))
-  pretty (U u) = pretty u
-
-
 data ModuleName
   = ModuleName String
   | ModuleName :. String
