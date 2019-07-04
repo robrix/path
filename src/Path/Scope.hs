@@ -2,7 +2,7 @@
 module Path.Scope where
 
 import Control.Applicative (liftA2)
-import Control.Monad ((>=>))
+import Control.Monad ((>=>), guard)
 import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Function (on)
@@ -65,6 +65,9 @@ instance MonadTrans (Scope a) where
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
 bind f = bindEither (toEither f)
+
+bind1 :: (Applicative f, Eq a) => a -> f a -> Scope () f a
+bind1 n = bindEither (toEither (guard . (== n)))
 
 bindEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
 bindEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
