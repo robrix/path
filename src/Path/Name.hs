@@ -36,8 +36,8 @@ root // s = root :/ (s, 0)
 infixl 6 //
 
 
-gensym :: (Carrier sig m, Member Naming sig) => String -> m Gensym
-gensym s = send (Gensym s pure)
+gensym :: (Carrier sig m, Member Naming sig) => m Gensym
+gensym = send (Gensym pure)
 
 namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
 namespace s m = send (Namespace s m pure)
@@ -55,17 +55,17 @@ unH from = go Nil
           Left  b -> pure (names, b)
 
 data Naming m k
-  = Gensym String (Gensym -> k)
+  = Gensym (Gensym -> k)
   | forall a . Namespace String (m a) (a -> k)
 
 deriving instance Functor (Naming m)
 
 instance HFunctor Naming where
-  hmap _ (Gensym    s   k) = Gensym s k
+  hmap _ (Gensym        k) = Gensym            k
   hmap f (Namespace s m k) = Namespace s (f m) k
 
 instance Effect Naming where
-  handle state handler (Gensym    s   k) = Gensym s (handler . (<$ state) . k)
+  handle state handler (Gensym        k) = Gensym                             (handler . (<$ state) . k)
   handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
 
 
@@ -76,7 +76,7 @@ newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC Gensym m) a }
   deriving (Applicative, Functor, Monad, MonadFail, MonadIO)
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
-  eff (L (Gensym    s   k)) = NamingC (StateC (\ i -> (:/ (s, i)) <$> ask >>= runState (succ i) . runNamingC . k))
+  eff (L (Gensym        k)) = NamingC (StateC (\ i -> (:/ ("", i)) <$> ask >>= runState (succ i) . runNamingC . k))
   eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (// s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
   eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
