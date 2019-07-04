@@ -131,8 +131,10 @@ binds :: (Applicative f, Eq a, Traversable t) => t (a ::: f a) -> Equation (f a)
 binds names body = foldr (|-) (E (Eqn body)) names
 
 unbinds :: (Carrier sig m, Member Naming sig, Monad f) => Constraint f (Name Meta) -> m (Context (f (Name Meta)), Equation (f (Name Meta)) ::: f (Name Meta))
-unbinds = fmap (first Context) . un (\ name -> \case
-  t :|-: b  -> Right (name ::: t, instantiateH (const (pure (Local (Name name)))) b)
+unbinds = fmap (first Context) . unH (\case
+  t :|-: b  -> Right $ do
+    name <- gensym ""
+    pure (name ::: t, instantiateH (const (pure (Local (Name name)))) b)
   E (Eqn q) -> Left q)
 
 

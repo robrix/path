@@ -26,7 +26,11 @@ data Core a
 prettyCore :: (Carrier sig m, Member Naming sig) => Core (Name Meta) -> m (Prec Doc)
 prettyCore = \case
   Lam ie b -> do
-    (as, b') <- un (orTerm (unlam . Local . Name)) (Lam ie b)
+    (as, b') <- un (\case
+      Lam p b -> Just $ do
+        n <- gensym ""
+        pure (p :< Local (Name n), instantiate1 (pure (Local (Name n))) b)
+      _ -> Nothing) (Lam ie b)
     b'' <- prettyCore b'
     pure (prec 0 (align (group (cyan backslash <+> foldr (var (fvs b')) (linebreak <> cyan dot <+> prettyPrec 0 b'') as))))
     where var vs (p :< n) rest
@@ -40,9 +44,12 @@ prettyCore = \case
           prettyArg (Ex :< a) = prettyPrec 11 <$> prettyCore a
   Type -> pure (atom (yellow (pretty "Type")))
   v@Pi{} -> do
-    (pis, body) <- un (orTerm (\ n -> \case
-      Pi (p :< u :@ t) b -> let b' = instantiate1 (pure (Local (Name n))) b in Just ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
-      _                  -> Nothing)) v
+    (pis, body) <- un (\case
+      Pi (p :< u :@ t) b -> Just $ do
+        n <- gensym ""
+        let b' = instantiate1 (pure (Local (Name n))) b
+        pure ((p :< Local (Name n) ::: u :@ t, Local (Name n) `Set.member` fvs b'), b')
+      _                  -> Nothing) v
     pis' <- traverse (uncurry prettyPi) pis
     body' <- prettyCore body
     pure (prec 0 (encloseSep l mempty (flatAlt mempty space <> arrow <> space) (toList (pis' :> prettyPrec 1 body'))))
