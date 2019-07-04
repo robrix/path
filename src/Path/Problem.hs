@@ -307,16 +307,18 @@ elab :: ( Carrier sig m
         )
      => Surface.Surface (Name Meta)
      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
-elab = \case
-  Surface.Var (Global n) -> assume (Global n)
-  Surface.Var (Local (Name n)) -> assume (Local n)
-  Surface.Var (Local (Meta n)) -> (pure (Local n) :::) <$> meta type'
-  Surface.Surface c -> case c of
-    Surface.Lam _ b -> intro (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
-    f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
-    Surface.Type -> pure (type' ::: type')
-    Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> \ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b)
-  where elab' (t :~ s) = spanIs s (elab t)
+elab = Surface.kcata id alg bound free
+  where free (Global n)       = assume (Global n)
+        free (Local (Name n)) = assume (Local n)
+        free (Local (Meta n)) = (pure (Local n) :::) <$> meta type'
+        bound (Z _) = asks @Context (first (Var . bindingName) . Stack.head)
+        bound (S m) = local @Context (Stack.drop 1) m
+        alg = \case
+          Surface.Lam _ b -> intro (const (elab' (unScope <$> b)))
+          f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
+          Surface.Type -> pure (type' ::: type')
+          Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> const (elab' (unScope <$> b))
+        elab' (t :~ s) = spanIs s (getConst t)
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
