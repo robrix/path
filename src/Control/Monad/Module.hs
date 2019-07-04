@@ -1,5 +1,7 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, TypeOperators #-}
 module Control.Monad.Module where
+
+import GHC.Generics
 
 class (Functor f, Monad m) => RModule f m where
   (>>==) :: f a -> (a -> m b) -> f b
@@ -9,3 +11,7 @@ f >==> g = \x -> f x >>== g
 
 (<==<) :: RModule f m => (b -> m c) -> (a -> f b) -> (a -> f c)
 g <==< f = \x -> f x >>== g
+
+
+instance (Functor f, Monad g) => RModule (f :.: g) g where
+  Comp1 a >>== f = Comp1 (fmap (>>= f) a)
