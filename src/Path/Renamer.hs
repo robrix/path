@@ -24,9 +24,10 @@ resolveTerm :: ( Carrier sig m
                , Member (Reader Resolution) sig
                , Member (Reader Span) sig
                , Member (State Signature) sig
+               , Traversable t
                )
-            => Surface Var
-            -> m (Surface (Name Meta))
+            => t Var
+            -> m (t (Name Meta))
 resolveTerm = traverse go
   where go (M m) = Local . Meta <$> resolveMeta m
         go (U u) = resolveName u
