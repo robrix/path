@@ -135,7 +135,7 @@ elab = Surface.kcata id alg bound free
         free (Local (Name n)) = assume (Local n)
         free (Local (Meta n)) = (pure (Local (Meta n)) :::) <$> exists Type
         bound (Z _) = asks @(Context (Core (Name Meta))) (first (pure . Local . Name) . Stack.head . unContext)
-        bound (S m) = local @(Context (Core (Name Meta))) (Context . Stack.drop 1 . unContext) m
+        bound (S m) = local @(Context (Core (Name Meta))) (Context . Stack.tail . unContext) m
         alg = \case
           Surface.Lam n b -> intro (unIgnored <$> n) (elab' (unScope <$> b))
           (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
