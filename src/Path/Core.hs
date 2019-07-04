@@ -5,7 +5,6 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
-import           Control.Monad (guard)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Path.Name
@@ -102,7 +101,7 @@ global :: Qualified -> Core (Name a)
 global = (:$ Nil) . Global
 
 lam :: Eq a => Plicit a -> Core a -> Core a
-lam (pl :< n) b = Lam pl (bind (guard . (== n)) b)
+lam (pl :< n) b = Lam pl (bind1 n b)
 
 lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
 lams names body = foldr lam body names
@@ -112,7 +111,7 @@ unlam n (Lam p b) = pure (p :< n, instantiate (const (pure n)) b)
 unlam _ _         = empty
 
 pi :: Eq a => Plicit (a ::: Used (Core a)) -> Core a -> Core a
-pi (p :< n ::: t) b = Pi (p :< t) (bind (guard . (== n)) b)
+pi (p :< n ::: t) b = Pi (p :< t) (bind1 n b)
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Core a))) -> Core a -> Core a
