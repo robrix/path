@@ -127,8 +127,8 @@ n ::: t |- b = t :|-: bindH (guard . (== n)) b
 
 infixr 1 |-
 
-binds :: Applicative f => Context (f (Name Meta)) -> Equation (f (Name Meta)) ::: f (Name Meta) -> Constraint f (Name Meta)
-binds (Context names) body = foldr (|-) (E (Eqn body)) (first (Local . Name) <$> names)
+binds :: (Applicative f, Eq a, Traversable t) => t (a ::: f a) -> Equation (f a) ::: f a -> Constraint f a
+binds names body = foldr (|-) (E (Eqn body)) names
 
 unbinds :: (Carrier sig m, Member Naming sig, Monad f) => Constraint f (Name Meta) -> m (Context (f (Name Meta)), Equation (f (Name Meta)) ::: f (Name Meta))
 unbinds = fmap (first Context) . un (\ name -> \case

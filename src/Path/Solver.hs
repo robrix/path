@@ -6,6 +6,7 @@ import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
 import           Control.Monad ((>=>), guard, unless)
+import           Data.Bifunctor (first)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Map as Map
 import qualified Data.Sequence as Seq
@@ -48,7 +49,7 @@ simplify (constraint :~ span) = do
           (Local (Meta m1) :$ _ :===: Local (Meta m2) :$ _) ::: _
             | m1 == m2 -> pure ()
           c@((t1 :===: t2) ::: _)
-            | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
+            | blocked t1 || blocked t2 -> tell (Set.singleton (binds (first (Local . Name) <$> unContext ctx) c :~ span))
           (Pi (p1 :< _ :@ t1) b1 :===: Pi (p2 :< _ :@ t2) b2) ::: Type
             | p1 == p2 -> do
               go scope ctx ((t1 :===: t2) ::: Type)
@@ -96,8 +97,8 @@ simplify (constraint :~ span) = do
             n <- gensym "lam"
             go scope ctx ((Lam p1 b1 :===: lam (p1 :< Local (Name n)) (tm2 $$ (p1 :< pure (Local (Name n))))) ::: ty)
           c@((t1 :===: t2) ::: _)
-            | blocked t1 || blocked t2 -> tell (Set.singleton (binds ctx c :~ span))
-            | otherwise                -> tell [binds ctx c :~ span]
+            | blocked t1 || blocked t2 -> tell (Set.singleton (binds (first (Local . Name) <$> unContext ctx) c :~ span))
+            | otherwise                -> tell [binds (first (Local . Name) <$> unContext ctx) c :~ span]
 
         exists ctx ty = do
           n <- gensym "meta"

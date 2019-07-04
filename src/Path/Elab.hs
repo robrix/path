@@ -148,7 +148,7 @@ unify :: (Carrier sig m, Member (Reader (Context (Core (Name Meta)))) sig, Membe
       -> m ()
 unify (tm1 ::: ty1 :===: tm2 ::: ty2) = do
   span <- ask
-  context <- ask
+  context <- asks (fmap (first (Local . Name)) . unContext)
   tell (Set.fromList
     [ (binds context ((ty1 :===: ty2) ::: Type)) :~ span
     , (binds context ((tm1 :===: tm2) ::: ty1))  :~ span
