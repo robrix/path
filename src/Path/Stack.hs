@@ -40,7 +40,7 @@ filter keep = \case
 
 drop :: Int -> Stack a -> Stack a
 drop n (xs :> _) | n > 0 = drop (pred n) xs
-drop _ _                 = Nil
+drop _ xs                = xs
 
 head :: Stack a -> a
 head (_ :> a) = a
