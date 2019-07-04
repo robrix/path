@@ -11,9 +11,8 @@ import Path.Surface (Surface)
 import qualified Path.Surface as Surface
 import Path.Usage
 import Text.Trifecta hiding ((:@))
-import Text.Parser.Token.Highlight
 
-type', var, hole, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Surface Var))
+type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Surface Var))
 
 term = functionType
 
@@ -42,9 +41,7 @@ lambda = (do
         bind v vv = wrap v <$> spanned vv
         wrap (a :~ v1) (b :~ v2) = Surface.lam' a b :~ (v1 <> v2)
 
-hole = spanned (pure . M <$ char '?' <*> ident (IdentifierStyle "hole" letter (alphaNum <|> char '\'') reservedWords Identifier ReservedIdentifier))
-
-atom = var <|> type' <|> lambda <|> try (parens term) <|> hole
+atom = var <|> type' <|> lambda <|> try (parens term)
 
 multiplicity :: (Monad m, TokenParsing m) => m Usage
 multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
