@@ -12,6 +12,7 @@ module Path.Constraint
 
 import           Control.Effect
 import           Control.Monad (guard, join)
+import           Control.Monad.Module
 import           Data.Bifunctor (first)
 import           Data.Bitraversable (bitraverse)
 import           Data.Foldable (toList)

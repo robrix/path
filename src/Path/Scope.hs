@@ -3,6 +3,7 @@ module Path.Scope where
 
 import Control.Applicative (liftA2)
 import Control.Monad ((>=>))
+import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Function (on)
 import Data.List (elemIndex)
@@ -119,10 +120,3 @@ instantiateH f = unScopeH >==> fromIncr f
 
 flattenScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
 flattenScopeH = unScopeH >==> sequenceA
-
-
-class (Functor f, Monad m) => RModule f m where
-  (>>==) :: f a -> (a -> m b) -> f b
-
-(>==>) :: RModule f m => (a -> f b) -> (b -> m c) -> a -> f c
-f >==> g = \x -> f x >>== g
