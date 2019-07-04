@@ -209,7 +209,7 @@ runRenamer m = do
 elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
 elaborate = runSpanned $ \ tm -> do
   ty <- inferType
-  tm' <- runRenamer (evalState (mempty :: Signature) (runReader Define (traverse resolveName tm)))
+  tm' <- runRenamer (runReader Define (traverse resolveName tm))
   runNamespace (define ty (elab tm'))
 
 basePackage :: Package
@@ -244,7 +244,7 @@ helpDoc = tabulate2 (space <+> space) entries
           ]
         w = align . fillSep . map pretty . words
 
-runParseModule :: FilePath -> (Module Surface.Surface (Name Meta) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
+runParseModule :: FilePath -> (Module Surface.Surface (Name Gensym) -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
 runParseModule path f = runM @IO . runError @Doc $ do
   m <- parseModule path
   runNaming $ do

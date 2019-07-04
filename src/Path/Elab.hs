@@ -188,13 +188,10 @@ elab :: ( Carrier sig m
         , Member (State Signature) sig
         , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
         )
-     => Surface.Surface (Name Meta)
+     => Surface.Surface (Name Gensym)
      -> m (Core (Name Meta) ::: Core (Name Meta))
-elab = Surface.kcata id alg bound free
-  where free (Global n)       = assume (Global n)
-        free (Local (Name n)) = assume (Local n)
-        free (Local (Meta n)) = (pure (Local (Meta n)) :::) <$> exists Type
-        bound (Z _) = asks @(Context (Core (Name Meta))) (first (pure . Local . Name) . Stack.head . unContext)
+elab = Surface.kcata id alg bound assume
+  where bound (Z _) = asks @(Context (Core (Name Meta))) (first (pure . Local . Name) . Stack.head . unContext)
         bound (S m) = local @(Context (Core (Name Meta))) (Context . Stack.tail . unContext) m
         alg = \case
           Surface.Lam n b -> intro (unIgnored <$> n) (elab' (unScope <$> b))
@@ -223,7 +220,7 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module Surface.Surface (Name Meta)
+           => Module Surface.Surface (Name Gensym)
            -> m (Module Core Qualified)
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
@@ -252,7 +249,7 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             , Member (State Namespace) sig
             )
-         => Decl (Surface.Surface (Name Meta))
+         => Decl (Surface.Surface (Name Gensym))
          -> m (Decl (Core Qualified))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty' <- runSpanned (runNamespace . declare . elab) ty

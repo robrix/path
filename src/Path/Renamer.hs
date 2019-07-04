@@ -15,8 +15,6 @@ import Path.Span
 import Path.Surface as Surface
 import Prelude hiding (pi)
 
-type Signature = Map.Map String Gensym
-
 data Mode = Declare | Define
   deriving (Eq, Ord, Show)
 
@@ -28,7 +26,7 @@ resolveDecl :: ( Carrier sig m
                , Traversable t
                )
             => Decl (t User)
-            -> m (Decl (t (Name Meta)))
+            -> m (Decl (t (Name Gensym)))
 -- FIXME: do something with the term/type spans
 resolveDecl (Decl n d tm ty) =  do
   moduleName <- ask
@@ -55,7 +53,7 @@ resolveModule :: ( Carrier sig m
                  , Member (State Resolution) sig
                  )
               => Module Surface User
-              -> m (Module Surface (Name Meta))
+              -> m (Module Surface (Name Gensym))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
@@ -64,7 +62,7 @@ resolveModule m = do
   where amongImports q = any (flip inModule q . importModuleName . unSpanned) (moduleImports m)
         unSpanned (a :~ _) = a
 
-newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Meta)) }
+newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty (Name Gensym)) }
   deriving (Eq, Monoid, Ord, Show)
 
 instance Semigroup Resolution where
@@ -73,7 +71,7 @@ instance Semigroup Resolution where
 insertGlobal :: User -> ModuleName -> Resolution -> Resolution
 insertGlobal n m = Resolution . Map.insertWith (fmap nub . (<>)) n (Global (m:.:n):|[]) . unResolution
 
-lookupName :: User -> Resolution -> Maybe (NonEmpty (Name Meta))
+lookupName :: User -> Resolution -> Maybe (NonEmpty (Name Gensym))
 lookupName n = Map.lookup n . unResolution
 
 resolveName :: ( Carrier sig m
@@ -84,30 +82,16 @@ resolveName :: ( Carrier sig m
                , Member (Reader Span) sig
                )
             => User
-            -> m (Name Meta)
+            -> m (Name Gensym)
 resolveName v = do
   res <- asks (lookupName v)
   mode <- ask
   res <- case mode of
-    Declare -> maybe ((:| []) . Local . Name <$> gensym "") pure res
-    Define  -> maybe (freeVariable v)                       pure res
+    Declare -> maybe ((:| []) . Local <$> gensym "") pure res
+    Define  -> maybe (freeVariable v)                pure res
   unambiguous v res
 
-resolveMeta :: ( Carrier sig m
-               , Member Naming sig
-               , Member (State Signature) sig
-               )
-            => String
-            -> m Gensym
-resolveMeta m = do
-  found <- gets (Map.lookup m)
-  case found of
-    Just meta -> pure meta
-    Nothing   -> do
-      n <- gensym m
-      n <$ modify (Map.insert m n)
-
-filterResolution :: (Name Meta -> Bool) -> Resolution -> Resolution
+filterResolution :: (Name Gensym -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
 
@@ -116,7 +100,7 @@ unambiguous :: ( Carrier sig m
                , Member (Reader Span) sig
                )
             => User
-            -> NonEmpty (Name Meta)
-            -> m (Name Meta)
+            -> NonEmpty (Name Gensym)
+            -> m (Name Gensym)
 unambiguous _ (q:|[]) = pure q
 unambiguous v (q:|qs) = ambiguousName v (q :| qs)
