@@ -7,7 +7,9 @@ import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((<=<))
+import Data.Bifunctor (first)
 import Data.Foldable (foldl', for_)
+import Data.Functor.Const
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -46,23 +48,23 @@ implicits = go Nil
 
 intro :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint (Name Meta))))) sig)
       => Plicit (Maybe User)
-      -> (Gensym -> m (Core (Name Meta) ::: Core (Name Meta)))
+      -> m (Core (Name Meta) ::: Core (Name Meta))
       -> m (Core (Name Meta) ::: Core (Name Meta))
 intro (p :< x) body = do
   _A <- exists Type
   x <- gensym (maybe "intro" showUser x)
   _B <- x ::: _A |- exists Type
-  u <- x ::: _A |- goalIs _B (body x)
+  u <- x ::: _A |- goalIs _B body
   pure (lam (p :< Local (Name x)) u ::: pi (p :< Local (Name x) ::: More :@ _A) _B)
 
 (-->) :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint (Name Meta))))) sig)
       => Plicit (Maybe User, Usage, m (Core (Name Meta) ::: Core (Name Meta)))
-      -> (Gensym -> m (Core (Name Meta) ::: Core (Name Meta)))
+      -> m (Core (Name Meta) ::: Core (Name Meta))
       -> m (Core (Name Meta) ::: Core (Name Meta))
 (p :< (x, m, t)) --> body = do
   t' <- goalIs Type t
   x <- gensym (maybe "pi" showUser x)
-  b' <- x ::: t' |- goalIs Type (body x)
+  b' <- x ::: t' |- goalIs Type body
   pure (pi (p :< Local (Name x) ::: m :@ t') b' ::: Type)
 
 app :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint (Name Meta))))) sig)
@@ -114,7 +116,7 @@ infix 5 |-
 
 have :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Namespace) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint (Name Meta))))) sig) => Name Gensym -> m (Core (Name Meta))
 have n = lookup n >>= maybe missing pure
-  where lookup (Global n) = asks (Namespace.lookup   n) >>= pure . fmap (weaken . entryType)
+  where lookup (Global n) = asks (Namespace.lookup n) >>= pure . fmap (weaken . entryType)
         lookup (Local  n) = asks (Context.lookup n)
         missing = do
           ty <- exists Type
@@ -125,19 +127,21 @@ have n = lookup n >>= maybe missing pure
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
-elab :: (Carrier sig m, Effect sig, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Namespace) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint (Name Meta))))) sig)
+elab :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Namespace) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint (Name Meta))))) sig)
      => Surface.Surface (Name Meta)
      -> m (Core (Name Meta) ::: Core (Name Meta))
-elab = \case
-  Surface.Var (Global n) -> assume (Global n)
-  Surface.Var (Local (Name n)) -> assume (Local n)
-  Surface.Var (Local (Meta n)) -> (pure (Local (Meta n)) :::) <$> exists Type
-  Surface.Surface c -> case c of
-    Surface.Lam n b -> intro (unIgnored <$> n) (\ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b))
-    (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
-    Surface.Type -> pure (Type ::: Type)
-    Surface.Pi (p :< Ignored n ::: m :@ t) b -> (p :< (n, m, elab' t)) --> \ n' -> elab' (instantiate (const (pure (Local (Name n')))) <$> b)
-  where elab' (t :~ s) = spanIs s (elab t)
+elab = Surface.kcata id alg bound free
+  where free (Global n)       = assume (Global n)
+        free (Local (Name n)) = assume (Local n)
+        free (Local (Meta n)) = (pure (Local (Meta n)) :::) <$> exists Type
+        bound (Z _) = asks @(Context (Core (Name Meta))) (first (pure . Local . Name) . Stack.head . unContext)
+        bound (S m) = local @(Context (Core (Name Meta))) (Context . Stack.drop 1 . unContext) m
+        alg = \case
+          Surface.Lam n b -> intro (unIgnored <$> n) (elab' (unScope <$> b))
+          (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
+          Surface.Type -> pure (Type ::: Type)
+          Surface.Pi (p :< Ignored n ::: m :@ t) b -> (p :< (n, m, elab' t)) --> elab' (unScope <$> b)
+        elab' (t :~ s) = spanIs s (getConst t)
 
 type ElabC m = ReaderC (Context (Core (Name Meta))) (WriterC (Set.Set (Spanned (Constraint (Name Meta)))) m)
 
