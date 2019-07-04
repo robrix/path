@@ -33,21 +33,40 @@ import qualified Path.Surface as Surface
 import Path.Usage
 import Prelude hiding (pi)
 
-assume :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Namespace) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig)
+assume :: ( Carrier sig m
+          , Member Naming sig
+          , Member (Reader (Context (Core (Name Meta)))) sig
+          , Member (Reader Namespace) sig
+          , Member (Reader Span) sig
+          , Member (State Signature) sig
+          , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
+          )
        => Name Gensym
        -> m (Core (Name Meta) ::: Core (Name Meta))
 assume v = do
   _A <- have v
   implicits _A >>= foldl' app (pure (name (pure . Local . Name) global v ::: _A))
 
-implicits :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (State Signature) sig) => Core (Name Meta) -> m (Stack (Plicit (m (Core (Name Meta) ::: Core (Name Meta)))))
+implicits :: ( Carrier sig m
+             , Member Naming sig
+             , Member (Reader (Context (Core (Name Meta)))) sig
+             , Member (State Signature) sig
+             )
+           => Core (Name Meta)
+           -> m (Stack (Plicit (m (Core (Name Meta) ::: Core (Name Meta)))))
 implicits = go Nil
   where go names (Pi (Im :< _ :@ t) b) | False = do
           v <- exists t
           go (names :> (Im :< pure (v ::: t))) (instantiate1 v b)
         go names _ = pure names
 
-intro :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig)
+intro :: ( Carrier sig m
+         , Member Naming sig
+         , Member (Reader (Context (Core (Name Meta)))) sig
+         , Member (Reader Span) sig
+         , Member (State Signature) sig
+         , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
+         )
       => Plicit (Maybe User)
       -> m (Core (Name Meta) ::: Core (Name Meta))
       -> m (Core (Name Meta) ::: Core (Name Meta))
@@ -58,7 +77,13 @@ intro (p :< x) body = do
   u <- x ::: _A |- goalIs _B body
   pure (lam (p :< Local (Name x)) u ::: pi (p :< Local (Name x) ::: More :@ _A) _B)
 
-(-->) :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig)
+(-->) :: ( Carrier sig m
+         , Member Naming sig
+         , Member (Reader (Context (Core (Name Meta)))) sig
+         , Member (Reader Span) sig
+         , Member (State Signature) sig
+         , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
+         )
       => Plicit (Maybe User, Usage, m (Core (Name Meta) ::: Core (Name Meta)))
       -> m (Core (Name Meta) ::: Core (Name Meta))
       -> m (Core (Name Meta) ::: Core (Name Meta))
@@ -68,7 +93,13 @@ intro (p :< x) body = do
   b' <- x ::: t' |- goalIs Type body
   pure (pi (p :< Local (Name x) ::: m :@ t') b' ::: Type)
 
-app :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig)
+app :: ( Carrier sig m
+       , Member Naming sig
+       , Member (Reader (Context (Core (Name Meta)))) sig
+       , Member (Reader Span) sig
+       , Member (State Signature) sig
+       , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
+       )
     => m (Core (Name Meta) ::: Core (Name Meta))
     -> Plicit (m (Core (Name Meta) ::: Core (Name Meta)))
     -> m (Core (Name Meta) ::: Core (Name Meta))
@@ -82,7 +113,11 @@ app f (p :< a) = do
   pure (f' $$ (p :< a') ::: _F $$ (p :< a'))
 
 
-exists :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (State Signature) sig)
+exists :: ( Carrier sig m
+          , Member Naming sig
+          , Member (Reader (Context (Core (Name Meta)))) sig
+          , Member (State Signature) sig
+          )
        => Core (Name Meta)
        -> m (Core (Name Meta))
 exists ty = do
@@ -93,7 +128,16 @@ exists ty = do
   modify (Signature . Map.insert n ty' . unSignature)
   pure (pure (Local (Meta n)) $$* ((Ex :<) . pure . Local . Name <$> Context.vars (ctx :: Context (Core (Name Meta)))))
 
-goalIs :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig) => Core (Name Meta) -> m (Core (Name Meta) ::: Core (Name Meta)) -> m (Core (Name Meta))
+goalIs :: ( Carrier sig m
+          , Member Naming sig
+          , Member (Reader (Context (Core (Name Meta)))) sig
+          , Member (Reader Span) sig
+          , Member (State Signature) sig
+          , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
+          )
+       => Core (Name Meta)
+       -> m (Core (Name Meta) ::: Core (Name Meta))
+       -> m (Core (Name Meta))
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
   tm2 <- exists ty2
@@ -115,7 +159,15 @@ b |- m = local (Context.insert b) m
 
 infix 5 |-
 
-have :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Namespace) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig) => Name Gensym -> m (Core (Name Meta))
+have :: ( Carrier sig m
+        , Member Naming sig
+        , Member (Reader (Context (Core (Name Meta)))) sig
+        , Member (Reader Namespace) sig
+        , Member (Reader Span) sig
+        , Member (State Signature) sig
+        , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
+        )
+     => Name Gensym -> m (Core (Name Meta))
 have n = lookup n >>= maybe missing pure
   where lookup (Global n) = asks (Namespace.lookup n) >>= pure . fmap (weaken . entryType)
         lookup (Local  n) = asks (Context.lookup n)
@@ -128,7 +180,14 @@ have n = lookup n >>= maybe missing pure
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
-elab :: (Carrier sig m, Member Naming sig, Member (Reader (Context (Core (Name Meta)))) sig, Member (Reader Namespace) sig, Member (Reader Span) sig, Member (State Signature) sig, Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig)
+elab :: ( Carrier sig m
+        , Member Naming sig
+        , Member (Reader (Context (Core (Name Meta)))) sig
+        , Member (Reader Namespace) sig
+        , Member (Reader Span) sig
+        , Member (State Signature) sig
+        , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
+        )
      => Surface.Surface (Name Meta)
      -> m (Core (Name Meta) ::: Core (Name Meta))
 elab = Surface.kcata id alg bound free
