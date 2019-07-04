@@ -20,9 +20,11 @@ instance Monad (Incr a) where
   Z e >>= _ = Z e
   S a >>= f = f a
 
-match :: Applicative f => (b -> Maybe a) -> b -> Incr a (f b)
-match f x | Just y <- f x = Z y
-          | otherwise     = S (pure x)
+match :: Applicative f => (b -> Either a c) -> b -> Incr a (f c)
+match f x = either Z (S . pure) (f x)
+
+toEither :: (b -> Maybe a) -> (b -> Either a b)
+toEither f a = maybe (Right a) Left (f a)
 
 fromIncr :: (a -> b) -> Incr a b -> b
 fromIncr a = incr a id
@@ -62,7 +64,7 @@ instance MonadTrans (Scope a) where
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
-bind f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+bind f = Scope . fmap (match (toEither f)) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 bindSimultaneous :: (Applicative f, Eq a) => [(a, f a)] -> [Scope Int f a]
 bindSimultaneous bs = map (bind (`elemIndex` map fst bs) . snd) bs
@@ -112,7 +114,7 @@ instance Applicative f => MonadTrans (ScopeH a f) where
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bindH :: (Functor f, Applicative g) => (b -> Maybe a) -> f b -> ScopeH a f g b
-bindH f = ScopeH . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+bindH f = ScopeH . fmap (match (toEither f)) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
