@@ -71,8 +71,8 @@ resolveModule :: ( Carrier sig m
                  , Member Naming sig
                  , Member (State Resolution) sig
                  )
-              => Module (Surface Var)
-              -> m (Module (Surface (Name Meta)))
+              => Module Surface Var
+              -> m (Module Surface (Name Meta))
 resolveModule m = do
   res <- get
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))

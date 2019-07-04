@@ -10,6 +10,7 @@ import Control.Monad ((<=<))
 import Data.Bifunctor (first)
 import Data.Foldable (foldl', for_)
 import Data.Functor.Const
+import Data.List (elemIndex)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Maybe (catMaybes)
@@ -163,14 +164,15 @@ elabModule :: ( Carrier sig m
               , Member (State (Stack Doc)) sig
               , Member (State Namespace) sig
               )
-           => Module (Surface.Surface (Name Meta))
-           -> m (Module (Core Qualified))
+           => Module Surface.Surface (Name Meta)
+           -> m (Module Core Qualified)
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (moduleImports m) (modify . Namespace.union <=< importModule)
 
   decls <- for (moduleDecls m) $ \ decl ->
-    (Just <$> elabDecl decl) `catchError` ((Nothing <$) . logError)
+    (Just . fmap (bind (`elemIndex` map qualified (moduleDecls m))) <$> elabDecl (instantiate (pure . Global . qualified . (moduleDecls m !!)) <$> decl)) `catchError` ((Nothing <$) . logError)
   pure m { moduleDecls = catMaybes decls }
+  where qualified = (moduleName m :.:) . declName
 
 logError :: (Member (State (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = modify . flip (:>)
