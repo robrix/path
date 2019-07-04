@@ -7,7 +7,6 @@ import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
-import           Control.Monad (guard)
 import           Data.Bifoldable
 import           Data.Bifunctor
 import           Data.Bitraversable
@@ -109,7 +108,7 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Pr
 
 
 lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
-lam (n ::: t) b = Problem (Lam t (bind (guard . (== n)) b))
+lam (n ::: t) b = Problem (Lam t (bind1 n b))
 
 lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
 lams names body = foldr lam body names
@@ -126,7 +125,7 @@ type' :: Problem a
 type' = Problem Type
 
 pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
-pi (n ::: t) b = Problem (Pi t (bind (guard . (== n)) b))
+pi (n ::: t) b = Problem (Pi t (bind1 n b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
@@ -139,14 +138,14 @@ unpi _ _                  = empty
 
 exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
 exists (n := Just v ::: _) (Var n') | n == n' = v
-exists (n := v      ::: t) b                  = Problem (Ex v t (bind (guard . (== n)) b))
+exists (n := v      ::: t) b                  = Problem (Ex v t (bind1 n b))
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unexists n (Problem (Ex Nothing t b)) = pure (n ::: t, instantiate (const (pure n)) b)
 unexists _ _                          = empty
 
 let' :: Eq a => a := Problem a ::: Problem a -> Problem a -> Problem a
-let' (n := v ::: t) b = Problem (Ex (Just v) t (bind (guard . (== n)) b))
+let' (n := v ::: t) b = Problem (Ex (Just v) t (bind1 n b))
 
 unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Problem a)
 unlet' n (Problem (Ex (Just v) t b)) = pure (n := v ::: t, instantiate (const (pure n)) b)
