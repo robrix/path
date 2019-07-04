@@ -19,6 +19,7 @@ import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import Path.Core
+import Path.Error
 import Path.Module
 import Path.Name
 import Path.Namespace as Namespace
@@ -33,21 +34,13 @@ import Path.Usage
 import Prelude hiding (pi)
 
 assume :: ( Carrier sig m
-          , Member Naming sig
-          , Member (Reader (Context (Core (Name Meta)))) sig
+          , Member (Error Doc) sig
           , Member (Reader Namespace) sig
           , Member (Reader Span) sig
-          , Member (State Signature) sig
-          , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
           )
        => Qualified
        -> m (Core (Name Meta) ::: Core (Name Meta))
-assume n = lookup n >>= fmap (global n :::) . maybe missing pure
-  where lookup n = asks (Namespace.lookup n) >>= pure . fmap (weaken . entryType)
-        missing = do
-          ty <- exists Type
-          tm <- exists ty
-          ty <$ unify (tm ::: ty :===: global n ::: ty)
+assume n = asks (fmap (weaken . entryType) . Namespace.lookup n) >>= maybe (freeVariable n) (pure . (global n :::))
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -153,6 +146,7 @@ spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
 spanIs span = local (const span)
 
 elab :: ( Carrier sig m
+        , Member (Error Doc) sig
         , Member Naming sig
         , Member (Reader (Context (Core (Name Meta)))) sig
         , Member (Reader Namespace) sig
