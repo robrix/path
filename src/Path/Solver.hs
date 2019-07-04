@@ -54,17 +54,17 @@ simplify (constraint :~ span) = do
               go scope ctx ((t1 :===: t2) ::: Type)
               n <- gensym "pi"
               -- FIXME: this should insert some sort of dependency
-              go scope (Context.insert (n ::: t1) ctx) ((instantiate (const (pure (Local (Name n)))) b1 :===: instantiate (const (pure (Local (Name n)))) b2) ::: Type)
+              go scope (Context.insert (n ::: t1) ctx) ((instantiate1 (pure (Local (Name n))) b1 :===: instantiate1 (pure (Local (Name n))) b2) ::: Type)
           (Pi (Im :< _ :@ t1) b1 :===: tm2) ::: Type -> do
             n <- exists ctx t1
-            go scope ctx ((instantiate (const n) b1 :===: tm2) ::: Type)
+            go scope ctx ((instantiate1 n b1 :===: tm2) ::: Type)
           (tm1 :===: Pi (Im :< _ :@ t2) b2) ::: Type -> do
             n <- exists ctx t2
-            go scope ctx ((tm1 :===: instantiate (const n) b2) ::: Type)
+            go scope ctx ((tm1 :===: instantiate1 n b2) ::: Type)
           (Lam p1 f1 :===: Lam p2 f2) ::: Pi (pt :< _ :@ t) b
             | p1 == p2, p1 == pt -> do
               n <- gensym "lam"
-              go scope (Context.insert (n ::: t) ctx) ((instantiate (const (pure (Local (Name n)))) f1 :===: instantiate (const (pure (Local (Name n)))) f2) ::: instantiate (const (pure (Local (Name n)))) b)
+              go scope (Context.insert (n ::: t) ctx) ((instantiate1 (pure (Local (Name n))) f1 :===: instantiate1 (pure (Local (Name n))) f2) ::: instantiate1 (pure (Local (Name n))) b)
           (t1 :===: t2) ::: Pi (Im :< u :@ t) b -> do
             n <- Local . Name <$> gensym "lam"
             go scope ctx ((Core.lam (Im :< n) t1 :===: Core.lam (Im :< n) t2) ::: Pi (Im :< u :@ t) b)
