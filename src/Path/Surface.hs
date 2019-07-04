@@ -3,6 +3,8 @@ module Path.Surface where
 
 import Control.Monad (guard)
 import Control.Monad.Trans
+import Data.Coerce
+import Data.Functor.Const
 import Path.Name
 import Path.Plicity
 import Path.Scope
@@ -73,3 +75,11 @@ eiter var alg k = go
             f :$ a -> (go h <$> f) :$ (fmap (go h) <$> a)
             Type -> Type
             Pi t b -> Pi (fmap (fmap (fmap (go h))) <$> t) (foldScope k go h <$> b)
+
+kcata :: (a -> b)
+      -> (forall a . SurfaceF (Const b) a -> b)
+      -> (Incr (Ignored (Maybe User)) b -> a)
+      -> (x -> a)
+      -> Surface x
+      -> b
+kcata var alg k h = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . h)
