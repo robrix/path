@@ -64,7 +64,7 @@ instance MonadTrans (Scope a) where
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
-bind f = Scope . fmap (match (toEither f)) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+bind f = bindEither (toEither f)
 
 bindEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
 bindEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
