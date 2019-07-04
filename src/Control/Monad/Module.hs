@@ -13,5 +13,5 @@ f >==> g = \x -> f x >>== g
 g <==< f = \x -> f x >>== g
 
 
-instance (Functor f, Monad g) => RModule (f :.: g) g where
-  Comp1 a >>== f = Comp1 (fmap (>>= f) a)
+instance (Functor f, RModule g h) => RModule (f :.: g) h where
+  Comp1 a >>== f = Comp1 (fmap (>>== f) a)
