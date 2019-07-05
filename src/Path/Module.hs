@@ -24,7 +24,7 @@ data Module f a = Module
   { moduleName    :: ModuleName
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
-  , moduleImports :: Map.Map Import Span
+  , moduleImports :: Map.Map ModuleName Span
   , moduleDecls   :: [Decl (Scope Int f a)]
   }
   deriving (Foldable, Functor, Traversable)
@@ -37,14 +37,11 @@ deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
 instance Monad f => RModule (Module f) f where
   Module n d p is ds >>=* f = Module n d p is (map (fmap (>>=* f)) ds)
 
-module' :: (Applicative f, Eq a) => ModuleName -> Maybe String -> FilePath -> [Spanned Import] -> [(a, Decl (f a))] -> Module f a
+module' :: (Applicative f, Eq a) => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [(a, Decl (f a))] -> Module f a
 module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) (map bind' ds)
   where bind' (_, Decl u d tm ty) = Decl u d (bind'' <$> tm) (bind'' <$> ty)
           where bind'' = bind (`elemIndex` map fst ds)
         unSpan (i :~ s) = (i, s)
-
-newtype Import = Import { importModuleName :: ModuleName }
-  deriving (Eq, Ord, Show)
 
 data Decl a = Decl
   { declName :: User
@@ -72,11 +69,11 @@ modules :: ModuleGraph f a -> [Module f a]
 modules = Map.elems . unModuleGraph
 
 
-lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph f a -> Spanned Import -> m (Module f a)
-lookupModule g i = maybe (unknownModule i) pure (Map.lookup (importModuleName (unSpanned i)) (unModuleGraph g))
+lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph f a -> Spanned ModuleName -> m (Module f a)
+lookupModule g i = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph f a -> Spanned Import -> m ()
-cycleFrom g m = runReader (Set.empty :: Set.Set Import) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
+cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph f a -> Spanned ModuleName -> m ()
+cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do
@@ -95,23 +92,22 @@ loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleNa
             modify (Set.insert (moduleName m))
             modify (m :)
         loop n s = do
-          let i = importModuleName n
-          inPath <- asks (Set.member i)
+          inPath <- asks (Set.member n)
           when inPath (cycleFrom g (n :~ s))
-          visited <- gets (Set.member i)
-          unless visited . local (Set.insert i) $ do
+          visited <- gets (Set.member n)
+          unless visited . local (Set.insert n) $ do
             m <- lookupModule g (n :~ s)
             for_ (Map.toList (moduleImports m)) (uncurry loop)
-            modify (Set.insert i)
+            modify (Set.insert n)
             modify (m :)
 
 
-unknownModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned Import -> m a
-unknownModule (Import name :~ span) = throwError (prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) [])
+unknownModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned ModuleName -> m a
+unknownModule (name :~ span) = throwError (prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) [])
 
-cyclicImport :: (Carrier sig m, Member (Error Doc) sig) => NonEmpty (Spanned Import) -> m a
-cyclicImport (Import name :~ span :| [])    = throwError (prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) [])
-cyclicImport (Import name :~ span :| names) = throwError (vsep
+cyclicImport :: (Carrier sig m, Member (Error Doc) sig) => NonEmpty (Spanned ModuleName) -> m a
+cyclicImport (name :~ span :| [])    = throwError (prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) [])
+cyclicImport (name :~ span :| names) = throwError (vsep
   ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
-  : foldr ((:) . whichImports) [ whichImports (Import name :~ span) ] names))
-  where whichImports (Import name :~ span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
+  : foldr ((:) . whichImports) [ whichImports (name :~ span) ] names))
+  where whichImports (name :~ span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []

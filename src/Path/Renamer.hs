@@ -6,6 +6,7 @@ import Control.Effect.Reader hiding (Local)
 import Control.Effect.State
 import Data.List.NonEmpty as NonEmpty (NonEmpty(..), filter, nonEmpty, nub)
 import qualified Data.Map as Map
+import Data.Maybe (isJust)
 import Path.Error
 import Path.Module
 import Path.Name
@@ -46,7 +47,7 @@ resolveModule m = do
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
   modify (<> res)
   pure m { moduleDecls = decls }
-  where amongImports (mn :.: _) = maybe False (const True) (Import mn `Map.lookup` moduleImports m)
+  where amongImports (mn :.: _) = isJust (mn `Map.lookup` moduleImports m)
 
 newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty Qualified) }
   deriving (Eq, Monoid, Ord, Show)

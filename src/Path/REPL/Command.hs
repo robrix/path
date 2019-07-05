@@ -14,7 +14,7 @@ data Command
   | Eval (Spanned (Surface User))
   | Show Info
   | Reload
-  | Import (Spanned Import)
+  | Import (Spanned ModuleName)
   | Doc ModuleName
   deriving (Eq, Ord, Show)
 

@@ -203,9 +203,9 @@ importModule :: ( Carrier sig m
                 , Member (Error Doc) sig
                 , Member (Reader ModuleTable) sig
                 )
-             => Spanned Import
+             => Spanned ModuleName
              -> m Namespace
-importModule n@(i :~ _) = asks (Map.lookup (importModuleName i)) >>= maybe (unknownModule n) pure
+importModule n@(i :~ _) = asks (Map.lookup i) >>= maybe (unknownModule n) pure
 
 
 elabDecl :: ( Carrier sig m
