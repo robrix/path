@@ -128,6 +128,9 @@ instance Applicative f => MonadTrans (ScopeH a f) where
 
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
+bind1H :: (Functor f, Applicative g, Eq a) => a -> f a -> ScopeH () f g a
+bind1H n = bindH (guard . (== n))
+
 bindH :: (Functor f, Applicative g) => (b -> Maybe a) -> f b -> ScopeH a f g b
 bindH f = bindHEither (toEither f)
 
