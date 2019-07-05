@@ -23,6 +23,9 @@ instance Monad (Incr a) where
 match :: Applicative f => (b -> Either a c) -> b -> Incr a (f c)
 match f x = either Z (S . pure) (f x)
 
+matchM :: (Applicative f, Functor m) => (b -> m (Either a c)) -> b -> m (Incr a (f c))
+matchM f x = either Z (S . pure) <$> f x
+
 toEither :: (b -> Maybe a) -> (b -> Either a b)
 toEither f a = maybe (Right a) Left (f a)
 
@@ -136,6 +139,9 @@ bindH f = bindHEither (toEither f)
 
 bindHEither :: (Functor f, Applicative g) => (b -> Either a c) -> f b -> ScopeH a f g c
 bindHEither f = ScopeH . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+
+bindHEitherM :: (Traversable f, Applicative g, Applicative m) => (b -> m (Either a c)) -> f b -> m (ScopeH a f g c)
+bindHEitherM f = fmap ScopeH . traverse (matchM f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate1H :: RModule f g => g b -> ScopeH a f g b -> f b
