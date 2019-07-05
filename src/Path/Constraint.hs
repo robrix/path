@@ -11,7 +11,7 @@ module Path.Constraint
 ) where
 
 import           Control.Effect
-import           Control.Monad (guard, join)
+import           Control.Monad (join)
 import           Control.Monad.Module
 import           Data.Bifunctor (first)
 import           Data.Bitraversable (bitraverse)
@@ -123,7 +123,7 @@ instance Pretty (Constraint Core (Name Meta)) where
 
 
 (|-) :: (Applicative f, Eq a) => a ::: f a -> Constraint f a -> Constraint f a
-n ::: t |- b = t :|-: bindH (guard . (== n)) b
+n ::: t |- b = t :|-: bind1H n b
 
 infixr 1 |-
 
