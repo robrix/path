@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
 module Path.Module where
 
 import Control.Effect
@@ -7,6 +7,7 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
+import Control.Monad.Module
 import Data.Foldable (for_)
 import Data.List.NonEmpty (NonEmpty(..), (<|), nub)
 import Data.List (elemIndex)
@@ -32,6 +33,9 @@ deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Mo
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Module f a)
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
+
+instance Monad f => RModule (Module f) f where
+  Module n d p is ds >>=* f = Module n d p is (map (fmap (>>=* f)) ds)
 
 module' :: (Applicative f, Eq a) => ModuleName -> Maybe String -> FilePath -> [Spanned Import] -> [(a, Decl (f a))] -> Module f a
 module' n d p is ds = Module n d p is (map bind' ds)
