@@ -42,7 +42,7 @@ newtype P = P { unP :: Int }
   deriving (Eq, Num, Ord, Show)
 
 instance Pretty (Problem (Name Gensym)) where
-  pretty = snd . run . runWriter @(Set.Set Meta) . runReader ([] @Meta) . runReader (P 0) . kcata id alg k (var . fmap Name)
+  pretty = snd . run . runWriter @(Set.Set Meta) . runReader (Nil @Meta) . runReader (P 0) . kcata id alg k (var . fmap Name)
     where var (Global v) = pure (pretty (Global @Meta v))
           var (Local  v) = pretty v <$ tell (Set.singleton @Meta v)
           alg = \case
@@ -76,8 +76,8 @@ instance Pretty (Problem (Name Gensym)) where
               prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
-          k (Z ()) = ask >>= var . Local . Prelude.head
-          k (S n)  = local (Prelude.tail @Meta) n
+          k (Z ()) = ask >>= var . Local . Stack.head
+          k (S n)  = local (Stack.tail @Meta) n
           prec d' doc = do
             d <- ask @P
             pure (prettyParens (d > d') doc)
@@ -85,10 +85,10 @@ instance Pretty (Problem (Name Gensym)) where
           bind cons m = do
             ns <- ask
             let n = cons $ case ns of
-                  Meta sym :_ -> prime sym
-                  Name sym :_ -> prime sym
+                  _ :> Meta sym -> prime sym
+                  _ :> Name sym -> prime sym
                   _ -> Gensym Nil 0
-            (,) n <$> censor (Set.delete n) (local (n :) m)
+            (,) n <$> censor (Set.delete n) (local (:> n) m)
 
 
 -- FIXME: represent errors explicitly in the tree
