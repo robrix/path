@@ -138,6 +138,9 @@ bindHEither :: (Functor f, Applicative g) => (b -> Either a c) -> f b -> ScopeH 
 bindHEither f = ScopeH . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
+instantiate1H :: RModule f g => g b -> ScopeH a f g b -> f b
+instantiate1H t = instantiateH (const t)
+
 instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
 instantiateH f = instantiateHEither (either f pure)
 
