@@ -24,7 +24,7 @@ import           Path.Context
 import           Path.Core (Core, prettyCore)
 import           Path.Name
 import           Path.Pretty
-import           Path.Scope hiding (bind, instantiate, match)
+import           Path.Scope
 import           Path.Span
 
 data Equation a
@@ -134,7 +134,7 @@ unbinds :: (Carrier sig m, Member Naming sig, Monad f) => Constraint f (Name Met
 unbinds = fmap (first Context) . unH (\case
   t :|-: b  -> Right $ do
     name <- fresh
-    pure (name ::: t, instantiateH (const (pure (Local (Name name)))) b)
+    pure (name ::: t, instantiate1H (pure (Local (Name name))) b)
   E (Eqn q) -> Left q)
 
 
