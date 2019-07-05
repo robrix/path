@@ -136,7 +136,10 @@ bindHEither f = ScopeH . fmap (match f) -- FIXME: succ as little of the expressi
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
-instantiateH f = unScopeH >=>* fromIncr f
+instantiateH f = instantiateHEither (either f pure)
+
+instantiateHEither :: RModule f g => (Either a b -> g c) -> ScopeH a f g b -> f c
+instantiateHEither f = unScopeH >=>* incr (f . Left) (>>= f . Right)
 
 fromScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
 fromScopeH = unScopeH >=>* sequenceA
