@@ -75,13 +75,12 @@ lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph f a -> Sp
 lookupModule g i = maybe (unknownModule i) pure (Map.lookup (importModuleName (unSpanned i)) (unModuleGraph g))
 
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph f a -> Spanned Import -> m ()
-cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
+cycleFrom g m = runReader (Set.empty :: Set.Set Import) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
-          let name = importModuleName (unSpanned n)
-          notVisited <- asks (Set.notMember name)
+          notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do
             m <- lookupModule g n
-            nub . (n <|) <$> local (Set.insert name) (getAlt (foldMap (Alt . go) (moduleImports m)))
+            nub . (n <|) <$> local (Set.insert (unSpanned n)) (getAlt (foldMap (Alt . go) (moduleImports m)))
           else
             pure (n :| [])
 
