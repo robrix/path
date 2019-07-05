@@ -46,7 +46,7 @@ resolveModule m = do
   (res, decls) <- runState (filterResolution amongImports res) (runReader (moduleName m) (traverse resolveDecl (moduleDecls m)))
   modify (<> res)
   pure m { moduleDecls = decls }
-  where amongImports (q :.: _) = any ((== q) . importModuleName) (Map.keys (moduleImports m))
+  where amongImports (mn :.: _) = maybe False (const True) (Import mn `Map.lookup` moduleImports m)
 
 newtype Resolution = Resolution { unResolution :: Map.Map User (NonEmpty Qualified) }
   deriving (Eq, Monoid, Ord, Show)
