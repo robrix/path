@@ -37,10 +37,10 @@ deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
 instance Monad f => RModule (Module f) f where
   Module n d p is ds >>=* f = Module n d p is (map (fmap (>>=* f)) ds)
 
-module' :: (Applicative f, Eq a) => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [(a, Decl (f a))] -> Module f a
+module' :: Applicative f => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [Decl (f User)] -> Module f User
 module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) (map bind' ds)
-  where bind' (_, Decl u d tm ty) = Decl u d (bind'' <$> tm) (bind'' <$> ty)
-          where bind'' = bind (`elemIndex` map fst ds)
+  where bind' (Decl u d tm ty) = Decl u d (bind'' <$> tm) (bind'' <$> ty)
+          where bind'' = bind (`elemIndex` map declName ds)
         unSpan (i :~ s) = (i, s)
 
 data Decl a = Decl

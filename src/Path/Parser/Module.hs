@@ -20,7 +20,7 @@ parseModule = flip parseFile <*> whole . module'
 
 module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module Surface User)
 module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
-  where make comment name is = Module.module' name comment path is . map ((,) . Module.declName <*> id)
+  where make comment name = Module.module' name comment path
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
