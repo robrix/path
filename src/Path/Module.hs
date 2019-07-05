@@ -54,6 +54,7 @@ data Decl a = Decl
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype ModuleGraph f a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Module f a) }
+  deriving (Foldable, Functor, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (ModuleGraph f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
