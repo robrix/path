@@ -1,6 +1,8 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Surface where
 
+import Control.Effect
+import Control.Effect.Reader
 import Control.Monad (guard)
 import Control.Monad.Trans
 import Data.Coerce
@@ -83,3 +85,21 @@ kcata :: (a -> b)
       -> Surface x
       -> b
 kcata var alg k free = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . free)
+
+
+walk :: forall a b m sig
+     .  (Carrier sig m, Member (Reader Span) sig)
+     => (forall z . m z -> m (Surface z))
+     -> (forall z . m (SurfaceF Surface z) -> m (Surface z))
+     -> (a -> m b)
+     -> Surface a
+     -> m (Surface b)
+walk var alg = go
+  where go :: (x -> m y) -> Surface x -> m (Surface y)
+        go k (Var a) = var (k a)
+        go k (Surface s) = alg $ case s of
+          Lam p b -> Lam p <$> withSpan (fmap Scope . go (traverse (go k)) . unScope) b
+          f :$ a -> (:$) <$> withSpan (go k) f <*> traverse (withSpan (go k)) a
+          Type -> pure Type
+          Pi t b -> Pi <$> traverse (traverse (traverse (withSpan (go k)))) t <*> withSpan (fmap Scope . go (traverse (go k)) . unScope) b
+          where withSpan recur (t :~ s) = (:~ s) <$> local (const s) (recur t)
