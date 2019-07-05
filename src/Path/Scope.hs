@@ -129,7 +129,10 @@ instance Applicative f => MonadTrans (ScopeH a f) where
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bindH :: (Functor f, Applicative g) => (b -> Maybe a) -> f b -> ScopeH a f g b
-bindH f = ScopeH . fmap (match (toEither f)) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+bindH f = bindHEither (toEither f)
+
+bindHEither :: (Functor f, Applicative g) => (b -> Either a c) -> f b -> ScopeH a f g c
+bindHEither f = ScopeH . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
