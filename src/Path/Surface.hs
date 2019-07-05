@@ -89,19 +89,17 @@ kcata var alg k free = getConst . eiter (coerce var) (coerce alg) (coerce k) (Co
 
 -- | Decorate a term’s variables with the most local
 decorate :: forall a . Spanned (Surface a) -> Surface (Spanned a)
-decorate (a :~ s) = run (runReader s (walk (fmap Var) (fmap Surface) (asks . (:~)) a))
+decorate (a :~ s) = run (runReader s (walk (asks . (:~)) a))
 
 walk :: forall a b m sig
      .  (Carrier sig m, Member (Reader Span) sig)
-     => (forall z . m z -> m (Surface z))
-     -> (forall z . m (SurfaceF Surface z) -> m (Surface z))
-     -> (a -> m b)
+     => (a -> m b)
      -> Surface a
      -> m (Surface b)
-walk var alg = go
+walk = go
   where go :: (x -> m y) -> Surface x -> m (Surface y)
-        go k (Var a) = var (k a)
-        go k (Surface s) = alg $ case s of
+        go k (Var a) = Var <$> k a
+        go k (Surface s) = Surface <$> case s of
           Lam p b -> Lam p <$> withSpan (fmap Scope . go (traverse (go k)) . unScope) b
           f :$ a -> (:$) <$> withSpan (go k) f <*> traverse (withSpan (go k)) a
           Type -> pure Type
