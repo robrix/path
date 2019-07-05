@@ -24,7 +24,7 @@ data Module f a = Module
   { moduleName    :: ModuleName
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
-  , moduleImports :: [Spanned Import]
+  , moduleImports :: Map.Map Import Span
   , moduleDecls   :: [Decl (Scope Int f a)]
   }
   deriving (Foldable, Functor, Traversable)
@@ -38,9 +38,10 @@ instance Monad f => RModule (Module f) f where
   Module n d p is ds >>=* f = Module n d p is (map (fmap (>>=* f)) ds)
 
 module' :: (Applicative f, Eq a) => ModuleName -> Maybe String -> FilePath -> [Spanned Import] -> [(a, Decl (f a))] -> Module f a
-module' n d p is ds = Module n d p is (map bind' ds)
+module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) (map bind' ds)
   where bind' (_, Decl u d tm ty) = Decl u d (bind'' <$> tm) (bind'' <$> ty)
           where bind'' = bind (`elemIndex` map fst ds)
+        unSpan (i :~ s) = (i, s)
 
 newtype Import = Import { importModuleName :: ModuleName }
   deriving (Eq, Ord, Show)
@@ -80,7 +81,7 @@ cycleFrom g m = runReader (Set.empty :: Set.Set Import) (runNonDetOnce (go m)) >
           notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do
             m <- lookupModule g n
-            nub . (n <|) <$> local (Set.insert (unSpanned n)) (getAlt (foldMap (Alt . go) (moduleImports m)))
+            nub . (n <|) <$> local (Set.insert (unSpanned n)) (getAlt (foldMap (Alt . go . uncurry (:~)) (Map.toList (moduleImports m))))
           else
             pure (n :| [])
 
@@ -90,17 +91,17 @@ loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleNa
   where loopM m = do
           visited <- gets (Set.member (moduleName m))
           unless visited . local (Set.insert (moduleName m)) $ do
-            for_ (moduleImports m) loop
+            for_ (Map.toList (moduleImports m)) (uncurry loop)
             modify (Set.insert (moduleName m))
             modify (m :)
-        loop n = do
-          let i = importModuleName (unSpanned n)
+        loop n s = do
+          let i = importModuleName n
           inPath <- asks (Set.member i)
-          when inPath (cycleFrom g n)
+          when inPath (cycleFrom g (n :~ s))
           visited <- gets (Set.member i)
           unless visited . local (Set.insert i) $ do
-            m <- lookupModule g n
-            for_ (moduleImports m) loop
+            m <- lookupModule g (n :~ s)
+            for_ (Map.toList (moduleImports m)) (uncurry loop)
             modify (Set.insert i)
             modify (m :)
 

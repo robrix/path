@@ -189,7 +189,7 @@ elabModule :: ( Carrier sig m
            => Module Surface.Surface Qualified
            -> m (Module Core Qualified)
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
-  for_ (moduleImports m) (modify . Namespace.union <=< importModule)
+  for_ (Map.toList (moduleImports m)) (modify . Namespace.union <=< importModule . uncurry (:~))
 
   decls <- for (moduleDecls m) $ \ decl ->
     (Just . fmap (bind (`elemIndex` map qualified (moduleDecls m))) <$> elabDecl (instantiate (pure . qualified . (moduleDecls m !!)) <$> decl)) `catchError` ((Nothing <$) . logError)
