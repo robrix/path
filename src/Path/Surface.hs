@@ -87,6 +87,10 @@ kcata :: (a -> b)
 kcata var alg k free = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . free)
 
 
+-- | Decorate a term’s variables with the most local
+decorate :: forall a . Spanned (Surface a) -> Surface (Spanned a)
+decorate (a :~ s) = run (runReader s (walk (fmap Var) (fmap Surface) (asks . (:~)) a))
+
 walk :: forall a b m sig
      .  (Carrier sig m, Member (Reader Span) sig)
      => (forall z . m z -> m (Surface z))
