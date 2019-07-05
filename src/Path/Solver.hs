@@ -165,12 +165,12 @@ process :: ( Carrier sig m
         -> m ()
 process (Substitution _S) c@(constraint :~ _) = do
   (_, (tm1 :===: tm2) ::: _) <- unbinds constraint
-  case () of
-    _ | tm1 == tm2 -> pure ()
-      | s <- Map.restrictKeys _S (metaNames (localNames (fvs constraint))), not (null s) -> simplify (apply (Substitution s) c) >>= enqueueAll
-      | Just (m, sp) <- pattern tm1 -> solve m (Core.lams (fmap Local <$> sp) tm2)
-      | Just (m, sp) <- pattern tm2 -> solve m (Core.lams (fmap Local <$> sp) tm1)
-      | otherwise -> block c
+  let s = Map.restrictKeys _S (metaNames (localNames (fvs constraint)))
+      go | not (null s)                = simplify (apply (Substitution s) c) >>= enqueueAll
+         | Just (m, sp) <- pattern tm1 = solve m (Core.lams (fmap Local <$> sp) tm2)
+         | Just (m, sp) <- pattern tm2 = solve m (Core.lams (fmap Local <$> sp) tm1)
+         | otherwise                   = block c
+  unless (tm1 == tm2) go
 
 block :: (Carrier sig m, Member (State Blocked) sig) => Spanned (Constraint Core (Name Meta)) -> m ()
 block c = modify (Set.insert c)
