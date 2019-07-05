@@ -161,7 +161,7 @@ data Operator
   deriving (Eq, Ord, Show)
 
 betweenOp :: String -> String -> Operator
-betweenOp a b = Closed (a :| []) b
+betweenOp a = Closed (a :| [])
 
 showOperator :: Operator -> String
 showOperator = renderOperator " " id

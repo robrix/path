@@ -1,4 +1,4 @@
-{-# LANGUAGE DefaultSignatures, DeriveTraversable, FlexibleContexts #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Path.Pretty
 ( prettyPrint
 , putDoc
@@ -99,7 +99,7 @@ prettyBraces False = id
 
 -- | Debugging helper.
 tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
-tracePrettyM a = unsafePerformIO (prettyPrint a *> pure (pure ()))
+tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
 
 
 data Prec a = Prec
