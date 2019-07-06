@@ -134,6 +134,9 @@ instance (Functor f, Monad m) => RModule (ScopeH b f m) m where
 instance Applicative f => MonadTrans (ScopeH a f) where
   lift = ScopeH . pure . S
 
+instance Functor f => HFunctor (ScopeH a f) where
+  hmap f = ScopeH . fmap (fmap f) . unScopeH
+
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind1H :: (Functor f, Applicative g, Eq a) => a -> f a -> ScopeH () f g a
