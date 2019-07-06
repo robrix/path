@@ -98,8 +98,7 @@ walk :: forall a b m sig
      -> Surface a
      -> m (Surface b)
 walk k = unComp1 . eiter (Comp1 . fmap Var) alg pure k
-  where alg :: SurfaceF (m :.: Surface) a1 -> (m :.: Surface) a1
-        alg = Comp1 . fmap Surface . \case
+  where alg = Comp1 . fmap Surface . \case
           Lam p b -> Lam p <$> withSpan recur b
           f :$ a -> (:$) <$> withSpan unComp1 f <*> traverse (withSpan unComp1) a
           Type -> pure Type
