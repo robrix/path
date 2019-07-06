@@ -137,6 +137,9 @@ instance Applicative f => MonadTrans (ScopeH a f) where
 instance Functor f => HFunctor (ScopeH a f) where
   hmap f = ScopeH . fmap (fmap f) . unScopeH
 
+instance Functor f => Effect (ScopeH a f) where
+  handle state handler = ScopeH . fmap (fmap (handler . (<$ state))) . unScopeH
+
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind1H :: (Functor f, Applicative g, Eq a) => a -> f a -> ScopeH () f g a
