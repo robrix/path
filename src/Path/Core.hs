@@ -80,6 +80,9 @@ instance Applicative Core where
 instance Monad Core where
   a >>= f = eiter id embed pure f a
 
+instance Carrier (CoreF ()) Core where
+  eff = embed
+
 
 data CoreF v f a
   = LamF Plicity (Scope v f a)              -- ^ A lambda abstraction.
