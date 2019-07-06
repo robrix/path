@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
 import           Control.Applicative (Alternative (..), Const (..))
 import           Control.Effect
+import           Control.Effect.Carrier
 import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
@@ -40,7 +41,7 @@ instance Monad Problem where
   a >>= f = eiter id Problem Var f a
 
 newtype P = P { unP :: Int }
-  deriving (Eq, Num, Ord, Show)
+  deriving (Eq, Ord, Show)
 
 instance Pretty (Problem (Name Gensym)) where
   pretty = snd . run . runWriter @(Set.Set Meta) . runReader (Nil @Meta) . runReader (P 0) . kcata id alg k (var . fmap Name)
@@ -80,9 +81,9 @@ instance Pretty (Problem (Name Gensym)) where
           k (Z ()) = ask >>= var . Local . Stack.head
           k (S n)  = local (Stack.tail @Meta) n
           prec d' doc = do
-            d <- ask @P
-            pure (prettyParens (d > d') doc)
-          withPrec i = local @P (const i) . getConst
+            d <- ask
+            pure (prettyParens (d > P d') doc)
+          withPrec i = local (const (P i)) . getConst
           bind cons m = do
             ns <- ask
             let n = cons $ case ns of
@@ -101,7 +102,7 @@ data ProblemF f a
   | Pi (f a) (Scope () f a)
   | Ex (Maybe (f a)) (f a) (Scope () f a)
   | f a :===: f a
-  deriving (Foldable, Functor, Generic1, Traversable)
+  deriving (Foldable, Functor, Generic1, HFunctor, Traversable)
 
 infix 3 :===:
 
