@@ -1,13 +1,13 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, DerivingStrategies, FlexibleContexts, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Surface where
 
+import Control.Applicative
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Reader
-import Control.Monad (guard)
+import Control.Monad (guard, join)
 import Control.Monad.Trans
 import Data.Coerce
-import Data.Functor.Const
 import GHC.Generics ((:.:) (..), Generic1)
 import Path.Name
 import Path.Plicity
@@ -41,6 +41,17 @@ deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Su
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (SurfaceF f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (SurfaceF f a)
+
+newtype SurfaceC m a = SurfaceC { runSurfaceC :: m (Surface a) }
+  deriving (Functor)
+
+instance Applicative m => Applicative (SurfaceC m) where
+  pure = SurfaceC . pure . Var
+  SurfaceC f <*> SurfaceC a = SurfaceC (liftA2 (<*>) f a)
+
+instance Monad m => Monad (SurfaceC m) where
+  -- FIXME: is this valid?
+  SurfaceC m >>= f = SurfaceC (m >>= fmap join . traverse (runSurfaceC . f))
 
 
 lam :: Eq a => Plicit (Named (Maybe User) a) -> Spanned (Surface a) -> Surface a
