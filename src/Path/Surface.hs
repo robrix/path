@@ -65,25 +65,25 @@ instance (Carrier sig m, Effect sig) => Carrier (SurfaceF :+: sig) (SurfaceC m) 
   eff (R other) = SurfaceC (eff (handle (Var ()) (fmap join . traverse runSurfaceC) other))
 
 
-lam :: Eq a => Plicit (Named (Maybe User) a) -> Spanned (Surface a) -> Surface a
-lam (p :< Named u n) b = Surface (Lam (p :< u) (bind ((u <$) . guard . (== n)) <$> b))
+lam :: (Eq a, Carrier sig m, Member SurfaceF sig) => Plicit (Named (Maybe User) a) -> Spanned (m a) -> m a
+lam (p :< Named u n) b = send (Lam (p :< u) (bind ((u <$) . guard . (== n)) <$> b))
 
-lam' :: Plicit (Maybe User) -> Spanned (Surface User) -> Surface User
-lam' (p :< Nothing) b = Surface (Lam (p :< Ignored Nothing) (lift <$> b))
+lam' :: (Carrier sig m, Member SurfaceF sig) => Plicit (Maybe User) -> Spanned (m User) -> m User
+lam' (p :< Nothing) b = send (Lam (p :< Ignored Nothing) (lift <$> b))
 lam' (p :< Just n)  b = lam (p :< named (Just n) n) b
 
-($$) :: Spanned (Surface a) -> Plicit (Spanned (Surface a)) -> Surface a
-f $$ a = Surface (f :$ a)
+($$) :: (Carrier sig m, Member SurfaceF sig) => Spanned (m a) -> Plicit (Spanned (m a)) -> m a
+f $$ a = send (f :$ a)
 
 
-type' :: Surface a
-type' = Surface Type
+type' :: (Carrier sig m, Member SurfaceF sig) => m a
+type' = send Type
 
-pi :: Eq a => Plicit (Named (Maybe User) a ::: Used (Spanned (Surface a))) -> Spanned (Surface a) -> Surface a
-pi (p :< Named u n ::: t) b = Surface (Pi (p :< u ::: t) (bind ((u <$) . guard . (== n)) <$> b))
+pi :: (Eq a, Carrier sig m, Member SurfaceF sig) => Plicit (Named (Maybe User) a ::: Used (Spanned (m a))) -> Spanned (m a) -> m a
+pi (p :< Named u n ::: t) b = send (Pi (p :< u ::: t) (bind ((u <$) . guard . (== n)) <$> b))
 
-(-->) :: Used (Spanned (Surface a)) -> Spanned (Surface a) -> Surface a
-t --> b = Surface (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))
+(-->) :: (Carrier sig m, Member SurfaceF sig) => Used (Spanned (m a)) -> Spanned (m a) -> m a
+t --> b = send (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))
 
 infixr 0 -->
 

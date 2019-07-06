@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, LambdaCase #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, LambdaCase #-}
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
