@@ -69,15 +69,15 @@ modules :: ModuleGraph f a -> [Module f a]
 modules = Map.elems . unModuleGraph
 
 
-lookupModule :: (Carrier sig m, Member (Error Doc) sig) => ModuleGraph f a -> Spanned ModuleName -> m (Module f a)
-lookupModule g i = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
+lookupModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned ModuleName -> ModuleGraph f a -> m (Module f a)
+lookupModule i g = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
 
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph f a -> Spanned ModuleName -> m ()
 cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do
-            m <- lookupModule g n
+            m <- lookupModule n g
             nub . (n <|) <$> local (Set.insert (unSpanned n)) (getAlt (foldMap (Alt . go . uncurry (:~)) (Map.toList (moduleImports m))))
           else
             pure (n :| [])
@@ -96,7 +96,7 @@ loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleNa
           when inPath (cycleFrom g (n :~ s))
           visited <- gets (Set.member n)
           unless visited . local (Set.insert n) $ do
-            m <- lookupModule g (n :~ s)
+            m <- lookupModule (n :~ s) g
             for_ (Map.toList (moduleImports m)) (uncurry loop)
             modify (Set.insert n)
             modify (m :)
