@@ -166,12 +166,10 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Qualif
             runReader (table :: ModuleTable) (importModule i) >>= modify . Namespace.union
             loop
           Command.Doc moduleName -> do
-            m <- gets (Map.lookup moduleName . unModuleGraph)
-            case m :: Maybe (Module Core Qualified) of
-              Just m -> case moduleDocs m of
-                Just d  -> print (pretty d)
-                Nothing -> print (pretty "no docs for" <+> squotes (pretty moduleName))
-              Nothing   -> print (pretty "no such module" <+> squotes (pretty moduleName))
+            m <- get >>= lookupModule moduleName
+            case moduleDocs (m :: Module Core Qualified) of
+              Just d  -> print (pretty d)
+              Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
             loop
         reload = do
           put (Resolution mempty)

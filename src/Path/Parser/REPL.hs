@@ -8,9 +8,9 @@ import Text.Trifecta hiding (doc)
 import Text.Trifecta.Indentation
 
 command :: (DeltaParsing m, IndentationParsing m) => m (Maybe Command)
-typeof, eval, import' :: DeltaParsing m => m Command
+typeof, eval, import', doc :: DeltaParsing m => m Command
 decl :: (DeltaParsing m, IndentationParsing m) => m Command
-quit, help, show', reload, doc :: (Monad m, TokenParsing m) => m Command
+quit, help, show', reload :: (Monad m, TokenParsing m) => m Command
 info :: (Monad m, TokenParsing m) => m Info
 
 command = optional (quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> reload <|> import' <|> doc) <?> "command; use :? for help"
@@ -33,4 +33,4 @@ reload = Reload <$ token (string ":r") <|> Reload <$ token (string ":reload") <?
 
 import' = Import <$> M.import'
 
-doc = Doc <$ token (string ":doc") <*> M.moduleName
+doc = Doc <$ token (string ":doc") <*> spanned M.moduleName

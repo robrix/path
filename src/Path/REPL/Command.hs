@@ -15,7 +15,7 @@ data Command
   | Show Info
   | Reload
   | Import (Spanned ModuleName)
-  | Doc ModuleName
+  | Doc (Spanned ModuleName)
   deriving (Eq, Ord, Show)
 
 data Info
