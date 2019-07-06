@@ -23,7 +23,6 @@ import qualified Data.HashSet as HashSet
 import Path.Pretty (Doc)
 import Text.Parser.Char
 import Text.Parser.Combinators
-import Text.Parser.LookAhead
 import Text.Parser.Token
 import Text.Parser.Token.Highlight
 import Text.Parser.Token.Style
@@ -35,7 +34,7 @@ import Text.Trifecta.Indentation
 type Parser = IndentationParserT Token Inner
 
 newtype Inner a = Inner { runInner :: Trifecta.Parser a }
-  deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, LookAheadParsing, MarkParsing Delta, Monad, MonadPlus, Parsing)
+  deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, MarkParsing Delta, Monad, MonadPlus, Parsing)
 
 instance TokenParsing Inner where
   someSpace = Inner (buildSomeSpaceParser someSpace haskellCommentStyle)
