@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
 module Path.Problem where
 
 import           Control.Applicative (Alternative (..), Const (..))
@@ -14,6 +14,7 @@ import           Data.Coerce
 import           Data.Foldable (fold)
 import           Data.List (intersperse)
 import qualified Data.Set as Set
+import           GHC.Generics (Generic1)
 import           Path.Error
 import           Path.Module
 import           Path.Name
@@ -100,7 +101,7 @@ data ProblemF f a
   | Pi (f a) (Scope () f a)
   | Ex (Maybe (f a)) (f a) (Scope () f a)
   | f a :===: f a
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Generic1, Traversable)
 
 infix 3 :===:
 
