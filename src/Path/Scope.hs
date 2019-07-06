@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, DeriveGeneric, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
+{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
 module Path.Scope where
 
 import Control.Applicative (liftA2)
