@@ -115,28 +115,28 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ProblemF f a)
 
 
-lam :: Eq a => a ::: Problem a -> Problem a -> Problem a
-lam (n ::: t) b = Problem (Lam t (bind1 n b))
+lam :: (Eq a, Carrier sig m, Member ProblemF sig) => a ::: m a -> m a -> m a
+lam (n ::: t) b = send (Lam t (bind1 n b))
 
-lams :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
+lams :: (Eq a, Foldable t, Carrier sig m, Member ProblemF sig) => t (a ::: m a) -> m a -> m a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unlam n (Problem (Lam t b)) = pure (n ::: t, instantiate1 (pure n) b)
 unlam _ _                   = empty
 
-($$) :: Problem a -> Problem a -> Problem a
-f $$ a = Problem (f :$ a)
+($$) :: (Carrier sig m, Member ProblemF sig) => m a -> m a -> m a
+f $$ a = send (f :$ a)
 
 
-type' :: Problem a
-type' = Problem Type
+type' :: (Carrier sig m, Member ProblemF sig) => m a
+type' = send Type
 
-pi :: Eq a => a ::: Problem a -> Problem a -> Problem a
-pi (n ::: t) b = Problem (Pi t (bind1 n b))
+pi :: (Eq a, Carrier sig m, Member ProblemF sig) => a ::: m a -> m a -> m a
+pi (n ::: t) b = send (Pi t (bind1 n b))
 
 -- | Wrap a type in a sequence of pi bindings.
-pis :: (Eq a, Foldable t) => t (a ::: Problem a) -> Problem a -> Problem a
+pis :: (Eq a, Foldable t, Carrier sig m, Member ProblemF sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
@@ -144,35 +144,30 @@ unpi n (Problem (Pi t b)) = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                  = empty
 
 
-exists :: Eq a => a := Maybe (Problem a) ::: Problem a -> Problem a -> Problem a
-exists (n := Just v ::: _) (Var n') | n == n' = v
-exists (n := v      ::: t) b                  = Problem (Ex v t (bind1 n b))
+exists :: (Eq a, Carrier sig m, Member ProblemF sig) => a := Maybe (m a) ::: m a -> m a -> m a
+exists (n := v ::: t) b = send (Ex v t (bind1 n b))
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
 unexists n (Problem (Ex Nothing t b)) = pure (n ::: t, instantiate1 (pure n) b)
 unexists _ _                          = empty
 
-let' :: Eq a => a := Problem a ::: Problem a -> Problem a -> Problem a
-let' (n := v ::: t) b = Problem (Ex (Just v) t (bind1 n b))
+let' :: (Eq a, Carrier sig m, Member ProblemF sig) => a := m a ::: m a -> m a -> m a
+let' (n := v ::: t) b = send (Ex (Just v) t (bind1 n b))
 
 unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Problem a)
 unlet' n (Problem (Ex (Just v) t b)) = pure (n := v ::: t, instantiate1 (pure n) b)
 unlet' _ _                           = empty
 
-(===) :: Eq a => Problem a -> Problem a -> Problem a
-p === q
-  | p == q    = p
-  | otherwise = Problem (p :===: q)
+(===) :: (Carrier sig m, Member ProblemF sig) => m a -> m a -> m a
+p === q = send (p :===: q)
 
 infixr 3 ===
 
-(?===?) :: Eq a => Maybe (Problem a) -> Maybe (Problem a) -> Maybe (Problem a)
+(?===?) :: (Carrier sig m, Member ProblemF sig) => Maybe (m a) -> Maybe (m a) -> Maybe (m a)
 Nothing ?===? Nothing = Nothing
 Just p  ?===? Nothing = Just p
 Nothing ?===? Just q  = Just q
-Just p  ?===? Just q
-  | p == q    = Just p
-  | otherwise = Just (Problem (p :===: q))
+Just p  ?===? Just q  = Just (p === q)
 
 infixr 3 ?===?
 
