@@ -104,38 +104,39 @@ project (Pi t b) = PiF t b
 
 embed :: CoreF Core a -> Core a
 embed (LamF p b) = Lam p b
-embed (f :$$ a) = f $$* a
+embed (f :$$ a) = foldl' ($$) f a
+  where Lam _ b $$ (_ :< v) = instantiate1 v b
+        Pi _  b $$ (_ :< v) = instantiate1 v b
+        n :$ vs $$ v        = n :$ (vs :> v)
+        _       $$ _        = error "illegal application of Type"
 embed TypeF = Type
 embed (PiF t b) = Pi t b
 
 
-lam :: Eq a => Plicit a -> Core a -> Core a
-lam (pl :< n) b = Lam pl (bind1 n b)
+lam :: (Eq a, Carrier sig m, Member CoreF sig) => Plicit a -> m a -> m a
+lam (pl :< n) b = send (LamF pl (bind1 n b))
 
-lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
+lams :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t (Plicit a) -> m a -> m a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Core a -> m (Plicit a, Core a)
 unlam n (Lam p b) = pure (p :< n, instantiate1 (pure n) b)
 unlam _ _         = empty
 
-($$) :: Core a -> Plicit (Core a) -> Core a
-Lam _ b $$ (_ :< v) = instantiate1 v b
-Pi _  b $$ (_ :< v) = instantiate1 v b
-n :$ vs $$ v        = n :$ (vs :> v)
-_       $$ _        = error "illegal application of Type"
+($$) :: (Carrier sig m, Member CoreF sig) => m a -> Plicit (m a) -> m a
+a $$ b = a $$* (Nil :> b)
 
-($$*) :: Foldable t => Core a -> t (Plicit (Core a)) -> Core a
-v $$* sp = foldl' ($$) v sp
+($$*) :: (Foldable t, Carrier sig m, Member CoreF sig) => m a -> t (Plicit (m a)) -> m a
+v $$* sp = send (v :$$ foldl' (:>) Nil sp)
 
-type' :: Core a
-type' = Type
+type' :: (Carrier sig m, Member CoreF sig) => m a
+type' = send TypeF
 
-pi :: Eq a => Plicit (a ::: Used (Core a)) -> Core a -> Core a
-pi (p :< n ::: t) b = Pi (p :< t) (bind1 n b)
+pi :: (Eq a, Carrier sig m, Member CoreF sig) => Plicit (a ::: Used (m a)) -> m a -> m a
+pi (p :< n ::: t) b = send (PiF (p :< t) (bind1 n b))
 
 -- | Wrap a type in a sequence of pi bindings.
-pis :: (Eq a, Foldable t) => t (Plicit (a ::: Used (Core a))) -> Core a -> Core a
+pis :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t (Plicit (a ::: Used (m a))) -> m a -> m a
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Core a -> m (Plicit (a ::: Used (Core a)), Core a)
