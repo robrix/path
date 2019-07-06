@@ -40,6 +40,9 @@ instance Applicative Problem where
 instance Monad Problem where
   a >>= f = eiter id Problem Var f a
 
+instance Carrier ProblemF Problem where
+  eff = Problem
+
 newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
