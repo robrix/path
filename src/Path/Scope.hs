@@ -2,6 +2,7 @@
 module Path.Scope where
 
 import Control.Applicative (liftA2)
+import Control.Effect.Carrier
 import Control.Monad ((>=>), guard)
 import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
@@ -64,6 +65,9 @@ instance Monad f => RModule (Scope a f) f where
 
 instance MonadTrans (Scope a) where
   lift = Scope . pure . S
+
+instance HFunctor (Scope a) where
+  hmap f = Scope . f . fmap (fmap f) . unScope
 
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
