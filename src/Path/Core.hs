@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
 module Path.Core where
 
 import           Control.Applicative (Alternative (..))
@@ -7,6 +7,7 @@ import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
+import           GHC.Generics (Generic1)
 import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
@@ -84,7 +85,7 @@ data CoreF v f a
   | f a :$$ Stack (Plicit (f a))            -- ^ A neutral term represented as a function and a 'Stack' of arguments to apply it to.
   | TypeF                                   -- ^ @'Type' : 'Type'@.
   | PiF (Plicit (Used (f a))) (Scope v f a) -- ^ A ∏ type, with a 'Usage' annotation.
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Generic1, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (CoreF () f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
