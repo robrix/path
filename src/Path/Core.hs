@@ -119,6 +119,15 @@ unlam :: Alternative m => a -> Core a -> m (Plicit a, Core a)
 unlam n (Lam p b) = pure (p :< n, instantiate1 (pure n) b)
 unlam _ _         = empty
 
+($$) :: Core a -> Plicit (Core a) -> Core a
+Lam _ b $$ (_ :< v) = instantiate1 v b
+Pi _  b $$ (_ :< v) = instantiate1 v b
+n :$ vs $$ v        = n :$ (vs :> v)
+_       $$ _        = error "illegal application of Type"
+
+($$*) :: Foldable t => Core a -> t (Plicit (Core a)) -> Core a
+v $$* sp = foldl' ($$) v sp
+
 type' :: Core a
 type' = Type
 
@@ -132,15 +141,6 @@ pis names body = foldr pi body names
 unpi :: Alternative m => a -> Core a -> m (Plicit (a ::: Used (Core a)), Core a)
 unpi n (Pi (p :< t) b) = pure (p :< n ::: t, instantiate1 (pure n) b)
 unpi _ _               = empty
-
-($$) :: Core a -> Plicit (Core a) -> Core a
-Lam _ b $$ (_ :< v) = instantiate1 v b
-Pi _  b $$ (_ :< v) = instantiate1 v b
-n :$ vs $$ v        = n :$ (vs :> v)
-_       $$ _        = error "illegal application of Type"
-
-($$*) :: Foldable t => Core a -> t (Plicit (Core a)) -> Core a
-v $$* sp = foldl' ($$) v sp
 
 
 eiter :: forall m n a b
