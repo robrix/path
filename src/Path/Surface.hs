@@ -123,8 +123,7 @@ walk :: (Carrier sig m, Member (Reader Span) sig, Member SurfaceF sig)
      -> Surface a
      -> m b
 walk k = eiter id alg pure k
-  where alg :: (Carrier sig m, Member (Reader Span) sig, Member SurfaceF sig) => SurfaceF m a -> m a
-        alg = \case
+  where alg = \case
           Lam p b -> send (Lam p (Scope <$> withSpan (unScope <$> b)))
           f :$ a -> withSpan f $$ fmap withSpan a
           Type -> type'
