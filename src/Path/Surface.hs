@@ -92,8 +92,7 @@ kcata var alg k free = getConst . eiter (coerce var) (coerce alg) (coerce k) (Co
 decorate :: forall a . Spanned (Surface a) -> Surface (Spanned a)
 decorate (a :~ s) = run (runReader s (walk (asks . (:~)) a))
 
-walk :: forall a b m sig
-     .  (Carrier sig m, Member (Reader Span) sig)
+walk :: (Carrier sig m, Member (Reader Span) sig)
      => (a -> m b)
      -> Surface a
      -> m (Surface b)
