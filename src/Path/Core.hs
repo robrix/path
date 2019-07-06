@@ -119,6 +119,9 @@ unlam :: Alternative m => a -> Core a -> m (Plicit a, Core a)
 unlam n (Lam p b) = pure (p :< n, instantiate1 (pure n) b)
 unlam _ _         = empty
 
+type' :: Core a
+type' = Type
+
 pi :: Eq a => Plicit (a ::: Used (Core a)) -> Core a -> Core a
 pi (p :< n ::: t) b = Pi (p :< t) (bind1 n b)
 
