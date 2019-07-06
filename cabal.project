@@ -1,4 +1,4 @@
-packages: path.cabal
+packages: path.cabal ../fused-effects/fused-effects.cabal
 optional-packages: vendor/*/*.cabal
 jobs: $ncpus
 package path

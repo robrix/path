@@ -1,8 +1,10 @@
+cabal-version:       2.4
+
 name:                path
 version:             0.1.0.0
 -- synopsis:
 -- description:
-license:             BSD3
+license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Rob Rix
 maintainer:          rob.rix@me.com
@@ -10,7 +12,6 @@ copyright:           2018 Rob Rix
 category:            Language
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
 
 library
   exposed-modules:     Control.Monad.Module
@@ -53,7 +54,7 @@ library
                      , containers
                      , directory
                      , filepath
-                     , fused-effects >= 0.3 && < 0.4
+                     , fused-effects ^>= 0.5
                      , haskeline
                      , indentation-trifecta
                      , mtl

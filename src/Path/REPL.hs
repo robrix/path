@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveAnyClass, DeriveFunctor, DeriveGeneric, DerivingStrategies, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
 import Control.Arrow ((&&&))
@@ -12,12 +12,12 @@ import Control.Monad ((<=<), join, unless)
 import Control.Monad.IO.Class
 import Control.Monad.Trans (MonadTrans(..))
 import Data.Bool (bool)
-import Data.Coerce
 import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import Data.Traversable (for)
+import GHC.Generics (Generic1)
 import Path.Core
 import Path.Elab
 import Path.Eval
@@ -38,17 +38,12 @@ import Prelude hiding (print)
 import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 
-data REPL (m :: * -> *) k
-  = Prompt String (Maybe String -> k)
-  | Print Doc k
-  | AskLine (Line -> k)
-  deriving (Functor)
-
-instance HFunctor REPL where
-  hmap _ = coerce
-
-instance Effect REPL where
-  handle state handler = coerce . fmap (handler . (<$ state))
+data REPL m k
+  = Prompt String (Maybe String -> m k)
+  | Print Doc (m k)
+  | AskLine (Line -> m k)
+  deriving stock (Functor, Generic1)
+  deriving anyclass (Effect, HFunctor)
 
 
 prompt :: (Carrier sig m, Member REPL sig) => String -> m (Maybe String)
@@ -65,7 +60,7 @@ runREPL :: MonadException m => Prefs -> Settings m -> REPLC m a -> m a
 runREPL prefs settings = runInputTWithPrefs prefs settings . runTransC . runReader (Line 0) . runREPLC
 
 newtype REPLC m a = REPLC { runREPLC :: ReaderC Line (TransC InputT m) a }
-  deriving (Applicative, Functor, Monad, MonadIO)
+  deriving newtype (Applicative, Functor, Monad, MonadIO)
 
 instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
   eff (L (Prompt prompt k)) = REPLC $ do
@@ -78,7 +73,7 @@ instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (RE
   eff (R other) = REPLC (eff (R (handleCoercible other)))
 
 newtype TransC t (m :: * -> *) a = TransC { runTransC :: t m a }
-  deriving (Applicative, Functor, Monad, MonadIO, MonadTrans)
+  deriving newtype (Applicative, Functor, Monad, MonadIO, MonadTrans)
 
 instance (Carrier sig m, Effect sig, Monad (t m), MonadTrans t) => Carrier sig (TransC t m) where
   eff = TransC . join . lift . eff . handle (pure ()) (pure . (runTransC =<<))
@@ -87,7 +82,7 @@ runControlIO :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
 runControlIO handler = runReader (Handler handler) . runControlIOC
 
 newtype ControlIOC m a = ControlIOC { runControlIOC :: ReaderC (Handler m) m a }
-  deriving (Applicative, Functor, Monad, MonadIO)
+  deriving newtype (Applicative, Functor, Monad, MonadIO)
 
 newtype Handler m = Handler (forall x . m x -> IO x)
 

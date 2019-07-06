@@ -47,14 +47,14 @@ unH from = go Nil
           Left  b -> pure (names, b)
 
 data Naming m k
-  = Fresh (Gensym -> k)
-  | forall a . Namespace String (m a) (a -> k)
+  = Fresh (Gensym -> m k)
+  | forall a . Namespace String (m a) (a -> m k)
 
-deriving instance Functor (Naming m)
+deriving instance Functor m => Functor (Naming m)
 
 instance HFunctor Naming where
-  hmap _ (Fresh         k) = Fresh             k
-  hmap f (Namespace s m k) = Namespace s (f m) k
+  hmap f (Fresh         k) = Fresh             (f . k)
+  hmap f (Namespace s m k) = Namespace s (f m) (f . k)
 
 instance Effect Naming where
   handle state handler (Fresh         k) = Fresh                              (handler . (<$ state) . k)
