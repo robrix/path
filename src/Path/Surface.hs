@@ -9,7 +9,7 @@ import Control.Effect.Sum
 import Control.Monad (guard, join)
 import Control.Monad.Trans
 import Data.Coerce
-import GHC.Generics ((:.:) (..), Generic1)
+import GHC.Generics (Generic1)
 import Path.Name
 import Path.Plicity
 import Path.Scope
@@ -116,17 +116,17 @@ kcata var alg k free = getConst . eiter (coerce var) (coerce alg) (coerce k) (Co
 
 -- | Decorate a term’s variables with the most local
 decorate :: forall a . Spanned (Surface a) -> Surface (Spanned a)
-decorate (a :~ s) = run (runReader s (walk (asks . (:~)) a))
+decorate (a :~ s) = runReader s (walk (asks . (:~)) a)
 
-walk :: (Carrier sig m, Member (Reader Span) sig)
+walk :: (Carrier sig m, Member (Reader Span) sig, Member SurfaceF sig)
      => (a -> m b)
      -> Surface a
-     -> m (Surface b)
-walk k = unComp1 . eiter (Comp1 . fmap Var) alg pure k
-  where alg = Comp1 . fmap Surface . \case
-          Lam p b -> Lam p <$> withSpan recur b
-          f :$ a -> (:$) <$> withSpan unComp1 f <*> traverse (withSpan unComp1) a
-          Type -> pure Type
-          Pi t b -> Pi <$> traverse (traverse (traverse (withSpan unComp1))) t <*> withSpan recur b
-        recur = fmap Scope . (>>= traverse (traverse unComp1)) . unComp1 . unScope
-        withSpan recur (t :~ s) = (:~ s) <$> local (const s) (recur t)
+     -> m b
+walk k = eiter id alg pure k
+  where alg :: (Carrier sig m, Member (Reader Span) sig, Member SurfaceF sig) => SurfaceF m a -> m a
+        alg = \case
+          Lam p b -> send (Lam p (Scope <$> withSpan (unScope <$> b)))
+          f :$ a -> withSpan f $$ fmap withSpan a
+          Type -> type'
+          Pi t b -> send (Pi (fmap (fmap withSpan) <$> t) (Scope <$> withSpan (unScope <$> b)))
+        withSpan (t :~ s) = local (const s) t :~ s
