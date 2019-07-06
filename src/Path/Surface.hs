@@ -1,10 +1,11 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, DerivingStrategies, FlexibleContexts, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, DerivingStrategies, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Surface where
 
 import Control.Applicative
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Reader
+import Control.Effect.Sum
 import Control.Monad (guard, join)
 import Control.Monad.Trans
 import Data.Coerce
@@ -52,6 +53,16 @@ instance Applicative m => Applicative (SurfaceC m) where
 instance Monad m => Monad (SurfaceC m) where
   -- FIXME: is this valid?
   SurfaceC m >>= f = SurfaceC (m >>= fmap join . traverse (runSurfaceC . f))
+
+instance (Carrier sig m, Effect sig) => Carrier (SurfaceF :+: sig) (SurfaceC m) where
+  eff (L s) = SurfaceC . fmap Surface $ case s of
+    f :$ a -> (:$) <$> traverse runSurfaceC f <*> traverse (traverse runSurfaceC) a
+    Lam p b -> Lam p <$> traverse recur b
+    Type -> pure Type
+    Pi t b -> Pi <$> traverse (traverse (traverse (traverse runSurfaceC))) t <*> traverse recur b
+    where recur = fmap Scope . (>>= traverse (traverse runSurfaceC)) . runSurfaceC . unScope
+  -- FIXME: is this valid?
+  eff (R other) = SurfaceC (eff (handle (Var ()) (fmap join . traverse runSurfaceC) other))
 
 
 lam :: Eq a => Plicit (Named (Maybe User) a) -> Spanned (Surface a) -> Surface a
