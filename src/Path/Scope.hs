@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
+{-# LANGUAGE DeriveTraversable, DeriveGeneric, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
 module Path.Scope where
 
 import Control.Applicative (liftA2)
@@ -7,6 +7,7 @@ import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Function (on)
 import Data.List (elemIndex)
+import GHC.Generics (Generic1)
 
 data Incr a b = Z a | S b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -37,7 +38,7 @@ incr z s = \case { Z a -> z a ; S b -> s b }
 
 
 newtype Scope a f b = Scope (f (Incr a (f b)))
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Generic1, Traversable)
 
 unScope :: Scope a f b -> f (Incr a (f b))
 unScope (Scope s) = s
@@ -104,7 +105,7 @@ foldScope k go h = Scope . go (k . fmap (go h)) . unScope
 
 -- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
 newtype ScopeH a f g b = ScopeH (f (Incr a (g b)))
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Generic1, Traversable)
 
 unScopeH :: ScopeH a f g b -> f (Incr a (g b))
 unScopeH (ScopeH s) = s
