@@ -127,6 +127,9 @@ name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
 name _     global (Global n) = global n
 
+global :: Applicative m => Qualified -> m (Name a)
+global = pure . Global
+
 
 localNames :: Ord a => Set.Set (Name a) -> Set.Set a
 localNames = foldMap (name Set.singleton (const Set.empty))

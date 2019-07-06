@@ -109,9 +109,6 @@ embed TypeF = Type
 embed (PiF t b) = Pi t b
 
 
-global :: Qualified -> Core (Name a)
-global = (:$ Nil) . Global
-
 lam :: Eq a => Plicit a -> Core a -> Core a
 lam (pl :< n) b = Lam pl (bind1 n b)
 
