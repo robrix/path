@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Surface where
 
 import Control.Effect
@@ -26,6 +26,9 @@ instance Applicative Surface where
 
 instance Monad Surface where
   a >>= f = eiter id Surface Var f a
+
+instance Carrier SurfaceF Surface where
+  eff = Surface
 
 data SurfaceF f a
   = Lam (Plicit (Ignored (Maybe User))) (Spanned (Scope (Ignored (Maybe User)) f a))
