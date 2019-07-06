@@ -7,6 +7,7 @@ import Control.Monad (guard)
 import Control.Monad.Trans
 import Data.Coerce
 import Data.Functor.Const
+import GHC.Generics ((:.:) (..))
 import Path.Name
 import Path.Plicity
 import Path.Scope
@@ -96,12 +97,12 @@ walk :: forall a b m sig
      => (a -> m b)
      -> Surface a
      -> m (Surface b)
-walk = go
-  where go :: (x -> m y) -> Surface x -> m (Surface y)
-        go k (Var a) = Var <$> k a
-        go k (Surface s) = Surface <$> case s of
-          Lam p b -> Lam p <$> withSpan (fmap Scope . go (traverse (go k)) . unScope) b
-          f :$ a -> (:$) <$> withSpan (go k) f <*> traverse (withSpan (go k)) a
+walk k = unComp1 . eiter (Comp1 . fmap Var) alg pure k
+  where alg :: SurfaceF (m :.: Surface) a1 -> (m :.: Surface) a1
+        alg = Comp1 . fmap Surface . \case
+          Lam p b -> Lam p <$> withSpan recur b
+          f :$ a -> (:$) <$> withSpan unComp1 f <*> traverse (withSpan unComp1) a
           Type -> pure Type
-          Pi t b -> Pi <$> traverse (traverse (traverse (withSpan (go k)))) t <*> withSpan (fmap Scope . go (traverse (go k)) . unScope) b
-          where withSpan recur (t :~ s) = (:~ s) <$> local (const s) (recur t)
+          Pi t b -> Pi <$> traverse (traverse (traverse (withSpan unComp1))) t <*> withSpan recur b
+        recur = fmap Scope . (>>= traverse (traverse unComp1)) . unComp1 . unScope
+        withSpan recur (t :~ s) = (:~ s) <$> local (const s) (recur t)
