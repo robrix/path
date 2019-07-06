@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators #-}
 module Path.Surface where
 
 import Control.Effect
@@ -7,7 +7,7 @@ import Control.Monad (guard)
 import Control.Monad.Trans
 import Data.Coerce
 import Data.Functor.Const
-import GHC.Generics ((:.:) (..))
+import GHC.Generics ((:.:) (..), Generic1)
 import Path.Name
 import Path.Plicity
 import Path.Scope
@@ -31,7 +31,7 @@ data SurfaceF f a
   | Spanned (f a) :$ Plicit (Spanned (f a))
   | Type
   | Pi (Plicit (Ignored (Maybe User) ::: Used (Spanned (f a)))) (Spanned (Scope (Ignored (Maybe User)) f a))
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Generic1, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (SurfaceF f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
