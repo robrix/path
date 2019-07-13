@@ -1,5 +1,5 @@
 module Path.Term where
 
-data Term f a
+data Term sig a
   = Var a
-  | Term (f (Term f) a)
+  | Term (sig (Term sig) a)
