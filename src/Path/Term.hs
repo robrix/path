@@ -3,6 +3,8 @@ module Path.Term where
 
 import Control.Effect.Carrier
 import Control.Effect.Sum
+import Data.Coerce
+import Data.Functor.Const
 import Path.Scope
 
 data Term sig a
@@ -55,6 +57,15 @@ iter var alg bound = go
         go free = \case
           Var a -> var (free a)
           Term t -> alg (foldSyntax go bound free t)
+
+kcata :: Syntax sig
+      => (a -> b)
+      -> (forall a . sig (Const b) a -> b)
+      -> (Incr () b -> a)
+      -> (x -> a)
+      -> Term sig x
+      -> b
+kcata var alg k h = getConst . iter (coerce var) (Const . alg) (coerce k) (Const . h)
 
 
 class HFunctor sig => Syntax sig where
