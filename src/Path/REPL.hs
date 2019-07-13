@@ -176,7 +176,7 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Void) 
         reload = do
           put (Resolution mempty)
           let n = length packageSources
-          sorted <- traverse parseModule packageSources >>= runReader (Span mempty mempty mempty) . renameModuleGraph >>= loadOrder
+          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= loadOrder
 
           checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, ScopeH m) -> skipDeps m $ do
             let name    = moduleName m

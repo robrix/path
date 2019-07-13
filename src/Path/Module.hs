@@ -95,9 +95,9 @@ renameModule ms m = do
   ds <- traverse (runDecl (traverse (rename ms))) (moduleDecls m)
   pure m { moduleDecls = ds }
 
-renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
+renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
-  ms' <- traverse (\ m -> traverse (rename (imported m)) m) ms
+  ms' <- traverse (\ m -> renameModule (imported m) m) ms
   pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms')))
   where imported m = filter (flip Set.member imports . moduleName) ms
           where imports = Map.keysSet (moduleImports m)
