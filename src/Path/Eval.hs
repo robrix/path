@@ -12,5 +12,5 @@ import Path.Span
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
 whnf :: ModuleGraph Core Void -> Core Qualified -> Core Qualified
 whnf graph = go where
-  go (n :$ sp) = maybe (n :$ sp) (go . ($$* sp)) (unSpanned . declTerm <$> Module.lookup n graph)
+  go (n :$ sp) = maybe (n :$ sp) (go . ($$* sp) . unSpanned . declTerm) (Module.lookup n graph)
   go v         = v
