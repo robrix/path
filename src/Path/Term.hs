@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, LambdaCase, RankNTypes, ScopedTypeVariables, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Term where
 
 import Control.Effect.Carrier
@@ -8,6 +8,38 @@ import Path.Scope
 data Term sig a
   = Var a
   | Term (sig (Term sig) a)
+
+deriving instance ( Eq a
+                  , Syntax sig
+                  , forall g . Functor g => Functor (sig g)
+                  , forall g x . (Eq  x, Monad g, forall y . Eq  y => Eq  (g y)) => Eq  (sig g x)
+                  )
+               => Eq  (Term sig a)
+deriving instance ( Ord a
+                  , Syntax sig
+                  , forall g . Functor g => Functor (sig g)
+                  , forall g x . (Eq  x, Monad g, forall y . Eq  y => Eq  (g y)) => Eq  (sig g x)
+                  , forall g x . (Ord x, Monad g, forall y . Eq  y => Eq  (g y)
+                                                , forall y . Ord y => Ord (g y)) => Ord (sig g x)
+                  )
+               => Ord (Term sig a)
+deriving instance (Show a, forall g x . (Show x, forall y . Show y => Show (g y)) => Show (sig g x)) => Show (Term sig a)
+
+deriving instance ( forall g . Foldable    g => Foldable    (sig g)) => Foldable    (Term sig)
+deriving instance ( forall g . Functor     g => Functor     (sig g)) => Functor     (Term sig)
+deriving instance ( forall g . Foldable    g => Foldable    (sig g)
+                  , forall g . Functor     g => Functor     (sig g)
+                  , forall g . Traversable g => Traversable (sig g)) => Traversable (Term sig)
+
+instance (Syntax sig, forall g . Functor g => Functor (sig g)) => Applicative (Term sig) where
+  pure = Var
+  f <*> a = iter id Term Var (<$> a) f
+
+instance (Syntax sig, forall g . Functor g => Functor (sig g)) => Monad (Term sig) where
+  a >>= f = iter id Term Var f a
+
+instance (Syntax sig, forall g . Functor g => Functor (sig g)) => Carrier sig (Term sig) where
+  eff = Term
 
 
 iter :: forall m n sig a b
