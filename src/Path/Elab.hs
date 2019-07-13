@@ -19,7 +19,6 @@ import Path.Core
 import Path.Error
 import Path.Module as Module
 import Path.Name
-import Path.Namespace as Namespace
 import Path.Plicity
 import Path.Pretty
 import Path.Scope
@@ -238,6 +237,3 @@ define ty tm = evalState (mempty :: Signature) $ do
   subst <- solver constraints
   let ty' = generalizeType (apply subst ty)
   (::: ty') <$> strengthen (apply subst tm')
-
-runNamespace :: (Carrier sig m, Member (State Namespace) sig) => ReaderC Namespace m a -> m a
-runNamespace m = get >>= flip runReader m
