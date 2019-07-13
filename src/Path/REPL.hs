@@ -160,8 +160,7 @@ script packageSources
             unless (Namespace.null scope) $ print scope
             loop
           Show Modules -> do
-            graph <- get
-            let ms = Map.toList (unModuleGraph (graph :: ModuleGraph Core Void))
+            ms <- gets @(ModuleGraph Core Void) (Map.toList . unModuleGraph)
             unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeH)) ms))
             loop
           Reload -> reload *> loop
