@@ -1,7 +1,6 @@
-{-# LANGUAGE DeriveTraversable, FlexibleInstances, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, QuantifiedConstraints, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
-import Control.Effect.Carrier
 import Control.Monad (ap)
 import Control.Monad.Module
 import Data.Void
@@ -30,6 +29,3 @@ instance (forall g . Functor g => Functor (f g), forall g . RModule (f g) g) => 
 instance (forall g . Functor g => Functor (f g), forall g . RModule (f g) g) => Monad (Term f) where
   Var a  >>= f = f a
   Term g >>= f = Term (g >>=* f)
-
-instance (forall g . Functor g => Functor (f g), forall g . RModule (f g) g, HFunctor f) => Carrier f (Term f) where
-  eff = Term
