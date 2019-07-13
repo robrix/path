@@ -364,103 +364,20 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
   pure (Decl name d tm' ty')
 
 declare :: ( Carrier sig m
-           , Member (Error Doc) sig
            , Member Naming sig
-           , Member (Reader Context) sig
-           , Member (Reader Span) sig
-           , Member (State Context) sig
            )
         => m (Problem (Name Gensym) ::: Problem (Name Gensym))
         -> m (Problem (Name Gensym))
-declare ty = goalIs type' ty >>= simplify
+declare ty = goalIs type' ty
 
 define :: ( Carrier sig m
-          , Member (Error Doc) sig
           , Member Naming sig
-          , Member (Reader Context) sig
-          , Member (Reader Span) sig
-          , Member (State Context) sig
           )
        => Problem (Name Gensym)
        -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
        -> m (Problem (Name Gensym))
-define ty tm = goalIs ty tm >>= simplify
+define ty tm = goalIs ty tm
 
-
-simplify :: ( Carrier sig m
-            , Member (Error Doc) sig
-            , Member Naming sig
-            , Member (Reader Context) sig
-            , Member (Reader Span) sig
-            , Member (State Context) sig
-            )
-         => Problem (Name Gensym)
-         -> m (Problem (Name Gensym))
-simplify = withContext . \case
-  Var a -> pure (Var a)
-  Problem p -> case p of
-    R c -> case c of
-      Lam t b -> do
-        n <- fresh
-        t' <- simplify t
-        b' <- ForAll n ::: t' |- simplify (instantiate1 (pure (Local n)) b)
-        pure (lam (Local n ::: t') b')
-      f :$ a -> do
-        f' <- simplify f
-        a' <- simplify a
-        pure (f' $$ a')
-      Type -> pure type'
-      Pi t b -> do
-        n <- fresh
-        t' <- simplify t
-        b' <- ForAll n ::: t' |- simplify (instantiate1 (pure (Local n)) b)
-        pure (pi (Local n ::: t') b')
-    L p -> case p of
-      Ex Nothing t b -> do
-        n <- fresh
-        t' <- simplify t
-        (v', b') <- (n ::: t') `bindMeta` simplify (instantiate1 (pure (Local n)) b)
-        pure (exists (Local n := bindingValue v' ::: t') b')
-      Ex (Just v) t b -> do
-        n <- fresh
-        v' <- simplify v
-        t' <- simplify t
-        b' <- Exists (n := Just v') ::: t' |- simplify (instantiate1 (pure (Local n)) b)
-        pure (let' (Local n := v' ::: t') b')
-      t1 :===: t2 -> do
-        q <- (,) <$> simplify t1 <*> simplify t2
-        case q of
-          (t1, t2) | t1 == t2 -> pure t1
-          (Problem (L (Ex v1 t1 b1)), Problem (L (Ex v2 t2 b2))) -> do
-            n <- fresh
-            t' <- simplify (t1 === t2)
-            v' <- traverse simplify (v1 ?===? v2)
-            (v'', b') <- (n ::: t') `bindMeta` simplify (instantiate1 (pure (Local n)) b1 === instantiate1 (pure (Local n)) b2)
-            pure (exists (Local n := (v' <|> bindingValue v'') ::: t') b')
-          (Problem (L (Ex v1 t1 b1)), tm2) -> do
-            n <- fresh
-            t1' <- simplify t1
-            v' <- traverse simplify v1
-            (v'', tm1') <- (n ::: t1') `bindMeta` simplify (instantiate1 (pure (Local n)) b1 === tm2)
-            pure (exists (Local n := (v' <|> bindingValue v'') ::: t1') tm1')
-          (tm1, Problem (L (Ex v2 t2 b2))) -> do
-            n <- fresh
-            t2' <- simplify t2
-            v' <- traverse simplify v2
-            (v'', tm2') <- (n ::: t2') `bindMeta` simplify (tm1 === instantiate1 (pure (Local n)) b2)
-            pure (exists (Local n := (v' <|> bindingValue v'') ::: t2') tm2')
-          (Var (Local v1), t2) -> simplifyVar v1 t2
-          (t1, Var (Local v2)) -> simplifyVar v2 t1
-          (Problem (R (Pi t1 b1)), Problem (R (Pi t2 b2))) -> do
-            n <- fresh
-            t' <- simplify (t1 === t2)
-            ForAll n ::: t' |- pi (Local n ::: t') <$> simplify (instantiate1 (pure (Local n)) b1 === instantiate1 (pure (Local n)) b2)
-          (Problem (R (Lam t1 b1)), Problem (R (Lam t2 b2))) -> do
-            n <- fresh
-            t' <- simplify (t1 === t2)
-            ForAll n ::: t' |- lam (Local n ::: t') <$> simplify (instantiate1 (pure (Local n)) b1 === instantiate1 (pure (Local n)) b2)
-          (t1, t2) -> pure (Problem (L (t1 :===: t2)))
-  where withContext m = get @Context >>= \ ctx -> local (const ctx) m
 
 simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Gensym -> Problem (Name Gensym) -> m (Problem (Name Gensym))
 simplifyVar v t = do
