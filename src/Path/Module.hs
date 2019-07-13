@@ -87,6 +87,14 @@ renameDecl :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Traversable g)
            -> m (Decl (g Qualified))
 renameDecl ms = runDecl (traverse (rename ms))
 
+renameModule :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Traversable g)
+             => t (Module f a)
+             -> Module g User
+             -> m (Module g Qualified)
+renameModule ms m = do
+  ds <- traverse (runDecl (traverse (rename ms))) (moduleDecls m)
+  pure m { moduleDecls = ds }
+
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> traverse (rename (imported m)) m) ms
