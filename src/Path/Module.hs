@@ -75,6 +75,12 @@ rename ms n = case foldMap (\ m -> [ moduleName m :.: n | d <- moduleDecls m, de
   []   -> freeVariable n
   x:xs -> ambiguousName n (x:|xs)
 
+runDecl :: Carrier sig m => (a -> ReaderC Span m b) -> Decl a -> m (Decl b)
+runDecl f (Decl n d tm ty) = do
+  tm' <- runSpanned f tm
+  ty' <- runSpanned f ty
+  pure (Decl n d tm' ty')
+
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> traverse (rename (imported m)) m) ms
