@@ -24,7 +24,6 @@ library
                      , Path.Eval
                      , Path.Module
                      , Path.Name
-                     , Path.Namespace
                      , Path.Package
                      , Path.Parser
                      , Path.Parser.Mixfix
