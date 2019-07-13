@@ -16,6 +16,7 @@ import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
+import qualified Data.Set as Set
 import Data.Void
 import Data.Traversable (for)
 import GHC.Generics (Generic1)
@@ -136,7 +137,10 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Void) (runError loop >>= either (print @Doc) pure)
+script packageSources
+  = evalState (ModuleGraph mempty :: ModuleGraph Core Void)
+  . evalState (mempty @(Set.Set ModuleName))
+  $ runError loop >>= either (print @Doc) pure
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
         parseCommand str = do
