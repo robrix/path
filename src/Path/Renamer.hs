@@ -73,13 +73,3 @@ resolveName v = asks (lookupName v) >>= maybe (freeVariable v) (unambiguous v)
 filterResolution :: (Qualified -> Bool) -> Resolution -> Resolution
 filterResolution f = Resolution . Map.mapMaybe matches . unResolution
   where matches = nonEmpty . NonEmpty.filter f
-
-unambiguous :: ( Carrier sig m
-               , Member (Error Doc) sig
-               , Member (Reader Span) sig
-               )
-            => User
-            -> NonEmpty Qualified
-            -> m Qualified
-unambiguous _ (q:|[]) = pure q
-unambiguous v (q:|qs) = ambiguousName v (q :| qs)

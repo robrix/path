@@ -43,3 +43,14 @@ cyclicImport (name :~ span :| names) = throwError (vsep
   ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
   : foldr ((:) . whichImports) [ whichImports (name :~ span) ] names))
   where whichImports (name :~ span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
+
+
+unambiguous :: ( Carrier sig m
+               , Member (Error Doc) sig
+               , Member (Reader Span) sig
+               )
+            => User
+            -> NonEmpty Qualified
+            -> m Qualified
+unambiguous _ (q:|[]) = pure q
+unambiguous v (q:|qs) = ambiguousName v (q :| qs)
