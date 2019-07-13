@@ -12,7 +12,6 @@ import Data.Functor.Const
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Void
-import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import Path.Core
@@ -25,6 +24,7 @@ import Path.Scope
 import Path.Semiring
 import Path.Solver
 import Path.Span
+import Path.Stack as Stack
 import qualified Path.Surface as Surface
 import Path.Usage
 import Prelude hiding (pi)
