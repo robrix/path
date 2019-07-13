@@ -4,7 +4,6 @@ module Path.Problem where
 import           Control.Applicative (Alternative (..), Const (..))
 import           Control.Effect
 import           Control.Effect.Carrier
-import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Sum
@@ -14,8 +13,6 @@ import           Data.Bifoldable
 import           Data.Bifunctor
 import           Data.Bitraversable
 import           Data.Coerce
-import           Data.Foldable (fold)
-import           Data.List (intersperse)
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Error
@@ -391,11 +388,6 @@ contextualize = gets . go
         go p (ctx :> Exists (n := Nothing) ::: t) = go (exists (Local n ::: t) p) ctx
         go p (ctx :> Exists (n := Just v)  ::: _) = go (let' (Local n := v) p) ctx
         go p (ctx :> ForAll n              ::: _) = go (lam (Local n) p) ctx
-
-
-unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
-unsimplifiable constraints = throwError (fold (intersperse hardline (map format constraints)))
-  where format (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty c]
 
 
 data a := b = a := b
