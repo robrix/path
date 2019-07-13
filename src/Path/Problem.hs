@@ -61,6 +61,10 @@ instance Pretty (Problem (Name Gensym)) where
                 f' <- withPrec 10 f
                 a' <- withPrec 11 a
                 prec 10 (f' <+> a')
+              Let v (Scope b) -> do
+                v' <- withPrec 0 v
+                (n, b') <- bind Meta (withPrec 0 b)
+                prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> b')
               Type -> pure (yellow (pretty "Type"))
               Pi t (Scope b) -> do
                 t' <- withPrec 1 t
@@ -69,15 +73,10 @@ instance Pretty (Problem (Name Gensym)) where
                         | otherwise          = t'
                 prec 0 (t'' </> arrow <+> b')
             L p -> case p of
-              Ex Nothing t (Scope b) -> do
+              Ex t (Scope b) -> do
                 t' <- withPrec 1 t
                 (n, b') <- bind Meta (withPrec 0 b)
                 prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
-              Ex (Just v) t (Scope b) -> do
-                t' <- withPrec 1 t
-                v' <- withPrec 0 v
-                (n, b') <- bind Meta (withPrec 0 b)
-                prec 0 (magenta (pretty "let") <+> pretty ((n ::: t') := v') </> magenta dot <+> b')
               p1 :===: p2 -> do
                 p1' <- withPrec 1 p1
                 p2' <- withPrec 1 p2
@@ -104,6 +103,7 @@ instance Pretty (Problem (Name Gensym)) where
 data CoreF f a
   = Lam (Scope () f a)
   | f a :$ f a
+  | Let (f a) (Scope () f a)
   | Type
   | Pi (f a) (Scope () f a)
   deriving (Foldable, Functor, Generic1, HFunctor, Traversable)
@@ -114,13 +114,14 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
 
 instance Monad f => RModule (CoreF f) f where
-  Lam b  >>=* f = Lam (b >>=* f)
-  g :$ a >>=* f = (g >>= f) :$ (a >>= f)
-  Type   >>=* _ = Type
-  Pi t b >>=* f = Pi (t >>= f) (b >>=* f)
+  Lam b   >>=* f = Lam (b >>=* f)
+  g :$ a  >>=* f = (g >>= f) :$ (a >>= f)
+  Let v b >>=* f = Let (v >>= f) (b >>=* f)
+  Type    >>=* _ = Type
+  Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
 data ProblemF f a
-  = Ex (Maybe (f a)) (f a) (Scope () f a)
+  = Ex (f a) (Scope () f a)
   | f a :===: f a
   deriving (Foldable, Functor, Generic1, HFunctor, Traversable)
 
@@ -132,7 +133,7 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ProblemF f a)
 
 instance Monad f => RModule (ProblemF f) f where
-  Ex v t b  >>=* f = Ex ((>>= f) <$> v) (t >>= f) (b >>=* f)
+  Ex t b  >>=* f = Ex (t >>= f) (b >>=* f)
   p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
 
@@ -150,6 +151,14 @@ unlam _ _                     = empty
 f $$ a = send (f :$ a)
 
 
+let' :: (Eq a, Carrier sig m, Member CoreF sig) => a := m a -> m a -> m a
+let' (n := v) b = send (Let v (bind1 n b))
+
+unlet' :: Alternative m => a -> Problem a -> m (a := Problem a, Problem a)
+unlet' n (Problem (R (Let v b))) = pure (n := v, instantiate1 (pure n) b)
+unlet' _ _                       = empty
+
+
 type' :: (Carrier sig m, Member CoreF sig) => m a
 type' = send Type
 
@@ -165,19 +174,12 @@ unpi n (Problem (R (Pi t b))) = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                      = empty
 
 
-exists :: (Eq a, Carrier sig m, Member ProblemF sig) => a := Maybe (m a) ::: m a -> m a -> m a
-exists (n := v ::: t) b = send (Ex v t (bind1 n b))
+exists :: (Eq a, Carrier sig m, Member ProblemF sig) => a ::: m a -> m a -> m a
+exists (n ::: t) b = send (Ex t (bind1 n b))
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unexists n (Problem (L (Ex Nothing t b))) = pure (n ::: t, instantiate1 (pure n) b)
-unexists _ _                              = empty
-
-let' :: (Eq a, Carrier sig m, Member ProblemF sig) => a := m a ::: m a -> m a -> m a
-let' (n := v ::: t) b = send (Ex (Just v) t (bind1 n b))
-
-unlet' :: Alternative m => a -> Problem a -> m (a := Problem a ::: Problem a, Problem a)
-unlet' n (Problem (L (Ex (Just v) t b))) = pure (n := v ::: t, instantiate1 (pure n) b)
-unlet' _ _                               = empty
+unexists n (Problem (L (Ex t b))) = pure (n ::: t, instantiate1 (pure n) b)
+unexists _ _                      = empty
 
 (===) :: (Carrier sig m, Member ProblemF sig) => m a -> m a -> m a
 p === q = send (p :===: q)
@@ -208,10 +210,11 @@ eiter var alg k = go
             R c -> R $ case c of
               Lam b -> Lam (foldScope k go h b)
               f :$ a -> go h f :$ go h a
+              Let v b -> Let (go h v) (foldScope k go h b)
               Type -> Type
               Pi t b -> Pi (go h t) (foldScope k go h b)
             L p -> L $ case p of
-              Ex v t b -> Ex (go h <$> v) (go h t) (foldScope k go h b)
+              Ex t b -> Ex (go h t) (foldScope k go h b)
               p1 :===: p2 -> go h p1 :===: go h p2
 
 kcata :: (a -> b)
@@ -293,7 +296,7 @@ goalIs ty2 m = do
 meta :: (Carrier sig m, Member Naming sig) => Problem (Name Gensym) -> m (Problem (Name Gensym))
 meta ty = do
   n <- fresh
-  pure (exists (Local n := Nothing ::: ty) (pure (Local n)))
+  pure (exists (Local n ::: ty) (pure (Local n)))
 
 (|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem (Name Gensym) -> m a -> m a
 b |- m = local (:> b) m
@@ -391,10 +394,11 @@ simplifyVar v t = do
 
 contextualize :: (Carrier sig m, Member (State Context) sig) => Problem (Name Gensym) -> m (Problem (Name Gensym))
 contextualize = gets . go
-  where go p Nil                            = p
-        go p (ctx :> Define _        ::: _) = go p ctx
-        go p (ctx :> Exists (n := v) ::: t) = go (exists (Local n := v ::: t) p) ctx
-        go p (ctx :> ForAll n        ::: _) = go (lam (Local n) p) ctx
+  where go p Nil                                  = p
+        go p (ctx :> Define _              ::: _) = go p ctx
+        go p (ctx :> Exists (n := Nothing) ::: t) = go (exists (Local n ::: t) p) ctx
+        go p (ctx :> Exists (n := Just v)  ::: _) = go (let' (Local n := v) p) ctx
+        go p (ctx :> ForAll n              ::: _) = go (lam (Local n) p) ctx
 
 
 unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
@@ -452,6 +456,6 @@ constant = lam "A" (lam "B" (lam "a" (lam "b" (pure "a"))))
 constantT = pi ("A" ::: type') (pi ("B" ::: type') (pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))
 
 constantTQ
-  = exists ("_A" := Nothing ::: type') (pi ("A" ::: pure "_A")
-  ( exists ("_B" := Nothing ::: type') (pi ("B" ::: pure "_B")
+  = exists ("_A" ::: type') (pi ("A" ::: pure "_A")
+  ( exists ("_B" ::: type') (pi ("B" ::: pure "_B")
   ( pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))))
