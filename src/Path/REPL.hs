@@ -150,10 +150,7 @@ script packageSources
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> elaborate tm >>= print . typedType . unSpanned >> loop
-          Command.Decl decl -> do
-            imported <- get
-            subgraph <- gets @(ModuleGraph Core Void) (fmap unScopeH . flip Map.restrictKeys imported . unModuleGraph)
-            renameDecl subgraph decl >>= elabDecl >> loop
+          Command.Decl decl -> runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= elabDecl) >> loop
           Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm . unSpanned >>= print >> loop
           Show Bindings -> do
             scope <- get
@@ -200,10 +197,14 @@ script packageSources
 elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Namespace.Namespace) sig, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
 elaborate = runSpanned $ \ tm -> do
   ty <- inferType
-  imported <- get
-  subgraph <- gets @(ModuleGraph Core Void) (fmap unScopeH . flip Map.restrictKeys imported . unModuleGraph)
-  tm' <- traverse (rename subgraph) tm
+  tm' <- runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename)
   runNamespace (define ty (elab tm'))
+
+runSubgraph :: (Carrier sig m, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph Core Void) m a -> m a
+runSubgraph m = do
+  imported <- get
+  subgraph <- gets @(ModuleGraph Core Void) (ModuleGraph . flip Map.restrictKeys imported . unModuleGraph)
+  runReader subgraph m
 
 basePackage :: Package
 basePackage = Package
