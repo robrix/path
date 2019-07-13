@@ -17,8 +17,8 @@ import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
-import Data.Void
 import Data.Traversable (for)
+import Data.Void
 import GHC.Generics (Generic1)
 import Path.Core
 import Path.Elab
