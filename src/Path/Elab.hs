@@ -198,14 +198,6 @@ elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . loca
 logError :: (Member (State (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = modify . flip (:>)
 
-importModule :: ( Carrier sig m
-                , Member (Error Doc) sig
-                , Member (Reader ModuleTable) sig
-                )
-             => Spanned ModuleName
-             -> m Namespace
-importModule n@(i :~ _) = asks (Map.lookup i) >>= maybe (unknownModule n) pure
-
 
 elabDecl :: ( Carrier sig m
             , Effect sig

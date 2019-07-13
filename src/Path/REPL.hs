@@ -160,8 +160,6 @@ script packageSources
             loop
           Reload -> reload *> loop
           Command.Import i -> do
-            table <- get
-            runReader (table :: ModuleTable) (importModule i) >>= modify . Namespace.union
             modify (Set.insert (unSpanned i))
             loop
           Command.Doc moduleName -> do
