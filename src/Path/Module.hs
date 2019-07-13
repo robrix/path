@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
 module Path.Module where
 
 import Control.Effect
@@ -52,7 +52,7 @@ data Decl a = Decl
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 newtype ModuleGraph f a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (ScopeH Qualified (Module f) f a) }
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Monoid, Semigroup, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (ModuleGraph f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
