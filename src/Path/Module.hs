@@ -66,8 +66,8 @@ instance Monad f => RModule (ModuleGraph f) f where
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
 moduleGraph ms = ModuleGraph (Map.fromList (map ((,) .moduleName <*> bindHEither Left) ms))
 
-resolveModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
-resolveModuleGraph ms = do
+renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
+renameModuleGraph ms = do
   let resolve m n = case Map.foldMapWithKey (\ mn m' -> [ mn :.: declName d | d <- moduleDecls m', declName d == n ]) (imported m) of
         [x]  -> pure x
         []   -> freeVariable n
