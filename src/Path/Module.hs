@@ -57,7 +57,7 @@ newtype ModuleGraph f a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (Mod
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (ModuleGraph f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (ModuleGraph f a)
-deriving instance (Show a, forall a . Show a => Show (f a)) => Show (ModuleGraph f a)
+deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ModuleGraph f a)
 
 instance Monad f => RModule (ModuleGraph f) f where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
