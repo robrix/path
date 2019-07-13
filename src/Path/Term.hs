@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveTraversable, QuantifiedConstraints, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
+import Data.Void
+
 data Term f a
   = Var a
   | Term (f (Term f) a)
@@ -14,3 +16,5 @@ deriving instance (forall g . Functor     g => Functor     (f g)) => Functor    
 deriving instance (forall g . Foldable    g => Foldable    (f g)
                  , forall g . Functor     g => Functor     (f g)
                  , forall g . Traversable g => Traversable (f g)) => Traversable (Term f)
+
+type Closed f = Term f Void
