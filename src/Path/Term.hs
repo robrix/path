@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, QuantifiedConstraints, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
 data Term f a
@@ -8,9 +8,3 @@ data Term f a
 deriving instance (Eq   a, Eq   (f (Term f) a)) => Eq   (Term f a)
 deriving instance (Ord  a, Ord  (f (Term f) a)) => Ord  (Term f a)
 deriving instance (Show a, Show (f (Term f) a)) => Show (Term f a)
-
-deriving instance (forall g . Foldable    g => Foldable    (f g)) => Foldable    (Term f)
-deriving instance (forall g . Functor     g => Functor     (f g)) => Functor     (Term f)
-deriving instance (forall g . Foldable    g => Foldable    (f g)
-                 , forall g . Functor     g => Functor     (f g)
-                 , forall g . Traversable g => Traversable (f g)) => Traversable (Term f)
