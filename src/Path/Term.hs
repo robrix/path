@@ -1,4 +1,4 @@
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleInstances, RankNTypes #-}
 module Path.Term where
 
 import Control.Effect.Carrier
@@ -15,3 +15,6 @@ class HFunctor sig => Syntax sig where
              -> (a -> m b)
              -> sig f a
              -> sig n b
+
+instance Syntax (Scope ()) where
+  foldSyntax go bound free = Scope . go (bound . fmap (go free)) . unScope
