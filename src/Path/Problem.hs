@@ -428,10 +428,6 @@ lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Problem (Name Gens
 lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
 
 
-runProblem :: Functor m => ReaderC Span (StateC Context m) a -> m a
-runProblem = evalState (mempty :: Context) . runReader (Span mempty mempty mempty)
-
-
 identity, identityT, constant, constantT, constantTQ :: Problem String
 
 identity = lam "A" (lam "a" (pure "a"))
