@@ -6,7 +6,7 @@ import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
-import Control.Effect.Sum as Effect
+import Control.Effect.Sum
 import Control.Effect.Writer
 import Control.Monad ((<=<), foldM, join, unless)
 import Control.Monad.Fix
