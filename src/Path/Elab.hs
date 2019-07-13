@@ -6,19 +6,18 @@ import Control.Effect.Error
 import Control.Effect.Reader hiding (Reader(Local))
 import Control.Effect.State
 import Control.Effect.Writer
-import Control.Monad ((<=<))
+import Control.Monad (foldM)
 import Data.Bifunctor (first)
-import Data.Foldable (for_)
 import Data.Functor.Const
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Traversable (for)
+import Data.Void
 import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
 import Path.Core
 import Path.Error
-import Path.Module
+import Path.Module as Module
 import Path.Name
 import Path.Namespace as Namespace
 import Path.Plicity
@@ -33,12 +32,12 @@ import Prelude hiding (pi)
 
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
-          , Member (Reader Namespace) sig
+          , Member (Reader (ModuleGraph Core Void)) sig
           , Member (Reader Span) sig
           )
        => Qualified
        -> m (Core (Name Meta) ::: Core (Name Meta))
-assume n = asks (fmap (weaken . entryType) . Namespace.lookup n) >>= maybe (freeVariable n) (pure . (global n :::))
+assume n = asks @(ModuleGraph Core Void) (fmap (weaken . unSpanned . declType) . Module.lookup n) >>= maybe (freeVariable n) (pure . (global n :::))
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -147,7 +146,7 @@ elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member Naming sig
         , Member (Reader (Context (Core (Name Meta)))) sig
-        , Member (Reader Namespace) sig
+        , Member (Reader (ModuleGraph Core Void)) sig
         , Member (Reader Span) sig
         , Member (State Signature) sig
         , Member (Writer (Set.Set (Spanned (Constraint Core (Name Meta))))) sig
@@ -180,19 +179,20 @@ elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error Doc) sig
               , Member Naming sig
-              , Member (Reader ModuleTable) sig
-              , Member (State (Stack Doc)) sig
+              , Member (Reader (ModuleGraph Core Void)) sig
               , Member (State Namespace) sig
+              , Member (State (Stack Doc)) sig
               )
            => Module Surface.Surface Qualified
            -> m (Module Core Qualified)
-elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
-  for_ (Map.toList (moduleImports m)) (modify . Namespace.union <=< importModule . uncurry (:~))
-
-  decls <- for (moduleDecls m) $ \ decl ->
-    (Just . fmap (bind (Just . unqualified)) <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((Nothing <$) . logError)
-  pure m { moduleDecls = Map.mapMaybe id decls }
-  where qualified = (moduleName m :.:) . declName
+elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . local @(ModuleGraph Core Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
+  decls <- foldM go mempty (moduleDecls m)
+  pure m { moduleDecls = decls }
+  where go decls decl = local (extendGraph decls) $ do
+          (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
+        extendModule decls decl = Map.insert (declName decl) (bind (Just . unqualified) <$> decl) decls
+        extendGraph decls (ModuleGraph g) = ModuleGraph @Core @Void (Map.insert (moduleName m) (bindHEither Left m { moduleDecls = decls }) g)
+        qualified = (moduleName m :.:) . declName
         unqualified (_ :.: u) = u
 
 logError :: (Member (State (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
@@ -211,6 +211,7 @@ elabDecl :: ( Carrier sig m
             , Effect sig
             , Member (Error Doc) sig
             , Member Naming sig
+            , Member (Reader (ModuleGraph Core Void)) sig
             , Member (Reader ModuleName) sig
             , Member (State Namespace) sig
             )

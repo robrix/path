@@ -7,15 +7,13 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum as Effect
-import Control.Monad ((<=<), join, unless)
+import Control.Monad ((<=<), foldM, join, unless)
 import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans (MonadTrans(..))
-import Data.Bool (bool)
 import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
-import Data.Maybe (catMaybes)
 import qualified Data.Set as Set
 import Data.Traversable (for)
 import Data.Void
@@ -173,32 +171,28 @@ script packageSources
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
             loop
         reload = do
-          let n = length packageSources
-          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= loadOrder
-
-          checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, ScopeH m) -> skipDeps m $ do
-            let name    = moduleName m
-                ordinal = brackets (pretty i <+> pretty "of" <+> pretty n)
-                path    = parens (pretty (modulePath m))
-            print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
-            table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Namespace.Namespace) (elabModule (instantiateHEither (either pure absurd) (ScopeH m)))))
-            if Prelude.null errs then
-              modify (Map.insert name scope)
-            else do
-              for_ errs (print @Doc)
-              modify (name:)
-            pure (Just res)
-          put (moduleGraph (catMaybes checked))
-        runDeps = evalState ([] :: [ModuleName])
-        skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
-        failedDep m = all @[] (`notElem` Map.keys (moduleImports m))
+          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateHEither (either pure absurd))) . loadOrder
+          checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph Core Void)) (zip [(1 :: Int)..] sorted)
+          put checked
+        load n graph (i, m) = skipDeps graph m $ do
+          let name    = moduleName m
+              ordinal = brackets (pretty i <+> pretty "of" <+> pretty n)
+              path    = parens (pretty (modulePath m))
+          print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
+          table <- get
+          (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Namespace.Namespace) (runReader graph (elabModule m))))
+          if Prelude.null errs then do
+            modify (Map.insert name scope)
+            pure (ModuleGraph (Map.insert name (bindHEither Left res) (unModuleGraph graph)))
+          else do
+            for_ errs (print @Doc)
+            pure graph
+        skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
 elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Namespace.Namespace) sig, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
 elaborate = runSpanned $ \ tm -> do
   ty <- inferType
-  tm' <- runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename)
-  runNamespace (define ty (elab tm'))
+  runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename >>= runNamespace . define ty . elab)
 
 runSubgraph :: (Carrier sig m, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph Core Void) m a -> m a
 runSubgraph m = do
