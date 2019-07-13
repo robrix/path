@@ -238,10 +238,3 @@ helpDoc = tabulate2 (space <+> space) entries
           , (":type, :t <expr>", w "show the type of <expr>")
           ]
         w = align . fillSep . map pretty . words
-
-runParseModule :: FilePath -> (Module Surface.Surface Qualified -> NamingC (ErrorC Doc (LiftC IO)) a) -> IO (Either Doc a)
-runParseModule path f = runM @IO . runError @Doc $ do
-  m <- parseModule path
-  runNaming $ do
-    m' <- evalState (mempty :: Resolution) (resolveModule m)
-    f m'
