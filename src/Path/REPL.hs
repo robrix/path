@@ -30,7 +30,6 @@ import Path.Parser (Delta(..), parseString, whole)
 import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
-import Path.Renamer
 import Path.REPL.Command as Command
 import Path.Scope
 import Path.Span
@@ -114,10 +113,9 @@ repl packageSources = liftIO $ do
        (runREPL prefs settings
        (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Namespace.Namespace)
-       (evalState (Resolution mempty)
        (runReader (ModuleName "(interpreter)")
        (runNaming
-       (script packageSources))))))))
+       (script packageSources)))))))
 
 newtype Line = Line Int64
 
@@ -133,7 +131,6 @@ script :: ( Carrier sig m
           , Member REPL sig
           , Member (Reader ModuleName) sig
           , Member (State ModuleTable) sig
-          , Member (State Resolution) sig
           , Member (State Namespace.Namespace) sig
           , MonadIO m
           )
@@ -150,8 +147,9 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Void) 
           Help -> print helpDoc *> loop
           TypeOf tm -> elaborate tm >>= print . typedType . unSpanned >> loop
           Command.Decl decl -> do
-            _ <- runRenamer (resolveDecl decl) >>= elabDecl
-            loop
+            imported <- gets @ModuleTable Map.keysSet
+            subgraph <- gets @(ModuleGraph Core Void) (fmap unScopeH . flip Map.restrictKeys imported . unModuleGraph)
+            renameDecl subgraph decl >>= elabDecl >> loop
           Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm . unSpanned >>= print >> loop
           Show Bindings -> do
             scope <- get
@@ -174,7 +172,6 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Void) 
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
             loop
         reload = do
-          put (Resolution mempty)
           let n = length packageSources
           sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= loadOrder
 
@@ -196,15 +193,12 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Void) 
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all @[] (`notElem` Map.keys (moduleImports m))
 
-runRenamer :: (Carrier sig m, Member (State Resolution) sig) => ReaderC Resolution m a -> m a
-runRenamer m = do
-  res <- get
-  runReader (res :: Resolution) m
-
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Resolution) sig, Member (State Namespace.Namespace) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Namespace.Namespace) sig, Member (State (ModuleGraph Core Void)) sig, Member (State ModuleTable) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
 elaborate = runSpanned $ \ tm -> do
   ty <- inferType
-  tm' <- runRenamer (traverse resolveName tm)
+  imported <- gets @ModuleTable Map.keysSet
+  subgraph <- gets @(ModuleGraph Core Void) (fmap unScopeH . flip Map.restrictKeys imported . unModuleGraph)
+  tm' <- traverse (rename subgraph) tm
   runNamespace (define ty (elab tm'))
 
 basePackage :: Package
