@@ -104,6 +104,13 @@ renameModuleGraph ms = do
 modules :: Monad f => ModuleGraph f Void -> [Module f Qualified]
 modules (ModuleGraph m) = map (instantiateHEither (either pure absurd)) (Map.elems m)
 
+lookup :: Monad f => Qualified -> ModuleGraph f Void -> Maybe (Decl (f Qualified))
+lookup (mn :.: n) (ModuleGraph g) = do
+  sm <- Map.lookup mn g
+  let m = instantiateHEither (either pure absurd) sm
+  decl <- Map.lookup n (moduleDecls m)
+  pure (instantiate (pure . (moduleName m :.:)) <$> decl)
+
 
 lookupModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned ModuleName -> ModuleGraph f a -> m (ScopeH Qualified (Module f) f a)
 lookupModule i g = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
