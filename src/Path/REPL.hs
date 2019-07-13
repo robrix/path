@@ -203,7 +203,7 @@ elaborate = runSpanned $ \ tm -> do
 runSubgraph :: (Carrier sig m, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph Core Void) m a -> m a
 runSubgraph m = do
   imported <- get
-  subgraph <- gets @(ModuleGraph Core Void) (ModuleGraph . flip Map.restrictKeys imported . unModuleGraph)
+  subgraph <- gets @(ModuleGraph Core Void) (Module.restrict imported)
   runReader subgraph m
 
 basePackage :: Package

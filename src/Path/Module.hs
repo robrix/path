@@ -65,6 +65,9 @@ instance Monad f => RModule (ModuleGraph f) f where
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
 moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms))
 
+restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
+restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
+
 rename :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Member (Reader Span) sig)
        => t (Module f a)
        -> User
