@@ -347,27 +347,12 @@ elabDecl :: ( Carrier sig m
          -> m (Decl (Problem (Name Gensym)))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ctx <- get
-  ty' <- runSpanned (runReader ctx . declare . elab) ty
+  ty' <- runSpanned (runReader ctx . goalIs type' . elab) ty
   def <- meta (unSpanned ty')
   moduleName <- ask
-  tm' <- runSpanned (runReader (ctx :> Define (moduleName :.: name := def) ::: unSpanned ty') . define (unSpanned ty') . elab) tm
+  tm' <- runSpanned (runReader (ctx :> Define (moduleName :.: name := def) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
   put (ctx :> Define (moduleName :.: name := unSpanned tm') ::: unSpanned ty')
   pure (Decl name d tm' ty')
-
-declare :: ( Carrier sig m
-           , Member Naming sig
-           )
-        => m (Problem (Name Gensym) ::: Problem (Name Gensym))
-        -> m (Problem (Name Gensym))
-declare ty = goalIs type' ty
-
-define :: ( Carrier sig m
-          , Member Naming sig
-          )
-       => Problem (Name Gensym)
-       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
-       -> m (Problem (Name Gensym))
-define ty tm = goalIs ty tm
 
 
 data a := b = a := b
