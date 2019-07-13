@@ -133,7 +133,7 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ProblemF f a)
 
 instance Monad f => RModule (ProblemF f) f where
-  Ex t b  >>=* f = Ex (t >>= f) (b >>=* f)
+  Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
   p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
 
