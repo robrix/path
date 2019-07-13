@@ -66,16 +66,21 @@ instance Monad f => RModule (ModuleGraph f) f where
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
 moduleGraph ms = ModuleGraph (Map.fromList (map ((,) .moduleName <*> bindHEither Left) ms))
 
+rename :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Member (Reader Span) sig)
+       => t (Module f a)
+       -> User
+       -> m Qualified
+rename ms n = case foldMap (\ m -> [ moduleName m :.: n | d <- moduleDecls m, declName d == n ]) ms of
+  [x]  -> pure x
+  []   -> freeVariable n
+  x:xs -> ambiguousName n (x:|xs)
+
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
-  let resolve i n = case Map.foldMapWithKey (\ mn m' -> [ mn :.: declName d | d <- moduleDecls m', declName d == n ]) i of
-        [x]  -> pure x
-        []   -> freeVariable n
-        x:xs -> ambiguousName n (x:|xs)
-      imported m = Map.restrictKeys modules' (Map.keysSet (moduleImports m))
-      modules' = Map.fromList (map ((,) . moduleName <*> id) ms)
-  ms' <- traverse (\ m -> traverse (resolve (imported m)) m) ms
+  ms' <- traverse (\ m -> traverse (rename (imported m)) m) ms
   pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms')))
+  where imported m = filter (flip Set.member imports . moduleName) ms
+          where imports = Map.keysSet (moduleImports m)
 
 modules :: Monad f => ModuleGraph f Void -> [Module f Qualified]
 modules (ModuleGraph m) = map (instantiateHEither (either pure absurd)) (Map.elems m)
