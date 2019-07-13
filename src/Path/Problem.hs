@@ -54,10 +54,9 @@ instance Pretty (Problem (Name Gensym)) where
           var (Local  v) = pretty v <$ tell (Set.singleton @Meta v)
           alg = \case
             R c -> case c of
-              Lam t (Scope b) -> do
-                t' <- withPrec 1 t
+              Lam (Scope b) -> do
                 (n, b') <- bind Name (withPrec 0 b)
-                prec 0 (pretty (cyan backslash) <+> pretty (n ::: t') </> cyan dot <+> b')
+                prec 0 (pretty (cyan backslash) <+> pretty n </> cyan dot <+> b')
               f :$ a -> do
                 f' <- withPrec 10 f
                 a' <- withPrec 11 a
@@ -103,7 +102,7 @@ instance Pretty (Problem (Name Gensym)) where
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
 data CoreF f a
-  = Lam (f a) (Scope () f a)
+  = Lam (Scope () f a)
   | f a :$ f a
   | Type
   | Pi (f a) (Scope () f a)
@@ -115,10 +114,10 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
 
 instance Monad f => RModule (CoreF f) f where
-  Lam t b >>=* f = Lam (t >>= f) (b >>=* f)
-  g :$ a  >>=* f = (g >>= f) :$ (a >>= f)
-  Type    >>=* _ = Type
-  Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
+  Lam b  >>=* f = Lam (b >>=* f)
+  g :$ a >>=* f = (g >>= f) :$ (a >>= f)
+  Type   >>=* _ = Type
+  Pi t b >>=* f = Pi (t >>= f) (b >>=* f)
 
 data ProblemF f a
   = Ex (Maybe (f a)) (f a) (Scope () f a)
@@ -137,15 +136,15 @@ instance Monad f => RModule (ProblemF f) f where
   p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
 
-lam :: (Eq a, Carrier sig m, Member CoreF sig) => a ::: m a -> m a -> m a
-lam (n ::: t) b = send (Lam t (bind1 n b))
+lam :: (Eq a, Carrier sig m, Member CoreF sig) => a -> m a -> m a
+lam n b = send (Lam (bind1 n b))
 
-lams :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t (a ::: m a) -> m a -> m a
+lams :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
-unlam :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unlam n (Problem (R (Lam t b))) = pure (n ::: t, instantiate1 (pure n) b)
-unlam _ _                       = empty
+unlam :: Alternative m => a -> Problem a -> m (a, Problem a)
+unlam n (Problem (R (Lam b))) = pure (n, instantiate1 (pure n) b)
+unlam _ _                     = empty
 
 ($$) :: (Carrier sig m, Member CoreF sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
@@ -207,7 +206,7 @@ eiter var alg k = go
           Var a -> var (h a)
           Problem p -> alg $ case p of
             R c -> R $ case c of
-              Lam t b -> Lam (go h t) (foldScope k go h b)
+              Lam b -> Lam (foldScope k go h b)
               f :$ a -> go h f :$ go h a
               Type -> Type
               Pi t b -> Pi (go h t) (foldScope k go h b)
@@ -248,7 +247,7 @@ intro body = do
   x <- fresh
   _B <- ForAll x ::: _A |- meta type'
   u <- ForAll x ::: _A |- goalIs _B body
-  pure (lam (Local x ::: _A) u ::: pi (Local x ::: _A) _B)
+  pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
          , Member Naming sig
@@ -395,7 +394,7 @@ contextualize = gets . go
   where go p Nil                            = p
         go p (ctx :> Define _        ::: _) = go p ctx
         go p (ctx :> Exists (n := v) ::: t) = go (exists (Local n := v ::: t) p) ctx
-        go p (ctx :> ForAll n        ::: t) = go (lam (Local n ::: t) p) ctx
+        go p (ctx :> ForAll n        ::: _) = go (lam (Local n) p) ctx
 
 
 unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
@@ -447,9 +446,9 @@ runProblem = evalState (mempty :: Context) . runReader (Span mempty mempty mempt
 
 identity, identityT, constant, constantT, constantTQ :: Problem String
 
-identity = lam ("A" ::: type') (lam ("a" ::: pure "A") (pure "a"))
+identity = lam "A" (lam "a" (pure "a"))
 identityT = pi ("A" ::: type') (pi ("_" ::: pure "A") (pure "A"))
-constant = lam ("A" ::: type') (lam ("B" ::: type') (lam ("a" ::: pure "A") (lam ("b" ::: pure "B") (pure "a"))))
+constant = lam "A" (lam "B" (lam "a" (lam "b" (pure "a"))))
 constantT = pi ("A" ::: type') (pi ("B" ::: type') (pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))
 
 constantTQ
