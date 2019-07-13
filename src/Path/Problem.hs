@@ -34,10 +34,10 @@ data Problem a
 
 instance Applicative Problem where
   pure = Var
-  f <*> a = eiter id Problem Var (<$> a) f
+  f <*> a = iter id Problem Var (<$> a) f
 
 instance Monad Problem where
-  a >>= f = eiter id Problem Var f a
+  a >>= f = iter id Problem Var f a
 
 instance Carrier (ProblemF :+: CoreF) Problem where
   eff = Problem
@@ -184,14 +184,14 @@ p === q = send (p :===: q)
 infixr 3 ===
 
 
-eiter :: forall m n a b
-      .  (forall a . m a -> n a)
-      -> (forall a . (ProblemF :+: CoreF) n a -> n a)
-      -> (forall a . Incr () (n a) -> m (Incr () (n a)))
-      -> (a -> m b)
-      -> Problem a
-      -> n b
-eiter var alg k = go
+iter :: forall m n a b
+     .  (forall a . m a -> n a)
+     -> (forall a . (ProblemF :+: CoreF) n a -> n a)
+     -> (forall a . Incr () (n a) -> m (Incr () (n a)))
+     -> (a -> m b)
+     -> Problem a
+     -> n b
+iter var alg k = go
   where go :: forall x y . (x -> m y) -> Problem x -> n y
         go h = \case
           Var a -> var (h a)
@@ -212,7 +212,7 @@ kcata :: (a -> b)
       -> (x -> a)
       -> Problem x
       -> b
-kcata var alg k h = getConst . eiter (coerce var) (coerce alg) (coerce k) (Const . h)
+kcata var alg k h = getConst . iter (coerce var) (coerce alg) (coerce k) (Const . h)
 
 
 type Context = Stack (Binding ::: Problem (Name Gensym))
