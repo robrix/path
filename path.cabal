@@ -45,7 +45,6 @@ library
                      , Path.Span
                      , Path.Stack
                      , Path.Surface
-                     , Path.Term
                      , Path.Usage
   other-modules:       Paths_path
   -- other-extensions:
