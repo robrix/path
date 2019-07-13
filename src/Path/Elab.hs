@@ -10,10 +10,8 @@ import Control.Monad ((<=<))
 import Data.Bifunctor (first)
 import Data.Foldable (for_)
 import Data.Functor.Const
-import Data.List (elemIndex)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
-import Data.Maybe (catMaybes)
 import Data.Traversable (for)
 import Path.Stack as Stack
 import Path.Constraint hiding ((|-))
@@ -192,9 +190,10 @@ elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) $ do
   for_ (Map.toList (moduleImports m)) (modify . Namespace.union <=< importModule . uncurry (:~))
 
   decls <- for (moduleDecls m) $ \ decl ->
-    (Just . fmap (bind (`elemIndex` map qualified (moduleDecls m))) <$> elabDecl (instantiate (pure . qualified . (moduleDecls m !!)) <$> decl)) `catchError` ((Nothing <$) . logError)
-  pure m { moduleDecls = catMaybes decls }
+    (Just . fmap (bind (Just . unqualified)) <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((Nothing <$) . logError)
+  pure m { moduleDecls = Map.mapMaybe id decls }
   where qualified = (moduleName m :.:) . declName
+        unqualified (_ :.: u) = u
 
 logError :: (Member (State (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = modify . flip (:>)

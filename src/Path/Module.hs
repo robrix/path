@@ -7,9 +7,8 @@ import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
 import Control.Monad.Module
-import Data.Foldable (for_)
+import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..), (<|), nub)
-import Data.List (elemIndex)
 import qualified Data.Map as Map
 import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
@@ -26,7 +25,7 @@ data Module f a = Module
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
   , moduleImports :: Map.Map ModuleName Span
-  , moduleDecls   :: [Decl (Scope Int f a)]
+  , moduleDecls   :: Map.Map User (Decl (Scope User f a))
   }
   deriving (Foldable, Functor, Traversable)
 
@@ -36,13 +35,13 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
 
 instance Monad f => RModule (Module f) f where
-  Module n d p is ds >>=* f = Module n d p is (map (fmap (>>=* f)) ds)
+  Module n d p is ds >>=* f = Module n d p is (fmap (fmap (>>=* f)) ds)
 
 module' :: Applicative f => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [Decl (f User)] -> Module f User
-module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) (map bind' ds)
-  where bind' (Decl u d tm ty) = Decl u d (bind'' <$> tm) (bind'' <$> ty)
-          where bind'' = bind (`elemIndex` map declName ds)
+module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) decls
+  where bind' (Decl u d tm ty) = Decl u d (bind (fmap declName . flip Map.lookup decls) <$> tm) (bind (fmap declName . flip Map.lookup decls) <$> ty)
         unSpan (i :~ s) = (i, s)
+        decls = Map.fromList (map ((,) . declName <*> bind') ds)
 
 data Decl a = Decl
   { declName :: User
@@ -70,7 +69,7 @@ rename :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Member (Reader Spa
        => t (Module f a)
        -> User
        -> m Qualified
-rename ms n = case foldMap (\ m -> [ moduleName m :.: n | d <- moduleDecls m, declName d == n ]) ms of
+rename ms n = case foldMap (\ m -> [ moduleName m :.: n | d <- toList (moduleDecls m), declName d == n ]) ms of
   [x]  -> pure x
   []   -> freeVariable n
   x:xs -> ambiguousName n (x:|xs)
