@@ -8,6 +8,7 @@ import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Writer
+import           Control.Monad.Module
 import           Data.Bifoldable
 import           Data.Bifunctor
 import           Data.Bitraversable
@@ -113,6 +114,14 @@ deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Pr
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (ProblemF f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ProblemF f a)
+
+instance Monad f => RModule (ProblemF f) f where
+  Lam t b   >>=* f = Lam (t >>= f) (b >>=* f)
+  g :$ a    >>=* f = (g >>= f) :$ (a >>= f)
+  Type      >>=* _ = Type
+  Pi t b    >>=* f = Pi (t >>= f) (b >>=* f)
+  Ex v t b  >>=* f = Ex ((>>= f) <$> v) (t >>= f) (b >>=* f)
+  p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
 
 lam :: (Eq a, Carrier sig m, Member ProblemF sig) => a ::: m a -> m a -> m a
