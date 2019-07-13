@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Problem where
 
 import           Control.Applicative (Alternative (..), Const (..))
@@ -12,7 +12,6 @@ import           Control.Monad.Module
 import           Data.Bifoldable
 import           Data.Bifunctor
 import           Data.Bitraversable
-import           Data.Coerce
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Error
@@ -24,23 +23,12 @@ import           Path.Scope
 import           Path.Span
 import           Path.Stack as Stack
 import qualified Path.Surface as Surface
+import           Path.Term
 import           Path.Usage
 import           Prelude hiding (pi)
 
-data Problem a
-  = Var a
-  | Problem ((ProblemF :+: CoreF) Problem a)
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+type Problem = Term (ProblemF :+: CoreF)
 
-instance Applicative Problem where
-  pure = Var
-  f <*> a = iter id Problem Var (<$> a) f
-
-instance Monad Problem where
-  a >>= f = iter id Problem Var f a
-
-instance Carrier (ProblemF :+: CoreF) Problem where
-  eff = Problem
 
 newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
@@ -117,6 +105,14 @@ instance Monad f => RModule (CoreF f) f where
   Type    >>=* _ = Type
   Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
+instance Syntax CoreF where
+  foldSyntax go bound free = \case
+    Lam b -> Lam (foldSyntax go bound free b)
+    f :$ a -> go free f :$ go free a
+    Let v b -> Let (go free v) (foldSyntax go bound free b)
+    Type -> Type
+    Pi t b -> Pi (go free t) (foldSyntax go bound free b)
+
 data ProblemF f a
   = Ex (f a) (Scope () f a)
   | f a :===: f a
@@ -133,6 +129,11 @@ instance Monad f => RModule (ProblemF f) f where
   Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
   p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
+instance Syntax ProblemF where
+  foldSyntax go bound free = \case
+    Ex t b -> Ex (go free t) (foldSyntax go bound free b)
+    p1 :===: p2 -> go free p1 :===: go free p2
+
 
 lam :: (Eq a, Carrier sig m, Member CoreF sig) => a -> m a -> m a
 lam n b = send (Lam (bind1 n b))
@@ -141,8 +142,8 @@ lams :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
 unlam :: Alternative m => a -> Problem a -> m (a, Problem a)
-unlam n (Problem (R (Lam b))) = pure (n, instantiate1 (pure n) b)
-unlam _ _                     = empty
+unlam n (Term (R (Lam b))) = pure (n, instantiate1 (pure n) b)
+unlam _ _                  = empty
 
 ($$) :: (Carrier sig m, Member CoreF sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
@@ -152,8 +153,8 @@ let' :: (Eq a, Carrier sig m, Member CoreF sig) => a := m a -> m a -> m a
 let' (n := v) b = send (Let v (bind1 n b))
 
 unlet' :: Alternative m => a -> Problem a -> m (a := Problem a, Problem a)
-unlet' n (Problem (R (Let v b))) = pure (n := v, instantiate1 (pure n) b)
-unlet' _ _                       = empty
+unlet' n (Term (R (Let v b))) = pure (n := v, instantiate1 (pure n) b)
+unlet' _ _                    = empty
 
 
 type' :: (Carrier sig m, Member CoreF sig) => m a
@@ -167,52 +168,21 @@ pis :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t (a ::: m a) -> m
 pis names body = foldr pi body names
 
 unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unpi n (Problem (R (Pi t b))) = pure (n ::: t, instantiate1 (pure n) b)
-unpi _ _                      = empty
+unpi n (Term (R (Pi t b))) = pure (n ::: t, instantiate1 (pure n) b)
+unpi _ _                   = empty
 
 
 exists :: (Eq a, Carrier sig m, Member ProblemF sig) => a ::: m a -> m a -> m a
 exists (n ::: t) b = send (Ex t (bind1 n b))
 
 unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
-unexists n (Problem (L (Ex t b))) = pure (n ::: t, instantiate1 (pure n) b)
-unexists _ _                      = empty
+unexists n (Term (L (Ex t b))) = pure (n ::: t, instantiate1 (pure n) b)
+unexists _ _                   = empty
 
 (===) :: (Carrier sig m, Member ProblemF sig) => m a -> m a -> m a
 p === q = send (p :===: q)
 
 infixr 3 ===
-
-
-iter :: forall m n a b
-     .  (forall a . m a -> n a)
-     -> (forall a . (ProblemF :+: CoreF) n a -> n a)
-     -> (forall a . Incr () (n a) -> m (Incr () (n a)))
-     -> (a -> m b)
-     -> Problem a
-     -> n b
-iter var alg k = go
-  where go :: forall x y . (x -> m y) -> Problem x -> n y
-        go h = \case
-          Var a -> var (h a)
-          Problem p -> alg $ case p of
-            R c -> R $ case c of
-              Lam b -> Lam (foldScope k go h b)
-              f :$ a -> go h f :$ go h a
-              Let v b -> Let (go h v) (foldScope k go h b)
-              Type -> Type
-              Pi t b -> Pi (go h t) (foldScope k go h b)
-            L p -> L $ case p of
-              Ex t b -> Ex (go h t) (foldScope k go h b)
-              p1 :===: p2 -> go h p1 :===: go h p2
-
-kcata :: (a -> b)
-      -> (forall a . (ProblemF :+: CoreF) (Const b) a -> b)
-      -> (Incr () b -> a)
-      -> (x -> a)
-      -> Problem x
-      -> b
-kcata var alg k h = getConst . iter (coerce var) (coerce alg) (coerce k) (Const . h)
 
 
 type Context = Stack (Binding ::: Problem (Name Gensym))
