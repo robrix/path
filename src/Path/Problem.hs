@@ -370,26 +370,6 @@ define :: ( Carrier sig m
 define ty tm = goalIs ty tm
 
 
-simplifyVar :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Member (State Context) sig) => Gensym -> Problem (Name Gensym) -> m (Problem (Name Gensym))
-simplifyVar v t = do
-  v' <- gets (lookupBinding (Local v))
-  case v' of
-    -- FIXME: occurs check
-    Just (Exists (n := _) ::: _) -> pure (Local v) <$ solve (n := t)
-    Just _ -> do
-      p <- contextualize (Problem (L (pure (Local v) :===: t)))
-      ask >>= unsimplifiable . pure . (p :~)
-    Nothing -> freeVariable v
-
-contextualize :: (Carrier sig m, Member (State Context) sig) => Problem (Name Gensym) -> m (Problem (Name Gensym))
-contextualize = gets . go
-  where go p Nil                                  = p
-        go p (ctx :> Define _              ::: _) = go p ctx
-        go p (ctx :> Exists (n := Nothing) ::: t) = go (exists (Local n ::: t) p) ctx
-        go p (ctx :> Exists (n := Just v)  ::: _) = go (let' (Local n := v) p) ctx
-        go p (ctx :> ForAll n              ::: _) = go (lam (Local n) p) ctx
-
-
 data a := b = a := b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
