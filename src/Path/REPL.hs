@@ -151,7 +151,7 @@ script packageSources
           Help -> print helpDoc *> loop
           TypeOf tm -> elaborate tm >>= print . typedType . unSpanned >> loop
           Command.Decl decl -> do
-            imported <- gets @ModuleTable Map.keysSet
+            imported <- get
             subgraph <- gets @(ModuleGraph Core Void) (fmap unScopeH . flip Map.restrictKeys imported . unModuleGraph)
             renameDecl subgraph decl >>= elabDecl >> loop
           Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm . unSpanned >>= print >> loop
@@ -197,10 +197,10 @@ script packageSources
         skipDeps m a = gets (failedDep m) >>= bool (Nothing <$ modify (moduleName m:)) a
         failedDep m = all @[] (`notElem` Map.keys (moduleImports m))
 
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Namespace.Namespace) sig, Member (State (ModuleGraph Core Void)) sig, Member (State ModuleTable) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Namespace.Namespace) sig, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
 elaborate = runSpanned $ \ tm -> do
   ty <- inferType
-  imported <- gets @ModuleTable Map.keysSet
+  imported <- get
   subgraph <- gets @(ModuleGraph Core Void) (fmap unScopeH . flip Map.restrictKeys imported . unModuleGraph)
   tm' <- traverse (rename subgraph) tm
   runNamespace (define ty (elab tm'))
