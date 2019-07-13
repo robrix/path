@@ -68,13 +68,13 @@ moduleGraph ms = ModuleGraph (Map.fromList (map ((,) .moduleName <*> bindHEither
 
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
-  let resolve m n = case Map.foldMapWithKey (\ mn m' -> [ mn :.: declName d | d <- moduleDecls m', declName d == n ]) (imported m) of
+  let resolve i n = case Map.foldMapWithKey (\ mn m' -> [ mn :.: declName d | d <- moduleDecls m', declName d == n ]) i of
         [x]  -> pure x
         []   -> freeVariable n
         x:xs -> ambiguousName n (x:|xs)
       imported m = Map.restrictKeys modules' (Map.keysSet (moduleImports m))
       modules' = Map.fromList (map ((,) . moduleName <*> id) ms)
-  ms' <- traverse (\ m -> traverse (resolve m) m) ms
+  ms' <- traverse (\ m -> traverse (resolve (imported m)) m) ms
   pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms')))
 
 modules :: Monad f => ModuleGraph f Void -> [Module f Qualified]
