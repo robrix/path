@@ -115,10 +115,10 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (CoreF f a)
 
 instance Monad f => RModule (CoreF f) f where
-  Lam t b   >>=* f = Lam (t >>= f) (b >>=* f)
-  g :$ a    >>=* f = (g >>= f) :$ (a >>= f)
-  Type      >>=* _ = Type
-  Pi t b    >>=* f = Pi (t >>= f) (b >>=* f)
+  Lam t b >>=* f = Lam (t >>= f) (b >>=* f)
+  g :$ a  >>=* f = (g >>= f) :$ (a >>= f)
+  Type    >>=* _ = Type
+  Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
 data ProblemF f a
   = Ex (Maybe (f a)) (f a) (Scope () f a)
