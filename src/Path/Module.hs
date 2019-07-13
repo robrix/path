@@ -63,7 +63,7 @@ instance Monad f => RModule (ModuleGraph f) f where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
-moduleGraph ms = ModuleGraph (Map.fromList (map ((,) .moduleName <*> bindHEither Left) ms))
+moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms))
 
 rename :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Member (Reader Span) sig)
        => t (Module f a)
