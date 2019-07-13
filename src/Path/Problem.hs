@@ -186,14 +186,6 @@ p === q = send (p :===: q)
 
 infixr 3 ===
 
-(?===?) :: (Carrier sig m, Member ProblemF sig) => Maybe (m a) -> Maybe (m a) -> Maybe (m a)
-Nothing ?===? Nothing = Nothing
-Just p  ?===? Nothing = Just p
-Nothing ?===? Just q  = Just q
-Just p  ?===? Just q  = Just (p === q)
-
-infixr 3 ?===?
-
 
 eiter :: forall m n a b
       .  (forall a . m a -> n a)
