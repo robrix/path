@@ -23,7 +23,6 @@ import Path.Elab
 import Path.Eval
 import Path.Module as Module
 import Path.Name
-import qualified Path.Namespace as Namespace
 import Path.Package
 import Path.Parser (Delta(..), parseString, whole)
 import Path.Parser.Module (parseModule)
@@ -110,10 +109,9 @@ repl packageSources = liftIO $ do
   createDirectoryIfMissing True settingsDir
   runM (runControlIO runM
        (runREPL prefs settings
-       (evalState (mempty :: Namespace.Namespace)
        (runReader (ModuleName "(interpreter)")
        (runNaming
-       (script packageSources))))))
+       (script packageSources)))))
 
 newtype Line = Line Int64
 
@@ -127,7 +125,6 @@ script :: ( Carrier sig m
           , Effect sig
           , Member Naming sig
           , Member REPL sig
-          , Member (State Namespace.Namespace) sig
           , MonadIO m
           )
        => [FilePath]
@@ -147,11 +144,7 @@ script packageSources
           TypeOf tm -> elaborate tm >>= print . typedType . unSpanned >> loop
           Command.Decl decl -> runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= elabDecl) >> loop
           Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm . unSpanned >>= print >> loop
-          Show Bindings -> do
-            scope <- get
-            unless (Namespace.null scope) $ print scope
-            loop
-          Show Modules -> do
+          ShowModules -> do
             ms <- gets @(ModuleGraph Core Void) (Map.toList . unModuleGraph)
             unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeH)) ms))
             loop

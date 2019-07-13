@@ -12,13 +12,8 @@ data Command
   | TypeOf (Spanned (Surface User))
   | Decl (Decl (Surface User))
   | Eval (Spanned (Surface User))
-  | Show Info
+  | ShowModules
   | Reload
   | Import (Spanned ModuleName)
   | Doc (Spanned ModuleName)
-  deriving (Eq, Ord, Show)
-
-data Info
-  = Bindings
-  | Modules
   deriving (Eq, Ord, Show)
