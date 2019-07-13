@@ -180,7 +180,6 @@ elabModule :: ( Carrier sig m
               , Member (Error Doc) sig
               , Member Naming sig
               , Member (Reader (ModuleGraph Core Void)) sig
-              , Member (State Namespace) sig
               , Member (State (Stack Doc)) sig
               )
            => Module Surface.Surface Qualified
@@ -204,24 +203,19 @@ elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
             , Member Naming sig
             , Member (Reader (ModuleGraph Core Void)) sig
-            , Member (Reader ModuleName) sig
-            , Member (State Namespace) sig
             )
          => Decl (Surface.Surface Qualified)
          -> m (Decl (Core Qualified))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
-  ty' <- runSpanned (runNamespace . declare . elab) ty
-  moduleName <- ask
-  modify (Namespace.insert (moduleName :.: name) (Entry (Nothing ::: unSpanned ty')))
-  (tm' ::: _) :~ s <- runSpanned (runNamespace . define (weaken (unSpanned ty')) . elab) tm
-  modify (Namespace.insert (moduleName :.: name) (Entry (Just tm' ::: unSpanned ty')))
+  ty' <- runSpanned (declare . elab) ty
+  (tm' ::: _) :~ s <- runSpanned (define (weaken (unSpanned ty')) . elab) tm
   pure (Decl name d (tm' :~ s) ty')
 
 declare :: ( Carrier sig m
            , Effect sig
            , Member (Error Doc) sig
            , Member Naming sig
-           , Member (Reader Namespace) sig
+           , Member (Reader (ModuleGraph Core Void)) sig
            , Member (Reader Span) sig
            )
         => ElabC (StateC Signature m) (Core (Name Meta) ::: Core (Name Meta))
@@ -235,7 +229,7 @@ define :: ( Carrier sig m
           , Effect sig
           , Member (Error Doc) sig
           , Member Naming sig
-          , Member (Reader Namespace) sig
+          , Member (Reader (ModuleGraph Core Void)) sig
           , Member (Reader Span) sig
           )
        => Core (Name Meta)

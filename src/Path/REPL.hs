@@ -128,7 +128,6 @@ script :: ( Carrier sig m
           , Effect sig
           , Member Naming sig
           , Member REPL sig
-          , Member (Reader ModuleName) sig
           , Member (State ModuleTable) sig
           , Member (State Namespace.Namespace) sig
           , MonadIO m
@@ -187,10 +186,10 @@ script packageSources
             pure graph
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State Namespace.Namespace) sig, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
 elaborate = runSpanned $ \ tm -> do
   ty <- inferType
-  runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename >>= runNamespace . define ty . elab)
+  runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename >>= define ty . elab)
 
 runSubgraph :: (Carrier sig m, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph Core Void) m a -> m a
 runSubgraph m = do

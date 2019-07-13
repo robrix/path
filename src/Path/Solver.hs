@@ -11,16 +11,17 @@ import           Data.Foldable (foldl', toList)
 import qualified Data.Map as Map
 import qualified Data.Sequence as Seq
 import qualified Data.Set as Set
+import           Data.Void
 import           Path.Constraint
 import           Path.Context as Context
 import           Path.Core as Core
 import           Path.Error
+import           Path.Module as Module
 import           Path.Name
-import           Path.Namespace as Namespace hiding (null)
 import           Path.Plicity
 import           Path.Pretty
 import           Path.Scope
-import           Path.Span (Spanned(..))
+import           Path.Span (Spanned(..), unSpanned)
 import           Path.Stack
 import           Path.Usage
 import           Prelude hiding (pi)
@@ -34,14 +35,14 @@ simplify :: ( Carrier sig m
             , Effect sig
             , Member (Error Doc) sig
             , Member Naming sig
-            , Member (Reader Namespace) sig
+            , Member (Reader (ModuleGraph Core Void)) sig
             , Member (State Signature) sig
             , Member (Writer [Spanned (Constraint Core (Name Meta))]) sig
             )
          => Spanned (Constraint Core (Name Meta))
          -> m (Set.Set (Spanned (Constraint Core (Name Meta))))
 simplify (constraint :~ span) = do
-  scope <- ask
+  scope <- ask @(ModuleGraph Core Void)
   (ctx, eqn) <- unbinds constraint
   execWriter (go scope ctx eqn)
   where go scope ctx = \case
@@ -111,8 +112,7 @@ simplify (constraint :~ span) = do
         blocked _                     = False
 
         whnf scope (Global n Core.:$ sp) = do
-          entry <- Namespace.lookup n scope
-          val <- entryValue entry
+          val <- unSpanned . declTerm <$> Module.lookup n scope
           let val' = weaken val $$* sp
           maybe (pure val') pure (whnf scope val')
         whnf _ _ = Nothing
@@ -121,7 +121,7 @@ solver :: ( Carrier sig m
           , Effect sig
           , Member (Error Doc) sig
           , Member Naming sig
-          , Member (Reader Namespace) sig
+          , Member (Reader (ModuleGraph Core Void)) sig
           , Member (State Signature) sig
           )
        => Set.Set (Spanned (Constraint Core (Name Meta)))
@@ -137,7 +137,7 @@ step :: ( Carrier sig m
         , Effect sig
         , Member (Error Doc) sig
         , Member Naming sig
-        , Member (Reader Namespace) sig
+        , Member (Reader (ModuleGraph Core Void)) sig
         , Member (State Blocked) sig
         , Member (State Queue) sig
         , Member (State Signature) sig
@@ -153,7 +153,7 @@ process :: ( Carrier sig m
            , Effect sig
            , Member (Error Doc) sig
            , Member Naming sig
-           , Member (Reader Namespace) sig
+           , Member (Reader (ModuleGraph Core Void)) sig
            , Member (State Blocked) sig
            , Member (State Queue) sig
            , Member (State Signature) sig
