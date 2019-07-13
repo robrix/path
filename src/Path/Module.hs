@@ -3,7 +3,6 @@ module Path.Module where
 
 import Control.Effect
 import Control.Effect.Cull (runNonDetOnce)
-import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
@@ -113,14 +112,3 @@ loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleNa
             for_ (Map.toList (moduleImports (unScopeH m))) (uncurry loop)
             modify (Set.insert n)
             modify (m :)
-
-
-unknownModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned ModuleName -> m a
-unknownModule (name :~ span) = throwError (prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) [])
-
-cyclicImport :: (Carrier sig m, Member (Error Doc) sig) => NonEmpty (Spanned ModuleName) -> m a
-cyclicImport (name :~ span :| [])    = throwError (prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) [])
-cyclicImport (name :~ span :| names) = throwError (vsep
-  ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
-  : foldr ((:) . whichImports) [ whichImports (name :~ span) ] names))
-  where whichImports (name :~ span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []

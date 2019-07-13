@@ -32,3 +32,14 @@ unsimplifiableConstraints :: (Carrier sig m, Member (Error Doc) sig) => Signatur
 unsimplifiableConstraints sig constraints = throwError (fold (intersperse hardline (map unsimplifiable constraints)))
   where unsimplifiable (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty (sigFor c) <> pretty c]
         sigFor c = let fvs' = metaNames (localNames (fvs c)) in Signature (Map.filterWithKey (\ k _ -> k `Set.member` fvs') (unSignature sig))
+
+
+unknownModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned ModuleName -> m a
+unknownModule (name :~ span) = throwError (prettyErr span (pretty "Could not find module" <+> squotes (pretty name)) [])
+
+cyclicImport :: (Carrier sig m, Member (Error Doc) sig) => NonEmpty (Spanned ModuleName) -> m a
+cyclicImport (name :~ span :| [])    = throwError (prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name)) [])
+cyclicImport (name :~ span :| names) = throwError (vsep
+  ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
+  : foldr ((:) . whichImports) [ whichImports (name :~ span) ] names))
+  where whichImports (name :~ span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
