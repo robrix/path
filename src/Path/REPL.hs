@@ -110,11 +110,10 @@ repl packageSources = liftIO $ do
   createDirectoryIfMissing True settingsDir
   runM (runControlIO runM
        (runREPL prefs settings
-       (evalState (mempty :: ModuleTable)
        (evalState (mempty :: Namespace.Namespace)
        (runReader (ModuleName "(interpreter)")
        (runNaming
-       (script packageSources)))))))
+       (script packageSources))))))
 
 newtype Line = Line Int64
 
@@ -128,7 +127,6 @@ script :: ( Carrier sig m
           , Effect sig
           , Member Naming sig
           , Member REPL sig
-          , Member (State ModuleTable) sig
           , Member (State Namespace.Namespace) sig
           , MonadIO m
           )
@@ -176,10 +174,8 @@ script packageSources
               ordinal = brackets (pretty i <+> pretty "of" <+> pretty n)
               path    = parens (pretty (modulePath m))
           print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
-          table <- get
-          (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Namespace.Namespace) (runReader graph (elabModule m))))
-          if Prelude.null errs then do
-            modify (Map.insert name scope)
+          (errs, res) <- runState Nil (runReader graph (elabModule m))
+          if Prelude.null errs then
             pure (ModuleGraph (Map.insert name (bindHEither Left res) (unModuleGraph graph)))
           else do
             for_ errs (print @Doc)

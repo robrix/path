@@ -173,8 +173,6 @@ inferType :: (Carrier sig m, Member Naming sig) => m (Core (Name Meta))
 inferType = pure . Local . Meta <$> fresh
 
 
-type ModuleTable = Map.Map ModuleName Namespace
-
 elabModule :: ( Carrier sig m
               , Effect sig
               , Member (Error Doc) sig
