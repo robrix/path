@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveAnyClass, DeriveFunctor, DeriveGeneric, DerivingStrategies, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
-import Control.Arrow ((&&&))
 import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Error
@@ -17,6 +16,7 @@ import Data.Foldable (for_)
 import Data.Int (Int64)
 import qualified Data.Map as Map
 import Data.Maybe (catMaybes)
+import Data.Void
 import Data.Traversable (for)
 import GHC.Generics (Generic1)
 import Path.Core
@@ -32,6 +32,7 @@ import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.Renamer
 import Path.REPL.Command as Command
+import Path.Scope
 import Path.Span
 import Path.Stack
 import qualified Path.Surface as Surface
@@ -138,7 +139,7 @@ script :: ( Carrier sig m
           )
        => [FilePath]
        -> m ()
-script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Qualified) (runError loop >>= either (print @Doc) pure)
+script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Void) (runError loop >>= either (print @Doc) pure)
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
         parseCommand str = do
@@ -158,8 +159,8 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Qualif
             loop
           Show Modules -> do
             graph <- get
-            let ms = modules (graph :: ModuleGraph Core Qualified)
-            unless (Prelude.null ms) $ print (tabulate2 space (map (moduleName &&& parens . pretty . modulePath) ms))
+            let ms = Map.toList (unModuleGraph (graph :: ModuleGraph Core Void))
+            unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeH)) ms))
             loop
           Reload -> reload *> loop
           Command.Import i -> do
@@ -168,22 +169,22 @@ script packageSources = evalState (ModuleGraph mempty :: ModuleGraph Core Qualif
             loop
           Command.Doc moduleName -> do
             m <- get >>= lookupModule moduleName
-            case moduleDocs (m :: Module Core Qualified) of
+            case moduleDocs (unScopeH (m :: ScopeH Qualified (Module Core) Core Void)) of
               Just d  -> print (pretty d)
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
             loop
         reload = do
           put (Resolution mempty)
           let n = length packageSources
-          sorted <- traverse parseModule packageSources >>= loadOrder . moduleGraph
+          sorted <- traverse parseModule packageSources >>= runReader (Span mempty mempty mempty) . resolveModuleGraph >>= loadOrder
 
-          checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, m) -> skipDeps m $ do
+          checked <- runDeps . for (zip [(1 :: Int)..] sorted) $ \ (i, ScopeH m) -> skipDeps m $ do
             let name    = moduleName m
                 ordinal = brackets (pretty i <+> pretty "of" <+> pretty n)
                 path    = parens (pretty (modulePath m))
             print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
             table <- get
-            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Namespace.Namespace) (runReader (Span mempty mempty mempty) (resolveModule m) >>= elabModule)))
+            (errs, (scope, res)) <- runState Nil (runReader (table :: ModuleTable) (runState (mempty :: Namespace.Namespace) (elabModule (instantiateHEither (either pure absurd) (ScopeH m)))))
             if Prelude.null errs then
               modify (Map.insert name scope)
             else do
