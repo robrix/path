@@ -7,6 +7,7 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Sum as Effect
+import Control.Effect.Writer
 import Control.Monad ((<=<), foldM, join, unless)
 import Control.Monad.Fix
 import Control.Monad.IO.Class
@@ -167,11 +168,11 @@ script packageSources
               ordinal = brackets (pretty i <+> pretty "of" <+> pretty n)
               path    = parens (pretty (modulePath m))
           print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
-          (errs, res) <- runState Nil (runReader graph (elabModule m))
+          (errs, res) <- runWriter @(Stack Doc) (runReader graph (elabModule m))
           if Prelude.null errs then
             pure (ModuleGraph (Map.insert name (bindHEither Left res) (unModuleGraph graph)))
           else do
-            for_ errs (print @Doc)
+            for_ errs print
             pure graph
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 

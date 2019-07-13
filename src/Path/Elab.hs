@@ -177,7 +177,7 @@ elabModule :: ( Carrier sig m
               , Member (Error Doc) sig
               , Member Naming sig
               , Member (Reader (ModuleGraph Core Void)) sig
-              , Member (State (Stack Doc)) sig
+              , Member (Writer (Stack Doc)) sig
               )
            => Module Surface.Surface Qualified
            -> m (Module Core Qualified)
@@ -191,8 +191,8 @@ elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . loca
         qualified = (moduleName m :.:) . declName
         unqualified (_ :.: u) = u
 
-logError :: (Member (State (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
-logError = modify . flip (:>)
+logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
+logError = tell . (Nil :> )
 
 
 elabDecl :: ( Carrier sig m
