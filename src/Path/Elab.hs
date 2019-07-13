@@ -182,6 +182,7 @@ elabModule :: ( Carrier sig m
            => Module Surface.Surface Qualified
            -> m (Module Core Qualified)
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . local @(ModuleGraph Core Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
+  -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?
   decls <- foldM go mempty (moduleDecls m)
   pure m { moduleDecls = decls }
   where go decls decl = local (extendGraph decls) $ do
