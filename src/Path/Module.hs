@@ -81,10 +81,10 @@ runDecl f (Decl n d tm ty) = do
   ty' <- runSpanned f ty
   pure (Decl n d tm' ty')
 
-renameDecl :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Traversable f)
+renameDecl :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Traversable g)
            => t (Module f a)
-           -> Decl (f User)
-           -> m (Decl (f Qualified))
+           -> Decl (g User)
+           -> m (Decl (g Qualified))
 renameDecl ms = runDecl (traverse (rename ms))
 
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
