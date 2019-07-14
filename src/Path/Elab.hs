@@ -169,7 +169,7 @@ inContext m = do
                 inst t = instantiateEither (pure . Global . either (moduleName m :.:) id) (unSpanned t)
 
 logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
-logError = tell . (Nil :> )
+logError = tell . (Nil :>)
 
 
 type Context = Stack (Binding ::: Term (Problem :+: Core) (Name Gensym))
