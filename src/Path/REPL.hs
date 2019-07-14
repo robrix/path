@@ -19,8 +19,8 @@ import qualified Data.Set as Set
 import Data.Traversable (for)
 import Data.Void
 import GHC.Generics (Generic1)
-import Path.Core
 import Path.Elab
+import Path.Error
 import Path.Eval
 import Path.Module as Module
 import Path.Name
@@ -29,11 +29,13 @@ import Path.Parser (Delta(..), parseString, whole)
 import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
+import Path.Problem
 import Path.REPL.Command as Command
 import Path.Scope
 import Path.Span
 import Path.Stack
 import qualified Path.Surface as Surface
+import Path.Term
 import Prelude hiding (print)
 import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
@@ -126,12 +128,13 @@ script :: ( Carrier sig m
           , Effect sig
           , Member Naming sig
           , Member REPL sig
+          , Member (Reader ModuleName) sig
           , MonadIO m
           )
        => [FilePath]
        -> m ()
 script packageSources
-  = evalState (ModuleGraph mempty :: ModuleGraph Core Void)
+  = evalState (ModuleGraph mempty :: ModuleGraph (Term (Problem :+: Core)) Void)
   . evalState (mempty @(Set.Set ModuleName))
   $ runError loop >>= either (print @Doc) pure
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
@@ -142,11 +145,11 @@ script packageSources
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
-          TypeOf tm -> elaborate tm >>= print . typedType . unSpanned >> loop
-          Command.Decl decl -> runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= elabDecl) >> loop
-          Eval tm -> elaborate tm >>= gets . flip whnf . typedTerm . unSpanned >>= print >> loop
+          TypeOf tm -> elaborate tm >>= print . unSpanned >> loop
+          Command.Decl decl -> runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= inContext . elabDecl) >> loop
+          Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print >> loop
           ShowModules -> do
-            ms <- gets @(ModuleGraph Core Void) (Map.toList . unModuleGraph)
+            ms <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Map.toList . unModuleGraph)
             unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeH)) ms))
             loop
           Reload -> reload *> loop
@@ -155,13 +158,13 @@ script packageSources
             loop
           Command.Doc moduleName -> do
             m <- get >>= lookupModule moduleName
-            case moduleDocs (unScopeH (m :: ScopeH Qualified (Module Core) Core Void)) of
+            case moduleDocs (unScopeH (m :: ScopeH Qualified (Module (Term (Problem :+: Core))) (Term (Problem :+: Core)) Void)) of
               Just d  -> print (pretty d)
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
             loop
         reload = do
           sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateHEither (either pure absurd))) . loadOrder
-          checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph Core Void)) (zip [(1 :: Int)..] sorted)
+          checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term (Problem :+: Core)) Void)) (zip [(1 :: Int)..] sorted)
           put checked
         load n graph (i, m) = skipDeps graph m $ do
           let name    = moduleName m
@@ -176,15 +179,16 @@ script packageSources
             pure graph
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
-elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Surface.Surface User) -> m (Spanned (Core Qualified ::: Core Qualified))
+elaborate :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Surface.Surface User) -> m (Spanned (Term (Problem :+: Core) Qualified))
 elaborate = runSpanned $ \ tm -> do
-  ty <- inferType
-  runSubgraph (asks @(ModuleGraph Core Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename >>= define ty . elab)
+  ty <- meta type'
+  tm' <- runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
+  either freeVariables pure (strengthen tm')
 
-runSubgraph :: (Carrier sig m, Member (State (ModuleGraph Core Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph Core Void) m a -> m a
+runSubgraph :: (Carrier sig m, Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph (Term (Problem :+: Core)) Void) m a -> m a
 runSubgraph m = do
   imported <- get
-  subgraph <- gets @(ModuleGraph Core Void) (Module.restrict imported)
+  subgraph <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict imported)
   runReader subgraph m
 
 basePackage :: Package
