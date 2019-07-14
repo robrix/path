@@ -39,6 +39,7 @@ library
                      , Path.Span
                      , Path.Stack
                      , Path.Surface
+                     , Path.Syntax
                      , Path.Term
                      , Path.Usage
   other-modules:       Paths_path
