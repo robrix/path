@@ -16,7 +16,6 @@ extra-source-files:  README.md
 library
   exposed-modules:     Control.Monad.Module
                      , Path.CLI
-                     , Path.Constraint
                      , Path.Context
                      , Path.Core
                      , Path.Elab
