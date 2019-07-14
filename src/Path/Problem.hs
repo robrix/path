@@ -5,7 +5,6 @@ import           Control.Applicative (Alternative (..), Const (..))
 import           Control.Effect
 import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
-import           Control.Effect.State
 import           Control.Effect.Sum
 import           Control.Effect.Writer
 import           Control.Monad.Module
@@ -279,18 +278,16 @@ elab = Surface.kcata id alg bound assume
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
             , Member Naming sig
+            , Member (Reader Context) sig
             , Member (Reader ModuleName) sig
-            , Member (State Context) sig
             )
          => Decl (Surface.Surface Qualified)
          -> m (Decl (Term (Problem :+: Core) (Name Gensym)))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
-  ctx <- get
-  ty' <- runSpanned (runReader ctx . goalIs type' . elab) ty
+  ty' <- runSpanned (goalIs type' . elab) ty
   def <- meta (unSpanned ty')
   moduleName <- ask
-  tm' <- runSpanned (runReader (ctx :> Define (moduleName :.: name := def) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
-  put (ctx :> Define (moduleName :.: name := unSpanned tm') ::: unSpanned ty')
+  tm' <- runSpanned (local (:> Define (moduleName :.: name := def) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
   pure (Decl name d tm' ty')
 
 
