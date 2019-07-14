@@ -282,13 +282,15 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             )
          => Decl (Surface.Surface Qualified)
-         -> m (Decl (Term (Problem :+: Core) (Name Gensym)))
+         -> m (Decl (Term (Problem :+: Core) Qualified))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty' <- runSpanned (goalIs type' . elab) ty
   def <- meta (unSpanned ty')
   moduleName <- ask
   tm' <- runSpanned (local (:> Define (moduleName :.: name := def) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
-  pure (Decl name d tm' ty')
+  ty'' <- runSpanned (either freeVariables pure . strengthen) ty'
+  tm'' <- runSpanned (either freeVariables pure . strengthen) tm'
+  pure (Decl name d tm'' ty'')
 
 
 data a := b = a := b
