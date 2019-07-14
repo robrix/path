@@ -191,9 +191,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-assume v = do
-  _A <- have v
-  pure (Var (Global v) ::: _A)
+assume v = asks (lookupBinding (Global v)) >>= maybe (freeVariable v) (pure . (Var (Global v) :::) . typedType)
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -258,15 +256,6 @@ meta ty = do
 b |- m = local (:> b) m
 
 infix 3 |-
-
-have :: ( Carrier sig m
-        , Member (Error Doc) sig
-        , Member (Reader Span) sig
-        , Member (Reader Context) sig
-        )
-     => Qualified
-     -> m (Term (Problem :+: Core) (Name Gensym))
-have n = asks (lookupBinding (Global n)) >>= maybe (freeVariable n) (pure . typedType)
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
