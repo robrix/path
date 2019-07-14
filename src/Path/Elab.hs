@@ -236,4 +236,4 @@ define ty tm = evalState (mempty :: Signature) $ do
   subst <- solver constraints
   let tm'' = apply subst tm'
       ty'  = generalizeType (apply subst ty)
-  (::: ty') <$> either (flip unsolvedMetavariables tm'' . toList) pure (strengthen tm'')
+  (::: ty') <$> either (unsolvedMetavariables tm'' . toList) pure (strengthen tm'')

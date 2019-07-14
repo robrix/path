@@ -170,8 +170,8 @@ strengthen :: Traversable f => f (Name Meta) -> Either (Set.Set Meta) (f Qualifi
 strengthen = toEither . traverse (name (Failure . Set.singleton) Success)
 
 
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty) => [Meta] -> ty -> m a
-unsolvedMetavariables metas ty = do
+unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty) => ty -> [Meta] -> m a
+unsolvedMetavariables ty metas = do
   span <- ask
   throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty metas))) [pretty ty])
 
