@@ -15,10 +15,10 @@ import Path.Name
 import Path.Pretty
 import Path.Span (Span, Spanned(..))
 
-freeVariable :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty name) => name -> m a
-freeVariable name = do
+freeVariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty name, Foldable t) => t name -> m a
+freeVariables names = do
   span <- ask
-  throwError (prettyErr span (pretty "free variable" <+> squotes (pretty name)) [])
+  throwError (prettyErr span (pretty "free variable" <> (if length names == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty (toList names)))) [])
 
 ambiguousName :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => User -> NonEmpty Qualified -> m a
 ambiguousName name sources = do

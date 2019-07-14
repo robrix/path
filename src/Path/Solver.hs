@@ -89,7 +89,7 @@ simplify (constraint :~ span) = do
                       Just (_ :< _ ::: _ :@ t, b) -> go scope ctx ((a1 :===: a2) ::: t) >> simplifySpine (Context.insert (n ::: t) ctx) b as
                       Nothing                     -> pure ()
                   simplifySpine _ _ _ = pure ()
-              t <- maybe (runReader span (freeVariable (Name f1))) pure (Context.lookup f1 ctx)
+              t <- maybe (runReader span (freeVariables [Name f1])) pure (Context.lookup f1 ctx)
               simplifySpine ctx t (zip (toList sp1) (toList sp2))
           (tm1 :===: Lam p2 b2) ::: ty@Pi{} -> do
             n <- fresh

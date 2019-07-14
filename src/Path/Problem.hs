@@ -190,7 +190,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-assume v = asks (lookupBinding (Global v)) >>= maybe (freeVariable v) (pure . (Var (Global v) :::) . typedType)
+assume v = asks (lookupBinding (Global v)) >>= maybe (freeVariables [v]) (pure . (Var (Global v) :::) . typedType)
 
 intro :: ( Carrier sig m
          , Member Naming sig
