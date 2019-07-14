@@ -8,9 +8,11 @@ import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad (foldM)
 import Data.Bifunctor (first)
+import Data.Foldable (toList)
 import Data.Functor.Const
 import qualified Data.Map as Map
 import qualified Data.Set as Set
+import Data.Validation
 import Data.Void
 import Path.Constraint hiding ((|-))
 import Path.Context as Context
@@ -233,5 +235,6 @@ define :: ( Carrier sig m
 define ty tm = evalState (mempty :: Signature) $ do
   (constraints, tm') <- runElab (goalIs ty tm)
   subst <- solver constraints
-  let ty' = generalizeType (apply subst ty)
-  (::: ty') <$> strengthen (apply subst tm')
+  let tm'' = apply subst tm'
+      ty'  = generalizeType (apply subst ty)
+  (::: ty') <$> validation (flip unsolvedMetavariables tm'' . toList) pure (strengthen tm'')
