@@ -147,7 +147,7 @@ closeFail = traverse (name (fail . ("free variable: " ++) . show) pure)
 weaken :: Functor f => f Qualified -> f (Name a)
 weaken = fmap Global
 
-strengthen :: Traversable f => f (Name Meta) -> Either (Set.Set Meta) (f Qualified)
+strengthen :: (Ord n, Traversable t) => t (Name n) -> Either (Set.Set n) (t Qualified)
 strengthen = toEither . traverse (name (Failure . Set.singleton) Success)
 
 
