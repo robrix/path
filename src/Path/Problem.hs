@@ -4,17 +4,22 @@ module Path.Problem where
 import           Control.Applicative (Alternative (..), Const (..))
 import           Control.Effect
 import           Control.Effect.Carrier
+import           Control.Effect.Error
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.Sum
 import           Control.Effect.Writer
+import           Control.Monad (foldM)
 import           Control.Monad.Module
 import           Data.Bifoldable
 import           Data.Bifunctor
 import           Data.Bitraversable
+import           Data.Foldable (foldl')
+import qualified Data.Map as Map
 import qualified Data.Set as Set
+import           Data.Void
 import           GHC.Generics (Generic1)
 import           Path.Error
-import           Path.Module
+import           Path.Module as Module
 import           Path.Name
 import           Path.Plicity (Plicit (..))
 import           Path.Pretty
@@ -291,6 +296,35 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty'' <- runSpanned (either freeVariables pure . strengthen) ty'
   tm'' <- runSpanned (either freeVariables pure . strengthen) tm'
   pure (Decl name d tm'' ty'')
+
+elabModule :: ( Carrier sig m
+              , Member (Error Doc) sig
+              , Member Naming sig
+              , Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig
+              , Member (Writer (Stack Doc)) sig
+              )
+           => Module Surface.Surface Qualified
+           -> m (Module (Term (Problem :+: Core)) Qualified)
+elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
+  -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?
+  decls <- foldM go mempty (moduleDecls m)
+  pure m { moduleDecls = decls }
+  where go decls decl = local (extendGraph decls) . inContext $ do
+          (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
+        extendModule decls decl = Map.insert (declName decl) (bind (Just . unqualified) <$> decl) decls
+        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term (Problem :+: Core)) @Void (Map.insert (moduleName m) (bindHEither Left m { moduleDecls = decls }) g)
+        inContext m = do
+          ctx <- asks @(ModuleGraph (Term (Problem :+: Core)) Void) toContext
+          runReader @Context ctx m
+        toContext g = foldl' definitions Nil (modules g)
+        definitions ctx m = foldl' define ctx (moduleDecls m)
+          where define ctx d = ctx :> (Define ((moduleName m :.: declName d) := inst (declTerm d)) ::: inst (declType d))
+                inst t = instantiateEither (pure . Global . either (moduleName m :.:) id) (unSpanned t)
+        qualified = (moduleName m :.:) . declName
+        unqualified (_ :.: u) = u
+
+logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
+logError = tell . (Nil :> )
 
 
 data a := b = a := b
