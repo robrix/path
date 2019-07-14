@@ -129,16 +129,3 @@ bindingValue (ForAll  _)       = Nothing
 
 lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name Gensym))
 lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
-
-
-identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
-
-identity = lam "A" (lam "a" (pure "a"))
-identityT = pi ("A" ::: type') (pi ("_" ::: pure "A") (pure "A"))
-constant = lam "A" (lam "B" (lam "a" (lam "b" (pure "a"))))
-constantT = pi ("A" ::: type') (pi ("B" ::: type') (pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))
-
-constantTQ
-  = exists ("_A" ::: type') (pi ("A" ::: pure "_A")
-  ( exists ("_B" ::: type') (pi ("B" ::: pure "_B")
-  ( pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))))
