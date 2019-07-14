@@ -8,9 +8,6 @@ import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.Sum
 import           Control.Effect.Writer
 import           Control.Monad.Module
-import           Data.Bifoldable
-import           Data.Bifunctor
-import           Data.Bitraversable
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Name
@@ -176,24 +173,6 @@ infixr 3 ===
 
 
 type Context = Stack (Binding ::: Term (Problem :+: Core) (Name Gensym))
-
-
-data a := b = a := b
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-infix 1 :=
-
-instance Bifoldable (:=) where
-  bifoldMap f g (a := b) = f a <> g b
-
-instance Bifunctor (:=) where
-  bimap f g (a := b) = f a := g b
-
-instance Bitraversable (:=) where
-  bitraverse f g (a := b) = (:=) <$> f a <*> g b
-
-instance (Pretty a, Pretty b) => Pretty (a := b) where
-  pretty (a := b) = pretty a <+> magenta (pretty "=") <+> pretty b
 
 
 data Binding
