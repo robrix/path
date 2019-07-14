@@ -185,8 +185,8 @@ type Context = Stack (Binding ::: Term (Problem :+: Core) (Name Gensym))
 
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
-          , Member (Reader Span) sig
           , Member (Reader Context) sig
+          , Member (Reader Span) sig
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
@@ -260,8 +260,8 @@ infix 3 |-
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member Naming sig
-        , Member (Reader Span) sig
         , Member (Reader Context) sig
+        , Member (Reader Span) sig
         )
      => Surface.Surface Qualified
      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
