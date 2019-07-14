@@ -169,6 +169,29 @@ logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = tell . (Nil :> )
 
 
+type Context = Stack (Binding ::: Term (Problem :+: Core) (Name Gensym))
+
+
+data Binding
+  = Define (Qualified := Term (Problem :+: Core) (Name Gensym))
+  | Exists (Gensym := Maybe (Term (Problem :+: Core) (Name Gensym)))
+  | ForAll Gensym
+  deriving (Eq, Ord, Show)
+
+bindingName :: Binding -> Name Gensym
+bindingName (Define (n := _)) = Global n
+bindingName (Exists (n := _)) = Local n
+bindingName (ForAll  n)       = Local n
+
+bindingValue :: Binding -> Maybe (Term (Problem :+: Core) (Name Gensym))
+bindingValue (Define (_ := v)) = Just v
+bindingValue (Exists (_ := v)) = v
+bindingValue (ForAll  _)       = Nothing
+
+lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name Gensym))
+lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
+
+
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
 
 identity = lam "A" (lam "a" (pure "a"))

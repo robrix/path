@@ -106,26 +106,3 @@ unexists _ _                                 = empty
 p === q = send (p :===: q)
 
 infixr 3 ===
-
-
-type Context = Stack (Binding ::: Term (Problem :+: Core) (Name Gensym))
-
-
-data Binding
-  = Define (Qualified := Term (Problem :+: Core) (Name Gensym))
-  | Exists (Gensym := Maybe (Term (Problem :+: Core) (Name Gensym)))
-  | ForAll Gensym
-  deriving (Eq, Ord, Show)
-
-bindingName :: Binding -> Name Gensym
-bindingName (Define (n := _)) = Global n
-bindingName (Exists (n := _)) = Local n
-bindingName (ForAll  n)       = Local n
-
-bindingValue :: Binding -> Maybe (Term (Problem :+: Core) (Name Gensym))
-bindingValue (Define (_ := v)) = Just v
-bindingValue (Exists (_ := v)) = v
-bindingValue (ForAll  _)       = Nothing
-
-lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name Gensym))
-lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
