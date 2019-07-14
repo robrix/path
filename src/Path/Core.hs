@@ -4,8 +4,6 @@ module Path.Core where
 import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Carrier
-import           Control.Effect.Error
-import           Control.Effect.Reader hiding (Local)
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
 import           Data.Validation
@@ -14,7 +12,6 @@ import           Path.Name
 import           Path.Plicity
 import           Path.Pretty
 import           Path.Scope
-import           Path.Span (Span)
 import           Path.Stack as Stack
 import           Path.Usage
 import           Prelude hiding (pi)
@@ -168,12 +165,6 @@ generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
 
 strengthen :: Traversable f => f (Name Meta) -> Either (Set.Set Meta) (f Qualified)
 strengthen = toEither . traverse (name (Failure . Set.singleton) Success)
-
-
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty, Foldable t) => ty -> t Meta -> m a
-unsolvedMetavariables ty metas = do
-  span <- ask
-  throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty (toList metas)))) [pretty ty])
 
 
 -- $setup
