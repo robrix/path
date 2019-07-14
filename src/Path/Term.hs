@@ -13,13 +13,11 @@ data Term sig a
 
 deriving instance ( Eq a
                   , Syntax sig
-                  , forall g . Functor g => Functor (sig g)
                   , forall g x . (Eq  x, Monad g, forall y . Eq  y => Eq  (g y)) => Eq  (sig g x)
                   )
                => Eq  (Term sig a)
 deriving instance ( Ord a
                   , Syntax sig
-                  , forall g . Functor g => Functor (sig g)
                   , forall g x . (Eq  x, Monad g, forall y . Eq  y => Eq  (g y)) => Eq  (sig g x)
                   , forall g x . (Ord x, Monad g, forall y . Eq  y => Eq  (g y)
                                                 , forall y . Ord y => Ord (g y)) => Ord (sig g x)
@@ -33,14 +31,14 @@ deriving instance ( forall g . Foldable    g => Foldable    (sig g)
                   , forall g . Functor     g => Functor     (sig g)
                   , forall g . Traversable g => Traversable (sig g)) => Traversable (Term sig)
 
-instance (Syntax sig, forall g . Functor g => Functor (sig g)) => Applicative (Term sig) where
+instance Syntax sig => Applicative (Term sig) where
   pure = Var
   f <*> a = iter id Term Var (<$> a) f
 
-instance (Syntax sig, forall g . Functor g => Functor (sig g)) => Monad (Term sig) where
+instance Syntax sig => Monad (Term sig) where
   a >>= f = iter id Term Var f a
 
-instance (Syntax sig, forall g . Functor g => Functor (sig g)) => Carrier sig (Term sig) where
+instance Syntax sig => Carrier sig (Term sig) where
   eff = Term
 
 
@@ -68,7 +66,7 @@ kcata :: Syntax sig
 kcata var alg k h = getConst . iter (coerce var) (Const . alg) (coerce k) (Const . h)
 
 
-class HFunctor sig => Syntax sig where
+class (HFunctor sig, forall g . Functor g => Functor (sig g)) => Syntax sig where
   foldSyntax :: (forall x y . (x -> m y) -> f x -> n y)
              -> (forall a . Incr () (n a) -> m (Incr () (n a)))
              -> (a -> m b)
