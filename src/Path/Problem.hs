@@ -263,9 +263,9 @@ bindMeta :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Term (Pro
 bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
   a <- m
   stack <- ask @Context
-  case stack of
-    Nil           -> pure (Exists (e := Nothing), a)
-    _ :> e' ::: _ -> pure (e', a)
+  pure $ case stack of
+    Nil           -> (Exists (e := Nothing), a)
+    _ :> e' ::: _ -> (e', a)
 
 solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Term (Problem :+: Core) (Name Gensym) -> m ()
 solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local var then Exists (var := Just val) else b) ::: (t `asTypeOf` val)))
