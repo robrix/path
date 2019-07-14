@@ -138,9 +138,6 @@ b |- m = local (Context.insert b) m
 infix 5 |-
 
 
-spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
-spanIs span = local (const span)
-
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member Naming sig

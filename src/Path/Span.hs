@@ -5,6 +5,7 @@ module Path.Span
 , unSpanned
 , runSpanned
 , spanned
+, spanIs
 ) where
 
 import Control.Effect
@@ -19,3 +20,6 @@ runSpanned f v@(_ :~ s) = runReader s (traverse f v)
 
 spanned :: (Carrier sig m, Member (Reader Span) sig) => a -> m (Spanned a)
 spanned a = asks (a :~)
+
+spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
+spanIs span = local (const span)
