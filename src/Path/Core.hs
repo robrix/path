@@ -185,7 +185,7 @@ instance Semigroup e => Applicative (Validation e) where
   Success f  <*> Success a  = Success (f a)
 
 
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => [Meta] -> Core (Name Meta) -> m a
+unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty) => [Meta] -> ty -> m a
 unsolvedMetavariables metas ty = do
   span <- ask
   throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty metas))) [pretty ty])
