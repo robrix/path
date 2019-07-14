@@ -36,7 +36,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Core (Name Meta) ::: Core (Name Meta))
-assume n = asks @(ModuleGraph Core Void) (fmap (weaken . unSpanned . declType) . Module.lookup n) >>= maybe (freeVariables [n]) (pure . (global n :::))
+assume n = asks @(ModuleGraph Core Void) (fmap (weaken . unSpanned . declType) . Module.lookup n) >>= maybe (freeVariables (pure n)) (pure . (global n :::))
 
 intro :: ( Carrier sig m
          , Member Naming sig
