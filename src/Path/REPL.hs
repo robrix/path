@@ -112,8 +112,7 @@ repl packageSources = liftIO $ do
   createDirectoryIfMissing True settingsDir
   runM (runControlIO runM
        (runREPL prefs settings
-       (runNaming
-       (script packageSources))))
+       (script packageSources)))
 
 newtype Line = Line Int64
 
@@ -125,7 +124,6 @@ lineDelta (Line l) = Lines l 0 0 0
 
 script :: ( Carrier sig m
           , Effect sig
-          , Member Naming sig
           , Member REPL sig
           , MonadIO m
           )
@@ -135,6 +133,7 @@ script packageSources
   = evalState (ModuleGraph mempty :: ModuleGraph (Term (Problem :+: Core)) Void)
   . evalState (mempty @(Set.Set ModuleName))
   . runReader (ModuleName "(interpreter)")
+  . runNaming
   $ runError loop >>= either (print @Doc) pure
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
