@@ -8,7 +8,6 @@ import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad (foldM)
 import Data.Bifunctor (first)
-import Data.Foldable (toList)
 import Data.Functor.Const
 import qualified Data.Map as Map
 import qualified Data.Set as Set
@@ -236,4 +235,4 @@ define ty tm = evalState (mempty :: Signature) $ do
   subst <- solver constraints
   let tm'' = apply subst tm'
       ty'  = generalizeType (apply subst ty)
-  (::: ty') <$> either (unsolvedMetavariables tm'' . toList) pure (strengthen tm'')
+  (::: ty') <$> either (unsolvedMetavariables tm'') pure (strengthen tm'')
