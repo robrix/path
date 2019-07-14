@@ -21,7 +21,6 @@ import Data.Void
 import GHC.Generics (Generic1)
 import Path.Elab
 import Path.Error
-import Path.Eval
 import Path.Module as Module
 import Path.Name
 import Path.Package
@@ -184,6 +183,14 @@ elaborate = runSpanned $ \ tm -> do
   ty <- meta type'
   tm' <- runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
   either freeVariables pure (strengthen tm')
+
+-- | Evaluate a term to weak head normal form.
+--
+--   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
+whnf :: ModuleGraph (Term (Problem :+: Core)) Void -> Term (Problem :+: Core) Qualified -> Term (Problem :+: Core) Qualified
+whnf graph = go where
+  go (Term (R (Var n :$ a))) = maybe (Var n $$ a) (go . ($$ a) . unSpanned . declTerm) (Module.lookup n graph)
+  go v                       = v
 
 runSubgraph :: (Carrier sig m, Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph (Term (Problem :+: Core)) Void) m a -> m a
 runSubgraph m = do

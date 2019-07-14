@@ -20,7 +20,6 @@ library
                      , Path.Core
                      , Path.Elab
                      , Path.Error
-                     , Path.Eval
                      , Path.Module
                      , Path.Name
                      , Path.Package
