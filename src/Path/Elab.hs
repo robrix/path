@@ -11,6 +11,7 @@ import Data.Foldable (foldl')
 import Data.Functor.Const
 import qualified Data.Map as Map
 import Data.Void
+import Path.Core
 import Path.Error
 import Path.Module as Module
 import Path.Name
