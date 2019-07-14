@@ -157,7 +157,7 @@ elab = Surface.kcata id alg bound assume
           (f Surface.:$ (p :< a)) -> app (elab' f) (p :< elab' a)
           Surface.Type -> pure (Type ::: Type)
           Surface.Pi (p :< Ignored n ::: t) b -> (p :< (n, elab' <$> t)) --> elab' (unScope <$> b)
-        elab' (t :~ s) = spanIs s (getConst t)
+        elab' = spanIs . fmap getConst
 
 type ElabC m = ReaderC (Context (Core (Name Meta))) (WriterC (Set.Set (Spanned (Constraint Core (Name Meta)))) m)
 

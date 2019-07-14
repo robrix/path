@@ -274,7 +274,7 @@ elab = Surface.kcata id alg bound assume
           f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
           Surface.Type -> pure (type' ::: type')
           Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> elab' (unScope <$> b)
-        elab' (t :~ s) = spanIs s (getConst t)
+        elab' = spanIs . fmap getConst
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
