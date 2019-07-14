@@ -59,26 +59,20 @@ askLine = send (AskLine pure)
 
 
 runREPL :: MonadException m => Prefs -> Settings m -> REPLC m a -> m a
-runREPL prefs settings = runInputTWithPrefs prefs settings . runTransC . runReader (Line 0) . runREPLC
+runREPL prefs settings = runInputTWithPrefs prefs settings . runM . runReader (Line 0) . runREPLC
 
-newtype REPLC m a = REPLC { runREPLC :: ReaderC Line (TransC InputT m) a }
+newtype REPLC m a = REPLC { runREPLC :: ReaderC Line (LiftC (InputT m)) a }
   deriving newtype (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance (Carrier sig m, Effect sig, MonadException m, MonadIO m) => Carrier (REPL :+: sig) (REPLC m) where
+instance (Carrier sig m, MonadException m, MonadIO m) => Carrier (REPL :+: Lift (InputT m)) (REPLC m) where
   eff (L (Prompt prompt k)) = REPLC $ do
-    str <- lift (TransC (getInputLine (cyan <> prompt <> plain)))
+    str <- lift (lift (getInputLine (cyan <> prompt <> plain)))
     local increment (runREPLC (k str))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
   eff (L (Print text k)) = putDoc text *> k
   eff (L (AskLine k)) = REPLC ask >>= k
   eff (R other) = REPLC (eff (R (handleCoercible other)))
-
-newtype TransC t (m :: * -> *) a = TransC { runTransC :: t m a }
-  deriving newtype (Applicative, Functor, Monad, MonadFix, MonadIO, MonadTrans)
-
-instance (Carrier sig m, Effect sig, Monad (t m), MonadTrans t) => Carrier sig (TransC t m) where
-  eff = TransC . join . lift . eff . handle (pure ()) (pure . (runTransC =<<))
 
 runControlIO :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
 runControlIO handler = runReader (Handler handler) . runControlIOC
