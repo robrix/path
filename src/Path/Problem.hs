@@ -189,11 +189,11 @@ assume :: ( Carrier sig m
           , Member (Reader Span) sig
           , Member (Reader Context) sig
           )
-       => Name Gensym
+       => Qualified
        -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 assume v = do
   _A <- have v
-  pure (Var v ::: _A)
+  pure (Var (Global v) ::: _A)
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -264,9 +264,9 @@ have :: ( Carrier sig m
         , Member (Reader Span) sig
         , Member (Reader Context) sig
         )
-     => Name Gensym
+     => Qualified
      -> m (Term (Problem :+: Core) (Name Gensym))
-have n = asks (lookupBinding n) >>= maybe (freeVariable n) (pure . typedType)
+have n = asks (lookupBinding (Global n)) >>= maybe (freeVariable n) (pure . typedType)
 
 
 spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
@@ -278,13 +278,10 @@ elab :: ( Carrier sig m
         , Member (Reader Span) sig
         , Member (Reader Context) sig
         )
-     => Surface.Surface (Name Meta)
+     => Surface.Surface Qualified
      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-elab = Surface.kcata id alg bound free
-  where free (Global n)       = assume (Global n)
-        free (Local (Name n)) = assume (Local n)
-        free (Local (Meta n)) = (pure (Local n) :::) <$> meta type'
-        bound (Z _) = asks @Context (first (Var . bindingName) . Stack.head)
+elab = Surface.kcata id alg bound assume
+  where bound (Z _) = asks @Context (first (Var . bindingName) . Stack.head)
         bound (S m) = local @Context (Stack.drop 1) m
         alg = \case
           Surface.Lam _ b -> intro (elab' (unScope <$> b))
@@ -299,7 +296,7 @@ elabDecl :: ( Carrier sig m
             , Member (Reader ModuleName) sig
             , Member (State Context) sig
             )
-         => Decl (Surface.Surface (Name Meta))
+         => Decl (Surface.Surface Qualified)
          -> m (Decl (Term (Problem :+: Core) (Name Gensym)))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ctx <- get
