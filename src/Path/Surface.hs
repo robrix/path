@@ -128,4 +128,4 @@ walk k = eiter id alg pure k
           f :$ a -> withSpan f $$ fmap withSpan a
           Type -> type'
           Pi t b -> send (Pi (fmap (fmap withSpan) <$> t) (Scope <$> withSpan (unScope <$> b)))
-        withSpan (t :~ s) = local (const s) t :~ s
+        withSpan s = spanIs s <$ s
