@@ -6,7 +6,6 @@ import           Control.Effect
 import           Control.Effect.Carrier
 import           Data.Foldable (foldl', toList)
 import qualified Data.Set as Set
-import           Data.Validation
 import           GHC.Generics (Generic1)
 import           Path.Name
 import           Path.Plicity
@@ -161,10 +160,6 @@ eiter var alg k = go
 generalizeType :: Core (Name Meta) -> Core Qualified
 generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
   where f v = let name = case v of { Name n -> n ; Meta n -> n } in (Set.singleton (Im :< Local name ::: Zero :@ Type), name)
-
-
-strengthen :: Traversable f => f (Name Meta) -> Either (Set.Set Meta) (f Qualified)
-strengthen = toEither . traverse (name (Failure . Set.singleton) Success)
 
 
 -- $setup

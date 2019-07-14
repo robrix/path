@@ -15,6 +15,7 @@ import           Data.Bifunctor
 import           Data.Bitraversable
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
+import           Data.Validation
 import           Path.Pretty
 import           Path.Stack
 import           Prelude hiding (fail)
@@ -145,6 +146,9 @@ closeFail = traverse (name (fail . ("free variable: " ++) . show) pure)
 
 weaken :: Functor f => f Qualified -> f (Name a)
 weaken = fmap Global
+
+strengthen :: Traversable f => f (Name Meta) -> Either (Set.Set Meta) (f Qualified)
+strengthen = toEither . traverse (name (Failure . Set.singleton) Success)
 
 
 data Meta
