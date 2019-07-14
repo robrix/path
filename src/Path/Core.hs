@@ -166,11 +166,9 @@ generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
 
 
 strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f, Pretty (f (Name Meta))) => f (Name Meta) -> m (f Qualified)
-strengthen ty = case traverse strengthenVar ty of
+strengthen ty = case traverse (name (Failure . Set.singleton) Success) ty of
   Failure e -> unsolvedMetavariables (toList e) ty
   Success a -> pure a
-  where strengthenVar (Global q) = Success q
-        strengthenVar (Local v)  = Failure (Set.singleton v)
 
 data Validation e a
   = Failure e
