@@ -27,13 +27,10 @@ import           Path.Term
 import           Path.Usage
 import           Prelude hiding (pi)
 
-type Problem = Term (ProblemF :+: CoreF)
-
-
 newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
-instance Pretty (Problem (Name Gensym)) where
+instance Pretty (Term (ProblemF :+: CoreF) (Name Gensym)) where
   pretty = snd . run . runWriter @(Set.Set Meta) . runReader (Nil @Meta) . runReader (P 0) . kcata id alg k (var . fmap Name)
     where var (Global v) = pure (pretty (Global @Meta v))
           var (Local  v) = pretty v <$ tell (Set.singleton @Meta v)
@@ -141,7 +138,7 @@ lam n b = send (Lam (bind1 n b))
 lams :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
-unlam :: Alternative m => a -> Problem a -> m (a, Problem a)
+unlam :: Alternative m => a -> Term (ProblemF :+: CoreF) a -> m (a, Term (ProblemF :+: CoreF) a)
 unlam n (Term (R (Lam b))) = pure (n, instantiate1 (pure n) b)
 unlam _ _                  = empty
 
@@ -152,7 +149,7 @@ f $$ a = send (f :$ a)
 let' :: (Eq a, Carrier sig m, Member CoreF sig) => a := m a -> m a -> m a
 let' (n := v) b = send (Let v (bind1 n b))
 
-unlet' :: Alternative m => a -> Problem a -> m (a := Problem a, Problem a)
+unlet' :: Alternative m => a -> Term (ProblemF :+: CoreF) a -> m (a := Term (ProblemF :+: CoreF) a, Term (ProblemF :+: CoreF) a)
 unlet' n (Term (R (Let v b))) = pure (n := v, instantiate1 (pure n) b)
 unlet' _ _                    = empty
 
@@ -167,7 +164,7 @@ pi (n ::: t) b = send (Pi t (bind1 n b))
 pis :: (Eq a, Foldable t, Carrier sig m, Member CoreF sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 
-unpi :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
+unpi :: Alternative m => a -> Term (ProblemF :+: CoreF) a -> m (a ::: Term (ProblemF :+: CoreF) a, Term (ProblemF :+: CoreF) a)
 unpi n (Term (R (Pi t b))) = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                   = empty
 
@@ -175,7 +172,7 @@ unpi _ _                   = empty
 exists :: (Eq a, Carrier sig m, Member ProblemF sig) => a ::: m a -> m a -> m a
 exists (n ::: t) b = send (Ex t (bind1 n b))
 
-unexists :: Alternative m => a -> Problem a -> m (a ::: Problem a, Problem a)
+unexists :: Alternative m => a -> Term (ProblemF :+: CoreF) a -> m (a ::: Term (ProblemF :+: CoreF) a, Term (ProblemF :+: CoreF) a)
 unexists n (Term (L (Ex t b))) = pure (n ::: t, instantiate1 (pure n) b)
 unexists _ _                   = empty
 
@@ -185,7 +182,7 @@ p === q = send (p :===: q)
 infixr 3 ===
 
 
-type Context = Stack (Binding ::: Problem (Name Gensym))
+type Context = Stack (Binding ::: Term (ProblemF :+: CoreF) (Name Gensym))
 
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
@@ -193,7 +190,7 @@ assume :: ( Carrier sig m
           , Member (Reader Context) sig
           )
        => Name Gensym
-       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
+       -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
 assume v = do
   _A <- have v
   pure (Var v ::: _A)
@@ -202,8 +199,8 @@ intro :: ( Carrier sig m
          , Member Naming sig
          , Member (Reader Context) sig
          )
-      => m (Problem (Name Gensym) ::: Problem (Name Gensym))
-      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
+      => m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
+      -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
 intro body = do
   _A <- meta type'
   x <- fresh
@@ -215,9 +212,9 @@ intro body = do
          , Member Naming sig
          , Member (Reader Context) sig
          )
-      => m (Problem (Name Gensym) ::: Problem (Name Gensym))
-      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
-      -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
+      => m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
+      -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
+      -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
 t --> body = do
   t' <- goalIs type' t
   x <- fresh
@@ -228,9 +225,9 @@ app :: ( Carrier sig m
        , Member Naming sig
        , Member (Reader Context) sig
        )
-    => m (Problem (Name Gensym) ::: Problem (Name Gensym))
-    -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
-    -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
+    => m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
+    -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
+    -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
 app f a = do
   _A <- meta type'
   x <- fresh
@@ -244,25 +241,25 @@ app f a = do
 goalIs :: ( Carrier sig m
           , Member Naming sig
           )
-       => Problem (Name Gensym)
-       -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
-       -> m (Problem (Name Gensym))
+       => Term (ProblemF :+: CoreF) (Name Gensym)
+       -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
+       -> m (Term (ProblemF :+: CoreF) (Name Gensym))
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
   tm2 <- meta (ty1 === ty2)
   pure (tm1 === tm2)
 
-meta :: (Carrier sig m, Member Naming sig) => Problem (Name Gensym) -> m (Problem (Name Gensym))
+meta :: (Carrier sig m, Member Naming sig) => Term (ProblemF :+: CoreF) (Name Gensym) -> m (Term (ProblemF :+: CoreF) (Name Gensym))
 meta ty = do
   n <- fresh
   pure (exists (Local n ::: ty) (pure (Local n)))
 
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Problem (Name Gensym) -> m a -> m a
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Term (ProblemF :+: CoreF) (Name Gensym) -> m a -> m a
 b |- m = local (:> b) m
 
 infix 3 |-
 
-bindMeta :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Problem (Name Gensym) -> m a -> m (Binding, a)
+bindMeta :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Term (ProblemF :+: CoreF) (Name Gensym) -> m a -> m (Binding, a)
 bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
   a <- m
   stack <- ask @Context
@@ -270,7 +267,7 @@ bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
     Nil           -> pure (Exists (e := Nothing), a)
     _ :> e' ::: _ -> pure (e', a)
 
-solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Problem (Name Gensym) -> m ()
+solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Term (ProblemF :+: CoreF) (Name Gensym) -> m ()
 solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local var then Exists (var := Just val) else b) ::: (t `asTypeOf` val)))
 
 have :: ( Carrier sig m
@@ -279,7 +276,7 @@ have :: ( Carrier sig m
         , Member (Reader Context) sig
         )
      => Name Gensym
-     -> m (Problem (Name Gensym))
+     -> m (Term (ProblemF :+: CoreF) (Name Gensym))
 have n = asks (lookupBinding n) >>= maybe (freeVariable n) (pure . typedType)
 
 
@@ -293,7 +290,7 @@ elab :: ( Carrier sig m
         , Member (Reader Context) sig
         )
      => Surface.Surface (Name Meta)
-     -> m (Problem (Name Gensym) ::: Problem (Name Gensym))
+     -> m (Term (ProblemF :+: CoreF) (Name Gensym) ::: Term (ProblemF :+: CoreF) (Name Gensym))
 elab = Surface.kcata id alg bound free
   where free (Global n)       = assume (Global n)
         free (Local (Name n)) = assume (Local n)
@@ -314,7 +311,7 @@ elabDecl :: ( Carrier sig m
             , Member (State Context) sig
             )
          => Decl (Surface.Surface (Name Meta))
-         -> m (Decl (Problem (Name Gensym)))
+         -> m (Decl (Term (ProblemF :+: CoreF) (Name Gensym)))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ctx <- get
   ty' <- runSpanned (runReader ctx . goalIs type' . elab) ty
@@ -344,8 +341,8 @@ instance (Pretty a, Pretty b) => Pretty (a := b) where
 
 
 data Binding
-  = Define (Qualified := Problem (Name Gensym))
-  | Exists (Gensym := Maybe (Problem (Name Gensym)))
+  = Define (Qualified := Term (ProblemF :+: CoreF) (Name Gensym))
+  | Exists (Gensym := Maybe (Term (ProblemF :+: CoreF) (Name Gensym)))
   | ForAll Gensym
   deriving (Eq, Ord, Show)
 
@@ -354,16 +351,16 @@ bindingName (Define (n := _)) = Global n
 bindingName (Exists (n := _)) = Local n
 bindingName (ForAll  n)       = Local n
 
-bindingValue :: Binding -> Maybe (Problem (Name Gensym))
+bindingValue :: Binding -> Maybe (Term (ProblemF :+: CoreF) (Name Gensym))
 bindingValue (Define (_ := v)) = Just v
 bindingValue (Exists (_ := v)) = v
 bindingValue (ForAll  _)       = Nothing
 
-lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Problem (Name Gensym))
+lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Term (ProblemF :+: CoreF) (Name Gensym))
 lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
 
 
-identity, identityT, constant, constantT, constantTQ :: Problem String
+identity, identityT, constant, constantT, constantTQ :: Term (ProblemF :+: CoreF) String
 
 identity = lam "A" (lam "a" (pure "a"))
 identityT = pi ("A" ::: type') (pi ("_" ::: pure "A") (pure "A"))
