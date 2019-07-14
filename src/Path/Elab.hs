@@ -1,275 +1,206 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, KindSignatures, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
 import Control.Effect
-import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Reader(Local))
-import Control.Effect.State
-import Control.Effect.Sum
 import Control.Effect.Writer
-import Control.Monad ((<=<))
-import Data.Foldable (foldl', for_)
+import Control.Monad (foldM)
+import Data.Bifunctor (first)
+import Data.Foldable (foldl')
+import Data.Functor.Const
 import qualified Data.Map as Map
-import qualified Data.Set as Set
-import Data.Maybe (catMaybes)
-import Data.Traversable (for)
-import Path.Stack as Stack
-import Path.Constraint hiding (Scope(..), (|-))
-import Path.Context as Context
-import qualified Path.Core as Core
-import Path.Eval
-import Path.Module
+import Data.Void
+import Path.Core
+import Path.Error
+import Path.Module as Module
 import Path.Name
 import Path.Plicity
 import Path.Pretty
-import Path.Scope as Scope
-import Path.Semiring
-import Path.Solver
+import Path.Problem
+import Path.Scope
+import Path.Span
+import Path.Stack as Stack
+import qualified Path.Surface as Surface
+import Path.Syntax
+import Path.Term
 import Path.Usage
-import Path.Value (Type, Value(..))
-import qualified Path.Value as Value
 import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span(..), Spanned(..))
 
-assume :: (Carrier sig m, Member Elab sig, Member Naming sig)
-       => Name Gensym
-       -> m (Value Meta ::: Type Meta)
-assume v = do
-  _A <- have v
-  implicits _A >>= foldl' app (pure (name (pure . Name) Value.global v ::: _A))
-
-implicits :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Stack (Plicit (m (Value Meta ::: Type Meta))))
-implicits = go Nil
-  where go names (Value.Pi (Im :< (_, t)) b) | False = do
-          v <- exists t
-          go (names :> (Im :< pure (v ::: t))) (Value.instantiate v b)
-        go names _ = pure names
-
-intro :: (Carrier sig m, Member Elab sig, Member Naming sig)
-      => Plicit (Maybe User)
-      -> (Gensym -> m (Value Meta ::: Type Meta))
-      -> m (Value Meta ::: Type Meta)
-intro (p :< x) body = do
-  _A <- exists Type
-  x <- gensym (maybe "_" showUser x)
-  _B <- x ::: _A |- exists Type
-  u <- x ::: _A |- goalIs _B (body x)
-  pure (Value.lam (p :< Name x) u ::: Value.pi (p :< (Name x, More) ::: _A) _B)
-
-pi :: (Carrier sig m, Member Elab sig, Member Naming sig)
-   => Plicit (Maybe User, Usage, m (Value Meta ::: Type Meta))
-   -> (Gensym -> m (Value Meta ::: Type Meta))
-   -> m (Value Meta ::: Type Meta)
-pi (p :< (x, m, t)) body = do
-  t' <- goalIs Type t
-  x <- gensym (maybe "_" showUser x)
-  b' <- x ::: t' |- goalIs Type (body x)
-  pure (Value.pi (p :< (Name x, m) ::: t') b' ::: Type)
-
-app :: (Carrier sig m, Member Elab sig, Member Naming sig)
-    => m (Value Meta ::: Type Meta)
-    -> Plicit (m (Value Meta ::: Type Meta))
-    -> m (Value Meta ::: Type Meta)
-app f (p :< a) = do
-  _A <- exists Type
-  x <- gensym "app"
-  _B <- x ::: _A |- exists Type
-  let _F = Value.pi (p :< (Name x, case p of { Im -> zero ; Ex -> More }) ::: _A) _B
-  f' <- goalIs _F f
-  a' <- goalIs _A a
-  pure (f' Value.$$ (p :< a') ::: _F Value.$$ (p :< a'))
-
-
-exists :: (Carrier sig m, Member Elab sig)
-       => Type Meta
-       -> m (Value Meta)
-exists ty = send (Exists ty pure)
-
-goalIs :: (Carrier sig m, Member Elab sig) => Type Meta -> m (Value Meta ::: Type Meta) -> m (Value Meta)
-goalIs ty2 m = do
-  tm1 ::: ty1 <- m
-  tm2 <- exists ty2
-  tm2 <$ unify (tm1 ::: ty1 :===: tm2 ::: ty2)
-
-unify :: (Carrier sig m, Member Elab sig)
-      => Equation (Value Meta ::: Type Meta)
-      -> m ()
-unify q = send (Unify q (pure ()))
-
-(|-) :: (Carrier sig m, Member Elab sig) => Gensym ::: Type Meta -> m a -> m a
-b |- m = send (Bind b m pure)
-
-infix 5 |-
-
-have :: (Carrier sig m, Member Elab sig) => Name Gensym -> m (Type Meta)
-have n = send (Have n pure)
-
-
-spanIs :: (Carrier sig m, Member (Reader Span) sig) => Span -> m a -> m a
-spanIs span = local (const span)
-
-elab :: (Carrier sig m, Member Elab sig, Member Naming sig, Member (Reader Span) sig)
-     => Core.Core Gensym
-     -> m (Value Meta ::: Type Meta)
-elab = \case
-  Core.Var n -> assume n
-  Core.Lam n b -> intro n (\ n' -> elab (Core.instantiate (pure n') b))
-  f Core.:$ (p :< a) -> app (elab f) (p :< elab a)
-  Core.Type -> pure (Type ::: Type)
-  Core.Pi (p :< (n, m, t)) b -> pi (p :< (n, m, elab t)) (\ n' -> elab (Core.instantiate (pure n') b))
-  Core.Hole h -> (pure (Meta h) :::) <$> exists Type
-  Core.Ann ann b -> spanIs ann (elab b)
-
-
-data Elab m k
-  = Exists (Type Meta) (Value Meta -> k)
-  | Have (Name Gensym) (Type Meta -> k)
-  | forall a . Bind (Gensym ::: Type Meta) (m a) (a -> k)
-  | Unify (Equation (Value Meta ::: Type Meta)) k
-
-deriving instance Functor (Elab m)
-
-instance HFunctor Elab where
-  hmap f = \case
-    Exists t   k -> Exists t       k
-    Have   n   k -> Have   n       k
-    Bind   b m k -> Bind   b (f m) k
-    Unify  q   k -> Unify  q       k
-
-instance Effect Elab where
-  handle state handler = \case
-    Exists t   k -> Exists t                        (handler . (<$ state) . k)
-    Have   n   k -> Have   n                        (handler . (<$ state) . k)
-    Bind   b m k -> Bind   b (handler (m <$ state)) (handler . fmap k)
-    Unify  q   k -> Unify  q                        (handler (k <$ state))
-
-
-runElab :: ElabC m a -> m (Set.Set (Spanned (Constraint Meta)), a)
-runElab = runWriter . runReader mempty . runElabC
-
-newtype ElabC m a = ElabC { runElabC :: ReaderC (Context (Type Meta)) (WriterC (Set.Set (Spanned (Constraint Meta))) m) a }
-  deriving (Applicative, Functor, Monad)
-
-instance (Carrier sig m, Effect sig, Member Naming sig, Member (Reader Scope) sig, Member (Reader Span) sig, Member (State Signature) sig) => Carrier (Elab :+: sig) (ElabC m) where
-  eff (L (Exists ty k)) = do
-    ctx <- ElabC ask
-    n <- gensym "meta"
-    let f (n ::: t) = Ex :< (Name n, More) ::: t
-        ty' = Value.pis (f <$> Context.unContext ctx) ty
-    modify (Signature . Map.insert n ty' . unSignature)
-    k (pure (Meta n) Value.$$* ((Ex :<) . pure . Name <$> Context.vars (ctx :: Context (Type Meta))))
-  eff (L (Have n k)) = lookup n >>= maybe missing pure >>= k
-    where lookup (Global n) = ElabC (asks (Scope.lookup   n)) >>= pure . fmap (Value.weaken . entryType)
-          lookup (Local  n) = ElabC (asks (Context.lookup n))
-          missing = do
-            ty <- exists Type
-            tm <- exists ty
-            ty <$ unify (tm ::: ty :===: name (pure . Name) Value.global n ::: ty)
-  eff (L (Bind (n ::: t) m k)) = ElabC (local (Context.insert (n ::: t)) (runElabC m)) >>= k
-  eff (L (Unify (tm1 ::: ty1 :===: tm2 ::: ty2) k)) = ElabC $ do
-    span <- ask
-    context <- ask
-    tell (Set.fromList
-      [ (binds context ((ty1 :===: ty2) ::: Value.Type)) :~ span
-      , (binds context ((tm1 :===: tm2) ::: ty1))        :~ span
-      ])
-    runElabC k
-  eff (R other) = ElabC (eff (R (R (handleCoercible other))))
-
-inferType :: (Carrier sig m, Member Naming sig) => m (Type Meta)
-inferType = pure . Meta <$> gensym "meta"
-
-
-type ModuleTable = Map.Map ModuleName Scope
-
-elabModule :: ( Carrier sig m
-              , Effect sig
-              , Member (Error Doc) sig
-              , Member Naming sig
-              , Member (Reader ModuleTable) sig
-              , Member (State (Stack Doc)) sig
-              , Member (State Scope) sig
-              )
-           => Module Qualified (Core.Core Gensym)
-           -> m (Module Qualified (Value Gensym ::: Type Gensym))
-elabModule m = namespace (show (moduleName m)) $ do
-  for_ (moduleImports m) (modify . Scope.union <=< importModule)
-
-  decls <- for (moduleDecls m) $ \ decl ->
-    (Just <$> elabDecl decl) `catchError` ((Nothing <$) . logError)
-  pure m { moduleDecls = catMaybes decls }
-
-logError :: (Member (State (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
-logError = modify . flip (:>)
-
-importModule :: ( Carrier sig m
-                , Member (Error Doc) sig
-                , Member (Reader ModuleTable) sig
-                )
-             => Spanned Import
-             -> m Scope
-importModule n@(i :~ _) = asks (Map.lookup (importModuleName i)) >>= maybe (unknownModule n) pure
-
-
-elabDecl :: ( Carrier sig m
-            , Effect sig
-            , Member (Error Doc) sig
-            , Member Naming sig
-            , Member (State Scope) sig
-            )
-         => Spanned (Decl Qualified (Core.Core Gensym))
-         -> m (Spanned (Decl Qualified (Value Gensym ::: Type Gensym)))
-elabDecl (decl :~ span) = namespace (show (declName decl)) . runReader span . fmap (:~ span) $ case decl of
-  Declare name ty -> do
-    ty' <- runScope (declare (elab ty))
-    modify (Scope.insert name (Entry (Nothing ::: ty')))
-    pure (Declare name (ty' ::: Value.Type))
-  Define  name tm -> do
-    ty <- gets (fmap entryType . Scope.lookup name)
-    tm ::: ty <- case ty of
-      Just ty -> do
-        scope <- get
-        let ty' = whnf scope ty
-        (names, _) <- un (orTerm (\ n -> \case
-          Value.Pi (Im :< _) b | False -> Just (Im :< n, whnf scope (Value.instantiate (pure n) b))
-          _                    -> Nothing)) ty'
-        pure (Core.lams names tm ::: Value.weaken ty)
-      Nothing -> (tm :::) <$> inferType
-    tm ::: ty <- runScope (define ty (elab tm))
-    modify (Scope.insert name (Entry (Just tm ::: ty)))
-    pure (Define name (tm ::: ty))
-  Doc docs     d  -> Doc docs <$> elabDecl d
-
-declare :: ( Carrier sig m
-           , Effect sig
-           , Member (Error Doc) sig
-           , Member Naming sig
-           , Member (Reader Scope) sig
-           , Member (Reader Span) sig
-           )
-        => ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-        -> m (Value Gensym)
-declare ty = evalState (mempty :: Signature) $ do
-  (constraints, ty') <- runElab (goalIs Type ty)
-  subst <- solver constraints
-  pure (Value.generalizeType (apply subst ty'))
-
-define :: ( Carrier sig m
-          , Effect sig
+assume :: ( Carrier sig m
           , Member (Error Doc) sig
-          , Member Naming sig
-          , Member (Reader Scope) sig
+          , Member (Reader Context) sig
           , Member (Reader Span) sig
           )
-       => Value Meta
-       -> ElabC (StateC Signature m) (Value Meta ::: Type Meta)
-       -> m (Value Gensym ::: Type Gensym)
-define ty tm = evalState (mempty :: Signature) $ do
-  (constraints, tm') <- runElab (goalIs ty tm)
-  subst <- solver constraints
-  let ty' = Value.generalizeType (apply subst ty)
-  (::: ty') <$> Value.strengthen (apply subst tm')
+       => Qualified
+       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+assume v = asks (lookupBinding (Global v)) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
 
-runScope :: (Carrier sig m, Member (State Scope) sig) => ReaderC Scope m a -> m a
-runScope m = get >>= flip runReader m
+intro :: ( Carrier sig m
+         , Member Naming sig
+         , Member (Reader Context) sig
+         )
+      => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+intro body = do
+  _A <- meta type'
+  x <- fresh
+  _B <- ForAll x ::: _A |- meta type'
+  u <- ForAll x ::: _A |- goalIs _B body
+  pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
+
+(-->) :: ( Carrier sig m
+         , Member Naming sig
+         , Member (Reader Context) sig
+         )
+      => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+t --> body = do
+  t' <- goalIs type' t
+  x <- fresh
+  b' <- ForAll x ::: t' |- goalIs type' body
+  pure (pi (Local x ::: t') b' ::: type')
+
+app :: ( Carrier sig m
+       , Member Naming sig
+       , Member (Reader Context) sig
+       )
+    => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+    -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+    -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+app f a = do
+  _A <- meta type'
+  x <- fresh
+  _B <- ForAll x ::: _A |- meta type'
+  let _F = pi (Local x ::: _A) _B
+  f' <- goalIs _F f
+  a' <- goalIs _A a
+  pure (f' $$ a' ::: _F $$ a')
+
+
+goalIs :: ( Carrier sig m
+          , Member Naming sig
+          )
+       => Term (Problem :+: Core) (Name Gensym)
+       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+       -> m (Term (Problem :+: Core) (Name Gensym))
+goalIs ty2 m = do
+  tm1 ::: ty1 <- m
+  tm2 <- meta (ty1 === ty2)
+  pure (tm1 === tm2)
+
+meta :: (Carrier sig m, Member Naming sig) => Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym))
+meta ty = do
+  n <- fresh
+  pure (exists (Local n ::: ty) (pure (Local n)))
+
+(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Term (Problem :+: Core) (Name Gensym) -> m a -> m a
+b |- m = local (:> b) m
+
+infix 3 |-
+
+
+elab :: ( Carrier sig m
+        , Member (Error Doc) sig
+        , Member Naming sig
+        , Member (Reader Context) sig
+        , Member (Reader Span) sig
+        )
+     => Term Surface.Surface Qualified
+     -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+elab = kcata id alg bound assume
+  where bound (Z _) = asks @Context (first (Var . bindingName) . Stack.head)
+        bound (S m) = local @Context (Stack.drop 1) m
+        alg = \case
+          Surface.Lam _ b -> intro (elab' (unScope <$> b))
+          f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
+          Surface.Type -> pure (type' ::: type')
+          Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> elab' (unScope <$> b)
+        elab' = spanIs . fmap getConst
+
+elabDecl :: ( Carrier sig m
+            , Member (Error Doc) sig
+            , Member Naming sig
+            , Member (Reader Context) sig
+            , Member (Reader ModuleName) sig
+            )
+         => Decl (Term Surface.Surface Qualified)
+         -> m (Decl (Term (Problem :+: Core) Qualified))
+elabDecl (Decl name d tm ty) = namespace (show name) $ do
+  ty' <- runSpanned (goalIs type' . elab) ty
+  def <- meta (unSpanned ty')
+  moduleName <- ask
+  tm' <- runSpanned (local (:> Define (moduleName :.: name := def) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
+  ty'' <- runSpanned (either freeVariables pure . strengthen) ty'
+  tm'' <- runSpanned (either freeVariables pure . strengthen) tm'
+  pure (Decl name d tm'' ty'')
+
+elabModule :: ( Carrier sig m
+              , Member (Error Doc) sig
+              , Member Naming sig
+              , Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig
+              , Member (Writer (Stack Doc)) sig
+              )
+           => Module (Term Surface.Surface) Qualified
+           -> m (Module (Term (Problem :+: Core)) Qualified)
+elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
+  -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?
+  decls <- foldM go mempty (moduleDecls m)
+  pure m { moduleDecls = decls }
+  where go decls decl = local (extendGraph decls) . inContext $ do
+          (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
+        extendModule decls decl = Map.insert (declName decl) (bind (Just . unqualified) <$> decl) decls
+        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term (Problem :+: Core)) @Void (Map.insert (moduleName m) (bindHEither Left m { moduleDecls = decls }) g)
+        qualified = (moduleName m :.:) . declName
+        unqualified (_ :.: u) = u
+
+inContext :: (Carrier sig m, Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig)
+          => ReaderC Context m a
+          -> m a
+inContext m = do
+  ctx <- asks @(ModuleGraph (Term (Problem :+: Core)) Void) toContext
+  runReader @Context ctx m
+  where toContext g = foldl' definitions Nil (modules g)
+        definitions ctx m = foldl' define ctx (moduleDecls m)
+          where define ctx d = ctx :> (Define ((moduleName m :.: declName d) := inst (declTerm d)) ::: inst (declType d))
+                inst t = instantiateEither (pure . Global . either (moduleName m :.:) id) (unSpanned t)
+
+logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
+logError = tell . (Nil :> )
+
+
+type Context = Stack (Binding ::: Term (Problem :+: Core) (Name Gensym))
+
+
+data Binding
+  = Define (Qualified := Term (Problem :+: Core) (Name Gensym))
+  | Exists (Gensym := Maybe (Term (Problem :+: Core) (Name Gensym)))
+  | ForAll Gensym
+  deriving (Eq, Ord, Show)
+
+bindingName :: Binding -> Name Gensym
+bindingName (Define (n := _)) = Global n
+bindingName (Exists (n := _)) = Local n
+bindingName (ForAll  n)       = Local n
+
+bindingValue :: Binding -> Maybe (Term (Problem :+: Core) (Name Gensym))
+bindingValue (Define (_ := v)) = Just v
+bindingValue (Exists (_ := v)) = v
+bindingValue (ForAll  _)       = Nothing
+
+lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name Gensym))
+lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
+
+
+identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
+
+identity = lam "A" (lam "a" (pure "a"))
+identityT = pi ("A" ::: type') (pi ("_" ::: pure "A") (pure "A"))
+constant = lam "A" (lam "B" (lam "a" (lam "b" (pure "a"))))
+constantT = pi ("A" ::: type') (pi ("B" ::: type') (pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))
+
+constantTQ
+  = exists ("_A" ::: type') (pi ("A" ::: pure "_A")
+  ( exists ("_B" ::: type') (pi ("B" ::: pure "_B")
+  ( pi ("_" ::: pure "A") (pi ("_" ::: pure "B") (pure "A"))))))

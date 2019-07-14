@@ -3,7 +3,7 @@ module Path.Stack where
 
 import Data.Foldable (toList)
 import Path.Pretty
-import Prelude hiding (filter, lookup)
+import Prelude hiding (drop, filter, lookup)
 
 data Stack a = Nil | Stack a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -37,3 +37,15 @@ filter keep = \case
     | keep a    -> filter keep as :> a
     | otherwise -> filter keep as
   Nil           -> Nil
+
+drop :: Int -> Stack a -> Stack a
+drop n (xs :> _) | n > 0 = drop (pred n) xs
+drop _ xs                = xs
+
+head :: Stack a -> a
+head (_ :> a) = a
+head _        = error "Path.Stack.head: empty stack"
+
+tail :: Stack a -> Stack a
+tail (as :> _) = as
+tail _         = error "Path.Stack.tail: empty stack"

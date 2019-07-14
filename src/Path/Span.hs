@@ -1,33 +1,25 @@
-module Path.Span where
+{-# LANGUAGE FlexibleContexts #-}
+module Path.Span
+( Span(..)
+, Spanned(..)
+, unSpanned
+, runSpanned
+, spanned
+, spanIs
+) where
 
-import qualified Data.ByteString.Char8 as Char8
-import qualified Text.Trifecta.Delta as Trifecta
-import qualified Text.Trifecta.Rendering as Trifecta
+import Control.Effect
+import Control.Effect.Reader
+import Text.Trifecta.Rendering (Span (..), Spanned (..))
 
-data Pos = Pos
-  { posLine :: {-# UNPACK #-} !Int
-  , posCol  :: {-# UNPACK #-} !Int
-  }
-  deriving (Eq, Ord, Show)
+unSpanned :: Spanned a -> a
+unSpanned (a :~ _) = a
 
-fromDelta :: Trifecta.Delta -> Pos
-fromDelta d = Pos (fromIntegral (line d)) (fromIntegral (Trifecta.column d))
-  where line (Trifecta.Lines      l _ _ _) = l
-        line (Trifecta.Directed _ l _ _ _) = l
-        line _                             = 1
+runSpanned :: Carrier sig m => (a -> ReaderC Span m b) -> Spanned a -> m (Spanned b)
+runSpanned f v@(_ :~ s) = runReader s (traverse f v)
 
-toDelta :: Maybe FilePath -> Pos -> Trifecta.Delta
-toDelta Nothing  (Pos l c) = Trifecta.Lines (fromIntegral l) (fromIntegral c) 0 (fromIntegral c)
-toDelta (Just p) (Pos l c) = Trifecta.Directed (Char8.pack p) (fromIntegral l) (fromIntegral c) 0 (fromIntegral c)
+spanned :: (Carrier sig m, Member (Reader Span) sig) => a -> m (Spanned a)
+spanned a = asks (a :~)
 
-data Span = Span
-  { spanStart :: {-# UNPACK #-} !Pos
-  , spanEnd   :: {-# UNPACK #-} !Pos
-  }
-  deriving (Eq, Ord, Show)
-
-instance Semigroup Span where
-  Span start1 end1 <> Span start2 end2 = Span (min start1 start2) (max end1 end2)
-
-fromSpan :: Trifecta.Span -> Span
-fromSpan (Trifecta.Span d1 d2 _) = Span (fromDelta d1) (fromDelta d2)
+spanIs :: (Carrier sig m, Member (Reader Span) sig) => Spanned (m a) -> m a
+spanIs (m :~ s) = local (const s) m

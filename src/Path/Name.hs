@@ -1,87 +1,74 @@
-{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Name where
 
+import           Control.Applicative (Alternative (..))
 import           Control.Effect
 import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
 import           Control.Effect.Sum
+import           Control.Monad.Fail
+import           Control.Monad.Fix
 import           Control.Monad.IO.Class
-import           Data.Bifunctor
 import           Data.List.NonEmpty (NonEmpty (..))
-import qualified Data.Map as Map
 import qualified Data.Set as Set
+import           Data.Validation
 import           Path.Pretty
 import           Path.Stack
-import           Path.Usage
-import           Text.Trifecta.Rendering (Span, Spanned(..))
+import           Prelude hiding (fail)
 
-data Gensym
-  = Root String
-  | Gensym :/ (String, Int)
+data Gensym = Gensym (Stack String) Int
   deriving (Eq, Ord, Show)
 
-infixl 6 :/
-
 instance Pretty Gensym where
-  pretty = \case
-    Root s -> pretty s
-    _ :/ (_, i) -> prettyVar i
+  pretty (Gensym _ i) = prettyVar i
 
-prettyGensym :: Gensym -> Doc
-prettyGensym = \case
-  Root s -> pretty s
-  _ :/ ("", i) -> prettyVar i
-  _ :/ (s, i) -> pretty s <> pretty i
-
-(//) :: Gensym -> String -> Gensym
-root // s = root :/ (s, 0)
-
-infixl 6 //
+prime :: Gensym -> Gensym
+prime (Gensym s i) = Gensym s (succ i)
 
 
-gensym :: (Carrier sig m, Member Naming sig) => String -> m Gensym
-gensym s = send (Gensym s pure)
+fresh :: (Carrier sig m, Member Naming sig) => m Gensym
+fresh = send (Fresh pure)
 
 namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
 namespace s m = send (Namespace s m pure)
 
 
-un :: (Carrier sig m, Member Naming sig) => (Gensym -> t -> Either b (a, t)) -> t -> m (Stack a, b)
-un from = go Nil
-  where go names value = do
-          name <- gensym ""
-          case from name value of
-            Right (name, body) -> go (names :> name) body
-            Left body          -> pure (names, body)
+un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
+un from = unH (\ t -> maybe (Left t) Right (from t))
 
-orTerm :: (n -> t -> Maybe (a, t)) -> (n -> t -> Either t (a, t))
-orTerm f a t = maybe (Left t) Right (f a t)
+unH :: Monad m => (t -> Either b (m (a, t))) -> t -> m (Stack a, b)
+unH from = go Nil
+  where go names value = case from value of
+          Right a -> do
+            (name, body) <- a
+            go (names :> name) body
+          Left  b -> pure (names, b)
 
 data Naming m k
-  = Gensym String (Gensym -> k)
-  | forall a . Namespace String (m a) (a -> k)
+  = Fresh (Gensym -> m k)
+  | forall a . Namespace String (m a) (a -> m k)
 
-deriving instance Functor (Naming m)
+deriving instance Functor m => Functor (Naming m)
 
 instance HFunctor Naming where
-  hmap _ (Gensym    s   k) = Gensym s k
-  hmap f (Namespace s m k) = Namespace s (f m) k
+  hmap f (Fresh         k) = Fresh             (f . k)
+  hmap f (Namespace s m k) = Namespace s (f m) (f . k)
 
 instance Effect Naming where
-  handle state handler (Gensym    s   k) = Gensym s (handler . (<$ state) . k)
+  handle state handler (Fresh         k) = Fresh                              (handler . (<$ state) . k)
   handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
 
 
-runNaming :: Functor m => Gensym -> NamingC m a -> m a
-runNaming root = runReader root . evalState 0 . runNamingC
+runNaming :: Functor m => NamingC m a -> m a
+runNaming = runReader Nil . evalState 0 . runNamingC
 
-newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC Gensym m) a }
-  deriving (Applicative, Functor, Monad, MonadIO)
+newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC (Stack String) m) a }
+  deriving (Applicative, Functor, Monad, MonadFail, MonadFix, MonadIO)
 
 instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
-  eff (L (Gensym    s   k)) = NamingC (StateC (\ i -> (:/ (s, i)) <$> ask >>= runState (succ i) . runNamingC . k))
-  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (// s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
+  eff (L (Fresh         k)) = NamingC (asks Gensym <*> get <* modify (succ @Int) >>= runNamingC . k)
+  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (:> s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
   eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
 
@@ -94,10 +81,6 @@ instance Pretty User where
   pretty = \case
     Id s  -> pretty s
     Op op -> parens (pretty op)
-
-showUser :: User -> String
-showUser (Id s) = s
-showUser (Op o) = showOperator o
 
 
 data ModuleName
@@ -137,20 +120,32 @@ data Name a
 instance Pretty a => Pretty (Name a) where
   pretty = \case
     Global (_ :.: n) -> pretty n
-    Local         n  -> pretty '_' <> pretty n
+    Local         n  -> pretty n
 
 name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
 name _     global (Global n) = global n
 
-inModule :: ModuleName -> Name Gensym -> Bool
-inModule m (Global (m' :.: _)) = m == m'
-inModule _ _                   = False
+global :: Applicative m => Qualified -> m (Name a)
+global = pure . Global
 
-prettyQName :: Name Gensym -> Doc
-prettyQName = \case
-  Global n -> pretty n
-  Local  n -> pretty '_' <> prettyGensym n
+
+localNames :: Ord a => Set.Set (Name a) -> Set.Set a
+localNames = foldMap (name Set.singleton (const Set.empty))
+
+
+close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
+close = traverse (name (const empty) pure)
+
+closeFail :: (MonadFail m, Show a, Traversable t) => t (Name a) -> m (t Qualified)
+closeFail = traverse (name (fail . ("free variable: " ++) . show) pure)
+
+
+weaken :: Functor f => f Qualified -> f (Name a)
+weaken = fmap Global
+
+strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
+strengthen = toEither . traverse (name (Failure . pure) Success)
 
 
 data Meta
@@ -162,9 +157,6 @@ instance Pretty Meta where
   pretty = \case
     Name q -> pretty q
     Meta m -> dullblack (bold (pretty '?' <> pretty m))
-
-localNames :: Set.Set Meta -> Set.Set Gensym
-localNames = foldMap (\case { Name v -> Set.singleton v ; _ -> mempty })
 
 metaNames :: Set.Set Meta -> Set.Set Gensym
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
@@ -178,7 +170,7 @@ data Operator
   deriving (Eq, Ord, Show)
 
 betweenOp :: String -> String -> Operator
-betweenOp a b = Closed (a :| []) b
+betweenOp a = Closed (a :| [])
 
 showOperator :: Operator -> String
 showOperator = renderOperator " " id
@@ -199,71 +191,32 @@ instance Pretty Operator where
   pretty = renderOperator space pretty
 
 
-data Incr a = Z | S a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-match :: Eq a => a -> a -> Incr a
-match x y | x == y    = Z
-          | otherwise = S y
-
-subst :: a -> Incr a -> a
-subst a = incr a id
-
-incr :: b -> (a -> b) -> Incr a -> b
-incr z s = \case { Z -> z ; S a -> s a }
-
-
-data a ::: b = a ::: b
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Bifunctor (:::) where
-  bimap f g (a ::: b) = f a ::: g b
-
-typedTerm :: a ::: b -> a
-typedTerm (a ::: _) = a
-
-typedType :: a ::: b -> b
-typedType (_ ::: t) = t
-
-infix 6 :::
-
-instance (Pretty a, Pretty b) => Pretty (a ::: b) where
-  pretty (a ::: t) = pretty a <+> cyan colon <+> pretty t
-
-instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a ::: b) where
-  fvs (a ::: b) = fvs a <> fvs b
-
-
 data Assoc = LAssoc | RAssoc | NonAssoc
   deriving (Eq, Ord, Show)
 
 
-class Ord v => FreeVariables v a where
-  fvs :: a -> Set.Set v
+fvs :: (Foldable t, Ord a) => t a -> Set.Set a
+fvs = foldMap Set.singleton
 
-instance Ord v => FreeVariables v () where
-  fvs _ = Set.empty
 
-instance (FreeVariables v a, FreeVariables v b) => FreeVariables v (a, b) where
-  fvs (a, b) = fvs a <> fvs b
+data Named a b = Named (Ignored a) b
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance (FreeVariables v key, FreeVariables v value) => FreeVariables v (Map.Map key value) where
-  fvs = fvs . Map.toList
+named :: a -> b -> Named a b
+named = Named . Ignored
 
-instance FreeVariables v a => FreeVariables v [a] where
-  fvs = foldMap fvs
+namedName :: Named a b -> a
+namedName (Named (Ignored a) _) = a
 
-instance Ord v => FreeVariables v v where
-  fvs = Set.singleton
+namedValue :: Named a b -> b
+namedValue (Named _ b) = b
 
-instance Ord v => FreeVariables v (Set.Set v) where
-  fvs = id
 
-instance Ord v => FreeVariables v Usage where
-  fvs _ = Set.empty
+newtype Ignored a = Ignored a
+  deriving (Foldable, Functor, Show, Traversable)
 
-instance Ord v => FreeVariables v Span where
-  fvs _ = mempty
+instance Eq  (Ignored a) where _ == _ = True
+instance Ord (Ignored a) where compare _ _ = EQ
 
-instance FreeVariables v a => FreeVariables v (Spanned a) where
-  fvs (a :~ _) = fvs a
+unIgnored :: Ignored a -> a
+unIgnored (Ignored a) = a

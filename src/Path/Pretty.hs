@@ -1,4 +1,4 @@
-{-# LANGUAGE DefaultSignatures, FlexibleContexts #-}
+{-# LANGUAGE DeriveTraversable #-}
 module Path.Pretty
 ( prettyPrint
 , putDoc
@@ -10,7 +10,6 @@ module Path.Pretty
 , prettyVar
 , prettyParens
 , prettyBraces
-, prettySpanned
 , tabulate2
 , tracePrettyM
 , Prec(..)
@@ -22,11 +21,12 @@ module Path.Pretty
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
+import Path.Span
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
 import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
-import Text.Trifecta.Rendering (Span(..), Spanned(..), render)
+import Text.Trifecta.Rendering (render)
 
 prettyPrint :: (Pretty a, MonadIO m) => a -> m ()
 prettyPrint = putDoc . pretty
@@ -36,20 +36,29 @@ putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
-prettyNotice :: Span -> Maybe Doc -> Doc -> [Doc] -> Doc
-prettyNotice s lvl msg ctx = vsep
-  ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon)) lvl </> msg))
+data Level
+  = Error
+  | Warn
+  deriving (Eq, Ord, Show)
+
+instance Pretty Level where
+  pretty Error = red (pretty "error")
+  pretty Warn  = magenta (pretty "warning")
+
+prettyNotice :: Maybe Level -> Span -> Doc -> [Doc] -> Doc
+prettyNotice lvl s msg ctx = vsep
+  ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) lvl </> msg))
   : pretty (render s)
   : ctx)
 
 prettyErr :: Span -> Doc -> [Doc] -> Doc
-prettyErr s = prettyNotice s (Just (red (pretty "error")))
+prettyErr = prettyNotice (Just Error)
 
 prettyWarn :: Span -> Doc -> [Doc] -> Doc
-prettyWarn s = prettyNotice s (Just (magenta (pretty "warning")))
+prettyWarn = prettyNotice (Just Warn)
 
 prettyInfo :: Span -> Doc -> [Doc] -> Doc
-prettyInfo s = prettyNotice s Nothing
+prettyInfo = prettyNotice Nothing
 
 prettyStart :: Span -> Doc
 prettyStart (Span start _ _) = pretty start
@@ -87,29 +96,26 @@ prettyBraces :: Bool -> Doc -> Doc
 prettyBraces True = braces
 prettyBraces False = id
 
-prettySpanned :: Pretty a => Spanned a -> Doc
-prettySpanned (a :~ s) = pretty a <> hardline <> pretty (render s)
-
 
 -- | Debugging helper.
 tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
-tracePrettyM a = unsafePerformIO (prettyPrint a *> pure (pure ()))
+tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
 
 
-data Prec = Prec
+data Prec a = Prec
   { precPrecedence :: Maybe Int
-  , precDoc        :: Doc
+  , precDoc        :: a
   }
-  deriving (Show)
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance Pretty Prec where
-  pretty = precDoc
+instance Pretty a => Pretty (Prec a) where
+  pretty = pretty . precDoc
 
-prec :: Int -> Doc -> Prec
+prec :: Int -> a -> Prec a
 prec = Prec . Just
 
-atom :: Doc -> Prec
+atom :: a -> Prec a
 atom = Prec Nothing
 
-prettyPrec :: Int -> Prec -> Doc
+prettyPrec :: Int -> Prec Doc -> Doc
 prettyPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a

@@ -1,77 +1,89 @@
-{-# LANGUAGE DeriveTraversable, LambdaCase, RankNTypes, ScopedTypeVariables #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
 module Path.Core where
 
-import Control.Monad (ap)
-import Path.Name
-import Path.Plicity
-import Path.Usage
-import Prelude hiding (pi)
-import Text.Trifecta.Rendering (Span)
+import           Control.Applicative (Alternative (..))
+import           Control.Effect
+import           Control.Effect.Carrier
+import           Control.Effect.Sum
+import           Control.Monad.Module
+import qualified Data.Set as Set
+import           GHC.Generics (Generic1)
+import           Path.Name
+import           Path.Scope
+import           Path.Syntax
+import           Path.Term
+import           Prelude hiding (pi)
 
-data Core a
-  = Var (Name a)
-  | Lam (Plicit (Maybe User)) (Scope a)
-  | Core a :$ Plicit (Core a)
+data Core f a
+  = Lam (Scope () f a)
+  | f a :$ f a
+  | Let (f a) (Scope () f a)
   | Type
-  | Pi (Plicit (Maybe User, Usage, Core a)) (Scope a)
-  | Hole Gensym
-  | Ann Span (Core a)
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+  | Pi (f a) (Scope () f a)
+  deriving (Foldable, Functor, Generic1, HFunctor, Traversable)
 
-newtype Scope a = Scope (Core (Incr a))
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Core f a)
+deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
+                         , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Core f a)
+deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Core f a)
 
-instance Applicative Core where
-  pure = Var . Local
-  (<*>) = ap
+instance Monad f => RModule (Core f) f where
+  Lam b   >>=* f = Lam (b >>=* f)
+  g :$ a  >>=* f = (g >>= f) :$ (a >>= f)
+  Let v b >>=* f = Let (v >>= f) (b >>=* f)
+  Type    >>=* _ = Type
+  Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
-instance Monad Core where
-  a >>= f = joinT (fmap f a)
+instance Syntax Core where
+  foldSyntax go bound free = \case
+    Lam b -> Lam (foldSyntax go bound free b)
+    f :$ a -> go free f :$ go free a
+    Let v b -> Let (go free v) (foldSyntax go bound free b)
+    Type -> Type
+    Pi t b -> Pi (go free t) (foldSyntax go bound free b)
 
-lam :: Eq a => Plicit a -> Core a -> Core a
-lam (p :< n) b = Lam (p :< Nothing) (bind n b)
 
-lams :: (Eq a, Foldable t) => t (Plicit a) -> Core a -> Core a
+lam :: (Eq a, Carrier sig m, Member Core sig) => a -> m a -> m a
+lam n b = send (Lam (bind1 n b))
+
+lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
+unlam :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a, Term sig a)
+unlam n (Term t) | Just (Lam b) <- prj t = pure (n, instantiate1 (pure n) b)
+unlam _ _                                = empty
 
-gfoldT :: forall m n b
-       .  (forall a . Name (m a) -> n a)
-       -> (forall a . Plicit (Maybe User) -> n (Incr a) -> n a)
-       -> (forall a . n a -> Plicit (n a) -> n a)
-       -> (forall a . n a)
-       -> (forall a . Plicit (Maybe User, Usage, n a) -> n (Incr a) -> n a)
-       -> (forall a . Gensym -> n a)
-       -> (forall a . Span -> n a -> n a)
-       -> (forall a . Incr (m a) -> m (Incr a))
-       -> Core (m b)
-       -> n b
-gfoldT var lam app ty pi hole ann dist = go
-  where go :: Core (m x) -> n x
-        go = \case
-          Var a -> var a
-          Lam n (Scope b) -> lam n (go (dist <$> b))
-          f :$ a -> app (go f) (go <$> a)
-          Type -> ty
-          Pi (p :< (n, m, t)) (Scope b) -> pi (p :< (n, m, go t)) (go (dist <$> b))
-          Hole a -> hole a
-          Ann span a -> ann span (go a)
-
-joinT :: Core (Core a) -> Core a
-joinT = gfoldT (name id (Var . Global)) (\ n -> Lam n . Scope) (:$) Type (\ p -> Pi p . Scope) Hole Ann (incr (pure Z) (fmap S))
+($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
+f $$ a = send (f :$ a)
 
 
--- | Substitute occurrences of a variable with a 'Core' within another 'Core'.
---
---   prop> substitute a (pure b) (Lam (Scope (pure (S a)))) === Lam (Scope (pure (S b)))
-substitute :: Eq a => a -> Core a -> Core a -> Core a
-substitute name image = instantiate image . bind name
+let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
+let' (n := v) b = send (Let v (bind1 n b))
+
+unlet' :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
+unlet' n (Term t) | Just (Let v b) <- prj t = pure (n := v, instantiate1 (pure n) b)
+unlet' _ _                                  = empty
 
 
--- | Bind occurrences of an 'Meta' in a 'Core' term, producing a 'Scope' in which the 'Meta' is bound.
-bind :: Eq a => a -> Core a -> Scope a
-bind name = Scope . fmap (match name)
+type' :: (Carrier sig m, Member Core sig) => m a
+type' = send Type
 
--- | Substitute a 'Core' term for the free variable in a given 'Scope', producing a closed 'Core' term.
-instantiate :: Core a -> Scope a -> Core a
-instantiate t (Scope b) = b >>= subst t . fmap pure
+pi :: (Eq a, Carrier sig m, Member Core sig) => a ::: m a -> m a -> m a
+pi (n ::: t) b = send (Pi t (bind1 n b))
+
+-- | Wrap a type in a sequence of pi bindings.
+pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
+pis names body = foldr pi body names
+
+unpi :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unpi n (Term t) | Just (Pi t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
+unpi _ _                                 = empty
+
+
+generalizeType :: Term Core (Name Meta) -> Term Core Qualified
+generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
+  where f v = let name = case v of { Name n -> n ; Meta n -> n } in (Set.singleton (Local name ::: type'), name)
+
+
+-- $setup
+-- >>> import Test.QuickCheck

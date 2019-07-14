@@ -39,6 +39,3 @@ instance Semiring Resources where
 
 instance LeftModule Usage Resources where
   u ><< Resources r = Resources (fmap (u ><) r)
-
-instance FreeVariables Meta Resources where
-  fvs = fvs . unResources

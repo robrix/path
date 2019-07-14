@@ -1,8 +1,10 @@
+cabal-version:       2.4
+
 name:                path
 version:             0.1.0.0
 -- synopsis:
 -- description:
-license:             BSD3
+license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Rob Rix
 maintainer:          rob.rix@me.com
@@ -10,16 +12,13 @@ copyright:           2018 Rob Rix
 category:            Language
 build-type:          Simple
 extra-source-files:  README.md
-cabal-version:       >=1.10
 
 library
-  exposed-modules:     Path.CLI
-                     , Path.Constraint
-                     , Path.Context
+  exposed-modules:     Control.Monad.Module
+                     , Path.CLI
                      , Path.Core
                      , Path.Elab
                      , Path.Error
-                     , Path.Eval
                      , Path.Module
                      , Path.Name
                      , Path.Package
@@ -31,18 +30,18 @@ library
                      , Path.Parser.Term
                      , Path.Plicity
                      , Path.Pretty
-                     , Path.Renamer
+                     , Path.Problem
                      , Path.REPL
                      , Path.REPL.Command
                      , Path.Resources
                      , Path.Scope
-                     , Path.Span
-                     , Path.Solver
                      , Path.Semiring
+                     , Path.Span
                      , Path.Stack
                      , Path.Surface
+                     , Path.Syntax
+                     , Path.Term
                      , Path.Usage
-                     , Path.Value
   other-modules:       Paths_path
   -- other-extensions:
   build-depends:       ansi-wl-pprint
@@ -51,15 +50,17 @@ library
                      , containers
                      , directory
                      , filepath
-                     , fused-effects >= 0.3 && < 0.4
+                     , fused-effects ^>= 0.5
                      , haskeline
                      , indentation-trifecta
                      , mtl
                      , optparse-applicative
                      , parsers
                      , terminal-size
+                     , text
                      , trifecta
                      , unordered-containers
+                     , validation
   hs-source-dirs:      src
   default-language:    Haskell2010
   ghc-options:         -Weverything -Wno-missing-local-signatures -Wno-missing-import-lists -Wno-implicit-prelude -Wno-safe -Wno-unsafe -Wno-name-shadowing -Wno-monomorphism-restriction -Wno-missed-specialisations -Wno-all-missed-specialisations
