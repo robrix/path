@@ -165,7 +165,7 @@ generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
   where f v = let name = case v of { Name n -> n ; Meta n -> n } in (Set.singleton (Im :< Local name ::: Zero :@ Type), name)
 
 
-strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig) => Core (Name Meta) -> m (Core Qualified)
+strengthen :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Traversable f, Pretty (f (Name Meta))) => f (Name Meta) -> m (f Qualified)
 strengthen ty = case traverse strengthenVar ty of
   Failure e -> unsolvedMetavariables (toList e) ty
   Success a -> pure a
