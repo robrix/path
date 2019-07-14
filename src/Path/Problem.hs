@@ -259,14 +259,6 @@ b |- m = local (:> b) m
 
 infix 3 |-
 
-bindMeta :: (Carrier sig m, Member (Reader Context) sig) => Gensym ::: Term (Problem :+: Core) (Name Gensym) -> m a -> m (Binding, a)
-bindMeta (e ::: t) m = Exists (e := Nothing) ::: t |- do
-  a <- m
-  stack <- ask @Context
-  pure $ case stack of
-    Nil           -> (Exists (e := Nothing), a)
-    _ :> e' ::: _ -> (e', a)
-
 solve :: (Carrier sig m, Member (State Context) sig) => Gensym := Term (Problem :+: Core) (Name Gensym) -> m ()
 solve (var := val) = modify (fmap @Stack (\ (b ::: t) -> (if bindingName b == Local var then Exists (var := Just val) else b) ::: (t `asTypeOf` val)))
 
