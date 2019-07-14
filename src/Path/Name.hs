@@ -143,6 +143,10 @@ closeFail :: (MonadFail m, Show a, Traversable t) => t (Name a) -> m (t Qualifie
 closeFail = traverse (name (fail . ("free variable: " ++) . show) pure)
 
 
+weaken :: Functor f => f Qualified -> f (Name a)
+weaken = fmap Global
+
+
 data Meta
   = Name Gensym
   | Meta Gensym
