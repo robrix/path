@@ -166,8 +166,8 @@ generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
   where f v = let name = case v of { Name n -> n ; Meta n -> n } in (Set.singleton (Im :< Local name ::: Zero :@ Type), name)
 
 
-strengthen :: Traversable f => f (Name Meta) -> Validation (Set.Set Meta) (f Qualified)
-strengthen ty = traverse (name (Failure . Set.singleton) Success) ty
+strengthen :: Traversable f => f (Name Meta) -> Either (Set.Set Meta) (f Qualified)
+strengthen = toEither . traverse (name (Failure . Set.singleton) Success)
 
 
 unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty) => [Meta] -> ty -> m a
