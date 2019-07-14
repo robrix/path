@@ -13,6 +13,7 @@ import Path.Name
 import Path.Plicity
 import Path.Scope
 import Path.Span
+import Path.Syntax
 import Path.Term
 import Path.Usage
 

@@ -22,6 +22,7 @@ import Path.Scope
 import Path.Span
 import Path.Stack as Stack
 import qualified Path.Surface as Surface
+import Path.Syntax
 import Path.Term
 import Path.Usage
 import Prelude hiding (pi)

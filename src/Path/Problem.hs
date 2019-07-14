@@ -15,6 +15,7 @@ import           Path.Name
 import           Path.Pretty
 import           Path.Scope
 import           Path.Stack as Stack
+import           Path.Syntax
 import           Path.Term
 import           Prelude hiding (pi)
 

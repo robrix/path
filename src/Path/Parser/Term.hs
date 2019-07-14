@@ -9,6 +9,7 @@ import Path.Plicity
 import Path.Parser.Mixfix
 import Path.Surface (Surface)
 import qualified Path.Surface as Surface
+import Path.Syntax
 import Path.Term
 import Path.Usage
 import Text.Trifecta hiding ((:@))

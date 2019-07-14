@@ -10,6 +10,7 @@ import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Name
 import           Path.Scope
+import           Path.Syntax
 import           Path.Term
 import           Prelude hiding (pi)
 
