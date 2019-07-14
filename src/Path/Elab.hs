@@ -105,9 +105,9 @@ elab :: ( Carrier sig m
         , Member (Reader Context) sig
         , Member (Reader Span) sig
         )
-     => Surface.Surface Qualified
+     => Term Surface.Surface Qualified
      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-elab = Surface.kcata id alg bound assume
+elab = kcata id alg bound assume
   where bound (Z _) = asks @Context (first (Var . bindingName) . Stack.head)
         bound (S m) = local @Context (Stack.drop 1) m
         alg = \case
@@ -123,7 +123,7 @@ elabDecl :: ( Carrier sig m
             , Member (Reader Context) sig
             , Member (Reader ModuleName) sig
             )
-         => Decl (Surface.Surface Qualified)
+         => Decl (Term Surface.Surface Qualified)
          -> m (Decl (Term (Problem :+: Core) Qualified))
 elabDecl (Decl name d tm ty) = namespace (show name) $ do
   ty' <- runSpanned (goalIs type' . elab) ty
@@ -140,7 +140,7 @@ elabModule :: ( Carrier sig m
               , Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig
               , Member (Writer (Stack Doc)) sig
               )
-           => Module Surface.Surface Qualified
+           => Module (Term Surface.Surface) Qualified
            -> m (Module (Term (Problem :+: Core)) Qualified)
 elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
   -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?

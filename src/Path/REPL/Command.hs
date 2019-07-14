@@ -5,13 +5,14 @@ import Path.Module
 import Path.Name
 import Path.Span (Spanned(..))
 import Path.Surface
+import Path.Term
 
 data Command
   = Quit
   | Help
-  | TypeOf (Spanned (Surface User))
-  | Decl (Decl (Surface User))
-  | Eval (Spanned (Surface User))
+  | TypeOf (Spanned (Term Surface User))
+  | Decl (Decl (Term Surface User))
+  | Eval (Spanned (Term Surface User))
   | ShowModules
   | Reload
   | Import (Spanned ModuleName)

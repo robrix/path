@@ -9,10 +9,11 @@ import Path.Plicity
 import Path.Parser.Mixfix
 import Path.Surface (Surface)
 import qualified Path.Surface as Surface
+import Path.Term
 import Path.Usage
 import Text.Trifecta hiding ((:@))
 
-type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Surface User))
+type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Term Surface User))
 
 term = functionType
 
