@@ -131,9 +131,9 @@ lam n b = send (Lam (bind1 n b))
 lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
-unlam :: Alternative m => a -> Term (Problem :+: Core) a -> m (a, Term (Problem :+: Core) a)
-unlam n (Term (R (Lam b))) = pure (n, instantiate1 (pure n) b)
-unlam _ _                  = empty
+unlam :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a, Term sig a)
+unlam n (Term t) | Just (Lam b) <- prj t = pure (n, instantiate1 (pure n) b)
+unlam _ _                                = empty
 
 ($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
@@ -142,9 +142,9 @@ f $$ a = send (f :$ a)
 let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
 let' (n := v) b = send (Let v (bind1 n b))
 
-unlet' :: Alternative m => a -> Term (Problem :+: Core) a -> m (a := Term (Problem :+: Core) a, Term (Problem :+: Core) a)
-unlet' n (Term (R (Let v b))) = pure (n := v, instantiate1 (pure n) b)
-unlet' _ _                    = empty
+unlet' :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
+unlet' n (Term t) | Just (Let v b) <- prj t = pure (n := v, instantiate1 (pure n) b)
+unlet' _ _                                  = empty
 
 
 type' :: (Carrier sig m, Member Core sig) => m a
@@ -157,17 +157,17 @@ pi (n ::: t) b = send (Pi t (bind1 n b))
 pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 
-unpi :: Alternative m => a -> Term (Problem :+: Core) a -> m (a ::: Term (Problem :+: Core) a, Term (Problem :+: Core) a)
-unpi n (Term (R (Pi t b))) = pure (n ::: t, instantiate1 (pure n) b)
-unpi _ _                   = empty
+unpi :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unpi n (Term t) | Just (Pi t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
+unpi _ _                                 = empty
 
 
 exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
 exists (n ::: t) b = send (Ex t (bind1 n b))
 
-unexists :: Alternative m => a -> Term (Problem :+: Core) a -> m (a ::: Term (Problem :+: Core) a, Term (Problem :+: Core) a)
-unexists n (Term (L (Ex t b))) = pure (n ::: t, instantiate1 (pure n) b)
-unexists _ _                   = empty
+unexists :: (Alternative m, Member Problem sig, Syntax sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unexists n (Term t) | Just (Ex t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
+unexists _ _                                 = empty
 
 (===) :: (Carrier sig m, Member Problem sig) => m a -> m a -> m a
 p === q = send (p :===: q)
