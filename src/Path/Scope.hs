@@ -28,8 +28,8 @@ match f x = either Z (S . pure) (f x)
 matchM :: (Applicative f, Functor m) => (b -> m (Either a c)) -> b -> m (Incr a (f c))
 matchM f x = either Z (S . pure) <$> f x
 
-toEither :: (b -> Maybe a) -> (b -> Either a b)
-toEither f a = maybe (Right a) Left (f a)
+matchMaybe :: (b -> Maybe a) -> (b -> Either a b)
+matchMaybe f a = maybe (Right a) Left (f a)
 
 fromIncr :: (a -> b) -> Incr a b -> b
 fromIncr a = incr a id
@@ -75,7 +75,7 @@ bind1 :: (Applicative f, Eq a) => a -> f a -> Scope () f a
 bind1 n = bind (guard . (== n))
 
 bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
-bind f = bindEither (toEither f)
+bind f = bindEither (matchMaybe f)
 
 bindEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
 bindEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
@@ -146,7 +146,7 @@ bind1H :: (Functor f, Applicative g, Eq a) => a -> f a -> ScopeH () f g a
 bind1H n = bindH (guard . (== n))
 
 bindH :: (Functor f, Applicative g) => (b -> Maybe a) -> f b -> ScopeH a f g b
-bindH f = bindHEither (toEither f)
+bindH f = bindHEither (matchMaybe f)
 
 bindHEither :: (Functor f, Applicative g) => (b -> Either a c) -> f b -> ScopeH a f g c
 bindHEither f = ScopeH . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
