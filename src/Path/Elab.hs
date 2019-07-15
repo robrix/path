@@ -4,7 +4,7 @@ module Path.Elab where
 import Control.Applicative (liftA2)
 import Control.Effect
 import Control.Effect.Error
-import Control.Effect.Reader hiding (Reader(Local))
+import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
 import Control.Monad (foldM, join)
 import Control.Monad.Trans
