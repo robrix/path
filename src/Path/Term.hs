@@ -2,7 +2,6 @@
 module Path.Term where
 
 import Control.Effect.Carrier
-import Control.Effect.Sum
 import Data.Coerce
 import Data.Functor.Const
 import Path.Scope

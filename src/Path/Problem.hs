@@ -2,10 +2,8 @@
 module Path.Problem where
 
 import           Control.Applicative (Alternative (..), Const (..))
-import           Control.Effect
 import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
-import           Control.Effect.Sum
 import           Control.Effect.Writer
 import           Control.Monad.Module
 import qualified Data.Set as Set

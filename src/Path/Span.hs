@@ -8,7 +8,6 @@ module Path.Span
 , spanIs
 ) where
 
-import Control.Effect
 import Control.Effect.Reader
 import Text.Trifecta.Rendering (Span (..), Spanned (..))
 

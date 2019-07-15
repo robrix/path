@@ -2,10 +2,8 @@
 module Path.Surface where
 
 import Control.Applicative
-import Control.Effect
 import Control.Effect.Carrier
 import Control.Effect.Reader
-import Control.Effect.Sum
 import Control.Monad (join)
 import Control.Monad.Trans
 import GHC.Generics (Generic1)
