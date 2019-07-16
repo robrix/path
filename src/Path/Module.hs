@@ -66,6 +66,9 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (ModuleGraph f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ModuleGraph f a)
 
+instance HFunctor ModuleGraph where
+  hmap f (ModuleGraph graph) = ModuleGraph (ScopeH . hmap f . fmap (fmap f) . unScopeH <$> graph)
+
 instance Monad f => RModule (ModuleGraph f) f where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
