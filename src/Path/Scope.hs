@@ -63,6 +63,9 @@ instance Monad f => Monad (Scope a f) where
 instance Monad f => RModule (Scope a f) f where
   Scope m >>=* f = Scope (fmap (>>= f) <$> m)
 
+instance HRModule (Scope a) where
+  Scope m >>=** f = Scope (fmap (>>= f) <$> m)
+
 instance MonadTrans (Scope a) where
   lift = Scope . pure . S
 
