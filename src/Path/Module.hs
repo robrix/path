@@ -38,9 +38,6 @@ deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
 
 instance HFunctor Module
 
-instance Monad f => RModule (Module f) f where
-  Module n d p is ds >>=* f = Module n d p is (fmap (fmap (>>=* f)) ds)
-
 instance HRModule Module where
   Module n d p is ds >>=** f = Module n d p is (fmap (fmap (>>=** f)) ds)
 
@@ -68,9 +65,6 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Mo
 
 instance HFunctor ModuleGraph where
   hmap f (ModuleGraph graph) = ModuleGraph (ScopeT . hmap f . fmap (fmap f) . unScopeT <$> graph)
-
-instance Monad f => RModule (ModuleGraph f) f where
-  ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=** f) ms)
 
 instance HRModule ModuleGraph where
   ModuleGraph ms >>=** f = ModuleGraph (fmap (>>=** f) ms)

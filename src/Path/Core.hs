@@ -25,13 +25,6 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Core f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Core f a)
 
-instance Monad f => RModule (Core f) f where
-  Lam b   >>=* f = Lam (b >>=* f)
-  g :$ a  >>=* f = (g >>= f) :$ (a >>= f)
-  Let v b >>=* f = Let (v >>= f) (b >>=* f)
-  Type    >>=* _ = Type
-  Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
-
 instance HRModule Core where
   Lam b   >>=** f = Lam (b >>=** f)
   g :$ a  >>=** f = (g >>= f) :$ (a >>= f)

@@ -84,10 +84,6 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Problem f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Problem f a)
 
-instance Monad f => RModule (Problem f) f where
-  Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
-  p :===: q >>=* f = (p >>= f) :===: (q >>= f)
-
 instance HRModule Problem where
   Ex t b    >>=** f = Ex (t >>= f) (b >>=** f)
   p :===: q >>=** f = (p >>= f) :===: (q >>= f)
