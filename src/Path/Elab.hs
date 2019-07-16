@@ -2,6 +2,7 @@
 module Path.Elab where
 
 import Control.Applicative (liftA2)
+import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
