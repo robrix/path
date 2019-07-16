@@ -21,9 +21,8 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty (Term (Problem :+: Core) Qualified) where
-  pretty = snd . run . runWriter @(Set.Set Meta) . runReader (Nil @Meta) . runReader (P 0) . kcata id alg k (var . Global)
-    where var (Global v) = pure (pretty (Global @Meta v))
-          var (Local  v) = pretty v <$ tell (Set.singleton @Meta v)
+  pretty = snd . run . runWriter @(Set.Set Meta) . runReader (Nil @Meta) . runReader (P 0) . kcata id alg k (pure . pretty . Global @Meta)
+    where free v = pretty v <$ tell (Set.singleton @Meta v)
           alg = \case
             R c -> case c of
               Lam (Scope b) -> do
@@ -55,7 +54,7 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
                 prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
-          k (Z ()) = ask >>= var . Local . Stack.head
+          k (Z ()) = ask >>= free . Stack.head
           k (S n)  = local (Stack.tail @Meta) n
           prec d' doc = do
             d <- ask
