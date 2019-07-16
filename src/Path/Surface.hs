@@ -3,6 +3,7 @@ module Path.Surface where
 
 import Control.Applicative
 import Control.Effect.Carrier
+import Control.Effect.Interpret
 import Control.Effect.Reader
 import Control.Monad (join)
 import Control.Monad.Module
@@ -94,7 +95,7 @@ walk :: (Carrier sig m, Member (Reader Span) sig, Member Surface sig)
      => (a -> m b)
      -> Term Surface a
      -> m b
-walk k = iter id alg pure k
+walk k = (>>= k) . runInterpret alg . interpret
   where alg = \case
           Lam p b -> send (Lam p (Scope <$> withSpan (unScope <$> b)))
           f :$ a -> withSpan f $$ fmap withSpan a
