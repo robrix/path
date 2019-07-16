@@ -134,6 +134,9 @@ instance (Applicative f, Applicative g) => Applicative (ScopeH a f g) where
 instance (Functor f, Monad m) => RModule (ScopeH b f m) m where
   ScopeH s >>=* k = ScopeH (fmap (>>= k) <$> s)
 
+instance (Functor f) => HRModule (ScopeH b f) where
+  ScopeH s >>=** k = ScopeH (fmap (>>= k) <$> s)
+
 instance Applicative f => MonadTrans (ScopeH a f) where
   lift = ScopeH . pure . S
 
