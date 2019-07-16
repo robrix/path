@@ -19,20 +19,20 @@ parseModule = flip parseFile <*> whole . module'
 
 
 module' :: DeltaParsing m => FilePath -> m (Module.Module (Term Surface) User)
-module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many import' <*> many declaration
+module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (try import') <*> many declaration
   where make comment name = Module.module' name comment path
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
 
 import' :: DeltaParsing m => m (Spanned ModuleName)
-import' = spanned (keyword "import" *> moduleName)
+import' = spanned (keyword "import" *> moduleName) <* semi
 
 declaration :: DeltaParsing m => m (Module.Decl (Term Surface User))
 declaration = do
   docs <- optional docs
-  ((name, name'), ty) <- (,) <$> slicedWith (,) name <* op ":" <*> term
-  tm <- token (text (Text.decodeUtf8 name')) *> op "=" *> term
+  ((name, name'), ty) <- (,) <$> slicedWith (,) name <* op ":" <*> term <* semi
+  tm <- token (text (Text.decodeUtf8 name')) *> op "=" *> term <* semi
   pure (Module.Decl name docs tm ty)
 
 docs :: TokenParsing m => m String

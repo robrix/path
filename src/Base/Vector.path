@@ -1,16 +1,16 @@
 module Base.Vector
 
-import Base.Nat
+import Base.Nat;
 
-Vector : Nat -> Type -> Type
+Vector : Nat -> Type -> Type;
 Vector = \ n a
   .  { x : Nat -> Type }
   -> x z
   -> ({ n : Nat } -> a -> x n -> x (s n))
-  -> x n
+  -> x n;
 
-nil : { a : Type } -> Vector z a
-nil = \ {_} nil _ . nil
+nil : { a : Type } -> Vector z a;
+nil = \ {_} nil _ . nil;
 
-cons : { n : Nat } -> { a : Type } -> a -> Vector n a -> Vector (s n) a
-cons = \ {_} {_} h t {x} nil cons . cons h (t {x} nil cons)
+cons : { n : Nat } -> { a : Type } -> a -> Vector n a -> Vector (s n) a;
+cons = \ {_} {_} h t {x} nil cons . cons h (t {x} nil cons);
