@@ -5,6 +5,7 @@ import Control.Applicative
 import Control.Effect.Carrier
 import Control.Effect.Reader
 import Control.Monad (join)
+import Control.Monad.Module
 import Control.Monad.Trans
 import GHC.Generics (Generic1)
 import Path.Name
@@ -26,6 +27,12 @@ deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Su
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Surface f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Surface f a)
+
+instance HRModule Surface where
+  Lam p b >>=** f = Lam p (fmap (>>=** f) b)
+  g :$ a  >>=** f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
+  Type    >>=** _ = Type
+  Pi t b  >>=** f = Pi (fmap (fmap (fmap (fmap (>>= f)))) t) (fmap (>>=** f) b)
 
 instance Syntax Surface where
   foldSyntax go bound free = \case
