@@ -195,6 +195,9 @@ instance (Applicative (t f), Applicative f) => Applicative (ScopeT a t f) where
   pure = ScopeT . pure . S . pure
   ScopeT f <*> ScopeT a = ScopeT (liftA2 (liftA2 (<*>)) f a)
 
+instance (Monad (t f), MonadTrans t, Monad f) => Monad (ScopeT a t f) where
+  ScopeT e >>= f = ScopeT (e >>= incr (pure . Z) ((>>= unScopeT . f) . lift))
+
 instance (HFunctor t, forall g . Functor g => Functor (t g)) => HRModule (ScopeT b t) where
   ScopeT s >>=** k = ScopeT (fmap (>>= k) <$> s)
 
