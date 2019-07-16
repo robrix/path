@@ -36,6 +36,8 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Module f a)
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
 
+instance HFunctor Module
+
 instance Monad f => RModule (Module f) f where
   Module n d p is ds >>=* f = Module n d p is (fmap (fmap (>>=* f)) ds)
 
