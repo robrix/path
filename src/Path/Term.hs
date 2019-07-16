@@ -86,7 +86,3 @@ instance (Syntax l, Syntax r) => Syntax (l :+: r) where
 interpret :: (Carrier sig m, forall g . Functor g => Functor (eff g), HFunctor eff, Member eff sig) => Term eff a -> m a
 interpret (Var a) = pure a
 interpret (Term t) = send (hmap interpret t)
-
-interpret' :: (Carrier sig m, forall g . Functor g => Functor (sig g)) => Term sig a -> m a
-interpret' (Var a) = pure a
-interpret' (Term t) = eff (hmap interpret' t)
