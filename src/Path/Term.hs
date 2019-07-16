@@ -38,7 +38,7 @@ instance HRModule sig => Applicative (Term sig) where
 
 instance HRModule sig => Monad (Term sig) where
   Var  a >>= f = f a
-  Term t >>= f = Term (t >>=** f)
+  Term t >>= f = Term (t >>=* f)
 
 instance HRModule sig => Carrier sig (Term sig) where
   eff = Term

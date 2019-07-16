@@ -26,11 +26,11 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Core f a)
 
 instance HRModule Core where
-  Lam b   >>=** f = Lam (b >>=** f)
-  g :$ a  >>=** f = (g >>= f) :$ (a >>= f)
-  Let v b >>=** f = Let (v >>= f) (b >>=** f)
-  Type    >>=** _ = Type
-  Pi t b  >>=** f = Pi (t >>= f) (b >>=** f)
+  Lam b   >>=* f = Lam (b >>=* f)
+  g :$ a  >>=* f = (g >>= f) :$ (a >>= f)
+  Let v b >>=* f = Let (v >>= f) (b >>=* f)
+  Type    >>=* _ = Type
+  Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
 instance Syntax Core where
   foldSyntax go bound free = \case

@@ -61,7 +61,7 @@ instance Monad f => Monad (Scope a f) where
   Scope e >>= f = Scope (e >>= incr (pure . Z) (>>= unScope . f))
 
 instance HRModule (Scope a) where
-  Scope m >>=** f = Scope (fmap (>>= f) <$> m)
+  Scope m >>=* f = Scope (fmap (>>= f) <$> m)
 
 instance MonadTrans (Scope a) where
   lift = Scope . pure . S
@@ -132,7 +132,7 @@ instance (Monad (t f), MonadTrans t, Monad f) => Monad (ScopeT a t f) where
   ScopeT e >>= f = ScopeT (e >>= incr (pure . Z) ((>>= unScopeT . f) . lift))
 
 instance (HFunctor t, forall g . Functor g => Functor (t g)) => HRModule (ScopeT b t) where
-  ScopeT s >>=** k = ScopeT (fmap (>>= k) <$> s)
+  ScopeT s >>=* k = ScopeT (fmap (>>= k) <$> s)
 
 instance MonadTrans f => MonadTrans (ScopeT a f) where
   lift = ScopeT . lift . pure . S
@@ -159,10 +159,10 @@ instantiateT :: (HRModule t, Monad f) => (a -> f b) -> ScopeT a t f b -> t f b
 instantiateT f = instantiateTEither (either f pure)
 
 instantiateTEither :: (HRModule t, Monad f) => (Either a b -> f c) -> ScopeT a t f b -> t f c
-instantiateTEither f = unScopeT >=>** incr (f . Left) (>>= f . Right)
+instantiateTEither f = unScopeT >=>* incr (f . Left) (>>= f . Right)
 
 fromScopeT :: (HRModule t, Monad f) => ScopeT a t f b -> t f (Incr a b)
-fromScopeT = unScopeT >=>** sequenceA
+fromScopeT = unScopeT >=>* sequenceA
 
 toScopeT :: (Functor (t f), Applicative f) => t f (Incr a b) -> ScopeT a t f b
 toScopeT = ScopeT . fmap (fmap pure)

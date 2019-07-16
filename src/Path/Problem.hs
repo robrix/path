@@ -85,8 +85,8 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Problem f a)
 
 instance HRModule Problem where
-  Ex t b    >>=** f = Ex (t >>= f) (b >>=** f)
-  p :===: q >>=** f = (p >>= f) :===: (q >>= f)
+  Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
+  p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
 instance Syntax Problem where
   foldSyntax go bound free = \case

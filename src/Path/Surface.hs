@@ -29,10 +29,10 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Surface f a)
 
 instance HRModule Surface where
-  Lam p b >>=** f = Lam p (fmap (>>=** f) b)
-  g :$ a  >>=** f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
-  Type    >>=** _ = Type
-  Pi t b  >>=** f = Pi (fmap (fmap (fmap (fmap (>>= f)))) t) (fmap (>>=** f) b)
+  Lam p b >>=* f = Lam p (fmap (>>=* f) b)
+  g :$ a  >>=* f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
+  Type    >>=* _ = Type
+  Pi t b  >>=* f = Pi (fmap (fmap (fmap (fmap (>>= f)))) t) (fmap (>>=* f) b)
 
 instance Syntax Surface where
   foldSyntax go bound free = \case
