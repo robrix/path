@@ -72,6 +72,9 @@ instance HFunctor ModuleGraph where
 instance Monad f => RModule (ModuleGraph f) f where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
+instance HRModule ModuleGraph where
+  ModuleGraph ms >>=** f = ModuleGraph (fmap (>>=** f) ms)
+
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
 moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms))
 
