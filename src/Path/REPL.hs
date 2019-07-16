@@ -50,8 +50,8 @@ data REPL m k
 prompt :: (Carrier sig m, Member REPL sig) => String -> m (Maybe String)
 prompt p = send (Prompt p pure)
 
-print :: (Pretty a, Carrier sig m, Member REPL sig) => a -> m ()
-print s = send (Print (pretty s) (pure ()))
+print :: (Carrier sig m, Member REPL sig) => Doc -> m ()
+print s = send (Print s (pure ()))
 
 askLine :: (Carrier sig m, Member REPL sig) => m Line
 askLine = send (AskLine pure)
@@ -127,18 +127,18 @@ script packageSources
   . evalState (mempty @(Set.Set ModuleName))
   . runReader (ModuleName "(interpreter)")
   . runNaming
-  $ runError loop >>= either (print @Doc) pure
+  $ runError loop >>= either print pure
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
-          `catchError` (const loop <=< print @Doc)
+          `catchError` (const loop <=< print)
         parseCommand str = do
           l <- askLine
           traverse (parseString (whole command) (lineDelta l)) str
         runCommand = \case
           Quit -> pure ()
           Help -> print helpDoc *> loop
-          TypeOf tm -> elaborate tm >>= print . unSpanned >> loop
+          TypeOf tm -> elaborate tm >>= print . pretty . unSpanned >> loop
           Command.Decl decl -> runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= inContext . elabDecl) >> loop
-          Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print >> loop
+          Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print . pretty >> loop
           ShowModules -> do
             ms <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Map.toList . unModuleGraph)
             unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeH)) ms))
