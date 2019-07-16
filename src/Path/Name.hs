@@ -25,13 +25,6 @@ prime :: Gensym -> Gensym
 prime (Gensym s i) = Gensym s (succ i)
 
 
-fresh :: (Carrier sig m, Member Naming sig) => m Gensym
-fresh = send (Fresh pure)
-
-namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
-namespace s m = send (Namespace s m pure)
-
-
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
 un from = unH (\ t -> maybe (Left t) Right (from t))
 
@@ -42,6 +35,13 @@ unH from = go Nil
             (name, body) <- a
             go (names :> name) body
           Left  b -> pure (names, b)
+
+
+fresh :: (Carrier sig m, Member Naming sig) => m Gensym
+fresh = send (Fresh pure)
+
+namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
+namespace s m = send (Namespace s m pure)
 
 data Naming m k
   = Fresh (Gensym -> m k)
