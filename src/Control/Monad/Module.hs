@@ -22,8 +22,8 @@ g <=<* f = \x -> f x >>=* g
 
 infixl 1 <=<*
 
-hjoinr :: (HRModule f, Monad m) => f m (m a) -> f m a
-hjoinr = (>>=* id)
+joinr :: (HRModule f, Monad m) => f m (m a) -> f m a
+joinr = (>>=* id)
 
 
 class (forall g . Functor g => Functor (f g), HFunctor f) => HLModule f where
@@ -40,5 +40,5 @@ g *<=< f = \x -> f x *>>= g
 
 infixl 1 *<=<
 
-hjoinl :: (HLModule f, Monad m) => m (f m a) -> f m a
-hjoinl = (*>>= id)
+joinl :: (HLModule f, Monad m) => m (f m a) -> f m a
+joinl = (*>>= id)
