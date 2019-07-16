@@ -88,6 +88,10 @@ instance Monad f => RModule (Problem f) f where
   Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
   p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
+instance HRModule Problem where
+  Ex t b    >>=** f = Ex (t >>= f) (b >>=** f)
+  p :===: q >>=** f = (p >>= f) :===: (q >>= f)
+
 instance Syntax Problem where
   foldSyntax go bound free = \case
     Ex t b -> Ex (go free t) (foldSyntax go bound free b)
