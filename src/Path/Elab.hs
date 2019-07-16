@@ -151,7 +151,7 @@ elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . loca
   where go decls decl = local (extendGraph decls) . inContext $ do
           (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
         extendModule decls decl = Map.insert (declName decl) (bind (Just . unqualified) <$> decl) decls
-        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term (Problem :+: Core)) @Void (Map.insert (moduleName m) (bindHEither Left m { moduleDecls = decls }) g)
+        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term (Problem :+: Core)) @Void (Map.insert (moduleName m) (bindTEither Left m { moduleDecls = decls }) g)
         qualified = (moduleName m :.:) . declName
         unqualified (_ :.: u) = u
 
