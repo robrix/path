@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
 module Path.Module where
 
 import Control.Effect.Carrier
@@ -15,6 +15,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Data.Void
+import GHC.Generics (Generic1)
 import Path.Error
 import Path.Name
 import Path.Pretty
@@ -28,7 +29,7 @@ data Module f a = Module
   , moduleImports :: Map.Map ModuleName Span
   , moduleDecls   :: Map.Map User (Decl (Scope User f a))
   }
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Generic1, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Module f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
