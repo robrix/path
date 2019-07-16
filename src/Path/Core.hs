@@ -32,6 +32,13 @@ instance Monad f => RModule (Core f) f where
   Type    >>=* _ = Type
   Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
+instance HRModule Core where
+  Lam b   >>=** f = Lam (b >>=** f)
+  g :$ a  >>=** f = (g >>= f) :$ (a >>= f)
+  Let v b >>=** f = Let (v >>= f) (b >>=** f)
+  Type    >>=** _ = Type
+  Pi t b  >>=** f = Pi (t >>= f) (b >>=** f)
+
 instance Syntax Core where
   foldSyntax go bound free = \case
     Lam b -> Lam (foldSyntax go bound free b)
