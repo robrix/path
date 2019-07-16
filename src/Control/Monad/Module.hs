@@ -51,3 +51,17 @@ class (forall g . Functor g => Functor (f g), HFunctor f) => HRModule f where
 instance (HRModule f, HRModule g) => HRModule (f :+: g) where
   L l >>=** f = L (l >>=** f)
   R r >>=** f = R (r >>=** f)
+
+
+(>=>**) :: (HRModule f, Monad m) => (a -> f m b) -> (b -> m c) -> (a -> f m c)
+f >=>** g = \x -> f x >>=** g
+
+infixl 1 >=>**
+
+(<=<**) :: (HRModule f, Monad m) => (b -> m c) -> (a -> f m b) -> (a -> f m c)
+g <=<** f = \x -> f x >>=** g
+
+infixl 1 <=<**
+
+hjoinr :: (HRModule f, Monad m) => f m (m a) -> f m a
+hjoinr = (>>=** id)
