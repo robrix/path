@@ -1,8 +1,9 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
 module Path.Module where
 
-import Control.Effect
+import Control.Effect.Carrier
 import Control.Effect.Cull (runNonDetOnce)
+import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)

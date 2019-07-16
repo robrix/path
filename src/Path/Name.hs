@@ -2,11 +2,9 @@
 module Path.Name where
 
 import           Control.Applicative (Alternative (..))
-import           Control.Effect
 import           Control.Effect.Carrier
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.State
-import           Control.Effect.Sum
 import           Control.Monad.Fail
 import           Control.Monad.Fix
 import           Control.Monad.IO.Class

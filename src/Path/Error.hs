@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Path.Error where
 
-import Control.Effect
 import Control.Effect.Error
 import Control.Effect.Reader
 import Data.Foldable (fold, toList)
