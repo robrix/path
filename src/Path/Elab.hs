@@ -26,7 +26,6 @@ import Path.Stack as Stack
 import qualified Path.Surface as Surface
 import Path.Syntax
 import Path.Term
-import Path.Usage
 import Prelude hiding (pi)
 
 assume :: ( Carrier sig m
@@ -118,7 +117,7 @@ elab = kcata id alg bound assume
           Surface.Lam _ b -> intro (elab' (unScope <$> b))
           f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
           Surface.Type -> pure (type' ::: type')
-          Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> elab' (unScope <$> b)
+          Surface.Pi (_ :< _ ::: t) b -> elab' t --> elab' (unScope <$> b)
         elab' = spanIs . fmap getConst
 
 elabDecl :: ( Carrier sig m
