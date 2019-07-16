@@ -41,3 +41,8 @@ infixl 1 *<=<
 
 joinl :: LModule m f => m (f a) -> f a
 joinl = (*>>= id)
+
+
+class HRModule f where
+  (>>=**) :: Monad m => f m a -> (a -> m b) -> f m b
+  infixl 1 >>=**
