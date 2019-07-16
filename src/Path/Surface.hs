@@ -95,7 +95,7 @@ walk :: (Carrier sig m, Member (Reader Span) sig, Member Surface sig)
      => (a -> m b)
      -> Term Surface a
      -> m b
-walk k = runInterpret alg . interpret pure . fmap (lift . k)
+walk k = runInterpret alg . interpret pure (lift . k)
   where alg = \case
           Lam p b -> send (Lam p (Scope <$> withSpan (unScope <$> b)))
           f :$ a -> withSpan f $$ fmap withSpan a

@@ -83,5 +83,5 @@ instance (Syntax l, Syntax r) => Syntax (l :+: r) where
   foldSyntax go bound free (R r) = R (foldSyntax go bound free r)
 
 
-interpret :: (Carrier sig m, Member eff sig, Syntax eff) => (forall a . Incr () (m a) -> m (Incr () (m a))) -> Term eff (m a) -> m a
-interpret bound = iter id send bound id
+interpret :: (Carrier sig m, Member eff sig, Syntax eff) => (forall a . Incr () (m a) -> m (Incr () (m a))) -> (a -> m b) -> Term eff a -> m b
+interpret = iter id send
