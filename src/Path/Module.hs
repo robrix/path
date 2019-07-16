@@ -41,6 +41,9 @@ instance HFunctor Module
 instance Monad f => RModule (Module f) f where
   Module n d p is ds >>=* f = Module n d p is (fmap (fmap (>>=* f)) ds)
 
+instance HRModule Module where
+  Module n d p is ds >>=** f = Module n d p is (fmap (fmap (>>=** f)) ds)
+
 module' :: Applicative f => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [Decl (f User)] -> Module f User
 module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) decls
   where bind' (Decl u d tm ty) = Decl u d (bind (fmap declName . flip Map.lookup decls) <$> tm) (bind (fmap declName . flip Map.lookup decls) <$> ty)
