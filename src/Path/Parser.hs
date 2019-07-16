@@ -15,7 +15,6 @@ module Path.Parser
 ) where
 
 import Control.Applicative (Alternative(..))
-import Control.Effect
 import Control.Effect.Error
 import Control.Monad (MonadPlus(..), (<=<))
 import Control.Monad.IO.Class

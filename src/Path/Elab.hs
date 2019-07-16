@@ -1,9 +1,9 @@
 {-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
-import Control.Effect
+import Control.Effect.Carrier
 import Control.Effect.Error
-import Control.Effect.Reader hiding (Reader(Local))
+import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
 import Control.Monad (foldM)
 import Data.Bifunctor (first)

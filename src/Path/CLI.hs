@@ -1,8 +1,8 @@
 {-# LANGUAGE TypeApplications #-}
 module Path.CLI where
 
-import Control.Effect (runM)
 import Control.Effect.Error (runError)
+import Control.Effect.Lift (runM)
 import Control.Monad (join)
 import Data.Version (showVersion)
 import Options.Applicative as Options
