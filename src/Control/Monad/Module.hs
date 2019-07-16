@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, TypeOperators #-}
 module Control.Monad.Module where
 
+import Control.Effect.Carrier
 import GHC.Generics
 
 class (Functor f, Monad m) => RModule f m where
@@ -43,6 +44,6 @@ joinl :: LModule m f => m (f a) -> f a
 joinl = (*>>= id)
 
 
-class HRModule f where
+class HFunctor f => HRModule f where
   (>>=**) :: Monad m => f m a -> (a -> m b) -> f m b
   infixl 1 >>=**
