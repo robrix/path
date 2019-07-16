@@ -99,13 +99,6 @@ fromScope = unScope >=> sequenceA
 toScope :: Applicative f => f (Incr a b) -> Scope a f b
 toScope = Scope . fmap (fmap pure)
 
-foldScope :: (forall a . Incr z (n a) -> m (Incr z (n a)))
-          -> (forall x y . (x -> m y) -> f x -> n y)
-          -> (a -> m b)
-          -> Scope z f a
-          -> Scope z n b
-foldScope k go h = Scope . go (k . fmap (go h)) . unScope
-
 
 -- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
 newtype ScopeT a t f b = ScopeT (t f (Incr a (f b)))
