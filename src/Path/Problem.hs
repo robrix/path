@@ -65,7 +65,7 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
               _ :> Meta sym -> prime sym
               _ :> Name sym -> prime sym
               _ -> Gensym Nil 0
-            (,) n <$> censor (Set.delete n) (local (:> n) m)
+            (,) n <$> local (:> n) m
 
 
 -- FIXME: represent errors explicitly in the tree
