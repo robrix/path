@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE FlexibleInstances, QuantifiedConstraints, MultiParamTypeClasses, TypeOperators #-}
 module Control.Monad.Module where
 
 import Control.Effect.Carrier
@@ -44,6 +44,6 @@ joinl :: LModule m f => m (f a) -> f a
 joinl = (*>>= id)
 
 
-class HFunctor f => HRModule f where
+class (forall g . Functor g => Functor (f g), HFunctor f) => HRModule f where
   (>>=**) :: Monad m => f m a -> (a -> m b) -> f m b
   infixl 1 >>=**
