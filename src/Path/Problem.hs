@@ -101,7 +101,7 @@ instance Syntax Problem where
 exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
 exists (n ::: t) b = send (Ex t (bind1 n b))
 
-unexists :: (Alternative m, Member Problem sig, Syntax sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unexists :: (Alternative m, Member Problem sig, HRModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unexists n (Term t) | Just (Ex t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
 unexists _ _                                 = empty
 

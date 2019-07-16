@@ -54,7 +54,7 @@ lam n b = send (Lam (bind1 n b))
 lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
-unlam :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a, Term sig a)
+unlam :: (Alternative m, Member Core sig, HRModule sig) => a -> Term sig a -> m (a, Term sig a)
 unlam n (Term t) | Just (Lam b) <- prj t = pure (n, instantiate1 (pure n) b)
 unlam _ _                                = empty
 
@@ -65,7 +65,7 @@ f $$ a = send (f :$ a)
 let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
 let' (n := v) b = send (Let v (bind1 n b))
 
-unlet' :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
+unlet' :: (Alternative m, Member Core sig, HRModule sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
 unlet' n (Term t) | Just (Let v b) <- prj t = pure (n := v, instantiate1 (pure n) b)
 unlet' _ _                                  = empty
 
@@ -80,7 +80,7 @@ pi (n ::: t) b = send (Pi t (bind1 n b))
 pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 
-unpi :: (Alternative m, Member Core sig, Syntax sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unpi :: (Alternative m, Member Core sig, HRModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unpi n (Term t) | Just (Pi t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                                 = empty
 
