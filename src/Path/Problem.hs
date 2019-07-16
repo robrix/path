@@ -62,11 +62,10 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
             pure (prettyParens (d > P d') doc)
           withPrec i = local (const (P i)) . getConst
           bind cons m = do
-            ns <- ask
-            let n = cons $ case ns of
-                  _ :> Meta sym -> prime sym
-                  _ :> Name sym -> prime sym
-                  _ -> Gensym Nil 0
+            n <- asks $ cons . \case
+              _ :> Meta sym -> prime sym
+              _ :> Name sym -> prime sym
+              _ -> Gensym Nil 0
             (,) n <$> censor (Set.delete n) (local (:> n) m)
 
 
