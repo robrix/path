@@ -83,6 +83,5 @@ instance (Syntax l, Syntax r) => Syntax (l :+: r) where
   foldSyntax go bound free (R r) = R (foldSyntax go bound free r)
 
 
-interpret :: (Carrier sig m, forall g . Functor g => Functor (eff g), HFunctor eff, Member eff sig) => Term eff a -> m a
-interpret (Var a) = pure a
-interpret (Term t) = send (hmap interpret t)
+interpret :: (Carrier sig m, Member eff sig, Syntax eff) => (forall a . Incr () (m a) -> m (Incr () (m a))) -> (a -> m b) -> Term eff a -> m b
+interpret = iter id send

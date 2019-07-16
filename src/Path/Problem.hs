@@ -23,7 +23,7 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty (Term (Problem :+: Core) Qualified) where
-  pretty = either id id . snd . run . runWriter @(Set.Set Meta) . runError . runReader (Nil @Meta) . runReader (P 0) . runInterpret alg . iter id send bound (throwError . pretty . Global @Meta)
+  pretty = either id id . snd . run . runWriter @(Set.Set Meta) . runError . runReader (Nil @Meta) . runReader (P 0) . runInterpret alg . interpret bound (throwError . pretty . Global @Meta)
     where free v = tell (Set.singleton @Meta v) *> throwError (pretty v)
           alg = \case
             R c -> case c of
