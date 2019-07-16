@@ -7,7 +7,7 @@ import Control.Effect.Lift
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Effect.Writer
-import Control.Monad ((<=<), foldM, join, unless)
+import Control.Monad (foldM, join, unless, void)
 import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans (MonadTrans(..))
@@ -127,32 +127,29 @@ script packageSources
   . evalState (mempty @(Set.Set ModuleName))
   . runReader (ModuleName "(interpreter)")
   . runNaming
+  . fmap (either id id)
+  . runError @()
   $ runError loop >>= either print pure
-  where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
-          `catchError` (const loop <=< print)
+  where loop = (prompt "λ: " >>= parseCommand >>= maybe (pure ()) runCommand . join) `catchError` print >> loop
         parseCommand str = do
           l <- askLine
           traverse (parseString (whole command) (lineDelta l)) str
         runCommand = \case
-          Quit -> pure ()
-          Help -> print helpDoc *> loop
-          TypeOf tm -> elaborate tm >>= print . pretty . unSpanned >> loop
-          Command.Decl decl -> runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= inContext . elabDecl) >> loop
-          Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print . pretty >> loop
+          Quit -> throwError ()
+          Help -> print helpDoc
+          TypeOf tm -> elaborate tm >>= print . pretty . unSpanned
+          Command.Decl decl -> void $ runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= inContext . elabDecl)
+          Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print . pretty
           ShowModules -> do
             ms <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Map.toList . unModuleGraph)
             unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeH)) ms))
-            loop
-          Reload -> reload *> loop
-          Command.Import i -> do
-            modify (Set.insert (unSpanned i))
-            loop
+          Reload -> reload
+          Command.Import i -> modify (Set.insert (unSpanned i))
           Command.Doc moduleName -> do
             m <- get >>= lookupModule moduleName
             case moduleDocs (unScopeH (m :: ScopeH Qualified (Module (Term (Problem :+: Core))) (Term (Problem :+: Core)) Void)) of
               Just d  -> print (pretty d)
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
-            loop
         reload = do
           sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateHEither (either pure absurd))) . loadOrder
           checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term (Problem :+: Core)) Void)) (zip [(1 :: Int)..] sorted)
