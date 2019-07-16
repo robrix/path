@@ -2,32 +2,41 @@ module Base.Nat
 
 import Base.Fix;
 
-NatF : Type -> Type;
-NatF = \ a . { b : Type } -> b -> (a -> b) -> b;
+NatF
+: Type -> Type
+= \ a . { b : Type } -> b -> (a -> b) -> b;
 
-zf : { a : Type } -> NatF a;
-zf = \ {_} {_} z _ . z;
+zf
+: { a : Type } -> NatF a
+= \ {_} {_} z _ . z;
 
-sf : { a : Type } -> a -> NatF a;
-sf = \ {_} a {_} _ s . s a;
-
-
-Nat : Type;
-Nat = Fix NatF;
-
-z : Nat;
-z = in {NatF} (zf {Nat});
-
-s : Nat -> Nat;
-s = \ n . in {NatF} (sf {Nat} n);
+sf
+: { a : Type } -> a -> NatF a
+= \ {_} a {_} _ s . s a;
 
 
-iter : { a : Type } -> a -> (a -> a) -> Nat -> a;
-iter = \ {a} z s n . n {a} (\ k f . f z (\ m . s (k m)));
+Nat
+: Type
+= Fix NatF;
+
+z
+: Nat
+= in {NatF} (zf {Nat});
+
+s
+: Nat -> Nat
+= \ n . in {NatF} (sf {Nat} n);
 
 
-(_ + _) : Nat -> Nat -> Nat;
-(_ + _) = \ m . iter {Nat} m s;
+iter
+: { a : Type } -> a -> (a -> a) -> Nat -> a
+= \ {a} z s n . n {a} (\ k f . f z (\ m . s (k m)));
 
-(_ * _) : Nat -> Nat -> Nat;
-(_ * _) = \ m . iter {Nat} z ((_ + _) m);
+
+(_ + _)
+: Nat -> Nat -> Nat
+= \ m . iter {Nat} m s;
+
+(_ * _)
+: Nat -> Nat -> Nat
+= \ m . iter {Nat} z ((_ + _) m);

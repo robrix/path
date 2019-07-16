@@ -2,17 +2,22 @@ module Base.Bool
 
 import Base.Lazy;
 
-Bool : Type;
-Bool = { a : Type } -> a -> a -> a;
+Bool
+: Type
+= { a : Type } -> a -> a -> a;
 
-true : Bool;
-true = \ a _ . a;
+true
+: Bool
+= \ a _ . a;
 
-false : Bool;
-false = \ _ b . b;
+false
+: Bool
+= \ _ b . b;
 
-not : Bool -> Bool;
-not = \ f a b . f b a;
+not
+: Bool -> Bool
+= \ f a b . f b a;
 
-(if _ then _ else _) : { a : Type } -> Bool -> Lazy a -> Lazy a -> a;
-(if _ then _ else _) = \ {a} c t e . force {a} (c {Lazy a} t e);
+(if _ then _ else _)
+: { a : Type } -> Bool -> Lazy a -> Lazy a -> a
+= \ {a} c t e . force {a} (c {Lazy a} t e);

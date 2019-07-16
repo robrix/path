@@ -1,30 +1,36 @@
 module Base.Pair
 
-Pair : Type -> Type -> Type;
-Pair = \ l r . { a : Type } -> (l -> r -> a) -> a;
+Pair
+: Type -> Type -> Type
+= \ l r . { a : Type } -> (l -> r -> a) -> a;
 
-pair : { l : Type } -> { r : Type } -> l -> r -> Pair l r;
-pair = \ {_} {_} l r {_} f . f l r;
+pair
+: { l : Type } -> { r : Type } -> l -> r -> Pair l r
+= \ {_} {_} l r {_} f . f l r;
 
-fst : { l : Type } -> { r : Type } -> Pair l r -> l;
-fst = \ {l} {_} p . p {l} (\ fst _ . fst);
+fst
+: { l : Type } -> { r : Type } -> Pair l r -> l
+= \ {l} {_} p . p {l} (\ fst _ . fst);
 
-snd : { l : Type } -> { r : Type } -> Pair l r -> r;
-snd = \ {_} {r} p . p {r} (\ _ snd . snd);
+snd
+: { l : Type } -> { r : Type } -> Pair l r -> r
+= \ {_} {r} p . p {r} (\ _ snd . snd);
 
 
-map :  { l : Type }
-    -> { r : Type }
-    -> { r' : Type }
-    -> (r -> r')
-    -> (Pair l r -> Pair l r');
-map = \ {l} {_} {r'} f e . e {Pair l r'} (\ l' r . pair {l} {r'} l' (f r));
+map
+:  { l : Type }
+-> { r : Type }
+-> { r' : Type }
+-> (r -> r')
+-> (Pair l r -> Pair l r')
+= \ {l} {_} {r'} f e . e {Pair l r'} (\ l' r . pair {l} {r'} l' (f r));
 
-bimap :  { l : Type }
-      -> { r : Type }
-      -> { l' : Type }
-      -> { r' : Type }
-      -> (     l   ->      l')
-      -> (       r ->         r')
-      -> (Pair l r -> Pair l' r');
-bimap = \ {_} {_} {l'} {r'} f g e . e {Pair l' r'} (\ l r . pair {l'} {r'} (f l) (g r));
+bimap
+:  { l : Type }
+-> { r : Type }
+-> { l' : Type }
+-> { r' : Type }
+-> (     l   ->      l')
+-> (       r ->         r')
+-> (Pair l r -> Pair l' r')
+= \ {_} {_} {l'} {r'} f g e . e {Pair l' r'} (\ l r . pair {l'} {r'} (f l) (g r));

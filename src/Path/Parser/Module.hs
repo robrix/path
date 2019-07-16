@@ -4,7 +4,6 @@ module Path.Parser.Module where
 import Control.Applicative (Alternative(..))
 import Control.Effect
 import Control.Monad.IO.Class
-import qualified Data.Text.Encoding as Text
 import qualified Path.Module as Module
 import Path.Name hiding (name)
 import Path.Parser
@@ -31,8 +30,10 @@ import' = spanned (keyword "import" *> moduleName) <* semi
 declaration :: DeltaParsing m => m (Module.Decl (Term Surface User))
 declaration = do
   docs <- optional docs
-  ((name, name'), ty) <- (,) <$> slicedWith (,) name <* op ":" <*> term <* semi
-  tm <- token (text (Text.decodeUtf8 name')) *> op "=" *> term <* semi
+  name <- name
+  ty <- op ":" *> term
+  tm <- op "=" *> term
+  _ <- semi
   pure (Module.Decl name docs tm ty)
 
 docs :: TokenParsing m => m String
