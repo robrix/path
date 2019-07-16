@@ -84,7 +84,7 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Problem f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Problem f a)
 
-instance HRModule Problem where
+instance RightModule Problem where
   Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
   p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
@@ -97,7 +97,7 @@ instance Syntax Problem where
 exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
 exists (n ::: t) b = send (Ex t (bind1 n b))
 
-unexists :: (Alternative m, Member Problem sig, HRModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unexists :: (Alternative m, Member Problem sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unexists n (Term t) | Just (Ex t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
 unexists _ _                                 = empty
 

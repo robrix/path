@@ -3,42 +3,42 @@ module Control.Monad.Module where
 
 import Control.Effect.Carrier
 
-class (forall g . Functor g => Functor (f g), HFunctor f) => HRModule f where
+class (forall g . Functor g => Functor (f g), HFunctor f) => RightModule f where
   (>>=*) :: Monad m => f m a -> (a -> m b) -> f m b
   infixl 1 >>=*
 
-instance (HRModule f, HRModule g) => HRModule (f :+: g) where
+instance (RightModule f, RightModule g) => RightModule (f :+: g) where
   L l >>=* f = L (l >>=* f)
   R r >>=* f = R (r >>=* f)
 
 
-(>=>*) :: (HRModule f, Monad m) => (a -> f m b) -> (b -> m c) -> (a -> f m c)
+(>=>*) :: (RightModule f, Monad m) => (a -> f m b) -> (b -> m c) -> (a -> f m c)
 f >=>* g = \x -> f x >>=* g
 
 infixl 1 >=>*
 
-(<=<*) :: (HRModule f, Monad m) => (b -> m c) -> (a -> f m b) -> (a -> f m c)
+(<=<*) :: (RightModule f, Monad m) => (b -> m c) -> (a -> f m b) -> (a -> f m c)
 g <=<* f = \x -> f x >>=* g
 
 infixl 1 <=<*
 
-joinr :: (HRModule f, Monad m) => f m (m a) -> f m a
+joinr :: (RightModule f, Monad m) => f m (m a) -> f m a
 joinr = (>>=* id)
 
 
-class (forall g . Functor g => Functor (f g), HFunctor f) => HLModule f where
+class (forall g . Functor g => Functor (f g), HFunctor f) => LeftModule f where
   (*>>=) :: Monad m => m a -> (a -> f m b) -> f m b
   infixl 1 *>>=
 
-(*>=>) :: (HLModule f, Monad m) => (a -> m b) -> (b -> f m c) -> (a -> f m c)
+(*>=>) :: (LeftModule f, Monad m) => (a -> m b) -> (b -> f m c) -> (a -> f m c)
 f *>=> g = \x -> f x *>>= g
 
 infixl 1 *>=>
 
-(*<=<) :: (HLModule f, Monad m) => (b -> f m c) -> (a -> m b) -> (a -> f m c)
+(*<=<) :: (LeftModule f, Monad m) => (b -> f m c) -> (a -> m b) -> (a -> f m c)
 g *<=< f = \x -> f x *>>= g
 
 infixl 1 *<=<
 
-joinl :: (HLModule f, Monad m) => m (f m a) -> f m a
+joinl :: (LeftModule f, Monad m) => m (f m a) -> f m a
 joinl = (*>>= id)

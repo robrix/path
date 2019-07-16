@@ -38,7 +38,7 @@ deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
 
 instance HFunctor Module
 
-instance HRModule Module where
+instance RightModule Module where
   Module n d p is ds >>=* f = Module n d p is (fmap (fmap (>>=* f)) ds)
 
 module' :: Applicative f => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [Decl (f User)] -> Module f User
@@ -66,7 +66,7 @@ deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Mo
 instance HFunctor ModuleGraph where
   hmap f (ModuleGraph graph) = ModuleGraph (ScopeT . hmap f . fmap (fmap f) . unScopeT <$> graph)
 
-instance HRModule ModuleGraph where
+instance RightModule ModuleGraph where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void

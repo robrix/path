@@ -13,12 +13,12 @@ data Term sig a
   | Term (sig (Term sig) a)
 
 deriving instance ( Eq a
-                  , HRModule sig
+                  , RightModule sig
                   , forall g x . (Eq  x, Monad g, forall y . Eq  y => Eq  (g y)) => Eq  (sig g x)
                   )
                => Eq  (Term sig a)
 deriving instance ( Ord a
-                  , HRModule sig
+                  , RightModule sig
                   , forall g x . (Eq  x, Monad g, forall y . Eq  y => Eq  (g y)) => Eq  (sig g x)
                   , forall g x . (Ord x, Monad g, forall y . Eq  y => Eq  (g y)
                                                 , forall y . Ord y => Ord (g y)) => Ord (sig g x)
@@ -32,15 +32,15 @@ deriving instance ( forall g . Foldable    g => Foldable    (sig g)
                   , forall g . Functor     g => Functor     (sig g)
                   , forall g . Traversable g => Traversable (sig g)) => Traversable (Term sig)
 
-instance HRModule sig => Applicative (Term sig) where
+instance RightModule sig => Applicative (Term sig) where
   pure = Var
   (<*>) = ap
 
-instance HRModule sig => Monad (Term sig) where
+instance RightModule sig => Monad (Term sig) where
   Var  a >>= f = f a
   Term t >>= f = Term (t >>=* f)
 
-instance HRModule sig => Carrier sig (Term sig) where
+instance RightModule sig => Carrier sig (Term sig) where
   eff = Term
 
 

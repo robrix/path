@@ -60,7 +60,7 @@ instance Applicative f => Applicative (Scope a f) where
 instance Monad f => Monad (Scope a f) where
   Scope e >>= f = Scope (e >>= incr (pure . Z) (>>= unScope . f))
 
-instance HRModule (Scope a) where
+instance RightModule (Scope a) where
   Scope m >>=* f = Scope (fmap (>>= f) <$> m)
 
 instance MonadTrans (Scope a) where
@@ -114,10 +114,10 @@ newtype ScopeT a t f b = ScopeT (t f (Incr a (f b)))
 unScopeT :: ScopeT a t f b -> t f (Incr a (f b))
 unScopeT (ScopeT s) = s
 
-instance (HRModule t, Monad f, Eq  a, Eq  b, forall a . Eq  a => Eq  (t f a)) => Eq  (ScopeT a t f b) where
+instance (RightModule t, Monad f, Eq  a, Eq  b, forall a . Eq  a => Eq  (t f a)) => Eq  (ScopeT a t f b) where
   (==) = (==) `on` fromScopeT
 
-instance (HRModule t, Monad f, Ord a, Ord b, forall a . Eq  a => Eq  (t f a)
+instance (RightModule t, Monad f, Ord a, Ord b, forall a . Eq  a => Eq  (t f a)
                                            , forall a . Ord a => Ord (t f a)) => Ord (ScopeT a t f b) where
   compare = compare `on` fromScopeT
 
@@ -131,7 +131,7 @@ instance (Applicative (t f), Applicative f) => Applicative (ScopeT a t f) where
 instance (Monad (t f), MonadTrans t, Monad f) => Monad (ScopeT a t f) where
   ScopeT e >>= f = ScopeT (e >>= incr (pure . Z) ((>>= unScopeT . f) . lift))
 
-instance (HFunctor t, forall g . Functor g => Functor (t g)) => HRModule (ScopeT b t) where
+instance (HFunctor t, forall g . Functor g => Functor (t g)) => RightModule (ScopeT b t) where
   ScopeT s >>=* k = ScopeT (fmap (>>= k) <$> s)
 
 instance MonadTrans f => MonadTrans (ScopeT a f) where
@@ -152,16 +152,16 @@ bindTEither :: (Functor (t f), Applicative f) => (b -> Either a c) -> t f b -> S
 bindTEither f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
-instantiate1T :: (HRModule t, Monad f) => f b -> ScopeT a t f b -> t f b
+instantiate1T :: (RightModule t, Monad f) => f b -> ScopeT a t f b -> t f b
 instantiate1T t = instantiateT (const t)
 
-instantiateT :: (HRModule t, Monad f) => (a -> f b) -> ScopeT a t f b -> t f b
+instantiateT :: (RightModule t, Monad f) => (a -> f b) -> ScopeT a t f b -> t f b
 instantiateT f = instantiateTEither (either f pure)
 
-instantiateTEither :: (HRModule t, Monad f) => (Either a b -> f c) -> ScopeT a t f b -> t f c
+instantiateTEither :: (RightModule t, Monad f) => (Either a b -> f c) -> ScopeT a t f b -> t f c
 instantiateTEither f = unScopeT >=>* incr (f . Left) (>>= f . Right)
 
-fromScopeT :: (HRModule t, Monad f) => ScopeT a t f b -> t f (Incr a b)
+fromScopeT :: (RightModule t, Monad f) => ScopeT a t f b -> t f (Incr a b)
 fromScopeT = unScopeT >=>* sequenceA
 
 toScopeT :: (Functor (t f), Applicative f) => t f (Incr a b) -> ScopeT a t f b

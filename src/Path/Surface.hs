@@ -28,7 +28,7 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Surface f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Surface f a)
 
-instance HRModule Surface where
+instance RightModule Surface where
   Lam p b >>=* f = Lam p (fmap (>>=* f) b)
   g :$ a  >>=* f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
   Type    >>=* _ = Type
