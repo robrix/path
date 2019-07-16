@@ -1,8 +1,10 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Problem where
 
-import           Control.Applicative (Alternative (..), Const (..))
+import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
+import           Control.Effect.Error
+import           Control.Effect.Interpret
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.Writer
 import           Control.Monad.Module
@@ -21,8 +23,8 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty (Term (Problem :+: Core) Qualified) where
-  pretty = snd . run . runWriter @(Set.Set Meta) . runReader (Nil @Meta) . runReader (P 0) . kcata id alg bound (pure . pretty . Global @Meta)
-    where free v = pretty v <$ tell (Set.singleton @Meta v)
+  pretty = either id id . snd . run . runWriter @(Set.Set Meta) . runError . runReader (Nil @Meta) . runReader (P 0) . runInterpret alg . iter id send bound (throwError . pretty . Global @Meta)
+    where free v = tell (Set.singleton @Meta v) *> throwError (pretty v)
           alg = \case
             R c -> case c of
               Lam (Scope b) -> do
@@ -36,7 +38,7 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
                 v' <- withPrec 0 v
                 (n, b') <- bind Meta (withPrec 0 b)
                 prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> b')
-              Type -> pure (yellow (pretty "Type"))
+              Type -> throwError (yellow (pretty "Type"))
               Pi t (Scope b) -> do
                 t' <- withPrec 1 t
                 (fvs, (n, b')) <- listen (bind Name (withPrec 0 b))
@@ -55,11 +57,11 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
           bound (Z ()) = ask >>= free . Stack.head
-          bound (S n)  = local (Stack.tail @Meta) n
+          bound (S n)  = S . pure <$> local (Stack.tail @Meta) n
           prec d' doc = do
             d <- ask
-            pure (prettyParens (d > P d') doc)
-          withPrec i = local (const (P i)) . getConst
+            throwError (prettyParens (d > P d') doc)
+          withPrec i m = local (const (P i)) (m *> pure (mempty @Doc)) `catchError` pure
           bind cons m = do
             n <- asks $ cons . \case
               _ :> Meta sym -> prime sym
