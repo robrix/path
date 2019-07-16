@@ -5,11 +5,10 @@ import qualified Path.Parser.Module as M
 import Path.Parser.Term
 import Path.REPL.Command
 import Text.Trifecta hiding (doc)
-import Text.Trifecta.Indentation
 
-command :: (DeltaParsing m, IndentationParsing m) => m (Maybe Command)
+command :: DeltaParsing m => m (Maybe Command)
 typeof, eval, import', doc :: DeltaParsing m => m Command
-decl :: (DeltaParsing m, IndentationParsing m) => m Command
+decl :: DeltaParsing m => m Command
 quit, help, show', reload :: (Monad m, TokenParsing m) => m Command
 
 command = optional (quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> reload <|> import' <|> doc) <?> "command; use :? for help"

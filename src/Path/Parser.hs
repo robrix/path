@@ -1,7 +1,6 @@
 {-# LANGUAGE FlexibleContexts, GeneralizedNewtypeDeriving #-}
 module Path.Parser
-( Parser
-, Inner(..)
+( Parser(..)
 , parseFile
 , parseString
 , parseError
@@ -28,25 +27,22 @@ import Text.Parser.Token.Style
 import qualified Text.Trifecta as Trifecta
 import Text.Trifecta hiding (Parser, parseString, runParser)
 import Text.Trifecta.Delta
-import Text.Trifecta.Indentation
 
-type Parser = IndentationParserT Token Inner
-
-newtype Inner a = Inner { runInner :: Trifecta.Parser a }
+newtype Parser a = Parser { runParser :: Trifecta.Parser a }
   deriving (Alternative, Applicative, CharParsing, DeltaParsing, Functor, Monad, MonadPlus, Parsing)
 
-instance TokenParsing Inner where
-  someSpace = Inner (buildSomeSpaceParser someSpace haskellCommentStyle)
-  nesting = Inner . nesting . runInner
-  highlight h = Inner . highlight h . runInner
+instance TokenParsing Parser where
+  someSpace = Parser (buildSomeSpaceParser someSpace haskellCommentStyle)
+  nesting = Parser . nesting . runParser
+  highlight h = Parser . highlight h . runParser
   token p = whiteSpace *> p
 
 
 parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => Parser a -> FilePath -> m a
-parseFile p = toError <=< parseFromFileEx (runInner (evalIndentationParserT p indentst))
+parseFile p = toError <=< parseFromFileEx (runParser p)
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => Parser a -> Delta -> String -> m a
-parseString p = fmap toError . Trifecta.parseString (runInner (evalIndentationParserT p indentst))
+parseString p = fmap toError . Trifecta.parseString (runParser p)
 
 toError :: (Carrier sig m, Member (Error Doc) sig) => Result a -> m a
 toError (Success a) = pure a
@@ -55,9 +51,6 @@ toError (Failure e) = parseError e
 parseError :: (Carrier sig m, Member (Error Doc) sig) => ErrInfo -> m a
 parseError err = throwError (_errDoc err)
 
-
-indentst :: IndentationState
-indentst = mkIndentationState 0 infIndentation True Gt
 
 whole :: TokenParsing m => m a -> m a
 whole p = p <* whiteSpace <* eof

@@ -13,14 +13,13 @@ import Path.Pretty (Doc)
 import Path.Surface
 import Path.Term
 import Text.Trifecta
-import Text.Trifecta.Indentation
 
 parseModule :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => FilePath -> m (Module.Module (Term Surface) User)
 parseModule = flip parseFile <*> whole . module'
 
 
-module' :: (DeltaParsing m, IndentationParsing m) => FilePath -> m (Module.Module (Term Surface) User)
-module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (absoluteIndentation import') <*> many (absoluteIndentation declaration)
+module' :: DeltaParsing m => FilePath -> m (Module.Module (Term Surface) User)
+module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many import' <*> many declaration
   where make comment name = Module.module' name comment path
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
@@ -29,11 +28,11 @@ moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` d
 import' :: DeltaParsing m => m (Spanned ModuleName)
 import' = spanned (keyword "import" *> moduleName)
 
-declaration :: (DeltaParsing m, IndentationParsing m) => m (Module.Decl (Term Surface User))
+declaration :: DeltaParsing m => m (Module.Decl (Term Surface User))
 declaration = do
   docs <- optional docs
-  ((name, name'), ty) <- absoluteIndentation ((,) <$> slicedWith (,) name <* op ":" <*> term)
-  tm <- absoluteIndentation (token (text (Text.decodeUtf8 name')) *> op "=" *> term)
+  ((name, name'), ty) <- (,) <$> slicedWith (,) name <* op ":" <*> term
+  tm <- token (text (Text.decodeUtf8 name')) *> op "=" *> term
   pure (Module.Decl name docs tm ty)
 
 docs :: TokenParsing m => m String
