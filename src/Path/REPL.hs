@@ -63,7 +63,7 @@ runREPL prefs settings = runInputTWithPrefs prefs settings . runM . runReader (L
 newtype REPLC m a = REPLC { runREPLC :: ReaderC Line (LiftC (InputT m)) a }
   deriving newtype (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance (Carrier sig m, MonadException m, MonadIO m) => Carrier (REPL :+: Lift (InputT m)) (REPLC m) where
+instance (MonadException m, MonadIO m) => Carrier (REPL :+: Lift (InputT m)) (REPLC m) where
   eff (L (Prompt prompt k)) = REPLC $ do
     str <- lift (lift (getInputLine (cyan <> prompt <> plain)))
     local increment (runREPLC (k str))
