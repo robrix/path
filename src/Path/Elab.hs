@@ -118,8 +118,7 @@ elab = fmap (either id id) . runError . runInterpret alg . interpret bound assum
           f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
           Surface.Type -> pure (type' ::: type')
           Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> elab' (unScope <$> b)
-        elab' m = spanIs m *> pure (ty ::: ty) `catchError` pure
-        ty = type' :: Term (Problem :+: Core) (Name Gensym)
+        elab' m = spanIs m *> pure (type' ::: type') `catchError` pure
         returning m = m >>= throwError @(Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 
 elabDecl :: ( Carrier sig m
