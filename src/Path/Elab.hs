@@ -112,7 +112,7 @@ elab :: ( Carrier sig m
      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 elab = fmap (either id id) . runError . runInterpret alg . interpret bound assume
   where bound (Z _) = returning (asks @Context (first (Var . bindingName) . Stack.head))
-        bound (S m) = S . pure <$> local @Context (Stack.drop 1) m
+        bound (S m) = S . pure <$> local @Context Stack.tail m
         alg = returning . \case
           Surface.Lam _ b -> intro (elab' (unScope <$> b))
           f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
