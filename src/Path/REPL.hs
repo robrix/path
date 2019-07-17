@@ -170,7 +170,7 @@ script packageSources
             pure graph
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
-elaborate :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Term Surface.Surface User) -> m (Spanned (Term (Problem :+: Core) Qualified))
+elaborate :: (Carrier sig m, Effect sig, Member (Error Doc) sig, Member Naming sig, Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Term Surface.Surface User) -> m (Spanned (Term (Problem :+: Core) Qualified))
 elaborate = runSpanned $ \ tm -> do
   ty <- meta type'
   tm' <- runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
