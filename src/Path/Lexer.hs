@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, FlexibleContexts #-}
 module Path.Lexer where
 
 import Control.Effect.Carrier
@@ -10,3 +10,7 @@ data Lexer m k
 
 instance HFunctor Lexer
 instance Effect Lexer
+
+
+satisfy :: (Carrier sig m, Member Lexer sig) => (Char -> Bool) -> m Char
+satisfy p = send (Satisfy p pure)
