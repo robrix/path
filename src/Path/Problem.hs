@@ -21,8 +21,7 @@ newtype P = P { unP :: Int }
 
 instance Pretty (Term (Problem :+: Core) Qualified) where
   pretty = snd . run . runWriter @(Set.Set (Meta N)) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty)
-    where bound v = tell (Set.singleton v) *> pure (pretty v)
-          go = \case
+    where go = \case
             Var v -> v
             Term (R c) -> case c of
               Lam b -> do
@@ -60,7 +59,7 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
           withPrec i = local (const (P i))
           bind cons m = do
             n <- asks @N cons
-            (,) n <$> local @N succ (go (instantiate1 (pure (bound n)) m))
+            (,) n <$> local @N succ (go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m))
 
 
 -- FIXME: represent errors explicitly in the tree
