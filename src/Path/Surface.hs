@@ -3,8 +3,6 @@ module Path.Surface where
 
 import Control.Applicative
 import Control.Effect.Carrier
-import Control.Effect.Interpret
-import Control.Effect.Reader
 import Control.Monad (join)
 import Control.Monad.Module
 import Control.Monad.Trans
@@ -85,20 +83,3 @@ pi (p :< Named u n ::: t) b = send (Pi (p :< u ::: t) (bind1 n <$> b))
 t --> b = send (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))
 
 infixr 0 -->
-
-
--- | Decorate a term’s variables with the most local
-decorate :: Spanned (Term Surface a) -> Spanned (Term Surface (Spanned a))
-decorate (a :~ s) = runReader s (walk (asks . (:~)) a) :~ s
-
-walk :: (Carrier sig m, Member (Reader Span) sig, Member Surface sig)
-     => (a -> m b)
-     -> Term Surface a
-     -> m b
-walk k = runInterpret alg . interpret pure (lift . k)
-  where alg = \case
-          Lam p b -> send (Lam p (Scope <$> withSpan (unScope <$> b)))
-          f :$ a -> withSpan f $$ fmap withSpan a
-          Type -> type'
-          Pi t b -> send (Pi (fmap (fmap withSpan) <$> t) (Scope <$> withSpan (unScope <$> b)))
-        withSpan s = spanIs s <$ s
