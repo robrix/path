@@ -27,9 +27,7 @@ piType = spanned (do
   where binding = ((,) <$> name <* colon <*> term)
 
 functionType = spanned (application <**> (flip (Surface.-->) <$ op "->" <*> functionType))
-           <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
            <|> piType
-  where arrow t'@(_ :~ s2) t@(_ :~ s1) = (t Surface.--> t') :~ (s1 <> s2)
 
 var = spanned (pure <$> name <?> "variable")
 
