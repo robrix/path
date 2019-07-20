@@ -2,6 +2,7 @@
 module Path.Lexer where
 
 import Control.Effect.Carrier
+import Data.Foldable (traverse_)
 
 data Lexer m k
   = forall a . Accept (Char -> Maybe a) (a -> m k)
@@ -29,6 +30,9 @@ satisfy p = accept (\ c -> if p c then Just c else Nothing)
 
 char :: (Carrier sig m, Member Lexer sig) => Char -> m Char
 char c = satisfy (c ==) <?> show [c]
+
+string :: (Carrier sig m, Member Lexer sig) => String -> m String
+string s = s <$ traverse_ char s <?> show s
 
 
 (<?>) :: (Carrier sig m, Member Lexer sig) => m a -> String -> m a
