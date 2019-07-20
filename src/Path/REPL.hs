@@ -172,13 +172,12 @@ script packageSources
 
 elaborate :: ( Carrier sig m
              , Member (Error Doc) sig
-             , Member Naming sig
              , Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig
              , Member (State (Set.Set ModuleName)) sig
              )
           => Spanned (Term Surface.Surface User)
           -> m (Spanned (Term (Problem :+: Core) Qualified))
-elaborate = runSpanned $ \ tm -> do
+elaborate = runSpanned $ \ tm -> runReader (N 0) $ do
   ty <- meta type'
   tm' <- runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
   either freeVariables pure (strengthen tm')

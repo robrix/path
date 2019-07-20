@@ -35,38 +35,38 @@ assume :: ( Carrier sig m
 assume v = asks (lookupBinding v) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
 
 intro :: ( Carrier sig m
-         , Member Naming sig
+         , Member (Reader N) sig
          )
       => (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym)))
       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 intro body = do
   _A <- meta type'
-  x <- fresh
+  x <- asks (Gensym Nil . unN)
   _B <- meta type'
-  u <- goalIs _B (body (pure (Local x) ::: _A))
+  u <- local @N succ (goalIs _B (body (pure (Local x) ::: _A)))
   pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
-         , Member Naming sig
+         , Member (Reader N) sig
          )
       => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
       -> (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym)))
       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 t --> body = do
   t' <- goalIs type' t
-  x <- fresh
-  b' <- goalIs type' (body (pure (Local x) ::: t'))
+  x <- asks (Gensym Nil . unN)
+  b' <- local @N succ (goalIs type' (body (pure (Local x) ::: t')))
   pure (pi (Local x ::: t') b' ::: type')
 
 app :: ( Carrier sig m
-       , Member Naming sig
+       , Member (Reader N) sig
        )
     => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
     -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
     -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 app f a = do
   _A <- meta type'
-  x <- fresh
+  x <- asks (Gensym Nil . unN)
   _B <- meta type'
   let _F = pi (Local x ::: _A) _B
   f' <- goalIs _F f
@@ -75,7 +75,7 @@ app f a = do
 
 
 goalIs :: ( Carrier sig m
-          , Member Naming sig
+          , Member (Reader N) sig
           )
        => Term (Problem :+: Core) (Name Gensym)
        -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
@@ -85,16 +85,16 @@ goalIs ty2 m = do
   tm2 <- meta (ty1 === ty2)
   pure (tm1 === tm2)
 
-meta :: (Carrier sig m, Member Naming sig) => Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym))
+meta :: (Carrier sig m, Member (Reader N) sig) => Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym))
 meta ty = do
-  n <- fresh
+  n <- asks (Gensym Nil . unN)
   pure (exists (Local n ::: ty) (pure (Local n)))
 
 
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
-        , Member Naming sig
         , Member (Reader Context) sig
+        , Member (Reader N) sig
         , Member (Reader Span) sig
         )
      => Term Surface.Surface Qualified
@@ -111,13 +111,12 @@ elab = go <=< traverse assume
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
-            , Member Naming sig
             , Member (Reader Context) sig
             , Member (Reader ModuleName) sig
             )
          => Decl (Term Surface.Surface Qualified)
          -> m (Decl (Term (Problem :+: Core) Qualified))
-elabDecl (Decl name d tm ty) = namespace (show name) $ do
+elabDecl (Decl name d tm ty) = runReader (N 0) $ do
   ty' <- runSpanned (goalIs type' . elab) ty
   def <- meta (unSpanned ty')
   moduleName <- ask
@@ -128,13 +127,12 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
 
 elabModule :: ( Carrier sig m
               , Member (Error Doc) sig
-              , Member Naming sig
               , Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig
               , Member (Writer (Stack Doc)) sig
               )
            => Module (Term Surface.Surface) Qualified
            -> m (Module (Term (Problem :+: Core)) Qualified)
-elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
+elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
   -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?
   decls <- foldM go mempty (moduleDecls m)
   pure m { moduleDecls = decls }
