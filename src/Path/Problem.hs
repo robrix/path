@@ -20,12 +20,12 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty (Term (Problem :+: Core) Qualified) where
-  pretty = snd . run . runWriter @(Set.Set (Meta N)) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty)
+  pretty = snd . run . runWriter @(Set.Set N) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty)
     where go = \case
             Var v -> v
             Term (R c) -> case c of
               Lam b -> do
-                (n, b') <- withPrec 0 (bind Name b)
+                (n, b') <- withPrec 0 (bind pretty b)
                 prec 0 (pretty (cyan backslash) <+> pretty n </> cyan dot <+> b')
               f :$ a -> do
                 f' <- withPrec 10 (go f)
@@ -33,19 +33,19 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
                 prec 10 (f' <+> a')
               Let v b -> do
                 v' <- withPrec 0 (go v)
-                (n, b') <- withPrec 0 (bind Meta b)
+                (n, b') <- withPrec 0 (bind meta b)
                 prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> b')
               Type -> pure (yellow (pretty "Type"))
               Pi t b -> do
                 t' <- withPrec 1 (go t)
-                (fvs, (n, b')) <- listen (withPrec 0 (bind Name b))
+                (fvs, (n, b')) <- listen (withPrec 0 (bind pretty b))
                 let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
                         | otherwise          = t'
                 prec 0 (t'' </> arrow <+> b')
             Term (L p) -> case p of
               Ex t b -> do
                 t' <- withPrec 1 (go t)
-                (n, b') <- withPrec 0 (bind Meta b)
+                (n, b') <- withPrec 0 (bind meta b)
                 prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
               p1 :===: p2 -> do
                 p1' <- withPrec 1 (go p1)
@@ -57,8 +57,9 @@ instance Pretty (Term (Problem :+: Core) Qualified) where
             d <- ask
             pure (prettyParens (d > P d') doc)
           withPrec i = local (const (P i))
-          bind cons m = do
-            n <- asks @N cons
+          meta n = dullblack (bold (pretty '?' <> pretty n))
+          bind pretty m = do
+            n <- ask @N
             (,) n <$> local @N succ (go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m))
 
 
