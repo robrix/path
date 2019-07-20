@@ -86,3 +86,10 @@ instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Parser :+: sig) 
         -- FIXME: error message
         _  -> empty
     R other -> ParserC (eff (R (handleCoercible other)))
+
+
+data Err = Err
+  { errExpected :: Set.Set String
+  , errActual   :: String
+  }
+  deriving (Eq, Ord, Show)
