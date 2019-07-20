@@ -23,7 +23,7 @@ instance Pretty Gensym where
 
 
 newtype N = N { unN :: Int }
-  deriving (Eq, Ord, Show)
+  deriving (Enum, Eq, Ord, Show)
 
 
 fresh :: (Carrier sig m, Member Naming sig) => m Gensym
