@@ -3,8 +3,6 @@ module Path.Problem where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
-import           Control.Effect.Error
-import           Control.Effect.Interpret
 import           Control.Effect.Reader hiding (Local)
 import           Control.Effect.Writer
 import           Control.Monad.Module
@@ -22,52 +20,51 @@ import           Prelude hiding (pi)
 newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
+newtype N = N { unN :: Int }
+  deriving (Eq, Ord, Show)
+
 instance Pretty (Term (Problem :+: Core) Qualified) where
-  pretty = either id id . snd . run . runWriter @(Set.Set Meta) . runError . runReader (Nil @Meta) . runReader (P 0) . runInterpret alg . interpret bound (throwError . pretty . Global @Meta)
-    where free v = tell (Set.singleton @Meta v) *> throwError (pretty v)
-          alg = \case
-            R c -> case c of
-              Lam (Scope b) -> do
-                (n, b') <- bind Name (withPrec 0 b)
+  pretty = snd . run . runWriter @(Set.Set Meta) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty . Global @Meta)
+    where free v = tell (Set.singleton @Meta v) *> pure (pretty v)
+          go = \case
+            Var v -> v
+            Term (R c) -> case c of
+              Lam b -> do
+                (n, b') <- withPrec 0 (bind Name b)
                 prec 0 (pretty (cyan backslash) <+> pretty n </> cyan dot <+> b')
               f :$ a -> do
-                f' <- withPrec 10 f
-                a' <- withPrec 11 a
+                f' <- withPrec 10 (go f)
+                a' <- withPrec 11 (go a)
                 prec 10 (f' <+> a')
-              Let v (Scope b) -> do
-                v' <- withPrec 0 v
-                (n, b') <- bind Meta (withPrec 0 b)
+              Let v b -> do
+                v' <- withPrec 0 (go v)
+                (n, b') <- withPrec 0 (bind Meta b)
                 prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> b')
-              Type -> throwError (yellow (pretty "Type"))
-              Pi t (Scope b) -> do
-                t' <- withPrec 1 t
-                (fvs, (n, b')) <- listen (bind Name (withPrec 0 b))
+              Type -> pure (yellow (pretty "Type"))
+              Pi t b -> do
+                t' <- withPrec 1 (go t)
+                (fvs, (n, b')) <- listen (withPrec 0 (bind Name b))
                 let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
                         | otherwise          = t'
                 prec 0 (t'' </> arrow <+> b')
-            L p -> case p of
-              Ex t (Scope b) -> do
-                t' <- withPrec 1 t
-                (n, b') <- bind Meta (withPrec 0 b)
+            Term (L p) -> case p of
+              Ex t b -> do
+                t' <- withPrec 1 (go t)
+                (n, b') <- withPrec 0 (bind Meta b)
                 prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
               p1 :===: p2 -> do
-                p1' <- withPrec 1 p1
-                p2' <- withPrec 1 p2
+                p1' <- withPrec 1 (go p1)
+                p2' <- withPrec 1 (go p2)
                 prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
           arrow = blue (pretty "→")
           eq' = magenta (pretty "≡")
-          bound (Z ()) = ask >>= free . Stack.head
-          bound (S n)  = S . pure <$> local (Stack.tail @Meta) n
           prec d' doc = do
             d <- ask
-            throwError (prettyParens (d > P d') doc)
-          withPrec i m = local (const (P i)) (m *> pure (mempty @Doc)) `catchError` pure
+            pure (prettyParens (d > P d') doc)
+          withPrec i = local (const (P i))
           bind cons m = do
-            n <- asks $ cons . \case
-              _ :> Meta sym -> prime sym
-              _ :> Name sym -> prime sym
-              _ -> Gensym Nil 0
-            (,) n <$> local (:> n) m
+            n <- asks (cons . Gensym Nil . unN)
+            (,) n <$> local (N . succ . unN) (go (instantiate1 (pure (free n)) m))
 
 
 -- FIXME: represent errors explicitly in the tree
