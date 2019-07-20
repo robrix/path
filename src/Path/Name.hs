@@ -115,9 +115,6 @@ instance Pretty a => Pretty (Meta a) where
     Name n -> pretty n
     Meta n -> dullblack (bold (pretty '?' <> pretty n))
 
-metaNames :: Ord n => Set.Set (Meta n) -> Set.Set n
-metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
-
 
 data Operator
   = Prefix (NonEmpty String)
