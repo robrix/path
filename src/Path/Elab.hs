@@ -32,7 +32,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-assume v = asks (lookupBinding (Global v)) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
+assume v = asks (lookupBinding v) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
 
 intro :: ( Carrier sig m
          , Member Naming sig
@@ -187,8 +187,8 @@ bindingValue (Define (_ := v)) = Just v
 bindingValue (Exists (_ := v)) = v
 bindingValue (ForAll  _)       = Nothing
 
-lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name Gensym))
-lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
+lookupBinding :: Qualified -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name Gensym))
+lookupBinding n = Stack.find ((== Global n) . bindingName . typedTerm)
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
