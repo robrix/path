@@ -33,13 +33,6 @@ instance RightModule Surface where
   Type    >>=* _ = Type
   Pi t b  >>=* f = Pi (fmap (fmap (fmap (fmap (>>= f)))) t) (fmap (>>=* f) b)
 
-instance Syntax Surface where
-  foldSyntax go bound free = \case
-    Lam p b -> Lam p (foldSyntax go bound free <$> b)
-    f :$ a -> (go free <$> f) :$ (fmap (go free) <$> a)
-    Type -> Type
-    Pi t b -> Pi (fmap (fmap (fmap (go free))) <$> t) (foldSyntax go bound free <$> b)
-
 newtype SurfaceC m a = SurfaceC { runSurfaceC :: m (Term Surface a) }
   deriving (Functor)
 

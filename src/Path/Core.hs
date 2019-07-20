@@ -32,14 +32,6 @@ instance RightModule Core where
   Type    >>=* _ = Type
   Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
-instance Syntax Core where
-  foldSyntax go bound free = \case
-    Lam b -> Lam (foldSyntax go bound free b)
-    f :$ a -> go free f :$ go free a
-    Let v b -> Let (go free v) (foldSyntax go bound free b)
-    Type -> Type
-    Pi t b -> Pi (go free t) (foldSyntax go bound free b)
-
 
 lam :: (Eq a, Carrier sig m, Member Core sig) => a -> m a -> m a
 lam n b = send (Lam (bind1 n b))

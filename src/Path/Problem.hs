@@ -85,11 +85,6 @@ instance RightModule Problem where
   Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
   p :===: q >>=* f = (p >>= f) :===: (q >>= f)
 
-instance Syntax Problem where
-  foldSyntax go bound free = \case
-    Ex t b -> Ex (go free t) (foldSyntax go bound free b)
-    p1 :===: p2 -> go free p1 :===: go free p2
-
 
 exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
 exists (n ::: t) b = send (Ex t (bind1 n b))
