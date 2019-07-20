@@ -1,7 +1,10 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, GeneralizedNewtypeDeriving, StandaloneDeriving #-}
 module Path.Lexer where
 
+import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
+import Control.Effect.Cut
+import Control.Effect.State
 import Data.Foldable (traverse_)
 
 data Lexer m k
@@ -56,3 +59,10 @@ data Span = Span
   , spanEnd   :: {-# UNPACK #-} !Pos
   }
   deriving (Eq, Ord, Show)
+
+
+runLexer :: Monad m => String -> LexerC m a -> m (String, Maybe a)
+runLexer s = runState s . runCutAll . runLexerC
+
+newtype LexerC m a = LexerC { runLexerC :: CutC (StateC String m) a }
+  deriving (Alternative, Applicative, Functor, Monad)
