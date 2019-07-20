@@ -6,7 +6,6 @@ import           Control.Effect.Carrier
 import           Control.Effect.Cut
 import           Control.Effect.State
 import           Control.Monad (MonadPlus (..))
-import qualified Data.Set as Set
 import           Text.Parser.Char
 import           Text.Parser.Combinators
 import           Text.Parser.Token
@@ -73,23 +72,22 @@ instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Parser :+: sig) 
       cs <- get @String
       case cs of
         c:cs | Just a <- p c -> put cs *> runParserC (k a)
-        -- FIXME: error message
-        _                    -> empty
+             | otherwise     -> fail ("unexpected: " <> show c)
+        _                    -> fail "unexpected eof"
     -- FIXME: use the label to provide contextualized error messages
     L (Label m _ k) -> m >>= k
-    -- FIXME: fail with an error message
-    L (Unexpected _) -> empty
+    L (Unexpected s) -> fail s
     L (Eof k) -> ParserC $ do
       cs <- get @String
       case cs of
-        "" -> runParserC k
-        -- FIXME: error message
-        _  -> empty
+        ""  -> runParserC k
+        c:_ -> fail ("unexpected: " <> show c)
     R other -> ParserC (eff (R (handleCoercible other)))
+    where fail _ = empty -- FIXME: do something with the error message
 
 
 data Err = Err
-  { errPos      :: {-# UNPACK #-} !Pos
-  , errExpected :: Set.Set String
+  { errPos    :: {-# UNPACK #-} !Pos
+  , errReason :: String
   }
   deriving (Eq, Ord, Show)
