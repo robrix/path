@@ -21,3 +21,9 @@ data Pos = Pos
   , posColumn :: {-# UNPACK #-} !Int
   }
   deriving (Eq, Ord, Show)
+
+data Span = Span
+  { spanStart :: {-# UNPACK #-} !Int
+  , spanEnd   :: {-# UNPACK #-} !Int
+  }
+  deriving (Eq, Ord, Show)
