@@ -6,6 +6,7 @@ import Path.Name hiding (name)
 import Path.Parser as Parser
 import Path.Plicity
 import Path.Parser.Mixfix
+import Path.Span (unSpanned)
 import Path.Surface (Surface)
 import qualified Path.Surface as Surface
 import Path.Syntax
@@ -26,7 +27,7 @@ piType = spanned (do
   Surface.pi (p :< named (Just v) v ::: ty) <$> functionType) <?> "dependent function type"
   where binding = ((,) <$> name <* colon <*> term)
 
-functionType = spanned (application <**> (flip (Surface.-->) <$ op "->" <*> functionType))
+functionType = spanned (application <**> (flip (Surface.-->) <$ op "->" <*> functionType <|> pure unSpanned))
            <|> piType
 
 var = spanned (pure <$> name <?> "variable")
