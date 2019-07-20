@@ -29,15 +29,7 @@ unEither from = go Nil
           Left  b -> pure (names, b)
 
 
-data User
-  = Id String
-  | Op Operator
-  deriving (Eq, Ord, Show)
-
-instance Pretty User where
-  pretty = \case
-    Id s  -> pretty s
-    Op op -> parens (pretty op)
+type User = String
 
 
 data ModuleName

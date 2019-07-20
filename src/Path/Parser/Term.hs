@@ -42,4 +42,4 @@ plicit :: TokenParsing m => m a -> m a -> m (Plicit a)
 plicit a b = (Im :<) <$> braces a <|> (Ex :<) <$> b
 
 name :: (Monad m, TokenParsing m) => m User
-name = Id <$> identifier <?> "name"
+name = identifier <?> "name"
