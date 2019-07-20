@@ -37,6 +37,13 @@ string :: (Carrier sig m, Member Lexer sig) => String -> m String
 string s = s <$ traverse_ char s <?> show s
 
 
+skipMany :: Alternative m => m a -> m ()
+skipMany p = () <$ many p
+
+skipSome :: Alternative m => m a -> m ()
+skipSome p = p *> skipMany p
+
+
 (<?>) :: (Carrier sig m, Member Lexer sig) => m a -> String -> m a
 m <?> s = send (Label m s pure)
 
