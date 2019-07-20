@@ -10,13 +10,6 @@ import           Path.Pretty
 import           Path.Stack
 import           Prelude hiding (fail)
 
-data Gensym = Gensym (Stack String) Int
-  deriving (Eq, Ord, Show)
-
-instance Pretty Gensym where
-  pretty (Gensym _ i) = prettyVar i
-
-
 newtype N = N { unN :: Int }
   deriving (Enum, Eq, Ord, Show)
 
