@@ -36,20 +36,18 @@ assume v = asks (lookupBinding v) >>= maybe (freeVariables (pure v)) (pure . (Va
 
 intro :: ( Carrier sig m
          , Member Naming sig
-         , Member (Reader Context) sig
          )
       => (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym)))
       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 intro body = do
   _A <- meta type'
   x <- fresh
-  _B <- ForAll x ::: _A |- meta type'
-  u <- ForAll x ::: _A |- goalIs _B (body (pure (Local x) ::: _A))
+  _B <- meta type'
+  u <- goalIs _B (body (pure (Local x) ::: _A))
   pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
          , Member Naming sig
-         , Member (Reader Context) sig
          )
       => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
       -> (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym)))
@@ -57,12 +55,11 @@ intro body = do
 t --> body = do
   t' <- goalIs type' t
   x <- fresh
-  b' <- ForAll x ::: t' |- goalIs type' (body (pure (Local x) ::: t'))
+  b' <- goalIs type' (body (pure (Local x) ::: t'))
   pure (pi (Local x ::: t') b' ::: type')
 
 app :: ( Carrier sig m
        , Member Naming sig
-       , Member (Reader Context) sig
        )
     => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
     -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
@@ -70,7 +67,7 @@ app :: ( Carrier sig m
 app f a = do
   _A <- meta type'
   x <- fresh
-  _B <- ForAll x ::: _A |- meta type'
+  _B <- meta type'
   let _F = pi (Local x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
@@ -92,11 +89,6 @@ meta :: (Carrier sig m, Member Naming sig) => Term (Problem :+: Core) (Name Gens
 meta ty = do
   n <- fresh
   pure (exists (Local n ::: ty) (pure (Local n)))
-
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Term (Problem :+: Core) (Name Gensym) -> m a -> m a
-b |- m = local (:> b) m
-
-infix 3 |-
 
 
 elab :: ( Carrier sig m
