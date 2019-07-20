@@ -40,7 +40,7 @@ unsimplifiable constraints = throwError (fold (intersperse hardline (map format 
   where format (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty c]
 
 
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty, Foldable t) => ty -> t Meta -> m a
+unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty, Pretty v, Foldable t) => ty -> t v -> m a
 unsolvedMetavariables ty metas = do
   span <- ask
   throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty (toList metas)))) [pretty ty])
