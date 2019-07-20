@@ -20,7 +20,7 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty (Term (Problem :+: Core) Qualified) where
-  pretty = snd . run . runWriter @(Set.Set (Meta N)) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty . Global @(Meta N))
+  pretty = snd . run . runWriter @(Set.Set (Meta N)) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty)
     where bound v = tell (Set.singleton @(Meta N) v) *> pure (pretty v)
           go = \case
             Var v -> v
