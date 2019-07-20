@@ -112,17 +112,17 @@ strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
 strengthen = toEither . traverse (name (Failure . pure) Success)
 
 
-data Meta
-  = Name Gensym
-  | Meta Gensym
-  deriving (Eq, Ord, Show)
+data Meta a
+  = Name a
+  | Meta a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance Pretty Meta where
+instance Pretty a => Pretty (Meta a) where
   pretty = \case
-    Name q -> pretty q
-    Meta m -> dullblack (bold (pretty '?' <> pretty m))
+    Name n -> pretty n
+    Meta n -> dullblack (bold (pretty '?' <> pretty n))
 
-metaNames :: Set.Set Meta -> Set.Set Gensym
+metaNames :: Ord n => Set.Set (Meta n) -> Set.Set n
 metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 
