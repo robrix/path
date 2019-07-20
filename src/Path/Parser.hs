@@ -50,7 +50,7 @@ parseError err = throwError (_errDoc err)
 
 
 whole :: TokenParsing m => m a -> m a
-whole p = p <* whiteSpace <* eof
+whole p = whiteSpace *> p <* eof
 
 
 identifier :: (Monad m, TokenParsing m) => m String
