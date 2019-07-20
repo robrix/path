@@ -89,7 +89,7 @@ instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Parser :+: sig) 
 
 
 data Err = Err
-  { errExpected :: Set.Set String
-  , errActual   :: Maybe String
+  { errPos      :: {-# UNPACK #-} !Pos
+  , errExpected :: Set.Set String
   }
   deriving (Eq, Ord, Show)
