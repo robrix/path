@@ -25,6 +25,10 @@ prime :: Gensym -> Gensym
 prime (Gensym s i) = Gensym s (succ i)
 
 
+newtype N = N { unN :: Int }
+  deriving (Eq, Ord, Show)
+
+
 fresh :: (Carrier sig m, Member Naming sig) => m Gensym
 fresh = send (Fresh pure)
 

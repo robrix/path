@@ -20,9 +20,6 @@ import           Prelude hiding (pi)
 newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
-newtype N = N { unN :: Int }
-  deriving (Eq, Ord, Show)
-
 instance Pretty (Term (Problem :+: Core) Qualified) where
   pretty = snd . run . runWriter @(Set.Set Meta) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty . Global @Meta)
     where bound v = tell (Set.singleton @Meta v) *> pure (pretty v)
