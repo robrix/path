@@ -21,9 +21,6 @@ data Gensym = Gensym (Stack String) Int
 instance Pretty Gensym where
   pretty (Gensym _ i) = prettyVar i
 
-prime :: Gensym -> Gensym
-prime (Gensym s i) = Gensym s (succ i)
-
 
 newtype N = N { unN :: Int }
   deriving (Eq, Ord, Show)
