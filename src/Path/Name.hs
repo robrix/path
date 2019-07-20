@@ -105,17 +105,6 @@ strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
 strengthen = toEither . traverse (name (Failure . pure) Success)
 
 
-data Meta a
-  = Name a
-  | Meta a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Pretty a => Pretty (Meta a) where
-  pretty = \case
-    Name n -> pretty n
-    Meta n -> dullblack (bold (pretty '?' <> pretty n))
-
-
 data Operator
   = Prefix (NonEmpty String)
   | Postfix (NonEmpty String)
