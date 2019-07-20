@@ -33,8 +33,7 @@ declaration = do
   name <- name
   ty <- op ":" *> term
   tm <- op "=" *> term
-  _ <- semi
-  pure (Module.Decl name docs tm ty)
+  Module.Decl name docs tm ty <$ semi
 
 docs :: TokenParsing m => m String
 docs = runUnlined (fmap unlines . (:) <$> firstLine <*> many line)
