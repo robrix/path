@@ -18,6 +18,6 @@ not
 : Bool -> Bool
 = \ f a b . f b a;
 
-(if _ then _ else _)
+ifThenElse
 : { a : Type } -> Bool -> Lazy a -> Lazy a -> a
 = \ {a} c t e . force {a} (c {Lazy a} t e);

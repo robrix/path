@@ -33,10 +33,10 @@ iter
 = \ {a} z s n . n {a} (\ k f . f z (\ m . s (k m)));
 
 
-(_ + _)
+plus
 : Nat -> Nat -> Nat
 = \ m . iter {Nat} m s;
 
-(_ * _)
+times
 : Nat -> Nat -> Nat
-= \ m . iter {Nat} z ((_ + _) m);
+= \ m . iter {Nat} z (plus m);

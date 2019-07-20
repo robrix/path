@@ -5,7 +5,6 @@ import Control.Applicative (Alternative(..), (<**>))
 import Path.Name hiding (name)
 import Path.Parser as Parser
 import Path.Plicity
-import Path.Parser.Mixfix
 import Path.Span (unSpanned)
 import Path.Surface (Surface)
 import qualified Path.Surface as Surface
@@ -43,5 +42,4 @@ plicit :: TokenParsing m => m a -> m a -> m (Plicit a)
 plicit a b = (Im :<) <$> braces a <|> (Ex :<) <$> b
 
 name :: (Monad m, TokenParsing m) => m User
-name =       (Id <$> identifier <?> "name")
-     <|> try (Op <$> parens operator <?> "operator name")
+name = Id <$> identifier <?> "name"
