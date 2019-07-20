@@ -18,10 +18,10 @@ instance Pretty N where
 
 
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
-un from = unH (\ t -> maybe (Left t) Right (from t))
+un from = unEither (\ t -> maybe (Left t) Right (from t))
 
-unH :: Monad m => (t -> Either b (m (a, t))) -> t -> m (Stack a, b)
-unH from = go Nil
+unEither :: Monad m => (t -> Either b (m (a, t))) -> t -> m (Stack a, b)
+unEither from = go Nil
   where go names value = case from value of
           Right a -> do
             (name, body) <- a
