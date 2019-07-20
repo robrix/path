@@ -14,3 +14,10 @@ instance Effect Lexer
 
 satisfy :: (Carrier sig m, Member Lexer sig) => (Char -> Bool) -> m Char
 satisfy p = send (Satisfy p pure)
+
+
+data Pos = Pos
+  { posLine   :: {-# UNPACK #-} !Int
+  , posColumn :: {-# UNPACK #-} !Int
+  }
+  deriving (Eq, Ord, Show)
