@@ -20,6 +20,9 @@ instance Pretty Gensym where
 newtype N = N { unN :: Int }
   deriving (Enum, Eq, Ord, Show)
 
+instance Pretty N where
+  pretty (N i) = prettyVar i
+
 
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
 un from = unH (\ t -> maybe (Left t) Right (from t))
