@@ -32,13 +32,10 @@ functionType = spanned (application <**> (flip (Surface.-->) <$ op "->" <*> func
 
 var = spanned (pure <$> name <?> "variable")
 
-lambda = (do
-  vs <- op "\\" *> some pattern <* dot
-  foldr bind term vs) <?> "lambda"
-  where pattern = spanned (plicit binding binding) <?> "pattern"
+lambda = spanned (unSpanned <$ op "\\" <*> recur) <?> "lambda"
+  where recur = spanned (Surface.lam' <$> pattern <*> (recur <|> dot *> term)) <?> "lambda"
+        pattern = plicit binding binding <?> "pattern"
         binding = Just <$> name <|> Nothing <$ token (string "_")
-        bind v vv = wrap v <$> spanned vv
-        wrap (a :~ v1) (b :~ v2) = Surface.lam' a b :~ (v1 <> v2)
 
 atom = var <|> type' <|> lambda <|> try (parens term)
 
