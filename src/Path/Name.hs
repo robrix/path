@@ -126,10 +126,6 @@ instance Pretty Operator where
   pretty = renderOperator space pretty
 
 
-data Assoc = LAssoc | RAssoc | NonAssoc
-  deriving (Eq, Ord, Show)
-
-
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a
 fvs = foldMap Set.singleton
 
