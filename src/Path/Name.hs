@@ -97,35 +97,6 @@ strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
 strengthen = toEither . traverse (name (Failure . pure) Success)
 
 
-data Operator
-  = Prefix (NonEmpty String)
-  | Postfix (NonEmpty String)
-  | Infix (NonEmpty String)
-  | Closed (NonEmpty String) String
-  deriving (Eq, Ord, Show)
-
-betweenOp :: String -> String -> Operator
-betweenOp a = Closed (a :| [])
-
-showOperator :: Operator -> String
-showOperator = renderOperator " " id
-
-renderOperator :: Monoid m => m -> (String -> m) -> Operator -> m
-renderOperator space pretty = \case
-  Prefix (f:|fs) -> hsep (map (\ a -> pretty a <+> underscore) (f:fs))
-  Postfix (f:|fs) -> hsep (map (\ a -> underscore <+> pretty a) (f:fs))
-  Infix (f:|fs) -> underscore <+> hsep (map (\ a -> pretty a <+> underscore) (f:fs))
-  Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
-  where hsep []     = mempty
-        hsep [a]    = a
-        hsep (a:as) = a <+> hsep as
-        s <+> t = s <> space <> t
-        underscore = pretty "_"
-
-instance Pretty Operator where
-  pretty = renderOperator space pretty
-
-
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a
 fvs = foldMap Set.singleton
 
