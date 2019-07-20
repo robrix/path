@@ -2,12 +2,7 @@
 module Path.Name where
 
 import           Control.Applicative (Alternative (..))
-import           Control.Effect.Carrier
-import           Control.Effect.Reader hiding (Local)
-import           Control.Effect.State
 import           Control.Monad.Fail
-import           Control.Monad.Fix
-import           Control.Monad.IO.Class
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Data.Validation
@@ -26,13 +21,6 @@ newtype N = N { unN :: Int }
   deriving (Enum, Eq, Ord, Show)
 
 
-fresh :: (Carrier sig m, Member Naming sig) => m Gensym
-fresh = send (Fresh pure)
-
-namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
-namespace s m = send (Namespace s m pure)
-
-
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
 un from = unH (\ t -> maybe (Left t) Right (from t))
 
@@ -43,32 +31,6 @@ unH from = go Nil
             (name, body) <- a
             go (names :> name) body
           Left  b -> pure (names, b)
-
-data Naming m k
-  = Fresh (Gensym -> m k)
-  | forall a . Namespace String (m a) (a -> m k)
-
-deriving instance Functor m => Functor (Naming m)
-
-instance HFunctor Naming where
-  hmap f (Fresh         k) = Fresh             (f . k)
-  hmap f (Namespace s m k) = Namespace s (f m) (f . k)
-
-instance Effect Naming where
-  handle state handler (Fresh         k) = Fresh                              (handler . (<$ state) . k)
-  handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
-
-
-runNaming :: Functor m => NamingC m a -> m a
-runNaming = runReader Nil . evalState 0 . runNamingC
-
-newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC (Stack String) m) a }
-  deriving (Applicative, Functor, Monad, MonadFail, MonadFix, MonadIO)
-
-instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
-  eff (L (Fresh         k)) = NamingC (asks Gensym <*> get <* modify (succ @Int) >>= runNamingC . k)
-  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (:> s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
-  eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
 
 data User
