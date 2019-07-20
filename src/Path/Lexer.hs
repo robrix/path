@@ -1,19 +1,25 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, FlexibleContexts #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
 module Path.Lexer where
 
 import Control.Effect.Carrier
-import GHC.Generics (Generic1)
 
 data Lexer m k
-  = Satisfy (Char -> Bool) (Char -> m k)
-  deriving (Functor, Generic1)
+  = forall a . Accept (Char -> Maybe a) (a -> m k)
 
-instance HFunctor Lexer
-instance Effect Lexer
+deriving instance Functor m => Functor (Lexer m)
 
+instance HFunctor Lexer where
+  hmap f (Accept p k) = Accept p (f . k)
+
+instance Effect Lexer where
+  handle state handler (Accept p k) = Accept p (handler . (<$ state) . k)
+
+
+accept :: (Carrier sig m, Member Lexer sig) => (Char -> Maybe a) -> m a
+accept p = send (Accept p pure)
 
 satisfy :: (Carrier sig m, Member Lexer sig) => (Char -> Bool) -> m Char
-satisfy p = send (Satisfy p pure)
+satisfy p = accept (\ c -> if p c then Just c else Nothing)
 
 
 data Pos = Pos
