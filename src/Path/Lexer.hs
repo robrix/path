@@ -4,6 +4,7 @@ module Path.Lexer where
 import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
 import Control.Effect.State
+import Data.Char (isSpace)
 import Data.Foldable (traverse_)
 
 data Lexer m k
@@ -42,6 +43,13 @@ skipMany p = () <$ many p
 
 skipSome :: Alternative m => m a -> m ()
 skipSome p = p *> skipMany p
+
+
+someSpace :: (Alternative m, Carrier sig m, Member Lexer sig) => m ()
+someSpace = skipSome (satisfy isSpace)
+
+token :: (Alternative m, Carrier sig m, Member Lexer sig) => m a -> m a
+token p = p <* (someSpace <|> pure ())
 
 
 (<?>) :: (Carrier sig m, Member Lexer sig) => m a -> String -> m a
