@@ -4,6 +4,7 @@ module Path.Lexer where
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
 import           Control.Effect.Cut
+import           Control.Effect.Reader
 import           Control.Effect.State
 import           Control.Monad (MonadPlus (..))
 import           Text.Parser.Char
@@ -46,9 +47,9 @@ data Span = Span
 
 
 runParser :: String -> ParserC m a -> m (String, a)
-runParser s = runState s . runParserC
+runParser s = runReader "" . runState s . runParserC
 
-newtype ParserC m a = ParserC { runParserC :: StateC String m a }
+newtype ParserC m a = ParserC { runParserC :: StateC String (ReaderC String m) a }
   deriving (Alternative, Applicative, Functor, Monad, MonadPlus)
 
 instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => Parsing (ParserC m) where
@@ -71,10 +72,9 @@ instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Parser :+: sig) 
         c:cs | Just a <- p c -> put cs *> runParserC (k a)
              | otherwise     -> fail ("unexpected: " <> show c)
         _                    -> fail "unexpected eof"
-    -- FIXME: use the label to provide contextualized error messages
-    L (Label m _ k) -> m >>= k
+    L (Label m s k) -> ParserC (local (const s) (runParserC m) >>= runParserC . k)
     L (Unexpected s) -> fail s
-    R other -> ParserC (eff (R (handleCoercible other)))
+    R other -> ParserC (eff (R (R (handleCoercible other))))
     where fail _ = empty -- FIXME: do something with the error message
 
 
