@@ -3,11 +3,9 @@ module Path.Elab where
 
 import Control.Effect.Carrier
 import Control.Effect.Error
-import Control.Effect.Interpret
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
-import Control.Monad (foldM)
-import Data.Bifunctor (first)
+import Control.Monad ((<=<), foldM)
 import Data.Foldable (foldl')
 import qualified Data.Map as Map
 import Data.Void
@@ -40,13 +38,13 @@ intro :: ( Carrier sig m
          , Member Naming sig
          , Member (Reader Context) sig
          )
-      => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+      => (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym)))
       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 intro body = do
   _A <- meta type'
   x <- fresh
   _B <- ForAll x ::: _A |- meta type'
-  u <- ForAll x ::: _A |- goalIs _B body
+  u <- ForAll x ::: _A |- goalIs _B (body (pure (Local x) ::: _A))
   pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
@@ -54,12 +52,12 @@ intro body = do
          , Member (Reader Context) sig
          )
       => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+      -> (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym)))
       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
 t --> body = do
   t' <- goalIs type' t
   x <- fresh
-  b' <- ForAll x ::: t' |- goalIs type' body
+  b' <- ForAll x ::: t' |- goalIs type' (body (pure (Local x) ::: t'))
   pure (pi (Local x ::: t') b' ::: type')
 
 app :: ( Carrier sig m
@@ -102,7 +100,6 @@ infix 3 |-
 
 
 elab :: ( Carrier sig m
-        , Effect sig
         , Member (Error Doc) sig
         , Member Naming sig
         , Member (Reader Context) sig
@@ -110,19 +107,17 @@ elab :: ( Carrier sig m
         )
      => Term Surface.Surface Qualified
      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-elab = fmap (either id id) . runError . runInterpret alg . interpret bound assume
-  where bound (Z _) = returning (asks @Context (first (Var . bindingName) . Stack.head))
-        bound (S m) = S . pure <$> local @Context Stack.tail m
-        alg = returning . \case
-          Surface.Lam _ b -> intro (elab' (unScope <$> b))
-          f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
-          Surface.Type -> pure (type' ::: type')
-          Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> elab' (unScope <$> b)
-        elab' m = spanIs m *> pure (type' ::: type') `catchError` pure
-        returning m = m >>= throwError @(Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+elab = go <=< traverse assume
+  where go = \case
+          Var v -> pure v
+          Term t -> case t of
+            Surface.Lam _ b -> intro (\ t -> elab' (instantiate1 (pure t) <$> b))
+            f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
+            Surface.Type -> pure (type' ::: type')
+            Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> \ t' -> elab' (instantiate1 (pure t') <$> b)
+        elab' m = spanIs (go <$> m)
 
 elabDecl :: ( Carrier sig m
-            , Effect sig
             , Member (Error Doc) sig
             , Member Naming sig
             , Member (Reader Context) sig
@@ -140,7 +135,6 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
   pure (Decl name d tm'' ty'')
 
 elabModule :: ( Carrier sig m
-              , Effect sig
               , Member (Error Doc) sig
               , Member Naming sig
               , Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig

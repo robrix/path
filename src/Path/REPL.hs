@@ -171,7 +171,6 @@ script packageSources
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
 elaborate :: ( Carrier sig m
-             , Effect sig
              , Member (Error Doc) sig
              , Member Naming sig
              , Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig
