@@ -126,7 +126,6 @@ script packageSources
   = evalState (ModuleGraph mempty :: ModuleGraph (Term (Problem :+: Core)) Void)
   . evalState (mempty @(Set.Set ModuleName))
   . runReader (ModuleName "(interpreter)")
-  . runNaming
   $ runError loop >>= either (print @Doc) pure
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
