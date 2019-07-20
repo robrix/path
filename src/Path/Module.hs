@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
+{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
 module Path.Module where
 
-import Control.Effect
+import Control.Effect.Carrier
 import Control.Effect.Cull (runNonDetOnce)
+import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
@@ -14,6 +15,7 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Alt(..))
 import qualified Data.Set as Set
 import Data.Void
+import GHC.Generics (Generic1)
 import Path.Error
 import Path.Name
 import Path.Pretty
@@ -27,14 +29,16 @@ data Module f a = Module
   , moduleImports :: Map.Map ModuleName Span
   , moduleDecls   :: Map.Map User (Decl (Scope User f a))
   }
-  deriving (Foldable, Functor, Traversable)
+  deriving (Foldable, Functor, Generic1, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Module f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Module f a)
 deriving instance (Show a, forall a . Show a => Show (f a)) => Show (Module f a)
 
-instance Monad f => RModule (Module f) f where
+instance HFunctor Module
+
+instance RightModule Module where
   Module n d p is ds >>=* f = Module n d p is (fmap (fmap (>>=* f)) ds)
 
 module' :: Applicative f => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [Decl (f User)] -> Module f User
@@ -51,7 +55,7 @@ data Decl a = Decl
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-newtype ModuleGraph f a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (ScopeH Qualified (Module f) f a) }
+newtype ModuleGraph f a = ModuleGraph { unModuleGraph :: Map.Map ModuleName (ScopeT Qualified Module f a) }
   deriving (Foldable, Functor, Monoid, Semigroup, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (ModuleGraph f a)
@@ -59,11 +63,14 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (ModuleGraph f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (ModuleGraph f a)
 
-instance Monad f => RModule (ModuleGraph f) f where
+instance HFunctor ModuleGraph where
+  hmap f (ModuleGraph graph) = ModuleGraph (ScopeT . hmap f . fmap (fmap f) . unScopeT <$> graph)
+
+instance RightModule ModuleGraph where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
-moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms))
+moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindTEither Left) ms))
 
 restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
 restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
@@ -100,22 +107,22 @@ renameModule ms m = do
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Doc) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> renameModule (imported m) m) ms
-  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindHEither Left) ms')))
+  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindTEither Left) ms')))
   where imported m = filter (flip Set.member imports . moduleName) ms
           where imports = Map.keysSet (moduleImports m)
 
 modules :: Monad f => ModuleGraph f Void -> [Module f Qualified]
-modules (ModuleGraph m) = map (instantiateHEither (either pure absurd)) (Map.elems m)
+modules (ModuleGraph m) = map (instantiateTEither (either pure absurd)) (Map.elems m)
 
 lookup :: Monad f => Qualified -> ModuleGraph f Void -> Maybe (Decl (f Qualified))
 lookup (mn :.: n) (ModuleGraph g) = do
   sm <- Map.lookup mn g
-  let m = instantiateHEither (either pure absurd) sm
+  let m = instantiateTEither (either pure absurd) sm
   decl <- Map.lookup n (moduleDecls m)
   pure (instantiate (pure . (moduleName m :.:)) <$> decl)
 
 
-lookupModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned ModuleName -> ModuleGraph f a -> m (ScopeH Qualified (Module f) f a)
+lookupModule :: (Carrier sig m, Member (Error Doc) sig) => Spanned ModuleName -> ModuleGraph f a -> m (ScopeT Qualified Module f a)
 lookupModule i g = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
 
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph f a -> Spanned ModuleName -> m ()
@@ -124,18 +131,18 @@ cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m
           notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do
             m <- lookupModule n g
-            nub . (n <|) <$> local (Set.insert (unSpanned n)) (getAlt (foldMap (Alt . go . uncurry (:~)) (Map.toList (moduleImports (unScopeH m)))))
+            nub . (n <|) <$> local (Set.insert (unSpanned n)) (getAlt (foldMap (Alt . go . uncurry (:~)) (Map.toList (moduleImports (unScopeT m)))))
           else
             pure (n :| [])
 
 
-loadOrder :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph f Void -> m [ScopeH Qualified (Module f) f Void]
+loadOrder :: (Carrier sig m, Effect sig, Member (Error Doc) sig) => ModuleGraph f Void -> m [ScopeT Qualified Module f Void]
 loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (unModuleGraph g) loopM)))
   where loopM m = do
-          visited <- gets (Set.member (moduleName (unScopeH m)))
-          unless visited . local (Set.insert (moduleName (unScopeH m))) $ do
-            for_ (Map.toList (moduleImports (unScopeH m))) (uncurry loop)
-            modify (Set.insert (moduleName (unScopeH m)))
+          visited <- gets (Set.member (moduleName (unScopeT m)))
+          unless visited . local (Set.insert (moduleName (unScopeT m))) $ do
+            for_ (Map.toList (moduleImports (unScopeT m))) (uncurry loop)
+            modify (Set.insert (moduleName (unScopeT m)))
             modify (m :)
         loop n s = do
           inPath <- asks (Set.member n)
@@ -143,6 +150,6 @@ loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleNa
           visited <- gets (Set.member n)
           unless visited . local (Set.insert n) $ do
             m <- lookupModule (n :~ s) g
-            for_ (Map.toList (moduleImports (unScopeH m))) (uncurry loop)
+            for_ (Map.toList (moduleImports (unScopeT m))) (uncurry loop)
             modify (Set.insert n)
             modify (m :)

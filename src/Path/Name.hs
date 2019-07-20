@@ -2,12 +2,7 @@
 module Path.Name where
 
 import           Control.Applicative (Alternative (..))
-import           Control.Effect.Carrier
-import           Control.Effect.Reader hiding (Local)
-import           Control.Effect.State
 import           Control.Monad.Fail
-import           Control.Monad.Fix
-import           Control.Monad.IO.Class
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Data.Validation
@@ -15,59 +10,23 @@ import           Path.Pretty
 import           Path.Stack
 import           Prelude hiding (fail)
 
-data Gensym = Gensym (Stack String) Int
-  deriving (Eq, Ord, Show)
+newtype N = N { unN :: Int }
+  deriving (Enum, Eq, Ord, Show)
 
-instance Pretty Gensym where
-  pretty (Gensym _ i) = prettyVar i
-
-prime :: Gensym -> Gensym
-prime (Gensym s i) = Gensym s (succ i)
+instance Pretty N where
+  pretty (N i) = prettyVar i
 
 
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
-un from = unH (\ t -> maybe (Left t) Right (from t))
+un from = unEither (\ t -> maybe (Left t) Right (from t))
 
-unH :: Monad m => (t -> Either b (m (a, t))) -> t -> m (Stack a, b)
-unH from = go Nil
+unEither :: Monad m => (t -> Either b (m (a, t))) -> t -> m (Stack a, b)
+unEither from = go Nil
   where go names value = case from value of
           Right a -> do
             (name, body) <- a
             go (names :> name) body
           Left  b -> pure (names, b)
-
-
-fresh :: (Carrier sig m, Member Naming sig) => m Gensym
-fresh = send (Fresh pure)
-
-namespace :: (Carrier sig m, Member Naming sig) => String -> m a -> m a
-namespace s m = send (Namespace s m pure)
-
-data Naming m k
-  = Fresh (Gensym -> m k)
-  | forall a . Namespace String (m a) (a -> m k)
-
-deriving instance Functor m => Functor (Naming m)
-
-instance HFunctor Naming where
-  hmap f (Fresh         k) = Fresh             (f . k)
-  hmap f (Namespace s m k) = Namespace s (f m) (f . k)
-
-instance Effect Naming where
-  handle state handler (Fresh         k) = Fresh                              (handler . (<$ state) . k)
-  handle state handler (Namespace s m k) = Namespace s (handler (m <$ state)) (handler . fmap k)
-
-
-runNaming :: Functor m => NamingC m a -> m a
-runNaming = runReader Nil . evalState 0 . runNamingC
-
-newtype NamingC m a = NamingC { runNamingC :: StateC Int (ReaderC (Stack String) m) a }
-  deriving (Applicative, Functor, Monad, MonadFail, MonadFix, MonadIO)
-
-instance (Carrier sig m, Effect sig) => Carrier (Naming :+: sig) (NamingC m) where
-  eff (L (Fresh         k)) = NamingC (asks Gensym <*> get <* modify (succ @Int) >>= runNamingC . k)
-  eff (L (Namespace s m k)) = NamingC (StateC (\ i -> local (:> s) (evalState 0 (runNamingC m)) >>= runState i . runNamingC . k))
-  eff (R other)             = NamingC (eff (R (R (handleCoercible other))))
 
 
 data User
@@ -117,8 +76,8 @@ data Name a
 
 instance Pretty a => Pretty (Name a) where
   pretty = \case
-    Global (_ :.: n) -> pretty n
-    Local         n  -> pretty n
+    Global n -> pretty n
+    Local  n -> pretty n
 
 name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
@@ -144,20 +103,6 @@ weaken = fmap Global
 
 strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
 strengthen = toEither . traverse (name (Failure . pure) Success)
-
-
-data Meta
-  = Name Gensym
-  | Meta Gensym
-  deriving (Eq, Ord, Show)
-
-instance Pretty Meta where
-  pretty = \case
-    Name q -> pretty q
-    Meta m -> dullblack (bold (pretty '?' <> pretty m))
-
-metaNames :: Set.Set Meta -> Set.Set Gensym
-metaNames = foldMap (\case { Meta m -> Set.singleton m ; _ -> mempty })
 
 
 data Operator

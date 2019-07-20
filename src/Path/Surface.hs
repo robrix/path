@@ -3,8 +3,8 @@ module Path.Surface where
 
 import Control.Applicative
 import Control.Effect.Carrier
-import Control.Effect.Reader
 import Control.Monad (join)
+import Control.Monad.Module
 import Control.Monad.Trans
 import GHC.Generics (Generic1)
 import Path.Name
@@ -26,12 +26,11 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
                          , forall a . Ord  a => Ord  (f a), Monad f) => Ord  (Surface f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Surface f a)
 
-instance Syntax Surface where
-  foldSyntax go bound free = \case
-    Lam p b -> Lam p (foldSyntax go bound free <$> b)
-    f :$ a -> (go free <$> f) :$ (fmap (go free) <$> a)
-    Type -> Type
-    Pi t b -> Pi (fmap (fmap (go free)) <$> t) (foldSyntax go bound free <$> b)
+instance RightModule Surface where
+  Lam p b >>=* f = Lam p (fmap (>>=* f) b)
+  g :$ a  >>=* f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
+  Type    >>=* _ = Type
+  Pi t b  >>=* f = Pi (fmap (fmap (fmap (>>= f))) t) (fmap (>>=* f) b)
 
 newtype SurfaceC m a = SurfaceC { runSurfaceC :: m (Term Surface a) }
   deriving (Functor)
@@ -76,20 +75,3 @@ pi (p :< Named u n ::: t) b = send (Pi (p :< u ::: t) (bind1 n <$> b))
 t --> b = send (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))
 
 infixr 0 -->
-
-
--- | Decorate a term’s variables with the most local
-decorate :: Spanned (Term Surface a) -> Spanned (Term Surface (Spanned a))
-decorate (a :~ s) = runReader s (walk (asks . (:~)) a) :~ s
-
-walk :: (Carrier sig m, Member (Reader Span) sig, Member Surface sig)
-     => (a -> m b)
-     -> Term Surface a
-     -> m b
-walk k = iter id alg pure k
-  where alg = \case
-          Lam p b -> send (Lam p (Scope <$> withSpan (unScope <$> b)))
-          f :$ a -> withSpan f $$ fmap withSpan a
-          Type -> type'
-          Pi t b -> send (Pi (fmap withSpan <$> t) (Scope <$> withSpan (unScope <$> b)))
-        withSpan s = spanIs s <$ s

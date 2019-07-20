@@ -1,43 +1,44 @@
-{-# LANGUAGE FlexibleInstances, MultiParamTypeClasses, TypeOperators #-}
+{-# LANGUAGE FlexibleInstances, QuantifiedConstraints, MultiParamTypeClasses, TypeOperators #-}
 module Control.Monad.Module where
 
-import GHC.Generics
+import Control.Effect.Carrier
 
-class (Functor f, Monad m) => RModule f m where
-  (>>=*) :: f a -> (a -> m b) -> f b
+class (forall g . Functor g => Functor (f g), HFunctor f) => RightModule f where
+  (>>=*) :: Monad m => f m a -> (a -> m b) -> f m b
   infixl 1 >>=*
 
-(>=>*) :: RModule f m => (a -> f b) -> (b -> m c) -> (a -> f c)
+instance (RightModule f, RightModule g) => RightModule (f :+: g) where
+  L l >>=* f = L (l >>=* f)
+  R r >>=* f = R (r >>=* f)
+
+
+(>=>*) :: (RightModule f, Monad m) => (a -> f m b) -> (b -> m c) -> (a -> f m c)
 f >=>* g = \x -> f x >>=* g
 
 infixl 1 >=>*
 
-(<=<*) :: RModule f m => (b -> m c) -> (a -> f b) -> (a -> f c)
+(<=<*) :: (RightModule f, Monad m) => (b -> m c) -> (a -> f m b) -> (a -> f m c)
 g <=<* f = \x -> f x >>=* g
 
 infixl 1 <=<*
 
-joinr :: RModule f m => f (m a) -> f a
+joinr :: (RightModule f, Monad m) => f m (m a) -> f m a
 joinr = (>>=* id)
 
 
-instance (Functor f, RModule g h) => RModule (f :.: g) h where
-  Comp1 a >>=* f = Comp1 (fmap (>>=* f) a)
-
-
-class (Functor f, Monad m) => LModule m f where
-  (*>>=) :: m a -> (a -> f b) -> f b
+class (forall g . Functor g => Functor (f g), HFunctor f) => LeftModule f where
+  (*>>=) :: Monad m => m a -> (a -> f m b) -> f m b
   infixl 1 *>>=
 
-(*>=>) :: LModule m f => (a -> m b) -> (b -> f c) -> (a -> f c)
+(*>=>) :: (LeftModule f, Monad m) => (a -> m b) -> (b -> f m c) -> (a -> f m c)
 f *>=> g = \x -> f x *>>= g
 
 infixl 1 *>=>
 
-(*<=<) :: LModule m f => (b -> f c) -> (a -> m b) -> (a -> f c)
+(*<=<) :: (LeftModule f, Monad m) => (b -> f m c) -> (a -> m b) -> (a -> f m c)
 g *<=< f = \x -> f x *>>= g
 
 infixl 1 *<=<
 
-joinl :: LModule m f => m (f a) -> f a
+joinl :: (LeftModule f, Monad m) => m (f m a) -> f m a
 joinl = (*>>= id)
