@@ -126,7 +126,6 @@ script packageSources
   = evalState (ModuleGraph mempty :: ModuleGraph (Term (Problem :+: Core)) Void)
   . evalState (mempty @(Set.Set ModuleName))
   . runReader (ModuleName "(interpreter)")
-  . runNaming
   $ runError loop >>= either (print @Doc) pure
   where loop = (prompt "λ: " >>= parseCommand >>= maybe loop runCommand . join)
           `catchError` (const loop <=< print @Doc)
@@ -137,11 +136,11 @@ script packageSources
           Quit -> pure ()
           Help -> print helpDoc *> loop
           TypeOf tm -> elaborate tm >>= print . unSpanned >> loop
-          Command.Decl decl -> runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= flip renameDecl decl >>= inContext . elabDecl) >> loop
+          Command.Decl decl -> runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= flip renameDecl decl >>= inContext . elabDecl) >> loop
           Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print >> loop
           ShowModules -> do
             ms <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Map.toList . unModuleGraph)
-            unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeH)) ms))
+            unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeT)) ms))
             loop
           Reload -> reload *> loop
           Command.Import i -> do
@@ -149,12 +148,12 @@ script packageSources
             loop
           Command.Doc moduleName -> do
             m <- get >>= lookupModule moduleName
-            case moduleDocs (unScopeH (m :: ScopeH Qualified (Module (Term (Problem :+: Core))) (Term (Problem :+: Core)) Void)) of
+            case moduleDocs (unScopeT (m :: ScopeT Qualified Module (Term (Problem :+: Core)) Void)) of
               Just d  -> print (pretty d)
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
             loop
         reload = do
-          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateHEither (either pure absurd))) . loadOrder
+          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateTEither (either pure absurd))) . loadOrder
           checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term (Problem :+: Core)) Void)) (zip [(1 :: Int)..] sorted)
           put checked
         load n graph (i, m) = skipDeps graph m $ do
@@ -164,16 +163,22 @@ script packageSources
           print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
           (errs, res) <- runWriter @(Stack Doc) (runReader graph (elabModule m))
           if Prelude.null errs then
-            pure (ModuleGraph (Map.insert name (bindHEither Left res) (unModuleGraph graph)))
+            pure (ModuleGraph (Map.insert name (bindTEither Left res) (unModuleGraph graph)))
           else do
             for_ errs print
             pure graph
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
-elaborate :: (Carrier sig m, Member (Error Doc) sig, Member Naming sig, Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig, Member (State (Set.Set ModuleName)) sig) => Spanned (Term Surface.Surface User) -> m (Spanned (Term (Problem :+: Core) Qualified))
-elaborate = runSpanned $ \ tm -> do
+elaborate :: ( Carrier sig m
+             , Member (Error Doc) sig
+             , Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig
+             , Member (State (Set.Set ModuleName)) sig
+             )
+          => Spanned (Term Surface.Surface User)
+          -> m (Spanned (Term (Problem :+: Core) Qualified))
+elaborate = runSpanned $ \ tm -> runReader (N 0) $ do
   ty <- meta type'
-  tm' <- runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeH . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
+  tm' <- runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
   either freeVariables pure (strengthen tm')
 
 -- | Evaluate a term to weak head normal form.

@@ -60,7 +60,7 @@ instance Applicative f => Applicative (Scope a f) where
 instance Monad f => Monad (Scope a f) where
   Scope e >>= f = Scope (e >>= incr (pure . Z) (>>= unScope . f))
 
-instance Monad f => RModule (Scope a f) f where
+instance RightModule (Scope a) where
   Scope m >>=* f = Scope (fmap (>>= f) <$> m)
 
 instance MonadTrans (Scope a) where
@@ -99,70 +99,63 @@ fromScope = unScope >=> sequenceA
 toScope :: Applicative f => f (Incr a b) -> Scope a f b
 toScope = Scope . fmap (fmap pure)
 
-foldScope :: (forall a . Incr z (n a) -> m (Incr z (n a)))
-          -> (forall x y . (x -> m y) -> f x -> n y)
-          -> (a -> m b)
-          -> Scope z f a
-          -> Scope z n b
-foldScope k go h = Scope . go (k . fmap (go h)) . unScope
-
 
 -- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
-newtype ScopeH a f g b = ScopeH (f (Incr a (g b)))
+newtype ScopeT a t f b = ScopeT (t f (Incr a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
 
-unScopeH :: ScopeH a f g b -> f (Incr a (g b))
-unScopeH (ScopeH s) = s
+unScopeT :: ScopeT a t f b -> t f (Incr a (f b))
+unScopeT (ScopeT s) = s
 
-instance (RModule f g, Eq  a, Eq  b, forall a . Eq  a => Eq  (f a)) => Eq  (ScopeH a f g b) where
-  (==) = (==) `on` fromScopeH
+instance (RightModule t, Monad f, Eq  a, Eq  b, forall a . Eq  a => Eq  (t f a)) => Eq  (ScopeT a t f b) where
+  (==) = (==) `on` fromScopeT
 
-instance (RModule f g, Ord a, Ord b, forall a . Eq  a => Eq  (f a)
-                                   , forall a . Ord a => Ord (f a)) => Ord (ScopeH a f g b) where
-  compare = compare `on` fromScopeH
+instance (RightModule t, Monad f, Ord a, Ord b, forall a . Eq  a => Eq  (t f a)
+                                           , forall a . Ord a => Ord (t f a)) => Ord (ScopeT a t f b) where
+  compare = compare `on` fromScopeT
 
-deriving instance (Show a, Show b, forall a . Show a => Show (f a)
-                                 , forall a . Show a => Show (g a)) => Show (ScopeH a f g b)
+deriving instance (Show a, Show b, forall a . Show a => Show (t f a)
+                                 , forall a . Show a => Show (f a)) => Show (ScopeT a t f b)
 
-instance (Applicative f, Applicative g) => Applicative (ScopeH a f g) where
-  pure = ScopeH . pure . S . pure
-  ScopeH f <*> ScopeH a = ScopeH (liftA2 (liftA2 (<*>)) f a)
+instance (Applicative (t f), Applicative f) => Applicative (ScopeT a t f) where
+  pure = ScopeT . pure . S . pure
+  ScopeT f <*> ScopeT a = ScopeT (liftA2 (liftA2 (<*>)) f a)
 
-instance (Functor f, Monad m) => RModule (ScopeH b f m) m where
-  ScopeH s >>=* k = ScopeH (fmap (>>= k) <$> s)
+instance (Monad (t f), MonadTrans t, Monad f) => Monad (ScopeT a t f) where
+  ScopeT e >>= f = ScopeT (e >>= incr (pure . Z) ((>>= unScopeT . f) . lift))
 
-instance Applicative f => MonadTrans (ScopeH a f) where
-  lift = ScopeH . pure . S
+instance (HFunctor t, forall g . Functor g => Functor (t g)) => RightModule (ScopeT b t) where
+  ScopeT s >>=* k = ScopeT (fmap (>>= k) <$> s)
 
-instance Functor f => HFunctor (ScopeH a f) where
-  hmap f = ScopeH . fmap (fmap f) . unScopeH
+instance MonadTrans f => MonadTrans (ScopeT a f) where
+  lift = ScopeT . lift . pure . S
 
-instance Functor f => Effect (ScopeH a f) where
-  handle state handler = ScopeH . fmap (fmap (handler . (<$ state))) . unScopeH
+instance (HFunctor t, forall g . Functor g => Functor (t g)) => HFunctor (ScopeT a t) where
+  hmap f = ScopeT . hmap f . fmap (fmap f) . unScopeT
 
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
-bind1H :: (Functor f, Applicative g, Eq a) => a -> f a -> ScopeH () f g a
-bind1H n = bindH (guard . (== n))
+bind1T :: (Functor (t f), Applicative f, Eq a) => a -> t f a -> ScopeT () t f a
+bind1T n = bindT (guard . (== n))
 
-bindH :: (Functor f, Applicative g) => (b -> Maybe a) -> f b -> ScopeH a f g b
-bindH f = bindHEither (matchMaybe f)
+bindT :: (Functor (t f), Applicative f) => (b -> Maybe a) -> t f b -> ScopeT a t f b
+bindT f = bindTEither (matchMaybe f)
 
-bindHEither :: (Functor f, Applicative g) => (b -> Either a c) -> f b -> ScopeH a f g c
-bindHEither f = ScopeH . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+bindTEither :: (Functor (t f), Applicative f) => (b -> Either a c) -> t f b -> ScopeT a t f c
+bindTEither f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
-instantiate1H :: RModule f g => g b -> ScopeH a f g b -> f b
-instantiate1H t = instantiateH (const t)
+instantiate1T :: (RightModule t, Monad f) => f b -> ScopeT a t f b -> t f b
+instantiate1T t = instantiateT (const t)
 
-instantiateH :: RModule f g => (a -> g b) -> ScopeH a f g b -> f b
-instantiateH f = instantiateHEither (either f pure)
+instantiateT :: (RightModule t, Monad f) => (a -> f b) -> ScopeT a t f b -> t f b
+instantiateT f = instantiateTEither (either f pure)
 
-instantiateHEither :: RModule f g => (Either a b -> g c) -> ScopeH a f g b -> f c
-instantiateHEither f = unScopeH >=>* incr (f . Left) (>>= f . Right)
+instantiateTEither :: (RightModule t, Monad f) => (Either a b -> f c) -> ScopeT a t f b -> t f c
+instantiateTEither f = unScopeT >=>* incr (f . Left) (>>= f . Right)
 
-fromScopeH :: RModule f g => ScopeH a f g b -> f (Incr a b)
-fromScopeH = unScopeH >=>* sequenceA
+fromScopeT :: (RightModule t, Monad f) => ScopeT a t f b -> t f (Incr a b)
+fromScopeT = unScopeT >=>* sequenceA
 
-toScopeH :: (Functor f, Applicative g) => f (Incr a b) -> ScopeH a f g b
-toScopeH = ScopeH . fmap (fmap pure)
+toScopeT :: (Functor (t f), Applicative f) => t f (Incr a b) -> ScopeT a t f b
+toScopeT = ScopeT . fmap (fmap pure)

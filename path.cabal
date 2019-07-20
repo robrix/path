@@ -33,7 +33,6 @@ library
                      , Path.Problem
                      , Path.REPL
                      , Path.REPL.Command
-                     , Path.Resources
                      , Path.Scope
                      , Path.Semiring
                      , Path.Span

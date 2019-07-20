@@ -5,10 +5,8 @@ import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
-import Control.Monad (foldM)
-import Data.Bifunctor (first)
+import Control.Monad ((<=<), foldM)
 import Data.Foldable (foldl')
-import Data.Functor.Const
 import qualified Data.Map as Map
 import Data.Void
 import Path.Core
@@ -33,46 +31,43 @@ assume :: ( Carrier sig m
           , Member (Reader Span) sig
           )
        => Qualified
-       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-assume v = asks (lookupBinding (Global v)) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
+       -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+assume v = asks (lookupBinding v) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
 
 intro :: ( Carrier sig m
-         , Member Naming sig
-         , Member (Reader Context) sig
+         , Member (Reader N) sig
          )
-      => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+      => (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N) -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N)))
+      -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
 intro body = do
   _A <- meta type'
-  x <- fresh
-  _B <- ForAll x ::: _A |- meta type'
-  u <- ForAll x ::: _A |- goalIs _B body
+  x <- ask @N
+  _B <- meta type'
+  u <- local @N succ (goalIs _B (body (pure (Local x) ::: _A)))
   pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
-         , Member Naming sig
-         , Member (Reader Context) sig
+         , Member (Reader N) sig
          )
-      => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-      -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+      => m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+      -> (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N) -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N)))
+      -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
 t --> body = do
   t' <- goalIs type' t
-  x <- fresh
-  b' <- ForAll x ::: t' |- goalIs type' body
+  x <- ask @N
+  b' <- local @N succ (goalIs type' (body (pure (Local x) ::: t')))
   pure (pi (Local x ::: t') b' ::: type')
 
 app :: ( Carrier sig m
-       , Member Naming sig
-       , Member (Reader Context) sig
+       , Member (Reader N) sig
        )
-    => m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-    -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-    -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
+    => m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+    -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+    -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
 app f a = do
   _A <- meta type'
-  x <- fresh
-  _B <- ForAll x ::: _A |- meta type'
+  x <- ask @N
+  _B <- meta type'
   let _F = pi (Local x ::: _A) _B
   f' <- goalIs _F f
   a' <- goalIs _A a
@@ -80,54 +75,48 @@ app f a = do
 
 
 goalIs :: ( Carrier sig m
-          , Member Naming sig
+          , Member (Reader N) sig
           )
-       => Term (Problem :+: Core) (Name Gensym)
-       -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-       -> m (Term (Problem :+: Core) (Name Gensym))
+       => Term (Problem :+: Core) (Name N)
+       -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+       -> m (Term (Problem :+: Core) (Name N))
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
   tm2 <- meta (ty1 === ty2)
   pure (tm1 === tm2)
 
-meta :: (Carrier sig m, Member Naming sig) => Term (Problem :+: Core) (Name Gensym) -> m (Term (Problem :+: Core) (Name Gensym))
+meta :: (Carrier sig m, Member (Reader N) sig) => Term (Problem :+: Core) (Name N) -> m (Term (Problem :+: Core) (Name N))
 meta ty = do
-  n <- fresh
+  n <- ask @N
   pure (exists (Local n ::: ty) (pure (Local n)))
-
-(|-) :: (Carrier sig m, Member (Reader Context) sig) => Binding ::: Term (Problem :+: Core) (Name Gensym) -> m a -> m a
-b |- m = local (:> b) m
-
-infix 3 |-
 
 
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
-        , Member Naming sig
         , Member (Reader Context) sig
+        , Member (Reader N) sig
         , Member (Reader Span) sig
         )
      => Term Surface.Surface Qualified
-     -> m (Term (Problem :+: Core) (Name Gensym) ::: Term (Problem :+: Core) (Name Gensym))
-elab = kcata id alg bound assume
-  where bound (Z _) = asks @Context (first (Var . bindingName) . Stack.head)
-        bound (S m) = local @Context (Stack.drop 1) m
-        alg = \case
-          Surface.Lam _ b -> intro (elab' (unScope <$> b))
-          f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
-          Surface.Type -> pure (type' ::: type')
-          Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> elab' (unScope <$> b)
-        elab' = spanIs . fmap getConst
+     -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+elab = go <=< traverse assume
+  where go = \case
+          Var v -> pure v
+          Term t -> case t of
+            Surface.Lam _ b -> intro (\ t -> elab' (instantiate1 (pure t) <$> b))
+            f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
+            Surface.Type -> pure (type' ::: type')
+            Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> \ t' -> elab' (instantiate1 (pure t') <$> b)
+        elab' m = spanIs (go <$> m)
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
-            , Member Naming sig
             , Member (Reader Context) sig
             , Member (Reader ModuleName) sig
             )
          => Decl (Term Surface.Surface Qualified)
          -> m (Decl (Term (Problem :+: Core) Qualified))
-elabDecl (Decl name d tm ty) = namespace (show name) $ do
+elabDecl (Decl name d tm ty) = runReader (N 0) $ do
   ty' <- runSpanned (goalIs type' . elab) ty
   def <- meta (unSpanned ty')
   moduleName <- ask
@@ -138,20 +127,19 @@ elabDecl (Decl name d tm ty) = namespace (show name) $ do
 
 elabModule :: ( Carrier sig m
               , Member (Error Doc) sig
-              , Member Naming sig
               , Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig
               , Member (Writer (Stack Doc)) sig
               )
            => Module (Term Surface.Surface) Qualified
            -> m (Module (Term (Problem :+: Core)) Qualified)
-elabModule m = namespace (show (moduleName m)) . runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
+elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
   -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?
   decls <- foldM go mempty (moduleDecls m)
   pure m { moduleDecls = decls }
   where go decls decl = local (extendGraph decls) . inContext $ do
           (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
         extendModule decls decl = Map.insert (declName decl) (bind (Just . unqualified) <$> decl) decls
-        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term (Problem :+: Core)) @Void (Map.insert (moduleName m) (bindHEither Left m { moduleDecls = decls }) g)
+        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term (Problem :+: Core)) @Void (Map.insert (moduleName m) (bindTEither Left m { moduleDecls = decls }) g)
         qualified = (moduleName m :.:) . declName
         unqualified (_ :.: u) = u
 
@@ -170,27 +158,27 @@ logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = tell . (Nil :> )
 
 
-type Context = Stack (Binding ::: Term (Problem :+: Core) (Name Gensym))
+type Context = Stack (Binding ::: Term (Problem :+: Core) (Name N))
 
 
 data Binding
-  = Define (Qualified := Term (Problem :+: Core) (Name Gensym))
-  | Exists (Gensym := Maybe (Term (Problem :+: Core) (Name Gensym)))
-  | ForAll Gensym
+  = Define (Qualified := Term (Problem :+: Core) (Name N))
+  | Exists (N := Maybe (Term (Problem :+: Core) (Name N)))
+  | ForAll N
   deriving (Eq, Ord, Show)
 
-bindingName :: Binding -> Name Gensym
+bindingName :: Binding -> Name N
 bindingName (Define (n := _)) = Global n
 bindingName (Exists (n := _)) = Local n
 bindingName (ForAll  n)       = Local n
 
-bindingValue :: Binding -> Maybe (Term (Problem :+: Core) (Name Gensym))
+bindingValue :: Binding -> Maybe (Term (Problem :+: Core) (Name N))
 bindingValue (Define (_ := v)) = Just v
 bindingValue (Exists (_ := v)) = v
 bindingValue (ForAll  _)       = Nothing
 
-lookupBinding :: Name Gensym -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name Gensym))
-lookupBinding n = Stack.find ((== n) . bindingName . typedTerm)
+lookupBinding :: Qualified -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name N))
+lookupBinding n = Stack.find ((== Global n) . bindingName . typedTerm)
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
