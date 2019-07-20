@@ -59,7 +59,7 @@ instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => Parsing (
   eof = send (Eof (pure ()))
   unexpected s = send (Unexpected s)
   m <?> s = send (Label m s pure)
-  notFollowedBy m = m >>= unexpected . show
+  notFollowedBy p = try (optional p >>= maybe (pure ()) (unexpected . show))
 
 instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => CharParsing (ParserC m) where
   satisfy p = accept (\ c -> if p c then Just c else Nothing)
