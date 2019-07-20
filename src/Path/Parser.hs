@@ -33,9 +33,6 @@ newtype Parser a = Parser { runParser :: Trifecta.Parser a }
 
 instance TokenParsing Parser where
   someSpace = Parser (buildSomeSpaceParser someSpace haskellCommentStyle)
-  nesting = Parser . nesting . runParser
-  highlight h = Parser . highlight h . runParser
-  token p = whiteSpace *> p
 
 
 parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => Parser a -> FilePath -> m a
