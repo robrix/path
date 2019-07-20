@@ -77,7 +77,7 @@ data Name a
 instance Pretty a => Pretty (Name a) where
   pretty = \case
     Global n -> pretty n
-    Local  n  -> pretty n
+    Local  n -> pretty n
 
 name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
