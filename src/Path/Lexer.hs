@@ -5,6 +5,7 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
 import           Control.Effect.Cut
 import           Control.Effect.State
+import           Control.Monad (MonadPlus (..))
 import qualified Data.Set as Set
 import           Text.Parser.Char
 import           Text.Parser.Combinators
@@ -52,7 +53,7 @@ runParser :: String -> ParserC m a -> m (String, a)
 runParser s = runState s . runParserC
 
 newtype ParserC m a = ParserC { runParserC :: StateC String m a }
-  deriving (Alternative, Applicative, Functor, Monad)
+  deriving (Alternative, Applicative, Functor, Monad, MonadPlus)
 
 instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => Parsing (ParserC m) where
   try = call
