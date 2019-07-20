@@ -14,7 +14,6 @@ data Parser m k
   = forall a . Accept (Char -> Maybe a) (a -> m k)
   | forall a . Label (m a) String (a -> m k)
   | Unexpected String
-  | Eof (m k)
 
 deriving instance Functor m => Functor (Parser m)
 
@@ -22,13 +21,11 @@ instance HFunctor Parser where
   hmap f (Accept p   k) = Accept p      (f . k)
   hmap f (Label m s  k) = Label (f m) s (f . k)
   hmap _ (Unexpected s) = Unexpected s
-  hmap f (Eof        k) = Eof           (f   k)
 
 instance Effect Parser where
   handle state handler (Accept p   k) = Accept p (handler . (<$ state) . k)
   handle state handler (Label m s  k) = Label (handler (m <$ state)) s (handler . fmap k)
   handle _     _       (Unexpected s) = Unexpected s
-  handle state handler (Eof        k) = Eof      (handler . (<$ state) $ k)
 
 
 accept :: (Carrier sig m, Member Parser sig) => (Char -> Maybe a) -> m a
@@ -56,7 +53,7 @@ newtype ParserC m a = ParserC { runParserC :: StateC String m a }
 
 instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => Parsing (ParserC m) where
   try = call
-  eof = send (Eof (pure ()))
+  eof = notFollowedBy anyChar <?> "end of input"
   unexpected s = send (Unexpected s)
   m <?> s = send (Label m s pure)
   notFollowedBy p = try (optional p >>= maybe (pure ()) (unexpected . show))
@@ -77,11 +74,6 @@ instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Parser :+: sig) 
     -- FIXME: use the label to provide contextualized error messages
     L (Label m _ k) -> m >>= k
     L (Unexpected s) -> fail s
-    L (Eof k) -> ParserC $ do
-      cs <- get @String
-      case cs of
-        ""  -> runParserC k
-        c:_ -> fail ("unexpected: " <> show c)
     R other -> ParserC (eff (R (handleCoercible other)))
     where fail _ = empty -- FIXME: do something with the error message
 
