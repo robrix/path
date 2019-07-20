@@ -29,7 +29,7 @@ data Pos = Pos
   deriving (Eq, Ord, Show)
 
 data Span = Span
-  { spanStart :: {-# UNPACK #-} !Int
-  , spanEnd   :: {-# UNPACK #-} !Int
+  { spanStart :: {-# UNPACK #-} !Pos
+  , spanEnd   :: {-# UNPACK #-} !Pos
   }
   deriving (Eq, Ord, Show)
