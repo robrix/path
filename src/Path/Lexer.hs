@@ -27,6 +27,9 @@ accept p = send (Accept p pure)
 satisfy :: (Carrier sig m, Member Lexer sig) => (Char -> Bool) -> m Char
 satisfy p = accept (\ c -> if p c then Just c else Nothing)
 
+char :: (Carrier sig m, Member Lexer sig) => Char -> m Char
+char c = satisfy (c ==) <?> show [c]
+
 
 (<?>) :: (Carrier sig m, Member Lexer sig) => m a -> String -> m a
 m <?> s = send (Label m s pure)
