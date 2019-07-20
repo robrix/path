@@ -70,9 +70,9 @@ unpi n (Term t) | Just (Pi t b) <- prj t = pure (n ::: t, instantiate1 (pure n) 
 unpi _ _                                 = empty
 
 
-generalizeType :: Term Core (Name Meta) -> Term Core Qualified
+generalizeType :: Ord n => Term Core (Name n) -> Term Core Qualified
 generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
-  where f v = let name = case v of { Name n -> n ; Meta n -> n } in (Set.singleton (Local name ::: type'), name)
+  where f name = (Set.singleton (Local name ::: type'), name)
 
 
 -- $setup
