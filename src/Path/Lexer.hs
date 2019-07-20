@@ -1,9 +1,8 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, GeneralizedNewtypeDeriving, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Lexer where
 
 import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
-import Control.Effect.Cut
 import Control.Effect.State
 import Data.Foldable (traverse_)
 
@@ -61,8 +60,26 @@ data Span = Span
   deriving (Eq, Ord, Show)
 
 
-runLexer :: Monad m => String -> LexerC m a -> m (String, Maybe a)
-runLexer s = runState s . runCutAll . runLexerC
+runLexer :: String -> LexerC m a -> m (String, a)
+runLexer s = runState s . runLexerC
 
-newtype LexerC m a = LexerC { runLexerC :: CutC (StateC String m) a }
+newtype LexerC m a = LexerC { runLexerC :: StateC String m a }
   deriving (Alternative, Applicative, Functor, Monad)
+
+instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Lexer :+: sig) (LexerC m) where
+  eff = \case
+    L (Accept p k) -> LexerC $ do
+      cs <- get @String
+      case cs of
+        c:cs | Just a <- p c -> put cs *> runLexerC (k a)
+        -- FIXME: error message
+        _                    -> empty
+    -- FIXME: use the label to provide contextualized error messages
+    L (Label m _ k) -> m >>= k
+    L (Eof k) -> LexerC $ do
+      cs <- get @String
+      case cs of
+        "" -> runLexerC k
+        -- FIXME: error message
+        _  -> empty
+    R other -> LexerC (eff (R (handleCoercible other)))
