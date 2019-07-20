@@ -65,16 +65,16 @@ instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => CharParsi
 instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => TokenParsing (ParserC m)
 
 instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Parser :+: sig) (ParserC m) where
-  eff = \case
-    L (Accept p k) -> ParserC $ do
+  eff = ParserC . \case
+    L (Accept p k) -> do
       cs <- get @String
       case cs of
         c:cs | Just a <- p c -> put cs *> runParserC (k a)
              | otherwise     -> fail ("unexpected: " <> show c)
         _                    -> fail "unexpected eof"
-    L (Label m s k) -> ParserC (local (const s) (runParserC m) >>= runParserC . k)
+    L (Label m s k) -> local (const s) (runParserC m) >>= runParserC . k
     L (Unexpected s) -> fail s
-    R other -> ParserC (eff (R (R (handleCoercible other))))
+    R other -> eff (R (R (handleCoercible other)))
     where fail _ = empty -- FIXME: do something with the error message
 
 
