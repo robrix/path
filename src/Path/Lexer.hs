@@ -42,6 +42,13 @@ accept p = send (Accept p pure)
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
 
+spanned :: (Carrier sig m, Member Parser sig) => m a -> m (Spanned a)
+spanned m = do
+  start <- position
+  a <- m
+  end <- position
+  pure (a :~ Span start end)
+
 
 data Pos = Pos
   { posLine   :: {-# UNPACK #-} !Int
