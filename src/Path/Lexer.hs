@@ -153,6 +153,14 @@ setFailReason :: String -> Fail -> Fail
 setFailReason s e = e { failReason = if null (failReason e) then s else failReason e }
 
 
+data Err = Err
+  { errPath    :: !FilePath
+  , errSource  :: !String
+  , errFailure :: {-# UNPACK #-} !Fail
+  }
+  deriving (Eq, Ord, Show)
+
+
 data Result a
   = Success ParserState a
   | Failure Fail
