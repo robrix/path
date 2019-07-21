@@ -4,8 +4,11 @@ module Path.Lexer where
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
 import           Control.Effect.Cut
+import           Control.Effect.Error
 import           Control.Effect.NonDet
 import           Control.Monad (MonadPlus (..), ap)
+import           Data.Foldable (fold)
+import           Data.List (isSuffixOf)
 import           Path.Pretty as Pretty
 import           Text.Parser.Char
 import           Text.Parser.Combinators
@@ -130,6 +133,23 @@ result :: (ParserState -> a -> b) -> (Err -> b) -> Result a -> b
 result success failure = \case
   Success s a -> success s a
   Failure e   -> failure e
+
+toError :: (Carrier sig m, Member (Error Doc) sig) => FilePath -> String -> Result a -> m a
+toError path text = result (const pure) (throwError . prettyErr)
+  where prettyErr (Err pos reason)
+          =  bold (pretty path) <> colon <> pretty pos <> colon <+> red (pretty "error") <> colon <+> pretty reason <> hardline
+          <> blue (pretty (posLine pos)) <+> align (fold
+            [ blue (pretty '|') <+> excerpt pos
+            , blue (pretty '|') <+> caret pos
+            ])
+        excerpt pos = let e = lines text !! pred (posLine pos) in pretty e <> if "\n" `isSuffixOf` e then mempty else blue (pretty "<EOF>") <> hardline
+        caret pos = pretty (replicate (posColumn pos) ' ') <> green (pretty '^')
+        colon = Pretty.colon
+        lines "" = [""]
+        lines s  = let (line, rest) = takeLine s in line : lines rest
+        takeLine ""          = ("", "")
+        takeLine ('\n':rest) = ("\n", rest)
+        takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
 
 data ParserState = ParserState
