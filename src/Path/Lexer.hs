@@ -6,7 +6,6 @@ import           Control.Effect.Carrier
 import           Control.Effect.Cut
 import           Control.Effect.NonDet
 import           Control.Monad (MonadPlus (..), ap)
-import           GHC.Generics ((:.:) (..))
 import           Text.Parser.Char
 import           Text.Parser.Combinators
 import           Text.Parser.Token
@@ -50,8 +49,8 @@ data Span = Span
   deriving (Eq, Ord, Show)
 
 
-runParser :: Applicative m => ParserState -> ParserC m a -> m (Either Err (ParserState, a))
-runParser s m = runParserC m (curry (pure . Right)) (pure . Left) (pure . Left) s
+runParser :: Applicative m => ParserState -> ParserC m a -> m (Result a)
+runParser s m = runParserC m (\ s -> pure . Success s) (pure . Failure) (pure . Failure) s
 
 newtype ParserC m a = ParserC
   { runParserC
@@ -105,7 +104,7 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     R (R (L nondet)) -> case nondet of
       Empty -> empty
       Choose k -> k True <|> k False
-    R (R (R other)) -> ParserC $ \ just nothing _ state -> eff (handle (Comp1 (Right (state, ()))) (either (pure . Comp1 . Left) (fmap Comp1 . uncurry runParser) . unComp1) other) >>= either nothing (uncurry just) . unComp1
+    R (R (R other)) -> ParserC $ \ just nothing _ state -> eff (handle (Success state ()) (result runParser (pure . Failure)) other) >>= result just nothing
 
 
 data Err = Err
