@@ -91,8 +91,8 @@ newtype ParserC m a = ParserC
   { runParserC
     :: forall r
     .  (ParserState -> a -> m r) -- success
-    -> (Err -> m r)              -- empty
-    -> (Err -> m r)              -- cut
+    -> (Fail -> m r)              -- empty
+    -> (Fail -> m r)              -- cut
     -> ParserState
     -> m r
   }
@@ -103,7 +103,7 @@ instance Applicative (ParserC m) where
   (<*>) = ap
 
 instance Alternative (ParserC m) where
-  empty = ParserC (\ _ nothing _ state -> nothing (Err (statePos state) ""))
+  empty = ParserC (\ _ nothing _ state -> nothing (Fail (statePos state) ""))
 
   ParserC l <|> ParserC r = ParserC (\ just nothing fail state -> l just (const (r just nothing fail state)) fail state)
 
@@ -129,13 +129,13 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     L parser -> case parser of
       Accept p k -> ParserC (\ just nothing _ state -> case stateInput state of
         c:_ | Just a <- p c -> just (advanceState c state) a
-            | otherwise     -> nothing (Err (statePos state) ("unexpected " ++ show c))
-        _                   -> nothing (Err (statePos state) "unexpected EOF")) >>= k
-      Label m s k -> ParserC (\ just nothing fail -> runParserC m just (nothing . setErrReason s) (fail . setErrReason s)) >>= k
-      Unexpected s -> ParserC $ \ _ nothing _ state -> nothing (Err (statePos state) s)
+            | otherwise     -> nothing (Fail (statePos state) ("unexpected " ++ show c))
+        _                   -> nothing (Fail (statePos state) "unexpected EOF")) >>= k
+      Label m s k -> ParserC (\ just nothing fail -> runParserC m just (nothing . setFailReason s) (fail . setFailReason s)) >>= k
+      Unexpected s -> ParserC $ \ _ nothing _ state -> nothing (Fail (statePos state) s)
       Position k -> ParserC (\ just _ _ state -> just state (statePos state)) >>= k
     R (L cut) -> case cut of
-      Cutfail -> ParserC $ \ _ _ fail state -> fail (Err (statePos state) "")
+      Cutfail -> ParserC $ \ _ _ fail state -> fail (Fail (statePos state) "")
       Call m k -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
     R (R (L nondet)) -> case nondet of
       Empty -> empty
@@ -143,29 +143,29 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     R (R (R other)) -> ParserC $ \ just nothing _ state -> eff (handle (Success state ()) (result runParser (pure . Failure)) other) >>= result just nothing
 
 
-data Err = Err
-  { errPos    :: {-# UNPACK #-} !Pos
-  , errReason :: String
+data Fail = Fail
+  { failPos    :: {-# UNPACK #-} !Pos
+  , failReason :: String
   }
   deriving (Eq, Ord, Show)
 
-setErrReason :: String -> Err -> Err
-setErrReason s e = e { errReason = if null (errReason e) then s else errReason e }
+setFailReason :: String -> Fail -> Fail
+setFailReason s e = e { failReason = if null (failReason e) then s else failReason e }
 
 
 data Result a
   = Success ParserState a
-  | Failure Err
+  | Failure Fail
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-result :: (ParserState -> a -> b) -> (Err -> b) -> Result a -> b
+result :: (ParserState -> a -> b) -> (Fail -> b) -> Result a -> b
 result success failure = \case
   Success s a -> success s a
   Failure e   -> failure e
 
 toError :: (Carrier sig m, Member (Error Doc) sig) => FilePath -> String -> Result a -> m a
 toError path text = result (const pure) (throwError . prettyErr)
-  where prettyErr (Err pos reason)
+  where prettyErr (Fail pos reason)
           =  bold (pretty path) <> colon <> pretty pos <> colon <+> red (pretty "error") <> colon <+> pretty reason <> hardline
           <> blue (pretty (posLine pos)) <+> align (fold
             [ blue (pretty '|') <+> excerpt pos
