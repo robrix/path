@@ -7,6 +7,7 @@ import           Control.Effect.Cut
 import           Control.Effect.Error
 import           Control.Effect.NonDet
 import           Control.Monad (MonadPlus (..), ap)
+import           Control.Monad.IO.Class
 import           Data.Foldable (fold)
 import           Data.List (isSuffixOf)
 import           Path.Pretty as Pretty
@@ -61,6 +62,11 @@ runParser s m = runParserC m (\ s -> pure . Success s) (pure . Failure) (pure .
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
 parseString p pos input = runParser (ParserState pos input) p >>= toError "(interactive)" input
+
+parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC m a -> FilePath -> m a
+parseFile p path = do
+  input <- liftIO (readFile path)
+  runParser (ParserState (Pos 1 1) input) p >>= toError path input
 
 newtype ParserC m a = ParserC
   { runParserC
