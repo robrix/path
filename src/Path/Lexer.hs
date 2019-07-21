@@ -1,12 +1,12 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Lexer where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
 import           Control.Effect.Cut
-import           Control.Effect.Reader
-import           Control.Effect.State
-import           Control.Monad (MonadPlus (..))
+import           Control.Effect.NonDet
+import           Control.Monad (MonadPlus (..), ap)
+import           GHC.Generics ((:.:) (..))
 import           Text.Parser.Char
 import           Text.Parser.Combinators
 import           Text.Parser.Token
@@ -50,36 +50,60 @@ data Span = Span
   deriving (Eq, Ord, Show)
 
 
-runParser :: String -> ParserC m a -> m (String, a)
-runParser s = runReader "" . runState s . runParserC
+runParser :: Applicative m => Pos -> String -> ParserC m a -> m (Either Err (String, a))
+runParser p s m = runParserC m (const (curry (pure . Right))) (pure . Left) (pure . Left) p s
 
-newtype ParserC m a = ParserC { runParserC :: StateC String (ReaderC String m) a }
-  deriving (Alternative, Applicative, Functor, Monad, MonadPlus)
+newtype ParserC m a = ParserC
+  { runParserC
+    :: forall r
+    .  (Pos -> String -> a -> m r) -- success
+    -> (Err -> m r)                -- empty
+    -> (Err -> m r)                -- cut
+    -> Pos
+    -> String
+    -> m r
+  }
+  deriving (Functor)
 
-instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => Parsing (ParserC m) where
+instance Applicative (ParserC m) where
+  pure a = ParserC (\ just _ _ pos input -> just pos input a)
+  (<*>) = ap
+
+instance Alternative (ParserC m) where
+  empty = ParserC (\ _ nothing _ pos _ -> nothing (Err pos ""))
+
+  ParserC l <|> ParserC r = ParserC (\ just nothing fail pos input -> l just (const (r just nothing fail pos input)) fail pos input)
+
+instance Monad (ParserC m) where
+  m >>= f = ParserC (\ just nothing fail pos input -> runParserC m (\ pos input a -> runParserC (f a) just nothing fail pos input) nothing fail pos input)
+
+instance MonadPlus (ParserC m)
+
+instance (Carrier sig m, Effect sig) => Parsing (ParserC m) where
   try = call
   eof = notFollowedBy anyChar <?> "end of input"
   unexpected s = send (Unexpected s)
   m <?> s = send (Label m s pure)
   notFollowedBy p = try (optional p >>= maybe (pure ()) (unexpected . show))
 
-instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => CharParsing (ParserC m) where
+instance (Carrier sig m, Effect sig) => CharParsing (ParserC m) where
   satisfy p = accept (\ c -> if p c then Just c else Nothing)
 
-instance (Alternative m, Carrier sig m, Effect sig, Member Cut sig) => TokenParsing (ParserC m)
+instance (Carrier sig m, Effect sig) => TokenParsing (ParserC m)
 
-instance (Alternative m, Carrier sig m, Effect sig) => Carrier (Parser :+: sig) (ParserC m) where
-  eff = ParserC . \case
-    L (Accept p k) -> do
-      cs <- get @String
-      case cs of
-        c:cs | Just a <- p c -> put cs *> runParserC (k a)
-             | otherwise     -> fail ("unexpected: " <> show c)
-        _                    -> fail "unexpected eof"
-    L (Label m s k) -> local (const s) (runParserC m) >>= runParserC . k
-    L (Unexpected s) -> fail s
-    R other -> eff (R (R (handleCoercible other)))
-    where fail _ = empty -- FIXME: do something with the error message
+instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: sig) (ParserC m) where
+  eff = \case
+    L (Accept p k) -> ParserC (\ just nothing _ pos -> \case
+      c:cs | Just a <- p c -> just (advance c pos) cs a
+           | otherwise     -> nothing (Err pos ("unexpected " ++ show c))
+      _                    -> nothing (Err pos "unexpected EOF")) >>= k
+    L (Label m s k) -> ParserC (\ just nothing fail -> runParserC m just (nothing . setErrReason s) (fail . setErrReason s)) >>= k
+    L (Unexpected s) -> ParserC $ \ _ nothing _ pos _ -> nothing (Err pos s)
+    R (L Cutfail) -> ParserC $ \ _ _ fail pos _ -> fail (Err pos "")
+    R (L (Call m k)) -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
+    R (R (L Empty)) -> empty
+    R (R (L (Choose k))) -> k True <|> k False
+    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (Comp1 (Right (input, ()))) (either (pure . Comp1 . Left) (fmap Comp1 . uncurry (runParser pos)) . unComp1) other) >>= either nothing (uncurry (just pos)) . unComp1
 
 
 data Err = Err
