@@ -87,3 +87,6 @@ data Err = Err
   , errReason :: String
   }
   deriving (Eq, Ord, Show)
+
+setErrReason :: String -> Err -> Err
+setErrReason s e = e { errReason = if null (errReason e) then s else errReason e }
