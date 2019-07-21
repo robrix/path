@@ -39,6 +39,10 @@ data Pos = Pos
   }
   deriving (Eq, Ord, Show)
 
+advance :: Char -> Pos -> Pos
+advance '\n' p = Pos (succ (posLine p)) 0
+advance _    p = p { posColumn = succ (posColumn p) }
+
 data Span = Span
   { spanStart :: {-# UNPACK #-} !Pos
   , spanEnd   :: {-# UNPACK #-} !Pos
