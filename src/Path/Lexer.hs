@@ -72,6 +72,9 @@ data Span = Span
 data Spanned a = a :~ Span
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+unSpanned :: Spanned a -> a
+unSpanned (a :~ _) = a
+
 
 runParser :: Applicative m => ParserState -> ParserC m a -> m (Result a)
 runParser s m = runParserC m (\ s -> pure . Success s) (pure . Failure) (pure . Failure) s
