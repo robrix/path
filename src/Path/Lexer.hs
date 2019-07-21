@@ -39,9 +39,9 @@ data Pos = Pos
   }
   deriving (Eq, Ord, Show)
 
-advance :: Char -> Pos -> Pos
-advance '\n' p = Pos (succ (posLine p)) 0
-advance _    p = p { posColumn = succ (posColumn p) }
+advancePos :: Char -> Pos -> Pos
+advancePos '\n' p = Pos (succ (posLine p)) 0
+advancePos _    p = p { posColumn = succ (posColumn p) }
 
 data Span = Span
   { spanStart :: {-# UNPACK #-} !Pos
@@ -94,7 +94,7 @@ instance (Carrier sig m, Effect sig) => TokenParsing (ParserC m)
 instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: sig) (ParserC m) where
   eff = \case
     L (Accept p k) -> ParserC (\ just nothing _ pos -> \case
-      c:cs | Just a <- p c -> just (advance c pos) cs a
+      c:cs | Just a <- p c -> just (advancePos c pos) cs a
            | otherwise     -> nothing (Err pos ("unexpected " ++ show c))
       _                    -> nothing (Err pos "unexpected EOF")) >>= k
     L (Label m s k) -> ParserC (\ just nothing fail -> runParserC m just (nothing . setErrReason s) (fail . setErrReason s)) >>= k
