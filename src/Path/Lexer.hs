@@ -74,7 +74,7 @@ instance Alternative (ParserC m) where
   ParserC l <|> ParserC r = ParserC (\ just nothing fail state -> l just (const (r just nothing fail state)) fail state)
 
 instance Monad (ParserC m) where
-  m >>= f = ParserC (\ just nothing fail state -> runParserC m (\ state a -> runParserC (f a) just nothing fail state) nothing fail state)
+  m >>= f = ParserC (\ just nothing fail -> runParserC m (\ state a -> runParserC (f a) just nothing fail state) nothing fail)
 
 instance MonadPlus (ParserC m)
 
