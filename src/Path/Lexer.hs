@@ -91,8 +91,8 @@ newtype ParserC m a = ParserC
   { runParserC
     :: forall r
     .  (ParserState -> a -> m r) -- success
-    -> (Fail -> m r)              -- empty
-    -> (Fail -> m r)              -- cut
+    -> (Fail -> m r)             -- empty
+    -> (Fail -> m r)             -- cut
     -> ParserState
     -> m r
   }
