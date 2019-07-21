@@ -59,6 +59,9 @@ data Span = Span
 runParser :: Applicative m => ParserState -> ParserC m a -> m (Result a)
 runParser s m = runParserC m (\ s -> pure . Success s) (pure . Failure) (pure . Failure) s
 
+parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
+parseString p pos input = runParser (ParserState pos input) p >>= toError "(interactive)" input
+
 newtype ParserC m a = ParserC
   { runParserC
     :: forall r
