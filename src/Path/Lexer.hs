@@ -121,3 +121,6 @@ data ParserState = ParserState
   , stateInput :: !String
   }
   deriving (Eq, Ord, Show)
+
+advanceState :: Char -> ParserState -> ParserState
+advanceState c s = ParserState (advancePos c (statePos s)) (drop 1 (stateInput s))
