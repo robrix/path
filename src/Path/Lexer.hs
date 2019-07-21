@@ -19,6 +19,7 @@ data Parser m k
   = forall a . Accept (Char -> Maybe a) (a -> m k)
   | forall a . Label (m a) String (a -> m k)
   | Unexpected String
+  | Position (Pos -> m k)
 
 deriving instance Functor m => Functor (Parser m)
 
@@ -26,15 +27,20 @@ instance HFunctor Parser where
   hmap f (Accept p   k) = Accept p      (f . k)
   hmap f (Label m s  k) = Label (f m) s (f . k)
   hmap _ (Unexpected s) = Unexpected s
+  hmap f (Position   k) = Position      (f . k)
 
 instance Effect Parser where
   handle state handler (Accept p   k) = Accept p (handler . (<$ state) . k)
   handle state handler (Label m s  k) = Label (handler (m <$ state)) s (handler . fmap k)
   handle _     _       (Unexpected s) = Unexpected s
+  handle state handler (Position   k) = Position (handler . (<$ state) . k)
 
 
 accept :: (Carrier sig m, Member Parser sig) => (Char -> Maybe a) -> m a
 accept p = send (Accept p pure)
+
+position :: (Carrier sig m, Member Parser sig) => m Pos
+position = send (Position pure)
 
 
 data Pos = Pos
@@ -114,6 +120,7 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
         _                   -> nothing (Err (statePos state) "unexpected EOF")) >>= k
       Label m s k -> ParserC (\ just nothing fail -> runParserC m just (nothing . setErrReason s) (fail . setErrReason s)) >>= k
       Unexpected s -> ParserC $ \ _ nothing _ state -> nothing (Err (statePos state) s)
+      Position k -> ParserC (\ just _ _ state -> just state (statePos state)) >>= k
     R (L cut) -> case cut of
       Cutfail -> ParserC $ \ _ _ fail state -> fail (Err (statePos state) "")
       Call m k -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
