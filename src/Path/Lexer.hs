@@ -114,3 +114,10 @@ data Err = Err
 
 setErrReason :: String -> Err -> Err
 setErrReason s e = e { errReason = if null (errReason e) then s else errReason e }
+
+
+data ParserState = ParserState
+  { statePos   :: {-# UNPACK #-} !Pos
+  , stateInput :: !String
+  }
+  deriving (Eq, Ord, Show)
