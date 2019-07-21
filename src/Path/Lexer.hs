@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, DeriveGeneric, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveGeneric, DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Lexer where
 
 import           Control.Applicative (Alternative (..))
@@ -113,6 +113,12 @@ data Err = Err
 
 setErrReason :: String -> Err -> Err
 setErrReason s e = e { errReason = if null (errReason e) then s else errReason e }
+
+
+data Result a
+  = Success ParserState a
+  | Failure Err
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 
 data ParserState = ParserState
