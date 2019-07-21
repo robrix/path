@@ -182,6 +182,7 @@ instance Pretty Err where
           takeLine ('\n':rest) = ("\n", rest)
           takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
+
 data Result a
   = Success ParserState a
   | Failure Fail
