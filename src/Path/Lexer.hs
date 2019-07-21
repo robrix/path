@@ -123,6 +123,11 @@ data Result a
   | Failure Err
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+result :: (ParserState -> a -> b) -> (Err -> b) -> Result a -> b
+result success failure = \case
+  Success s a -> success s a
+  Failure e   -> failure e
+
 
 data ParserState = ParserState
   { statePos   :: {-# UNPACK #-} !Pos
