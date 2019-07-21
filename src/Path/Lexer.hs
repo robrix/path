@@ -1,19 +1,19 @@
 {-# LANGUAGE DeriveGeneric, DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Lexer where
 
-import           Control.Applicative (Alternative (..))
-import           Control.Effect.Carrier
-import           Control.Effect.Cut
-import           Control.Effect.Error
-import           Control.Effect.NonDet
-import           Control.Monad (MonadPlus (..), ap)
-import           Control.Monad.IO.Class
-import           Data.Foldable (fold)
-import           Data.List (isSuffixOf)
-import           Path.Pretty as Pretty
-import           Text.Parser.Char
-import           Text.Parser.Combinators
-import           Text.Parser.Token
+import Control.Applicative (Alternative (..))
+import Control.Effect.Carrier
+import Control.Effect.Cut
+import Control.Effect.Error
+import Control.Effect.NonDet
+import Control.Monad (MonadPlus (..), ap)
+import Control.Monad.IO.Class
+import Data.Foldable (fold)
+import Data.List (isSuffixOf)
+import Path.Pretty as Pretty
+import Text.Parser.Char
+import Text.Parser.Combinators
+import Text.Parser.Token
 
 data Parser m k
   = forall a . Accept (Char -> Maybe a) (a -> m k)
