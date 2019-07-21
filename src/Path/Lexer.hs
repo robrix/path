@@ -92,16 +92,19 @@ instance (Carrier sig m, Effect sig) => TokenParsing (ParserC m)
 
 instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: sig) (ParserC m) where
   eff = \case
-    L (Accept p k) -> ParserC (\ just nothing _ state -> case stateInput state of
-      c:_ | Just a <- p c -> just (advanceState c state) a
-          | otherwise     -> nothing (Err (statePos state) ("unexpected " ++ show c))
-      _                   -> nothing (Err (statePos state) "unexpected EOF")) >>= k
-    L (Label m s k) -> ParserC (\ just nothing fail -> runParserC m just (nothing . setErrReason s) (fail . setErrReason s)) >>= k
-    L (Unexpected s) -> ParserC $ \ _ nothing _ state -> nothing (Err (statePos state) s)
-    R (L Cutfail) -> ParserC $ \ _ _ fail state -> fail (Err (statePos state) "")
-    R (L (Call m k)) -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
-    R (R (L Empty)) -> empty
-    R (R (L (Choose k))) -> k True <|> k False
+    L parser -> case parser of
+      Accept p k -> ParserC (\ just nothing _ state -> case stateInput state of
+        c:_ | Just a <- p c -> just (advanceState c state) a
+            | otherwise     -> nothing (Err (statePos state) ("unexpected " ++ show c))
+        _                   -> nothing (Err (statePos state) "unexpected EOF")) >>= k
+      Label m s k -> ParserC (\ just nothing fail -> runParserC m just (nothing . setErrReason s) (fail . setErrReason s)) >>= k
+      Unexpected s -> ParserC $ \ _ nothing _ state -> nothing (Err (statePos state) s)
+    R (L cut) -> case cut of
+      Cutfail -> ParserC $ \ _ _ fail state -> fail (Err (statePos state) "")
+      Call m k -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
+    R (R (L nondet)) -> case nondet of
+      Empty -> empty
+      Choose k -> k True <|> k False
     R (R (R other)) -> ParserC $ \ just nothing _ state -> eff (handle (Comp1 (Right (state, ()))) (either (pure . Comp1 . Left) (fmap Comp1 . uncurry runParser) . unComp1) other) >>= either nothing (uncurry just) . unComp1
 
 
