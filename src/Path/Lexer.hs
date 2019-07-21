@@ -6,6 +6,7 @@ import           Control.Effect.Carrier
 import           Control.Effect.Cut
 import           Control.Effect.NonDet
 import           Control.Monad (MonadPlus (..), ap)
+import           Path.Pretty as Pretty
 import           Text.Parser.Char
 import           Text.Parser.Combinators
 import           Text.Parser.Token
@@ -37,6 +38,9 @@ data Pos = Pos
   , posColumn :: {-# UNPACK #-} !Int
   }
   deriving (Eq, Ord, Show)
+
+instance Pretty Pos where
+  pretty (Pos l c) = bold (pretty l) <> Pretty.colon <> bold (pretty c)
 
 advancePos :: Char -> Pos -> Pos
 advancePos '\n' p = Pos (succ (posLine p)) 0
