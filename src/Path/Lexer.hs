@@ -160,6 +160,21 @@ data Err = Err
   }
   deriving (Eq, Ord, Show)
 
+instance Pretty Err where
+  pretty (Err path text (Fail pos reason))
+    =  bold (pretty path) <> colon <> pretty pos <> colon <+> red (pretty "error") <> colon <+> pretty reason <> hardline
+    <> blue (pretty (posLine pos)) <+> align (fold
+      [ blue (pretty '|') <+> excerpt pos
+      , blue (pretty '|') <+> caret pos
+      ])
+    where excerpt pos = let e = lines text !! pred (posLine pos) in pretty e <> if "\n" `isSuffixOf` e then mempty else blue (pretty "<EOF>") <> hardline
+          caret pos = pretty (replicate (posColumn pos) ' ') <> green (pretty '^')
+          colon = Pretty.colon
+          lines "" = [""]
+          lines s  = let (line, rest) = takeLine s in line : lines rest
+          takeLine ""          = ("", "")
+          takeLine ('\n':rest) = ("\n", rest)
+          takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
 data Result a
   = Success ParserState a
@@ -172,21 +187,7 @@ result success failure = \case
   Failure e   -> failure e
 
 toError :: (Carrier sig m, Member (Error Doc) sig) => FilePath -> String -> Result a -> m a
-toError path text = result (const pure) (throwError . prettyErr)
-  where prettyErr (Fail pos reason)
-          =  bold (pretty path) <> colon <> pretty pos <> colon <+> red (pretty "error") <> colon <+> pretty reason <> hardline
-          <> blue (pretty (posLine pos)) <+> align (fold
-            [ blue (pretty '|') <+> excerpt pos
-            , blue (pretty '|') <+> caret pos
-            ])
-        excerpt pos = let e = lines text !! pred (posLine pos) in pretty e <> if "\n" `isSuffixOf` e then mempty else blue (pretty "<EOF>") <> hardline
-        caret pos = pretty (replicate (posColumn pos) ' ') <> green (pretty '^')
-        colon = Pretty.colon
-        lines "" = [""]
-        lines s  = let (line, rest) = takeLine s in line : lines rest
-        takeLine ""          = ("", "")
-        takeLine ('\n':rest) = ("\n", rest)
-        takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
+toError path text = result (const pure) (throwError . pretty . Err path text)
 
 
 data ParserState = ParserState
