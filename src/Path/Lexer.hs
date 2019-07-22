@@ -83,7 +83,13 @@ unSpanned (a :~ _) = a
 runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Notice a)
 runParser path pos input m = runParserC m success failure failure pos input
   where success _ _ a = pure (Right a)
-        failure pos reason = pure (Left (Notice (Just Error) path input (Span pos pos) (fromMaybe (pretty "unknown error") reason) []))
+        failure pos reason = pure (Left (Notice (Just Error) (Excerpt path (excerpt pos) (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
+        excerpt pos = let line = lines input !! pred (posLine pos) in pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
+        lines "" = [""]
+        lines s  = let (line, rest) = takeLine s in line : lines rest
+        takeLine ""          = ("", "")
+        takeLine ('\n':rest) = ("\n", rest)
+        takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
@@ -172,31 +178,22 @@ instance Pretty Level where
 
 data Notice = Notice
   { noticeLevel   :: Maybe Level
-  , noticePath    :: !FilePath
-  , noticeSource  :: !String
-  , noticeSpan    :: {-# UNPACK #-} !Span
+  , noticeExcerpt :: {-# UNPACK #-} !Excerpt
   , noticeReason  :: Doc
   , noticeContext :: [Doc]
   }
   deriving (Show)
 
 instance Pretty Notice where
-  pretty (Notice level path text span reason context) = vsep
+  pretty (Notice level (Excerpt path line span) reason context) = vsep
     ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (posLine (spanStart span))) <> colon <> bold (pretty (posColumn (spanStart span))) <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
     : blue (pretty (posLine (spanStart span))) <+> align (fold
-      [ blue (pretty '|') <+> excerpt (spanStart span)
+      [ blue (pretty '|') <+> pretty line
       , blue (pretty '|') <+> caret span
       ])
     : context)
-    where excerpt pos = let e = lines text !! pred (posLine pos) in pretty e <> if "\n" `isSuffixOf` e then mempty else blue (pretty "<EOF>") <> hardline
-          caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> pretty span
+    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> pretty span
           colon = Pretty.colon
-          lines "" = [""]
-          lines s  = let (line, rest) = takeLine s in line : lines rest
-          takeLine ""          = ("", "")
-          takeLine ('\n':rest) = ("\n", rest)
-          takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
-
 
 
 data Result a = Result
