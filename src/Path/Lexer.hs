@@ -185,6 +185,7 @@ instance Pretty Notice where
           takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
 
+
 data Result a = Result
   { resultPos   :: {-# UNPACK #-} !Pos
   , resultState :: Either (Maybe Doc) (String, a)
