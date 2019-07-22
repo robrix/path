@@ -153,21 +153,15 @@ setFailReason :: String -> Fail -> Fail
 setFailReason s e = e { failReason = if null (failReason e) then s else failReason e }
 
 
-data File = File
-  { filePath   :: !FilePath
-  , fileSource :: !String
-  }
-  deriving (Eq, Ord, Show)
-
-
 data Err = Err
-  { errFile    :: {-# UNPACK #-} !File
+  { errPath    :: !FilePath
+  , errSource  :: !String
   , errFailure :: {-# UNPACK #-} !Fail
   }
   deriving (Eq, Ord, Show)
 
 instance Pretty Err where
-  pretty (Err (File path text) (Fail pos reason))
+  pretty (Err path text (Fail pos reason))
     =  bold (pretty path) <> colon <> pretty pos <> colon <+> red (pretty "error") <> colon <+> pretty reason <> hardline
     <> blue (pretty (posLine pos)) <+> align (fold
       [ blue (pretty '|') <+> excerpt pos
@@ -194,7 +188,7 @@ result success failure = \case
   Failure e   -> failure e
 
 toError :: (Carrier sig m, Member (Error Doc) sig) => FilePath -> String -> Result a -> m a
-toError path text = result (const pure) (throwError . pretty . Err (File path text))
+toError path text = result (const pure) (throwError . pretty . Err path text)
 
 
 data ParserState = ParserState
