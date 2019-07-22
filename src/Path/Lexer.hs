@@ -83,13 +83,7 @@ unSpanned (a :~ _) = a
 runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Notice a)
 runParser path pos input m = runParserC m success failure failure pos input
   where success _ _ a = pure (Right a)
-        failure pos reason = pure (Left (Notice (Just Error) (Excerpt path (excerpt pos) (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
-        excerpt pos = let line = lines input !! pred (posLine pos) in pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
-        lines "" = [""]
-        lines s  = let (line, rest) = takeLine s in line : lines rest
-        takeLine ""          = ("", "")
-        takeLine ('\n':rest) = ("\n", rest)
-        takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
+        failure pos reason = pure (Left (Notice (Just Error) (excerpt path input (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
@@ -165,6 +159,14 @@ data Excerpt = Excerpt
   , excerptSpan :: {-# UNPACK #-} !Span
   }
   deriving (Show)
+
+excerpt :: FilePath -> String -> Span -> Excerpt
+excerpt path text span = Excerpt path (let line = lines text !! pred (posLine (spanStart span)) in pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline) span
+  where lines "" = [""]
+        lines s  = let (line, rest) = takeLine s in line : lines rest
+        takeLine ""          = ("", "")
+        takeLine ('\n':rest) = ("\n", rest)
+        takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
 
 data Level
