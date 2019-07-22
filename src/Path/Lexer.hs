@@ -57,9 +57,6 @@ data Pos = Pos
   }
   deriving (Eq, Ord, Show)
 
-instance Pretty Pos where
-  pretty (Pos l c) = bold (pretty l) <> Pretty.colon <> bold (pretty c)
-
 advancePos :: Char -> Pos -> Pos
 advancePos '\n' p = Pos (succ (posLine p)) 0
 advancePos _    p = p { posColumn = succ (posColumn p) }
@@ -177,7 +174,7 @@ data Notice = Notice
 
 instance Pretty Notice where
   pretty (Notice level path text span reason context) = vsep
-    ( nest 2 (group (bold (pretty path) <> colon <> pretty (spanStart span) <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
+    ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (posLine (spanStart span))) <> colon <> bold (pretty (posColumn (spanStart span))) <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
     : blue (pretty (posLine (spanStart span))) <+> align (fold
       [ blue (pretty '|') <+> excerpt (spanStart span)
       , blue (pretty '|') <+> caret span
