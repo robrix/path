@@ -79,8 +79,8 @@ unSpanned (a :~ _) = a
 runParser :: Applicative m => FilePath -> ParserState -> ParserC m a -> m (Either Err a)
 runParser path s m = runParserC m (const (pure . Right)) (pure . Left . Err path (stateInput s)) (pure . Left . Err path (stateInput s)) s
 
-parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> ParserState -> m a
-parseString p s = runParser "(interactive)" s p >>= either (throwError . pretty) pure
+parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
+parseString p pos input = runParser "(interactive)" (ParserState pos input) p >>= either (throwError . pretty) pure
 
 parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC m a -> FilePath -> m a
 parseFile p path = do
