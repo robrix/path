@@ -42,8 +42,8 @@ data Level
   deriving (Eq, Ord, Show)
 
 instance Pretty Level where
-  pretty Error = red (pretty "error")
   pretty Warn  = magenta (pretty "warning")
+  pretty Error = red (pretty "error")
 
 prettyNotice :: Maybe Level -> Span -> Doc -> [Doc] -> Doc
 prettyNotice lvl s msg ctx = vsep
