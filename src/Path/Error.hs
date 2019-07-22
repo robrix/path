@@ -3,8 +3,7 @@ module Path.Error where
 
 import Control.Effect.Error
 import Control.Effect.Reader
-import Data.Foldable (fold, toList)
-import Data.List (intersperse)
+import Data.Foldable (toList)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.Set as Set
 import Path.Name
@@ -33,11 +32,6 @@ cyclicImport (name :~ span :| names) = throwError (vsep
   ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
   : foldr ((:) . whichImports) [ whichImports (name :~ span) ] names))
   where whichImports (name :~ span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
-
-
-unsimplifiable :: (Carrier sig m, Member (Error Doc) sig, Pretty a) => [Spanned a] -> m a
-unsimplifiable constraints = throwError (fold (intersperse hardline (map format constraints)))
-  where format (c :~ span) = prettyErr span (pretty "unsimplifiable constraint") [pretty c]
 
 
 unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty, Pretty v, Foldable t) => ty -> t v -> m a
