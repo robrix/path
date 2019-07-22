@@ -80,7 +80,7 @@ unSpanned (a :~ _) = a
 runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Notice a)
 runParser path pos input m = runParserC m success failure failure pos input
   where success _ _ a = pure (Right a)
-        failure pos reason = pure (Left (Notice (Just Error) path input pos (fromMaybe (pretty "unknown error") reason)))
+        failure pos reason = pure (Left (Notice (Just Error) path input pos (fromMaybe (pretty "unknown error") reason) []))
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
@@ -160,22 +160,23 @@ instance Pretty Level where
   pretty Error = red (pretty "error")
 
 data Notice = Notice
-  { noticeLevel  :: Maybe Level
-  , noticePath   :: !FilePath
-  , noticeSource :: !String
-  , noticePos    :: {-# UNPACK #-} !Pos
-  , noticeReason :: Doc
+  { noticeLevel   :: Maybe Level
+  , noticePath    :: !FilePath
+  , noticeSource  :: !String
+  , noticePos     :: {-# UNPACK #-} !Pos
+  , noticeReason  :: Doc
+  , noticeContext :: [Doc]
   }
   deriving (Show)
 
 instance Pretty Notice where
-  pretty (Notice level path text pos reason) = vsep
-    [ nest 2 (group (bold (pretty path) <> colon <> pretty pos <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
-    , blue (pretty (posLine pos)) <+> align (fold
+  pretty (Notice level path text pos reason context) = vsep
+    ( nest 2 (group (bold (pretty path) <> colon <> pretty pos <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
+    : blue (pretty (posLine pos)) <+> align (fold
       [ blue (pretty '|') <+> excerpt pos
       , blue (pretty '|') <+> caret pos
       ])
-    ]
+    : context)
     where excerpt pos = let e = lines text !! pred (posLine pos) in pretty e <> if "\n" `isSuffixOf` e then mempty else blue (pretty "<EOF>") <> hardline
           caret pos = pretty (replicate (posColumn pos) ' ') <> green (pretty '^')
           colon = Pretty.colon
