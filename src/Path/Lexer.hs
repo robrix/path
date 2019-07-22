@@ -70,6 +70,12 @@ data Span = Span
   }
   deriving (Eq, Ord, Show)
 
+instance Pretty Span where
+  pretty (Span start end)
+    | start == end                 = pretty '^'
+    | posLine start == posLine end = pretty (replicate (posColumn end - posColumn start) '~')
+    | otherwise                    = pretty "^…"
+
 data Spanned a = a :~ Span
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
