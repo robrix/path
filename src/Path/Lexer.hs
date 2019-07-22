@@ -155,10 +155,10 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
 
 data Excerpt = Excerpt
   { excerptPath :: FilePath
-  , excerptLine :: String
+  , excerptLine :: Doc
   , excerptSpan :: {-# UNPACK #-} !Span
   }
-  deriving (Eq, Ord, Show)
+  deriving (Show)
 
 
 data Level
