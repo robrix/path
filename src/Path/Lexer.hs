@@ -169,12 +169,13 @@ data Notice = Notice
   deriving (Show)
 
 instance Pretty Notice where
-  pretty (Notice level path text pos reason)
-    =  bold (pretty path) <> colon <> pretty pos <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level <> colon <+> pretty reason <> hardline
-    <> blue (pretty (posLine pos)) <+> align (fold
+  pretty (Notice level path text pos reason) = vsep
+    [ nest 2 (group (bold (pretty path) <> colon <> pretty pos <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
+    , blue (pretty (posLine pos)) <+> align (fold
       [ blue (pretty '|') <+> excerpt pos
       , blue (pretty '|') <+> caret pos
       ])
+    ]
     where excerpt pos = let e = lines text !! pred (posLine pos) in pretty e <> if "\n" `isSuffixOf` e then mempty else blue (pretty "<EOF>") <> hardline
           caret pos = pretty (replicate (posColumn pos) ' ') <> green (pretty '^')
           colon = Pretty.colon
