@@ -143,9 +143,10 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     R (R (L nondet)) -> case nondet of
       Empty -> empty
       Choose k -> k True <|> k False
-    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (Success pos input ()) (result runParser failure) other) >>= result just nothing
-    where runParser p s m = runParserC m (\ p s -> pure . Success p s) failure failure p s
-          failure pos reason = pure (Failure pos reason)
+    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (success pos input ()) (result runParser failure) other) >>= result just nothing
+    where runParser p s m = runParserC m (\ p s -> pure . success p s) failure failure p s
+          success pos input a = Result pos (Right (input, a))
+          failure pos reason = pure (Result pos (Left reason))
 
 
 data Err = Err
@@ -173,12 +174,11 @@ instance Pretty Err where
           takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
 
-data Result a
-  = Success Pos String a
-  | Failure Pos (Maybe Doc)
+data Result a = Result
+  { resultPos   :: {-# UNPACK #-} !Pos
+  , resultState :: Either (Maybe Doc) (String, a)
+  }
   deriving (Foldable, Functor, Show, Traversable)
 
 result :: (Pos -> String -> a -> b) -> (Pos -> Maybe Doc -> b) -> Result a -> b
-result success failure = \case
-  Success p s a -> success p s a
-  Failure p r   -> failure p r
+result success failure (Result pos state) = either (failure pos) (uncurry (success pos)) state
