@@ -77,10 +77,10 @@ unSpanned :: Spanned a -> a
 unSpanned (a :~ _) = a
 
 
-runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Err a)
+runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Notice a)
 runParser path pos input m = runParserC m success failure failure pos input
   where success _ _ a = pure (Right a)
-        failure pos reason = pure (Left (Err (Just Error) path input pos (fromMaybe (pretty "unknown error") reason)))
+        failure pos reason = pure (Left (Notice (Just Error) path input pos (fromMaybe (pretty "unknown error") reason)))
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
@@ -159,17 +159,17 @@ instance Pretty Level where
   pretty Warn  = magenta (pretty "warning")
   pretty Error = red (pretty "error")
 
-data Err = Err
-  { errLevel  :: Maybe Level
-  , errPath   :: !FilePath
-  , errSource :: !String
-  , errPos    :: {-# UNPACK #-} !Pos
-  , errReason :: Doc
+data Notice = Notice
+  { noticeLevel  :: Maybe Level
+  , noticePath   :: !FilePath
+  , noticeSource :: !String
+  , noticePos    :: {-# UNPACK #-} !Pos
+  , noticeReason :: Doc
   }
   deriving (Show)
 
-instance Pretty Err where
-  pretty (Err level path text pos reason)
+instance Pretty Notice where
+  pretty (Notice level path text pos reason)
     =  bold (pretty path) <> colon <> pretty pos <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level <> colon <+> pretty reason <> hardline
     <> blue (pretty (posLine pos)) <+> align (fold
       [ blue (pretty '|') <+> excerpt pos
