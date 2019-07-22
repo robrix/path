@@ -76,16 +76,16 @@ unSpanned :: Spanned a -> a
 unSpanned (a :~ _) = a
 
 
-runParser :: Applicative m => ParserState -> ParserC m a -> m (Result a)
-runParser s m = runParserC m (\ s -> pure . Success s) (pure . Failure) (pure . Failure) s
+runParser :: Applicative m => FilePath -> ParserState -> ParserC m a -> m (Either Err a)
+runParser path s m = runParserC m (const (pure . Right)) (pure . Left . Err path (stateInput s)) (pure . Left . Err path (stateInput s)) s
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
-parseString p pos input = runParser (ParserState pos input) p >>= toError "(interactive)" input
+parseString p pos input = runParser "(interactive)" (ParserState pos input) p >>= either (throwError . pretty) pure
 
 parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC m a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
-  runParser (ParserState (Pos 1 1) input) p >>= toError path input
+  runParser path (ParserState (Pos 1 1) input) p >>= either (throwError . pretty) pure
 
 newtype ParserC m a = ParserC
   { runParserC
@@ -141,6 +141,7 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
       Empty -> empty
       Choose k -> k True <|> k False
     R (R (R other)) -> ParserC $ \ just nothing _ state -> eff (handle (Success state ()) (result runParser (pure . Failure)) other) >>= result just nothing
+    where runParser s m = runParserC m (\ s -> pure . Success s) (pure . Failure) (pure . Failure) s
 
 
 data Fail = Fail
@@ -186,9 +187,6 @@ result :: (ParserState -> a -> b) -> (Fail -> b) -> Result a -> b
 result success failure = \case
   Success s a -> success s a
   Failure e   -> failure e
-
-toError :: (Carrier sig m, Member (Error Doc) sig) => FilePath -> String -> Result a -> m a
-toError path text = result (const pure) (throwError . pretty . Err path text)
 
 
 data ParserState = ParserState
