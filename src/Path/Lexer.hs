@@ -153,6 +153,14 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
           failure pos reason = pure (Result pos (Left reason))
 
 
+data Excerpt = Excerpt
+  { excerptPath :: FilePath
+  , excerptLine :: String
+  , excerptSpan :: {-# UNPACK #-} !Span
+  }
+  deriving (Eq, Ord, Show)
+
+
 data Level
   = Warn
   | Error
