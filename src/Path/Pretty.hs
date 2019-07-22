@@ -37,8 +37,8 @@ putDoc doc = do
   liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
 
 data Level
-  = Error
-  | Warn
+  = Warn
+  | Error
   deriving (Eq, Ord, Show)
 
 instance Pretty Level where
