@@ -76,39 +76,42 @@ unSpanned :: Spanned a -> a
 unSpanned (a :~ _) = a
 
 
-runParser :: Applicative m => FilePath -> ParserState -> ParserC m a -> m (Either Err a)
-runParser path s m = runParserC m (const (pure . Right)) (pure . Left . Err path (stateInput s)) (pure . Left . Err path (stateInput s)) s
+runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Err a)
+runParser path pos input m = runParserC m success failure failure pos input
+  where success _ _ = pure . Right
+        failure = pure . Left . Err path input
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
-parseString p pos input = runParser "(interactive)" (ParserState pos input) p >>= either (throwError . pretty) pure
+parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
 
 parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC m a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
-  runParser path (ParserState (Pos 1 1) input) p >>= either (throwError . pretty) pure
+  runParser path (Pos 1 1) input p >>= either (throwError . pretty) pure
 
 newtype ParserC m a = ParserC
   { runParserC
     :: forall r
-    .  (ParserState -> a -> m r) -- success
-    -> (Fail -> m r)             -- empty
-    -> (Fail -> m r)             -- cut
-    -> ParserState
+    .  (Pos -> String -> a -> m r) -- success
+    -> (Fail -> m r)               -- empty
+    -> (Fail -> m r)               -- cut
+    -> Pos
+    -> String
     -> m r
   }
   deriving (Functor)
 
 instance Applicative (ParserC m) where
-  pure a = ParserC (\ just _ _ state -> just state a)
+  pure a = ParserC (\ just _ _ pos input -> just pos input a)
   (<*>) = ap
 
 instance Alternative (ParserC m) where
-  empty = ParserC (\ _ nothing _ state -> nothing (Fail (statePos state) Nothing))
+  empty = ParserC (\ _ nothing _ pos _ -> nothing (Fail pos Nothing))
 
-  ParserC l <|> ParserC r = ParserC (\ just nothing fail state -> l just (const (r just nothing fail state)) fail state)
+  ParserC l <|> ParserC r = ParserC (\ just nothing fail pos input -> l just (const (r just nothing fail pos input)) fail pos input)
 
 instance Monad (ParserC m) where
-  m >>= f = ParserC (\ just nothing fail -> runParserC m (\ state a -> runParserC (f a) just nothing fail state) nothing fail)
+  m >>= f = ParserC (\ just nothing fail -> runParserC m (\ pos input a -> runParserC (f a) just nothing fail pos input) nothing fail)
 
 instance MonadPlus (ParserC m)
 
@@ -127,21 +130,21 @@ instance (Carrier sig m, Effect sig) => TokenParsing (ParserC m)
 instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: sig) (ParserC m) where
   eff = \case
     L parser -> case parser of
-      Accept p k -> ParserC (\ just nothing _ state -> case stateInput state of
-        c:_ | Just a <- p c -> just (advanceState c state) a
-            | otherwise     -> nothing (Fail (statePos state) (Just (pretty "unexpected " <> pretty c)))
-        _                   -> nothing (Fail (statePos state) (Just (pretty "unexpected EOF")))) >>= k
+      Accept p k -> ParserC (\ just nothing _ pos input -> case input of
+        c:cs | Just a <- p c -> just (advancePos c pos) cs a
+             | otherwise     -> nothing (Fail pos (Just (pretty "unexpected " <> pretty c)))
+        _                    -> nothing (Fail pos (Just (pretty "unexpected EOF")))) >>= k
       Label m s k -> ParserC (\ just nothing fail -> runParserC m just (nothing . setFailReason (pretty s)) (fail . setFailReason (pretty s))) >>= k
-      Unexpected s -> ParserC $ \ _ nothing _ state -> nothing (Fail (statePos state) (Just (pretty s)))
-      Position k -> ParserC (\ just _ _ state -> just state (statePos state)) >>= k
+      Unexpected s -> ParserC $ \ _ nothing _ pos _ -> nothing (Fail pos (Just (pretty s)))
+      Position k -> ParserC (\ just _ _ pos input -> just pos input pos) >>= k
     R (L cut) -> case cut of
-      Cutfail -> ParserC $ \ _ _ fail state -> fail (Fail (statePos state) Nothing)
+      Cutfail -> ParserC $ \ _ _ fail pos _ -> fail (Fail pos Nothing)
       Call m k -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
     R (R (L nondet)) -> case nondet of
       Empty -> empty
       Choose k -> k True <|> k False
-    R (R (R other)) -> ParserC $ \ just nothing _ state -> eff (handle (Success state ()) (result runParser (pure . Failure)) other) >>= result just nothing
-    where runParser s m = runParserC m (\ s -> pure . Success s) (pure . Failure) (pure . Failure) s
+    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (Success pos input ()) (result runParser (pure . Failure)) other) >>= result just nothing
+    where runParser p s m = runParserC m (\ p s -> pure . Success p s) (pure . Failure) (pure . Failure) p s
 
 
 data Fail = Fail
@@ -179,21 +182,11 @@ instance Pretty Err where
 
 
 data Result a
-  = Success ParserState a
+  = Success Pos String a
   | Failure Fail
   deriving (Foldable, Functor, Show, Traversable)
 
-result :: (ParserState -> a -> b) -> (Fail -> b) -> Result a -> b
+result :: (Pos -> String -> a -> b) -> (Fail -> b) -> Result a -> b
 result success failure = \case
-  Success s a -> success s a
-  Failure e   -> failure e
-
-
-data ParserState = ParserState
-  { statePos   :: {-# UNPACK #-} !Pos
-  , stateInput :: !String
-  }
-  deriving (Eq, Ord, Show)
-
-advanceState :: Char -> ParserState -> ParserState
-advanceState c s = ParserState (advancePos c (statePos s)) (drop 1 (stateInput s))
+  Success p s a -> success p s a
+  Failure e     -> failure e
