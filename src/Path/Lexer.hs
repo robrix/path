@@ -72,9 +72,9 @@ data Span = Span
 
 instance Pretty Span where
   pretty (Span start end)
-    | start == end                 = pretty '^'
-    | posLine start == posLine end = pretty (replicate (posColumn end - posColumn start) '~')
-    | otherwise                    = pretty "^…"
+    | start == end                 = green (pretty '^')
+    | posLine start == posLine end = green (pretty (replicate (posColumn end - posColumn start) '~'))
+    | otherwise                    = green (pretty "^…")
 
 data Spanned a = a :~ Span
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -184,7 +184,7 @@ instance Pretty Notice where
       ])
     : context)
     where excerpt pos = let e = lines text !! pred (posLine pos) in pretty e <> if "\n" `isSuffixOf` e then mempty else blue (pretty "<EOF>") <> hardline
-          caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> green (pretty span)
+          caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> pretty span
           colon = Pretty.colon
           lines "" = [""]
           lines s  = let (line, rest) = takeLine s in line : lines rest
