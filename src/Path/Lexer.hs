@@ -10,6 +10,7 @@ import Control.Monad (MonadPlus (..), ap)
 import Control.Monad.IO.Class
 import Data.Foldable (fold)
 import Data.List (isSuffixOf)
+import Data.Maybe (fromMaybe)
 import Path.Pretty as Pretty
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -79,7 +80,7 @@ unSpanned (a :~ _) = a
 runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Err a)
 runParser path pos input m = runParserC m success failure failure pos input
   where success _ _ a = pure (Right a)
-        failure pos reason = pure (Left (Err path input pos reason))
+        failure pos reason = pure (Left (Err path input pos (fromMaybe (pretty "unknown error") reason)))
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
@@ -153,7 +154,7 @@ data Err = Err
   { errPath   :: !FilePath
   , errSource :: !String
   , errPos    :: {-# UNPACK #-} !Pos
-  , errReason :: Maybe Doc
+  , errReason :: Doc
   }
   deriving (Show)
 
