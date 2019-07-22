@@ -78,8 +78,8 @@ unSpanned (a :~ _) = a
 
 runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Err a)
 runParser path pos input m = runParserC m success failure failure pos input
-  where success _ _ = pure . Right
-        failure = pure . Left . Err path input
+  where success _ _ a = pure (Right a)
+        failure pos reason = pure (Left (Err path input pos reason))
 
 parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
@@ -93,8 +93,8 @@ newtype ParserC m a = ParserC
   { runParserC
     :: forall r
     .  (Pos -> String -> a -> m r) -- success
-    -> (Fail -> m r)               -- empty
-    -> (Fail -> m r)               -- cut
+    -> (Pos -> Maybe Doc -> m r)   -- empty
+    -> (Pos -> Maybe Doc -> m r)   -- cut
     -> Pos
     -> String
     -> m r
@@ -106,9 +106,9 @@ instance Applicative (ParserC m) where
   (<*>) = ap
 
 instance Alternative (ParserC m) where
-  empty = ParserC (\ _ nothing _ pos _ -> nothing (Fail pos Nothing))
+  empty = ParserC (\ _ nothing _ pos _ -> nothing pos Nothing)
 
-  ParserC l <|> ParserC r = ParserC (\ just nothing fail pos input -> l just (const (r just nothing fail pos input)) fail pos input)
+  ParserC l <|> ParserC r = ParserC (\ just nothing fail pos input -> l just (const (const (r just nothing fail pos input))) fail pos input)
 
 instance Monad (ParserC m) where
   m >>= f = ParserC (\ just nothing fail -> runParserC m (\ pos input a -> runParserC (f a) just nothing fail pos input) nothing fail)
@@ -132,40 +132,32 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     L parser -> case parser of
       Accept p k -> ParserC (\ just nothing _ pos input -> case input of
         c:cs | Just a <- p c -> just (advancePos c pos) cs a
-             | otherwise     -> nothing (Fail pos (Just (pretty "unexpected " <> pretty c)))
-        _                    -> nothing (Fail pos (Just (pretty "unexpected EOF")))) >>= k
-      Label m s k -> ParserC (\ just nothing fail -> runParserC m just (nothing . setFailReason (pretty s)) (fail . setFailReason (pretty s))) >>= k
-      Unexpected s -> ParserC $ \ _ nothing _ pos _ -> nothing (Fail pos (Just (pretty s)))
+             | otherwise     -> nothing pos (Just (pretty "unexpected " <> pretty c))
+        _                    -> nothing pos (Just (pretty "unexpected EOF"))) >>= k
+      Label m s k -> ParserC (\ just nothing fail -> runParserC m just (\ p r -> nothing p (r <|> Just (pretty s))) (\ p r -> fail p (r <|> Just (pretty s)))) >>= k
+      Unexpected s -> ParserC $ \ _ nothing _ pos _ -> nothing pos (Just (pretty s))
       Position k -> ParserC (\ just _ _ pos input -> just pos input pos) >>= k
     R (L cut) -> case cut of
-      Cutfail -> ParserC $ \ _ _ fail pos _ -> fail (Fail pos Nothing)
+      Cutfail -> ParserC $ \ _ _ fail pos _ -> fail pos Nothing
       Call m k -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
     R (R (L nondet)) -> case nondet of
       Empty -> empty
       Choose k -> k True <|> k False
-    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (Success pos input ()) (result runParser (pure . Failure)) other) >>= result just nothing
-    where runParser p s m = runParserC m (\ p s -> pure . Success p s) (pure . Failure) (pure . Failure) p s
-
-
-data Fail = Fail
-  { failPos    :: {-# UNPACK #-} !Pos
-  , failReason :: Maybe Doc
-  }
-  deriving (Show)
-
-setFailReason :: Doc -> Fail -> Fail
-setFailReason s e = e { failReason = failReason e <|> Just s }
+    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (Success pos input ()) (result runParser failure) other) >>= result just nothing
+    where runParser p s m = runParserC m (\ p s -> pure . Success p s) failure failure p s
+          failure pos reason = pure (Failure pos reason)
 
 
 data Err = Err
-  { errPath    :: !FilePath
-  , errSource  :: !String
-  , errFailure :: {-# UNPACK #-} !Fail
+  { errPath   :: !FilePath
+  , errSource :: !String
+  , errPos    :: {-# UNPACK #-} !Pos
+  , errReason :: Maybe Doc
   }
   deriving (Show)
 
 instance Pretty Err where
-  pretty (Err path text (Fail pos reason))
+  pretty (Err path text pos reason)
     =  bold (pretty path) <> colon <> pretty pos <> colon <+> red (pretty "error") <> colon <+> pretty reason <> hardline
     <> blue (pretty (posLine pos)) <+> align (fold
       [ blue (pretty '|') <+> excerpt pos
@@ -183,10 +175,10 @@ instance Pretty Err where
 
 data Result a
   = Success Pos String a
-  | Failure Fail
+  | Failure Pos (Maybe Doc)
   deriving (Foldable, Functor, Show, Traversable)
 
-result :: (Pos -> String -> a -> b) -> (Fail -> b) -> Result a -> b
+result :: (Pos -> String -> a -> b) -> (Pos -> Maybe Doc -> b) -> Result a -> b
 result success failure = \case
   Success p s a -> success p s a
-  Failure e     -> failure e
+  Failure p r   -> failure p r
