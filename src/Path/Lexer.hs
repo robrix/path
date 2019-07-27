@@ -67,6 +67,9 @@ data Span = Span
   }
   deriving (Eq, Ord, Show)
 
+instance Semigroup Span where
+  Span s1 e1 <> Span s2 e2 = Span (min s1 s2) (max e1 e2)
+
 instance Pretty Span where
   pretty (Span start end)
     | start == end                 = green (pretty '^')
