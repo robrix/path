@@ -54,8 +54,8 @@ data Notice = Notice
 
 instance Pretty Notice where
   pretty (Notice level (Excerpt path line span) reason context) = vsep
-    ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (posLine (spanStart span))) <> colon <> bold (pretty (posColumn (spanStart span))) <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) level </> pretty reason))
-    : blue (pretty (posLine (spanStart span))) <+> align (fold
+    ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (succ (posLine (spanStart span)))) <> colon <> bold (pretty (succ (posColumn (spanStart span)))) <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) level </> pretty reason))
+    : blue (pretty (succ (posLine (spanStart span)))) <+> align (fold
       [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
       , blue (pretty '|') <+> caret span
       ])
