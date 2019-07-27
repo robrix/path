@@ -9,7 +9,6 @@ module Path.Parser
 , identifier
 , reservedWords
 , op
-, ErrInfo
 , Delta(..)
 , spanned
 ) where
