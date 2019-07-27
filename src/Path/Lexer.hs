@@ -60,9 +60,10 @@ spanned m = do
 
 
 runParser :: Applicative m => FilePath -> Pos -> String -> ReaderC FilePath (ReaderC [String] (ParserC m)) a -> m (Either Notice a)
-runParser path pos input m = runParserC (runReader (lines input) (runReader path m)) success failure failure pos input
+runParser path pos input m = runParserC (runReader inputLines (runReader path m)) success failure failure pos input
   where success _ _ a = pure (Right a)
-        failure pos reason = pure (Left (Notice (Just Error) (excerpt path input (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
+        failure pos reason = pure (Left (Notice (Just Error) (Excerpt path (inputLines !! posLine pos) (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
+        inputLines = lines input
         lines "" = [""]
         lines s  = let (line, rest) = takeLine s in line : lines rest
         takeLine ""          = ("", "")

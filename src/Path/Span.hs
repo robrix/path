@@ -4,7 +4,6 @@ module Path.Span
 , Pos(..)
 , advancePos
 , Excerpt(..)
-, excerpt
 , Spanned(..)
 , unSpanned
 , runSpanned
@@ -52,14 +51,6 @@ data Excerpt = Excerpt
 
 instance Semigroup Excerpt where
   Excerpt _ l s1 <> Excerpt p _ s2 = Excerpt p l (s1 <> s2)
-
-excerpt :: FilePath -> String -> Span -> Excerpt
-excerpt path text span = Excerpt path (lines text !! pred (posLine (spanStart span))) span
-  where lines "" = [""]
-        lines s  = let (line, rest) = takeLine s in line : lines rest
-        takeLine ""          = ("", "")
-        takeLine ('\n':rest) = ("\n", rest)
-        takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
 
 data Spanned a = a :~ Excerpt
