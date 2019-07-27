@@ -23,7 +23,6 @@ library
                      , Path.Name
                      , Path.Package
                      , Path.Parser
-                     , Path.Parser.Mixfix
                      , Path.Parser.Module
                      , Path.Parser.Package
                      , Path.Parser.REPL
@@ -51,13 +50,11 @@ library
                      , filepath
                      , fused-effects ^>= 0.5
                      , haskeline
-                     , indentation-trifecta
                      , mtl
                      , optparse-applicative
                      , parsers
                      , terminal-size
                      , text
-                     , trifecta
                      , unordered-containers
                      , validation
   hs-source-dirs:      src

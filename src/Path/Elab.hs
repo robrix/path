@@ -1,11 +1,13 @@
-{-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
+import Control.Applicative (liftA2)
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
-import Control.Monad ((<=<), foldM)
+import Control.Monad ((<=<), foldM, join)
+import Control.Monad.Trans
 import Data.Foldable (foldl')
 import qualified Data.Map as Map
 import Data.Void
@@ -22,13 +24,12 @@ import Path.Stack as Stack
 import qualified Path.Surface as Surface
 import Path.Syntax
 import Path.Term
-import Path.Usage
 import Prelude hiding (pi)
 
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
           , Member (Reader Context) sig
-          , Member (Reader Span) sig
+          , Member (Reader Excerpt) sig
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
@@ -95,7 +96,7 @@ elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member (Reader Context) sig
         , Member (Reader N) sig
-        , Member (Reader Span) sig
+        , Member (Reader Excerpt) sig
         )
      => Term Surface.Surface Qualified
      -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
@@ -106,7 +107,7 @@ elab = go <=< traverse assume
             Surface.Lam _ b -> intro (\ t -> elab' (instantiate1 (pure t) <$> b))
             f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
             Surface.Type -> pure (type' ::: type')
-            Surface.Pi (_ :< _ ::: _ :@ t) b -> elab' t --> \ t' -> elab' (instantiate1 (pure t') <$> b)
+            Surface.Pi (_ :< _ ::: t) b -> elab' t --> \ t' -> elab' (instantiate1 (pure t') <$> b)
         elab' m = spanIs (go <$> m)
 
 elabDecl :: ( Carrier sig m
@@ -155,7 +156,7 @@ inContext m = do
                 inst t = instantiateEither (pure . Global . either (moduleName m :.:) id) (unSpanned t)
 
 logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
-logError = tell . (Nil :> )
+logError = tell . (Nil :>)
 
 
 type Context = Stack (Binding ::: Term (Problem :+: Core) (Name N))
@@ -179,6 +180,20 @@ bindingValue (ForAll  _)       = Nothing
 
 lookupBinding :: Qualified -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name N))
 lookupBinding n = Stack.find ((== Global n) . bindingName . typedTerm)
+
+
+newtype SolverC m a = SolverC { runSolverC :: m (Term Core a) }
+  deriving (Functor)
+
+instance Applicative m => Applicative (SolverC m) where
+  pure = SolverC . pure . Var
+  SolverC f <*> SolverC a = SolverC (liftA2 (<*>) f a)
+
+instance Monad m => Monad (SolverC m) where
+  SolverC a >>= f = SolverC (a >>= fmap join . traverse (runSolverC . f))
+
+instance MonadTrans SolverC where
+  lift = SolverC . fmap Var
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String

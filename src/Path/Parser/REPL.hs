@@ -1,15 +1,19 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Path.Parser.REPL where
 
 import Control.Applicative (Alternative(..))
+import Control.Effect.Reader
+import Path.Parser
 import qualified Path.Parser.Module as M
 import Path.Parser.Term
 import Path.REPL.Command
-import Text.Trifecta hiding (doc)
-import Text.Trifecta.Indentation
+import Text.Parser.Char
+import Text.Parser.Combinators
+import Text.Parser.Token
 
-command :: (DeltaParsing m, IndentationParsing m) => m (Maybe Command)
-typeof, eval, import', doc :: DeltaParsing m => m Command
-decl :: (DeltaParsing m, IndentationParsing m) => m Command
+command :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Maybe Command)
+typeof, eval, import', doc :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m Command
+decl :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m Command
 quit, help, show', reload :: (Monad m, TokenParsing m) => m Command
 
 command = optional (quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> reload <|> import' <|> doc) <?> "command; use :? for help"

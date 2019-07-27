@@ -1,10 +1,11 @@
 module Base.Fin
 
-import Base.Nat
+import Base.Nat;
 
-Fin : Nat -> Type
-Fin = \ n
+Fin
+  : Nat -> Type
+  = \ n
     .  { a : Nat -> Type }
     -> a (s n)
     -> ({ n : Nat } -> a n -> a (s n))
-    -> a (s n)
+    -> a (s n);

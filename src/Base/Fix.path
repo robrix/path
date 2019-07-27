@@ -1,16 +1,20 @@
 module Base.Fix
 
-Alg : (Type -> Type) -> Type -> Type
-Alg = \ f x . { r : Type } -> (r -> x) -> f r -> x
+Alg
+  : (Type -> Type) -> Type -> Type
+  = \ f x . { r : Type } -> (r -> x) -> f r -> x;
 
-Fix : (Type -> Type) -> Type
-Fix = \ f . { x : Type } -> Alg f x -> x
+Fix
+  : (Type -> Type) -> Type
+  = \ f . { x : Type } -> Alg f x -> x;
 
-fold :  { f : Type -> Type }
-     -> { x : Type }
-     -> Alg f x -> Fix f -> x
-fold = \ {_} {x} alg term . term {x} alg
+fold
+  :  { f : Type -> Type }
+  -> { x : Type }
+  -> Alg f x -> Fix f -> x
+  = \ {_} {x} alg term . term {x} alg;
 
-in :  { f : Type -> Type }
-   -> f (Fix f) -> Fix f
-in = \ {f} syn {x} alg . alg {Fix f} (fold {f} {x} alg) syn
+in
+  :  { f : Type -> Type }
+  -> f (Fix f) -> Fix f
+  = \ {f} syn {x} alg . alg {Fix f} (fold {f} {x} alg) syn;

@@ -2,19 +2,20 @@
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
-import Data.Maybe (fromMaybe)
+import Control.Effect.Reader
 import Path.Name hiding (name)
 import Path.Parser as Parser
 import Path.Plicity
-import Path.Parser.Mixfix
+import Path.Span (Spanned(..), unSpanned)
 import Path.Surface (Surface)
 import qualified Path.Surface as Surface
 import Path.Syntax
 import Path.Term
-import Path.Usage
-import Text.Trifecta hiding ((:@))
+import Text.Parser.Char
+import Text.Parser.Combinators
+import Text.Parser.Token
 
-type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Term Surface User))
+type', var, term, application, piType, functionType, lambda, atom :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned (Term Surface User))
 
 term = functionType
 
@@ -24,33 +25,24 @@ application = foldl app <$> atom <*> many (spanned (plicit term atom)) <?> "func
 type' = spanned (Surface.type' <$ keyword "Type")
 
 piType = spanned (do
-  p :< (v, mult, ty) <- plicit binding (parens binding) <* op "->"
-  Surface.pi (p :< named (Just v) v ::: fromMaybe (case p of { Ex -> More ; Im -> Zero }) mult :@ ty) <$> functionType) <?> "dependent function type"
-  where binding = ((,,) <$> name <* colon <*> optional multiplicity <*> term)
+  p :< (v, ty) <- plicit binding (parens binding) <* op "->"
+  Surface.pi (p :< named (Just v) v ::: ty) <$> functionType) <?> "dependent function type"
+  where binding = ((,) <$> name <* colon <*> term)
 
-functionType = spanned ((:@) <$> multiplicity <*> application <**> (flip (Surface.-->) <$ op "->" <*> functionType))
-           <|> application <**> (arrow <$ op "->" <*> functionType <|> pure id)
+functionType = spanned (application <**> (flip (Surface.-->) <$ op "->" <*> functionType <|> pure unSpanned))
            <|> piType
-  where arrow t'@(_ :~ s2) t@(_ :~ s1) = (More :@ t Surface.--> t') :~ (s1 <> s2)
 
 var = spanned (pure <$> name <?> "variable")
 
-lambda = (do
-  vs <- op "\\" *> some pattern <* dot
-  foldr bind term vs) <?> "lambda"
-  where pattern = spanned (plicit binding binding) <?> "pattern"
+lambda = spanned (unSpanned <$ op "\\" <*> recur) <?> "lambda"
+  where recur = spanned (Surface.lam' <$> pattern <*> (recur <|> dot *> term)) <?> "lambda"
+        pattern = plicit binding binding <?> "pattern"
         binding = Just <$> name <|> Nothing <$ token (string "_")
-        bind v vv = wrap v <$> spanned vv
-        wrap (a :~ v1) (b :~ v2) = Surface.lam' a b :~ (v1 <> v2)
 
 atom = var <|> type' <|> lambda <|> try (parens term)
-
-multiplicity :: (Monad m, TokenParsing m) => m Usage
-multiplicity = Zero <$ keyword "0" <|> One <$ keyword "1"
 
 plicit :: TokenParsing m => m a -> m a -> m (Plicit a)
 plicit a b = (Im :<) <$> braces a <|> (Ex :<) <$> b
 
 name :: (Monad m, TokenParsing m) => m User
-name =       (Id <$> identifier <?> "name")
-     <|> try (Op <$> parens operator <?> "operator name")
+name = identifier <?> "name"

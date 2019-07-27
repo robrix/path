@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, GeneralizedNewtypeDeriving, LambdaCase #-}
 module Path.Name where
 
 import           Control.Applicative (Alternative (..))
@@ -29,15 +29,7 @@ unEither from = go Nil
           Left  b -> pure (names, b)
 
 
-data User
-  = Id String
-  | Op Operator
-  deriving (Eq, Ord, Show)
-
-instance Pretty User where
-  pretty = \case
-    Id s  -> pretty s
-    Op op -> parens (pretty op)
+type User = String
 
 
 data ModuleName
@@ -103,39 +95,6 @@ weaken = fmap Global
 
 strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
 strengthen = toEither . traverse (name (Failure . pure) Success)
-
-
-data Operator
-  = Prefix (NonEmpty String)
-  | Postfix (NonEmpty String)
-  | Infix (NonEmpty String)
-  | Closed (NonEmpty String) String
-  deriving (Eq, Ord, Show)
-
-betweenOp :: String -> String -> Operator
-betweenOp a = Closed (a :| [])
-
-showOperator :: Operator -> String
-showOperator = renderOperator " " id
-
-renderOperator :: Monoid m => m -> (String -> m) -> Operator -> m
-renderOperator space pretty = \case
-  Prefix (f:|fs) -> hsep (map (\ a -> pretty a <+> underscore) (f:fs))
-  Postfix (f:|fs) -> hsep (map (\ a -> underscore <+> pretty a) (f:fs))
-  Infix (f:|fs) -> underscore <+> hsep (map (\ a -> pretty a <+> underscore) (f:fs))
-  Closed fs ff -> foldr (\ a rest -> pretty a <+> underscore <+> rest) (pretty ff) fs
-  where hsep []     = mempty
-        hsep [a]    = a
-        hsep (a:as) = a <+> hsep as
-        s <+> t = s <> space <> t
-        underscore = pretty "_"
-
-instance Pretty Operator where
-  pretty = renderOperator space pretty
-
-
-data Assoc = LAssoc | RAssoc | NonAssoc
-  deriving (Eq, Ord, Show)
 
 
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a

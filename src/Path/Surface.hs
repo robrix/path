@@ -13,13 +13,12 @@ import Path.Scope
 import Path.Span
 import Path.Syntax
 import Path.Term
-import Path.Usage
 
 data Surface f a
   = Lam (Plicit (Ignored (Maybe User))) (Spanned (Scope () f a))
   | Spanned (f a) :$ Plicit (Spanned (f a))
   | Type
-  | Pi (Plicit (Ignored (Maybe User) ::: Used (Spanned (f a)))) (Spanned (Scope () f a))
+  | Pi (Plicit (Ignored (Maybe User) ::: Spanned (f a))) (Spanned (Scope () f a))
   deriving (Foldable, Functor, Generic1, HFunctor, Traversable)
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Surface f a)
@@ -31,7 +30,7 @@ instance RightModule Surface where
   Lam p b >>=* f = Lam p (fmap (>>=* f) b)
   g :$ a  >>=* f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
   Type    >>=* _ = Type
-  Pi t b  >>=* f = Pi (fmap (fmap (fmap (fmap (>>= f)))) t) (fmap (>>=* f) b)
+  Pi t b  >>=* f = Pi (fmap (fmap (fmap (>>= f))) t) (fmap (>>=* f) b)
 
 newtype SurfaceC m a = SurfaceC { runSurfaceC :: m (Term Surface a) }
   deriving (Functor)
@@ -49,7 +48,7 @@ instance (Carrier sig m, Effect sig) => Carrier (Surface :+: sig) (SurfaceC m) w
     f :$ a -> (:$) <$> traverse runSurfaceC f <*> traverse (traverse runSurfaceC) a
     Lam p b -> Lam p <$> traverse recur b
     Type -> pure Type
-    Pi t b -> Pi <$> traverse (traverse (traverse (traverse runSurfaceC))) t <*> traverse recur b
+    Pi t b -> Pi <$> traverse (traverse (traverse runSurfaceC)) t <*> traverse recur b
     where recur = fmap Scope . (>>= traverse (traverse runSurfaceC)) . runSurfaceC . unScope
   -- FIXME: is this valid?
   eff (R other) = SurfaceC (eff (handle (Var ()) (fmap join . traverse runSurfaceC) other))
@@ -69,10 +68,10 @@ f $$ a = send (f :$ a)
 type' :: (Carrier sig m, Member Surface sig) => m a
 type' = send Type
 
-pi :: (Eq a, Carrier sig m, Member Surface sig) => Plicit (Named (Maybe User) a ::: Used (Spanned (m a))) -> Spanned (m a) -> m a
+pi :: (Eq a, Carrier sig m, Member Surface sig) => Plicit (Named (Maybe User) a ::: Spanned (m a)) -> Spanned (m a) -> m a
 pi (p :< Named u n ::: t) b = send (Pi (p :< u ::: t) (bind1 n <$> b))
 
-(-->) :: (Carrier sig m, Member Surface sig) => Used (Spanned (m a)) -> Spanned (m a) -> m a
+(-->) :: (Carrier sig m, Member Surface sig) => Spanned (m a) -> Spanned (m a) -> m a
 t --> b = send (Pi (Ex :< Ignored Nothing ::: t) (lift <$> b))
 
 infixr 0 -->

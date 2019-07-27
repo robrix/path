@@ -1,24 +1,29 @@
 module Base.Function
 
-id : { a : Type } -> a -> a
-id = \ {_} a . a
+id
+  : { a : Type } -> a -> a
+  = \ {_} a . a;
 
-const : { a : Type } -> { b : Type } -> a -> b -> a
-const = \ {_} {_} a _ . a
+const
+  : { a : Type } -> { b : Type } -> a -> b -> a
+  = \ {_} {_} a _ . a;
 
-flip : { a : Type } -> { b : Type } -> { c : Type } -> (a -> b -> c) -> (b -> a -> c)
-flip = \ {_} {_} {_} f b a . f a b
+flip
+  : { a : Type } -> { b : Type } -> { c : Type } -> (a -> b -> c) -> (b -> a -> c)
+  = \ {_} {_} {_} f b a . f a b;
 
-fix :  { a : Type }
-    -> { b : Type }
-    -> ((a -> b) -> a -> b)
-    -> (a -> b)
-fix = \ {a} {b} f . f (fix {a} {b} f)
+fix
+  :  { a : Type }
+  -> { b : Type }
+  -> ((a -> b) -> a -> b)
+  -> (a -> b)
+  = \ {a} {b} f . f (fix {a} {b} f);
 
-compose :  { a : Type }
-        -> { b : Type }
-        -> { c : Type }
-        -> (b -> c)
-        -> (a -> b)
-        -> (a -> c)
-compose = \ {_} {_} {_} f g x . f (g x)
+compose
+  :  { a : Type }
+  -> { b : Type }
+  -> { c : Type }
+  -> (b -> c)
+  -> (a -> b)
+  -> (a -> c)
+  = \ {_} {_} {_} f g x . f (g x);

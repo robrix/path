@@ -4,11 +4,12 @@ import Control.Applicative (Alternative(..))
 import Data.List (intercalate)
 import Path.Name
 import Path.Package
+import Text.Parser.Char
+import Text.Parser.Combinators
+import Text.Parser.Token
 import Text.Parser.Token.Highlight
-import Text.Trifecta
-import Text.Trifecta.Indentation
 
-package :: (IndentationParsing m, Monad m, TokenParsing m) => m Package
+package :: (Monad m, TokenParsing m) => m Package
 package
   =   Package
   <$> field "name" packageName'
@@ -21,5 +22,5 @@ packageName' = ident (IdentifierStyle "package name" letter (alphaNum <|> oneOf 
 filePath :: TokenParsing m => m FilePath
 filePath = intercalate "/" <$> token (some (alphaNum <|> char '.') `sepBy1` string "/")
 
-field :: (IndentationParsing m, Monad m, TokenParsing m) => String -> m a -> m a
-field name m = absoluteIndentation (token (string name) *> colon *> m)
+field :: (Monad m, TokenParsing m) => String -> m a -> m a
+field name m = token (string name) *> colon *> m
