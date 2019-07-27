@@ -3,40 +3,40 @@ module Base.Nat
 import Base.Fix;
 
 NatF
-: Type -> Type
-= \ a . { b : Type } -> b -> (a -> b) -> b;
+  : Type -> Type
+  = \ a . { b : Type } -> b -> (a -> b) -> b;
 
 zf
-: { a : Type } -> NatF a
-= \ {_} {_} z _ . z;
+  : { a : Type } -> NatF a
+  = \ {_} {_} z _ . z;
 
 sf
-: { a : Type } -> a -> NatF a
-= \ {_} a {_} _ s . s a;
+  : { a : Type } -> a -> NatF a
+  = \ {_} a {_} _ s . s a;
 
 
 Nat
-: Type
-= Fix NatF;
+  : Type
+  = Fix NatF;
 
 z
-: Nat
-= in {NatF} (zf {Nat});
+  : Nat
+  = in {NatF} (zf {Nat});
 
 s
-: Nat -> Nat
-= \ n . in {NatF} (sf {Nat} n);
+  : Nat -> Nat
+  = \ n . in {NatF} (sf {Nat} n);
 
 
 iter
-: { a : Type } -> a -> (a -> a) -> Nat -> a
-= \ {a} z s n . n {a} (\ k f . f z (\ m . s (k m)));
+  : { a : Type } -> a -> (a -> a) -> Nat -> a
+  = \ {a} z s n . n {a} (\ k f . f z (\ m . s (k m)));
 
 
 plus
-: Nat -> Nat -> Nat
-= \ m . iter {Nat} m s;
+  : Nat -> Nat -> Nat
+  = \ m . iter {Nat} m s;
 
 times
-: Nat -> Nat -> Nat
-= \ m . iter {Nat} z (plus m);
+  : Nat -> Nat -> Nat
+  = \ m . iter {Nat} z (plus m);

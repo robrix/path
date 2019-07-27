@@ -1,9 +1,9 @@
 module Base.Unit
 
 Unit
-: Type
-= { a : Type } -> a -> a;
+  : Type
+  = { a : Type } -> a -> a;
 
 unit
-: Unit
-= \ a . a;
+  : Unit
+  = \ a . a;

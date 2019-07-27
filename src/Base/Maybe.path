@@ -4,24 +4,24 @@ import Base.Bool;
 import Base.Function;
 
 Maybe
-: Type -> Type
-= \ a . { b : Type } -> b -> (a -> b) -> b;
+  : Type -> Type
+  = \ a . { b : Type } -> b -> (a -> b) -> b;
 
 just
-: { a : Type } -> a -> Maybe a
-= \ {_} a {_} _ just . just a;
+  : { a : Type } -> a -> Maybe a
+  = \ {_} a {_} _ just . just a;
 
 nothing
-: { a : Type } -> Maybe a
-= \ {_} {_} nothing _ . nothing;
+  : { a : Type } -> Maybe a
+  = \ {_} {_} nothing _ . nothing;
 
 isJust
-: { a : Type } -> Maybe a -> Bool
-= \ {_} m . m {Bool} false (\ _ . true);
+  : { a : Type } -> Maybe a -> Bool
+  = \ {_} m . m {Bool} false (\ _ . true);
 
 map
-:  { a : Type }
--> { b : Type }
--> (a -> b)
--> (Maybe a -> Maybe b)
-= \ {_} {b} f m . m {Maybe b} (nothing {b}) (\ a . just {b} (f a));
+  :  { a : Type }
+  -> { b : Type }
+  -> (a -> b)
+  -> (Maybe a -> Maybe b)
+  = \ {_} {b} f m . m {Maybe b} (nothing {b}) (\ a . just {b} (f a));

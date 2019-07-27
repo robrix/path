@@ -3,39 +3,39 @@ module Base.List
 import Base.Fix;
 
 ListF
-: Type -> Type -> Type
-= \ a b . { c : Type } -> c -> (a -> b -> c) -> c;
+  : Type -> Type -> Type
+  = \ a b . { c : Type } -> c -> (a -> b -> c) -> c;
 
 nilf
-: { a : Type } -> { b : Type } -> ListF a b
-= \ {_} {_} {_} nil _ . nil;
+  : { a : Type } -> { b : Type } -> ListF a b
+  = \ {_} {_} {_} nil _ . nil;
 
 consf
-: { a : Type } -> { b : Type } -> a -> b -> ListF a b
-= \ {_} {_} a b {_} _ cons . cons a b;
+  : { a : Type } -> { b : Type } -> a -> b -> ListF a b
+  = \ {_} {_} a b {_} _ cons . cons a b;
 
 
 List
-: Type -> Type
-= \ a . Fix (ListF a);
+  : Type -> Type
+  = \ a . Fix (ListF a);
 
 nil
-: { a : Type } -> List a
-= \ {a} . in {ListF a} (nilf {a} {List a});
+  : { a : Type } -> List a
+  = \ {a} . in {ListF a} (nilf {a} {List a});
 
 cons
-: { a : Type } -> a -> List a -> List a
-= \ {a} h t . in {ListF a} (consf {a} h {List a} t);
+  : { a : Type } -> a -> List a -> List a
+  = \ {a} h t . in {ListF a} (consf {a} h {List a} t);
 
 
 append
-: { a : Type } -> List a -> List a -> List a
-= \ {a} xs ys . xs {List a} (\ k f . f ys (\ x xs . cons {a} x (k xs)));
+  : { a : Type } -> List a -> List a -> List a
+  = \ {a} xs ys . xs {List a} (\ k f . f ys (\ x xs . cons {a} x (k xs)));
 
 
 map
-:  { a : Type }
--> { b : Type }
--> (a -> b)
--> (List a -> List b)
-= \ {_} {b} f l . l {List b} (\ k g . g (nil {b}) (\ a as . cons {b} (f a) (k as)));
+  :  { a : Type }
+  -> { b : Type }
+  -> (a -> b)
+  -> (List a -> List b)
+  = \ {_} {b} f l . l {List b} (\ k g . g (nil {b}) (\ a as . cons {b} (f a) (k as)));

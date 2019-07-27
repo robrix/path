@@ -1,13 +1,13 @@
 module Base.Sigma
 
 Sigma
-: (A : Type) -> (A -> Type) -> Type
-= \ A B . { C : Type } -> (( a : A ) -> B a -> C) -> C;
+  : (A : Type) -> (A -> Type) -> Type
+  = \ A B . { C : Type } -> (( a : A ) -> B a -> C) -> C;
 
 sigma
-:  { A : Type } -> { B : A -> Type } -> ( a : A ) -> B a -> Sigma A B
-= \ {_} {_} a b {_} f . f a b;
+  :  { A : Type } -> { B : A -> Type } -> ( a : A ) -> B a -> Sigma A B
+  = \ {_} {_} a b {_} f . f a b;
 
 fst
-: { A : Type } -> { B : A -> Type } -> Sigma A B -> A
-= \ {A} {_} s . s {A} (\ a _ . a);
+  : { A : Type } -> { B : A -> Type } -> Sigma A B -> A
+  = \ {A} {_} s . s {A} (\ a _ . a);

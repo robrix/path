@@ -3,21 +3,21 @@ module Base.Bool
 import Base.Lazy;
 
 Bool
-: Type
-= { a : Type } -> a -> a -> a;
+  : Type
+  = { a : Type } -> a -> a -> a;
 
 true
-: Bool
-= \ a _ . a;
+  : Bool
+  = \ a _ . a;
 
 false
-: Bool
-= \ _ b . b;
+  : Bool
+  = \ _ b . b;
 
 not
-: Bool -> Bool
-= \ f a b . f b a;
+  : Bool -> Bool
+  = \ f a b . f b a;
 
 ifThenElse
-: { a : Type } -> Bool -> Lazy a -> Lazy a -> a
-= \ {a} c t e . force {a} (c {Lazy a} t e);
+  : { a : Type } -> Bool -> Lazy a -> Lazy a -> a
+  = \ {a} c t e . force {a} (c {Lazy a} t e);

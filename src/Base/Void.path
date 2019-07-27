@@ -1,5 +1,5 @@
 module Base.Void
 
 Void
-: Type
-= { a : Type } -> a;
+  : Type
+  = { a : Type } -> a;

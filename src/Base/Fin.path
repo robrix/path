@@ -3,9 +3,9 @@ module Base.Fin
 import Base.Nat;
 
 Fin
-: Nat -> Type
-= \ n
-.  { a : Nat -> Type }
--> a (s n)
--> ({ n : Nat } -> a n -> a (s n))
--> a (s n);
+  : Nat -> Type
+  = \ n
+    .  { a : Nat -> Type }
+    -> a (s n)
+    -> ({ n : Nat } -> a n -> a (s n))
+    -> a (s n);

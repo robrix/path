@@ -1,32 +1,32 @@
 module Base.Either
 
 Either
-: Type -> Type -> Type
-= \ l r . { a : Type } -> (l -> a) -> (r -> a) -> a;
+  : Type -> Type -> Type
+  = \ l r . { a : Type } -> (l -> a) -> (r -> a) -> a;
 
 left
-: { l : Type } -> { r : Type } -> l -> Either l r
-= \ {_} {_} l {_} left _ . left l;
+  : { l : Type } -> { r : Type } -> l -> Either l r
+  = \ {_} {_} l {_} left _ . left l;
 
 right
-: { l : Type } -> { r : Type } -> r -> Either l r
-= \ {_} {_} r {_} _ right . right r;
+  : { l : Type } -> { r : Type } -> r -> Either l r
+  = \ {_} {_} r {_} _ right . right r;
 
 
 map
-:  { l : Type }
--> { r : Type }
--> { r' : Type }
--> (r -> r')
--> (Either l r -> Either l r')
-= \ {l} {_} {r'} f e . e {Either l r'} (left {l} {r'}) (\ r . right {l} {r'} (f r));
+  :  { l : Type }
+  -> { r : Type }
+  -> { r' : Type }
+  -> (r -> r')
+  -> (Either l r -> Either l r')
+  = \ {l} {_} {r'} f e . e {Either l r'} (left {l} {r'}) (\ r . right {l} {r'} (f r));
 
 bimap
-:  { l : Type }
--> { r : Type }
--> { l' : Type }
--> { r' : Type }
--> (       l   ->        l')
--> (         r ->           r')
--> (Either l r -> Either l' r')
-= \ {_} {_} {l'} {r'} f g e . e {Either l' r'} (\ l . left {l'} {r'} (f l)) (\ r . right {l'} {r'} (g r));
+  :  { l : Type }
+  -> { r : Type }
+  -> { l' : Type }
+  -> { r' : Type }
+  -> (       l   ->        l')
+  -> (         r ->           r')
+  -> (Either l r -> Either l' r')
+  = \ {_} {_} {l'} {r'} f g e . e {Either l' r'} (\ l . left {l'} {r'} (f l)) (\ r . right {l'} {r'} (g r));

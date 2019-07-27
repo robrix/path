@@ -3,9 +3,9 @@ module Base.Lazy
 import Base.Unit;
 
 Lazy
-: Type -> Type
-= \ a . Unit -> a;
+  : Type -> Type
+  = \ a . Unit -> a;
 
 force
-: { a : Type } -> Lazy a -> a
-= \ {_} f . f unit;
+  : { a : Type } -> Lazy a -> a
+  = \ {_} f . f unit;
