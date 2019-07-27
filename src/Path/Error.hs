@@ -32,9 +32,3 @@ cyclicImport (name :~ span :| names) = throwError (vsep
   ( prettyErr span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) []
   : foldr ((:) . whichImports) [ whichImports (name :~ span) ] names))
   where whichImports (name :~ span) = prettyInfo span (pretty "which imports" <+> squotes (pretty name) <> colon) []
-
-
-unsolvedMetavariables :: (Carrier sig m, Member (Error Doc) sig, Member (Reader Span) sig, Pretty ty, Pretty v, Foldable t) => ty -> t v -> m a
-unsolvedMetavariables ty metas = do
-  span <- ask
-  throwError (prettyErr span (pretty "unsolved metavariable" <> (if length metas == 1 then mempty else pretty "s") <+> fillSep (punctuate comma (map pretty (toList metas)))) [pretty ty])
