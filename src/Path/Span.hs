@@ -4,6 +4,7 @@ module Path.Span
 , Spanned(..)
 , unSpanned
 , runSpanned
+, runInContext
 , spanned
 , spanIs
 ) where
@@ -17,6 +18,9 @@ unSpanned (a :~ _) = a
 
 runSpanned :: Carrier sig m => (a -> ReaderC Span m b) -> Spanned a -> m (Spanned b)
 runSpanned f v@(_ :~ s) = runReader s (traverse f v)
+
+runInContext :: Carrier sig m => (a -> ReaderC c m b) -> (c, a) -> m (c, b)
+runInContext f v = runReader (fst v) (traverse f v)
 
 spanned :: (Carrier sig m, Member (Reader Span) sig) => a -> m (Spanned a)
 spanned a = asks (a :~)
