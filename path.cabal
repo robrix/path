@@ -19,7 +19,6 @@ library
                      , Path.Core
                      , Path.Elab
                      , Path.Error
-                     , Path.Lexer
                      , Path.Module
                      , Path.Name
                      , Path.Package
