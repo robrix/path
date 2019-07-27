@@ -6,6 +6,7 @@ import Control.Effect.Carrier
 import Control.Effect.Cut
 import Control.Effect.Error
 import Control.Effect.NonDet
+import Control.Effect.Reader
 import Control.Monad (MonadPlus (..), ap)
 import Control.Monad.IO.Class
 import Data.Maybe (fromMaybe)
@@ -38,6 +39,9 @@ instance Effect Parser where
 
 accept :: (Carrier sig m, Member Parser sig) => (Char -> Maybe a) -> m a
 accept p = send (Accept p pure)
+
+path :: (Carrier sig m, Member (Reader FilePath) sig) => m FilePath
+path = ask
 
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
