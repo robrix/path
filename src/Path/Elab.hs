@@ -1,13 +1,11 @@
 {-# LANGUAGE DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
-import Control.Applicative (liftA2)
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
-import Control.Monad ((<=<), foldM, join)
-import Control.Monad.Trans
+import Control.Monad ((<=<), foldM)
 import Data.Foldable (foldl')
 import qualified Data.Map as Map
 import Data.Void
@@ -180,20 +178,6 @@ bindingValue (ForAll  _)       = Nothing
 
 lookupBinding :: Qualified -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name N))
 lookupBinding n = Stack.find ((== Global n) . bindingName . typedTerm)
-
-
-newtype SolverC m a = SolverC { runSolverC :: m (Term Core a) }
-  deriving (Functor)
-
-instance Applicative m => Applicative (SolverC m) where
-  pure = SolverC . pure . Var
-  SolverC f <*> SolverC a = SolverC (liftA2 (<*>) f a)
-
-instance Monad m => Monad (SolverC m) where
-  SolverC a >>= f = SolverC (a >>= fmap join . traverse (runSolverC . f))
-
-instance MonadTrans SolverC where
-  lift = SolverC . fmap Var
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
