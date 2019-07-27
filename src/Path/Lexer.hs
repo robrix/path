@@ -10,7 +10,7 @@ import Control.Effect.Reader
 import Control.Monad (MonadPlus (..), ap)
 import Control.Monad.IO.Class
 import Data.Maybe (fromMaybe)
-import Path.Pretty as Pretty
+import Path.Pretty as Pretty hiding (line)
 import Path.Span
 import Text.Parser.Char
 import Text.Parser.Combinators
@@ -51,12 +51,14 @@ line = do
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
 
-spanned :: (Carrier sig m, Member Parser sig) => m a -> m (Span, a)
+spanned :: (Carrier sig m, Member (Reader [String]) sig, Member (Reader FilePath) sig, Member Parser sig) => m a -> m (Spanned a)
 spanned m = do
+  path <- path
+  line <- line
   start <- position
   a <- m
   end <- position
-  pure (Span start end, a)
+  pure (a :~ Excerpt path line (Span start end))
 
 
 runParser :: Applicative m => FilePath -> Pos -> String -> ReaderC FilePath (ReaderC [String] (ParserC m)) a -> m (Either Notice a)
