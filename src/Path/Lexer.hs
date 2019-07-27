@@ -54,15 +54,15 @@ spanned m = do
   pure (Span start end, a)
 
 
-runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Notice a)
-runParser path pos input m = runParserC m success failure failure pos input
+runParser :: Applicative m => FilePath -> Pos -> String -> ReaderC FilePath (ParserC m) a -> m (Either Notice a)
+runParser path pos input m = runParserC (runReader path m) success failure failure pos input
   where success _ _ a = pure (Right a)
         failure pos reason = pure (Left (Notice (Just Error) (excerpt path input (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
 
-parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC m a -> Pos -> String -> m a
+parseString :: (Carrier sig m, Member (Error Doc) sig) => ReaderC FilePath (ParserC m) a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
 
-parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC m a -> FilePath -> m a
+parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ReaderC FilePath (ParserC m) a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
   runParser path (Pos 1 1) input p >>= either (throwError . pretty) pure
