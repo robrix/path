@@ -158,13 +158,13 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
 
 data Excerpt = Excerpt
   { excerptPath :: FilePath
-  , excerptLine :: Doc
+  , excerptLine :: String
   , excerptSpan :: {-# UNPACK #-} !Span
   }
   deriving (Show)
 
 excerpt :: FilePath -> String -> Span -> Excerpt
-excerpt path text span = Excerpt path (let line = lines text !! pred (posLine (spanStart span)) in pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline) span
+excerpt path text span = Excerpt path (lines text !! pred (posLine (spanStart span))) span
   where lines "" = [""]
         lines s  = let (line, rest) = takeLine s in line : lines rest
         takeLine ""          = ("", "")
@@ -193,7 +193,7 @@ instance Pretty Notice where
   pretty (Notice level (Excerpt path line span) reason context) = vsep
     ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (posLine (spanStart span))) <> colon <> bold (pretty (posColumn (spanStart span))) <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
     : blue (pretty (posLine (spanStart span))) <+> align (fold
-      [ blue (pretty '|') <+> pretty line
+      [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
       , blue (pretty '|') <+> caret span
       ])
     : context)
