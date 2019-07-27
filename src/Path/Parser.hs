@@ -108,7 +108,7 @@ parseString p pos input = runParser "(interactive)" pos input p >>= either (thro
 parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
-  runParser path (Pos 1 1) input p >>= either (throwError . pretty) pure
+  runParser path (Pos 0 0) input p >>= either (throwError . pretty) pure
 
 newtype ParserC m a = ParserC
   { runParserC
