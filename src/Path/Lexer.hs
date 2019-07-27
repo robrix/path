@@ -61,8 +61,8 @@ spanned m = do
   pure (a :~ Excerpt path line (Span start end))
 
 
-runParser :: Applicative m => FilePath -> Pos -> String -> ReaderC FilePath (ReaderC [String] (ParserC m)) a -> m (Either Notice a)
-runParser path pos input m = runParserC (runReader inputLines (runReader path m)) success failure failure pos input
+runParser :: Applicative m => FilePath -> Pos -> String -> ParserC (ReaderC FilePath (ReaderC [String] m)) a -> m (Either Notice a)
+runParser path pos input m = runReader inputLines (runReader path (runParserC m success failure failure pos input))
   where success _ _ a = pure (Right a)
         failure pos reason = pure (Left (Notice (Just Error) (Excerpt path (inputLines !! posLine pos) (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
         inputLines = lines input
@@ -72,10 +72,10 @@ runParser path pos input m = runParserC (runReader inputLines (runReader path m)
         takeLine ('\n':rest) = ("\n", rest)
         takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
-parseString :: (Carrier sig m, Member (Error Doc) sig) => ReaderC FilePath (ReaderC [String] (ParserC m)) a -> Pos -> String -> m a
+parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
 
-parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ReaderC FilePath (ReaderC [String] (ParserC m)) a -> FilePath -> m a
+parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
   runParser path (Pos 1 1) input p >>= either (throwError . pretty) pure
