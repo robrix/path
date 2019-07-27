@@ -159,17 +159,6 @@ logError = tell . (Nil :>)
 type Context = Stack (Name N ::: Term (Problem :+: Core) (Name N))
 
 
-data Binding
-  = Define (Qualified := Term (Problem :+: Core) (Name N))
-  | Exists (N := Maybe (Term (Problem :+: Core) (Name N)))
-  | ForAll N
-  deriving (Eq, Ord, Show)
-
-bindingName :: Binding -> Name N
-bindingName (Define (n := _)) = Global n
-bindingName (Exists (n := _)) = Local n
-bindingName (ForAll  n)       = Local n
-
 lookupBinding :: Qualified -> Context -> Maybe (Name N ::: Term (Problem :+: Core) (Name N))
 lookupBinding n = Stack.find ((== Global n) . typedTerm)
 
