@@ -82,7 +82,7 @@ rename :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Member (Reader Spa
 rename ms n = case foldMap (\ m -> [ moduleName m :.: n | d <- toList (moduleDecls m), declName d == n ]) ms of
   [x]  -> pure x
   []   -> freeVariables (pure n)
-  x:xs -> ambiguousName n (x:|xs)
+  x:xs -> ambiguousName n (x:|xs)
 
 runDecl :: Carrier sig m => (a -> ReaderC Span m b) -> Decl a -> m (Decl b)
 runDecl f (Decl n d tm ty) = do
