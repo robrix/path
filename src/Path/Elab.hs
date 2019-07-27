@@ -117,9 +117,8 @@ elabDecl :: ( Carrier sig m
          -> m (Decl (Term (Problem :+: Core) Qualified))
 elabDecl (Decl name d tm ty) = runReader (N 0) $ do
   ty' <- runSpanned (goalIs type' . elab) ty
-  def <- meta (unSpanned ty')
   moduleName <- ask
-  tm' <- runSpanned (local (:> Define (moduleName :.: name := def) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
+  tm' <- runSpanned (local (:> Global @N (moduleName :.: name) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
   ty'' <- runSpanned (either freeVariables pure . strengthen) ty'
   tm'' <- runSpanned (either freeVariables pure . strengthen) tm'
   pure (Decl name d tm'' ty'')
@@ -150,14 +149,14 @@ inContext m = do
   runReader @Context ctx m
   where toContext g = foldl' definitions Nil (modules g)
         definitions ctx m = foldl' define ctx (moduleDecls m)
-          where define ctx d = ctx :> (Define ((moduleName m :.: declName d) := inst (declTerm d)) ::: inst (declType d))
+          where define ctx d = ctx :> (Global @N (moduleName m :.: declName d) ::: inst (declType d))
                 inst t = instantiateEither (pure . Global . either (moduleName m :.:) id) (unSpanned t)
 
 logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = tell . (Nil :>)
 
 
-type Context = Stack (Binding ::: Term (Problem :+: Core) (Name N))
+type Context = Stack (Name N ::: Term (Problem :+: Core) (Name N))
 
 
 data Binding
@@ -171,8 +170,8 @@ bindingName (Define (n := _)) = Global n
 bindingName (Exists (n := _)) = Local n
 bindingName (ForAll  n)       = Local n
 
-lookupBinding :: Qualified -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name N))
-lookupBinding n = Stack.find ((== Global n) . bindingName . typedTerm)
+lookupBinding :: Qualified -> Context -> Maybe (Name N ::: Term (Problem :+: Core) (Name N))
+lookupBinding n = Stack.find ((== Global n) . typedTerm)
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
