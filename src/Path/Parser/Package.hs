@@ -4,8 +4,10 @@ import Control.Applicative (Alternative(..))
 import Data.List (intercalate)
 import Path.Name
 import Path.Package
+import Text.Parser.Char
+import Text.Parser.Combinators
+import Text.Parser.Token
 import Text.Parser.Token.Highlight
-import Text.Trifecta
 
 package :: (Monad m, TokenParsing m) => m Package
 package
