@@ -163,6 +163,9 @@ data Excerpt = Excerpt
   }
   deriving (Eq, Ord, Show)
 
+instance Semigroup Excerpt where
+  Excerpt _ l s1 <> Excerpt p _ s2 = Excerpt p l (s1 <> s2)
+
 excerpt :: FilePath -> String -> Span -> Excerpt
 excerpt path text span = Excerpt path (lines text !! pred (posLine (spanStart span))) span
   where lines "" = [""]
