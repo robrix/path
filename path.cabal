@@ -55,7 +55,6 @@ library
                      , parsers
                      , terminal-size
                      , text
-                     , trifecta
                      , unordered-containers
                      , validation
   hs-source-dirs:      src
