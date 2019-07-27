@@ -2,6 +2,7 @@
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
+import Control.Effect.Reader
 import Path.Name hiding (name)
 import Path.Parser as Parser
 import Path.Plicity
@@ -10,9 +11,11 @@ import Path.Surface (Surface)
 import qualified Path.Surface as Surface
 import Path.Syntax
 import Path.Term
-import Text.Trifecta hiding (Spanned(..), (:@), spanned)
+import Text.Parser.Char
+import Text.Parser.Combinators
+import Text.Parser.Token
 
-type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Term Surface User))
+type', var, term, application, piType, functionType, lambda, atom :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned (Term Surface User))
 
 term = functionType
 

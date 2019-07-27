@@ -12,7 +12,6 @@ import Control.Monad.Fix
 import Control.Monad.IO.Class
 import Control.Monad.Trans (MonadTrans(..))
 import Data.Foldable (for_)
-import Data.Int (Int64)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Traversable (for)
@@ -24,7 +23,7 @@ import Path.Error
 import Path.Module as Module
 import Path.Name
 import Path.Package
-import Path.Parser (Delta(..), parseString, whole)
+import Path.Parser (parseString, whole)
 import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
@@ -107,13 +106,13 @@ repl packageSources = liftIO $ do
        (runREPL prefs settings
        (script packageSources)))
 
-newtype Line = Line Int64
+newtype Line = Line Int
 
 increment :: Line -> Line
 increment (Line n) = Line (n + 1)
 
-lineDelta :: Line -> Delta
-lineDelta (Line l) = Lines l 0 0 0
+linePos :: Line -> Pos
+linePos (Line l) = Pos l 0
 
 script :: ( Carrier sig m
           , Effect sig
@@ -132,7 +131,7 @@ script packageSources
   where loop = (prompt "λ: " >>= parseCommand >>= maybe (pure ()) runCommand . join) `catchError` print >> loop
         parseCommand str = do
           l <- askLine
-          traverse (parseString (whole command) (lineDelta l)) str
+          traverse (parseString (whole command) (linePos l)) str
         runCommand = \case
           Quit -> throwError ()
           Help -> print helpDoc
