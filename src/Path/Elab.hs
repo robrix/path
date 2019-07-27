@@ -171,11 +171,6 @@ bindingName (Define (n := _)) = Global n
 bindingName (Exists (n := _)) = Local n
 bindingName (ForAll  n)       = Local n
 
-bindingValue :: Binding -> Maybe (Term (Problem :+: Core) (Name N))
-bindingValue (Define (_ := v)) = Just v
-bindingValue (Exists (_ := v)) = v
-bindingValue (ForAll  _)       = Nothing
-
 lookupBinding :: Qualified -> Context -> Maybe (Binding ::: Term (Problem :+: Core) (Name N))
 lookupBinding n = Stack.find ((== Global n) . bindingName . typedTerm)
 
