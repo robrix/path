@@ -40,10 +40,10 @@ intro :: ( Carrier sig m
       -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
 intro body = do
   _A <- meta type'
-  x <- ask @N
   _B <- meta type'
-  u <- local @N succ (goalIs _B (body (pure (Local x) ::: _A)))
-  pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
+  bindN $ \ x -> do
+    u <- goalIs _B (body (pure (Local x) ::: _A))
+    pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
 
 (-->) :: ( Carrier sig m
          , Member (Reader N) sig
@@ -53,9 +53,9 @@ intro body = do
       -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
 t --> body = do
   t' <- goalIs type' t
-  x <- ask @N
-  b' <- local @N succ (goalIs type' (body (pure (Local x) ::: t')))
-  pure (pi (Local x ::: t') b' ::: type')
+  bindN $ \ x -> do
+    b' <- goalIs type' (body (pure (Local x) ::: t'))
+    pure (pi (Local x ::: t') b' ::: type')
 
 app :: ( Carrier sig m
        , Member (Reader N) sig
