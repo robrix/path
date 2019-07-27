@@ -161,7 +161,7 @@ data Excerpt = Excerpt
   , excerptLine :: String
   , excerptSpan :: {-# UNPACK #-} !Span
   }
-  deriving (Show)
+  deriving (Eq, Ord, Show)
 
 excerpt :: FilePath -> String -> Span -> Excerpt
 excerpt path text span = Excerpt path (lines text !! pred (posLine (spanStart span))) span
