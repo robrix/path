@@ -31,7 +31,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-assume v = asks (lookupBinding v) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
+assume v = asks (Stack.find ((== Global @N v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
 
 intro :: ( Carrier sig m
          , Member (Reader N) sig
@@ -157,10 +157,6 @@ logError = tell . (Nil :>)
 
 
 type Context = Stack (Name N ::: Term (Problem :+: Core) (Name N))
-
-
-lookupBinding :: Qualified -> Context -> Maybe (Name N ::: Term (Problem :+: Core) (Name N))
-lookupBinding n = Stack.find ((== Global n) . typedTerm)
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
