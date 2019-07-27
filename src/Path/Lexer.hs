@@ -43,6 +43,11 @@ accept p = send (Accept p pure)
 path :: (Carrier sig m, Member (Reader FilePath) sig) => m FilePath
 path = ask
 
+line :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig) => m String
+line = do
+  pos <- position
+  asks (!! posLine pos)
+
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
 
