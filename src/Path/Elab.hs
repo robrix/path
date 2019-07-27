@@ -29,7 +29,7 @@ import Prelude hiding (pi)
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
           , Member (Reader Context) sig
-          , Member (Reader Span) sig
+          , Member (Reader Excerpt) sig
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
@@ -96,7 +96,7 @@ elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member (Reader Context) sig
         , Member (Reader N) sig
-        , Member (Reader Span) sig
+        , Member (Reader Excerpt) sig
         )
      => Term Surface.Surface Qualified
      -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))

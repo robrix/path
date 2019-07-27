@@ -9,9 +9,10 @@ import Path.Name hiding (name)
 import Path.Parser
 import Path.Parser.Term
 import Path.Pretty (Doc)
+import Path.Span (Spanned(..))
 import Path.Surface
 import Path.Term
-import Text.Trifecta
+import Text.Trifecta hiding (Spanned(..), spanned)
 
 parseModule :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => FilePath -> m (Module.Module (Term Surface) User)
 parseModule = flip parseFile <*> whole . module'

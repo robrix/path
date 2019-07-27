@@ -2,11 +2,8 @@
 module Path.Pretty
 ( prettyPrint
 , putDoc
-, prettyNotice
-, prettyErr
-, prettyWarn
-, prettyInfo
-, prettyStart
+, Level(..)
+, Notice(..)
 , prettyVar
 , prettyParens
 , prettyBraces
@@ -21,12 +18,13 @@ module Path.Pretty
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
+import Data.Foldable (fold)
+import Data.List (isSuffixOf)
 import Path.Span
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
 import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
-import Text.Trifecta.Rendering (render)
 
 prettyPrint :: (Pretty a, MonadIO m) => a -> m ()
 prettyPrint = putDoc . pretty
@@ -45,23 +43,25 @@ instance Pretty Level where
   pretty Warn  = magenta (pretty "warning")
   pretty Error = red (pretty "error")
 
-prettyNotice :: Maybe Level -> Span -> Doc -> [Doc] -> Doc
-prettyNotice lvl s msg ctx = vsep
-  ( nest 2 (group (prettyStart s <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) lvl </> msg))
-  : pretty (render s)
-  : ctx)
 
-prettyErr :: Span -> Doc -> [Doc] -> Doc
-prettyErr = prettyNotice (Just Error)
+data Notice = Notice
+  { noticeLevel   :: Maybe Level
+  , noticeExcerpt :: {-# UNPACK #-} !Excerpt
+  , noticeReason  :: Doc
+  , noticeContext :: [Doc]
+  }
+  deriving (Show)
 
-prettyWarn :: Span -> Doc -> [Doc] -> Doc
-prettyWarn = prettyNotice (Just Warn)
+instance Pretty Notice where
+  pretty (Notice level (Excerpt path line span) reason context) = vsep
+    ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (posLine (spanStart span))) <> colon <> bold (pretty (posColumn (spanStart span))) <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) level </> pretty reason))
+    : blue (pretty (posLine (spanStart span))) <+> align (fold
+      [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
+      , blue (pretty '|') <+> caret span
+      ])
+    : context)
+    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> pretty span
 
-prettyInfo :: Span -> Doc -> [Doc] -> Doc
-prettyInfo = prettyNotice Nothing
-
-prettyStart :: Span -> Doc
-prettyStart (Span start _ _) = pretty start
 
 prettyVar :: Int -> Doc
 prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")

@@ -26,7 +26,7 @@ data Module f a = Module
   { moduleName    :: ModuleName
   , moduleDocs    :: Maybe String
   , modulePath    :: FilePath
-  , moduleImports :: Map.Map ModuleName Span
+  , moduleImports :: Map.Map ModuleName Excerpt
   , moduleDecls   :: Map.Map User (Decl (Scope User f a))
   }
   deriving (Foldable, Functor, Generic1, Traversable)
@@ -75,7 +75,7 @@ moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindTEithe
 restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
 restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
 
-rename :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Member (Reader Span) sig)
+rename :: (Carrier sig m, Foldable t, Member (Error Doc) sig, Member (Reader Excerpt) sig)
        => t (Module f a)
        -> User
        -> m Qualified
@@ -84,7 +84,7 @@ rename ms n = case foldMap (\ m -> [ moduleName m :.: n | d <- toList (moduleDec
   []   -> freeVariables (pure n)
   x:xs -> ambiguousName n (x:|xs)
 
-runDecl :: Carrier sig m => (a -> ReaderC Span m b) -> Decl a -> m (Decl b)
+runDecl :: Carrier sig m => (a -> ReaderC Excerpt m b) -> Decl a -> m (Decl b)
 runDecl f (Decl n d tm ty) = do
   tm' <- runSpanned f tm
   ty' <- runSpanned f ty

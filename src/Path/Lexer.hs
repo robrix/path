@@ -8,10 +8,9 @@ import Control.Effect.Error
 import Control.Effect.NonDet
 import Control.Monad (MonadPlus (..), ap)
 import Control.Monad.IO.Class
-import Data.Foldable (fold)
-import Data.List (isSuffixOf)
 import Data.Maybe (fromMaybe)
 import Path.Pretty as Pretty
+import Path.Span
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.Token
@@ -43,44 +42,12 @@ accept p = send (Accept p pure)
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
 
-spanned :: (Carrier sig m, Member Parser sig) => m a -> m (Spanned a)
+spanned :: (Carrier sig m, Member Parser sig) => m a -> m (Span, a)
 spanned m = do
   start <- position
   a <- m
   end <- position
-  pure (a :~ Span start end)
-
-
-data Pos = Pos
-  { posLine   :: {-# UNPACK #-} !Int
-  , posColumn :: {-# UNPACK #-} !Int
-  }
-  deriving (Eq, Ord, Show)
-
-advancePos :: Char -> Pos -> Pos
-advancePos '\n' p = Pos (succ (posLine p)) 0
-advancePos _    p = p { posColumn = succ (posColumn p) }
-
-data Span = Span
-  { spanStart :: {-# UNPACK #-} !Pos
-  , spanEnd   :: {-# UNPACK #-} !Pos
-  }
-  deriving (Eq, Ord, Show)
-
-instance Semigroup Span where
-  Span s1 e1 <> Span s2 e2 = Span (min s1 s2) (max e1 e2)
-
-instance Pretty Span where
-  pretty (Span start end)
-    | start == end                 = green (pretty '^')
-    | posLine start == posLine end = green (pretty (replicate (posColumn end - posColumn start) '~'))
-    | otherwise                    = green (pretty "^…")
-
-data Spanned a = a :~ Span
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-unSpanned :: Spanned a -> a
-unSpanned (a :~ _) = a
+  pure (Span start end, a)
 
 
 runParser :: Applicative m => FilePath -> Pos -> String -> ParserC m a -> m (Either Notice a)
@@ -154,54 +121,6 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     where runParser p s m = runParserC m (\ p s -> pure . success p s) failure failure p s
           success pos input a = Result pos (Right (input, a))
           failure pos reason = pure (Result pos (Left reason))
-
-
-data Excerpt = Excerpt
-  { excerptPath :: FilePath
-  , excerptLine :: String
-  , excerptSpan :: {-# UNPACK #-} !Span
-  }
-  deriving (Eq, Ord, Show)
-
-instance Semigroup Excerpt where
-  Excerpt _ l s1 <> Excerpt p _ s2 = Excerpt p l (s1 <> s2)
-
-excerpt :: FilePath -> String -> Span -> Excerpt
-excerpt path text span = Excerpt path (lines text !! pred (posLine (spanStart span))) span
-  where lines "" = [""]
-        lines s  = let (line, rest) = takeLine s in line : lines rest
-        takeLine ""          = ("", "")
-        takeLine ('\n':rest) = ("\n", rest)
-        takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
-
-
-data Level
-  = Warn
-  | Error
-  deriving (Eq, Ord, Show)
-
-instance Pretty Level where
-  pretty Warn  = magenta (pretty "warning")
-  pretty Error = red (pretty "error")
-
-data Notice = Notice
-  { noticeLevel   :: Maybe Level
-  , noticeExcerpt :: {-# UNPACK #-} !Excerpt
-  , noticeReason  :: Doc
-  , noticeContext :: [Doc]
-  }
-  deriving (Show)
-
-instance Pretty Notice where
-  pretty (Notice level (Excerpt path line span) reason context) = vsep
-    ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (posLine (spanStart span))) <> colon <> bold (pretty (posColumn (spanStart span))) <> colon <> maybe mempty ((Pretty.space <>) . (<> colon) . pretty) level </> pretty reason))
-    : blue (pretty (posLine (spanStart span))) <+> align (fold
-      [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
-      , blue (pretty '|') <+> caret span
-      ])
-    : context)
-    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> pretty span
-          colon = Pretty.colon
 
 
 data Result a = Result

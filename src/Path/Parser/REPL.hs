@@ -1,10 +1,11 @@
 module Path.Parser.REPL where
 
 import Control.Applicative (Alternative(..))
+import Path.Parser
 import qualified Path.Parser.Module as M
 import Path.Parser.Term
 import Path.REPL.Command
-import Text.Trifecta hiding (doc)
+import Text.Trifecta hiding (doc, spanned)
 
 command :: DeltaParsing m => m (Maybe Command)
 typeof, eval, import', doc :: DeltaParsing m => m Command

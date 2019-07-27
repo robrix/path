@@ -5,12 +5,12 @@ import Control.Applicative (Alternative(..), (<**>))
 import Path.Name hiding (name)
 import Path.Parser as Parser
 import Path.Plicity
-import Path.Span (unSpanned)
+import Path.Span (Spanned(..), unSpanned)
 import Path.Surface (Surface)
 import qualified Path.Surface as Surface
 import Path.Syntax
 import Path.Term
-import Text.Trifecta hiding ((:@))
+import Text.Trifecta hiding (Spanned(..), (:@), spanned)
 
 type', var, term, application, piType, functionType, lambda, atom :: DeltaParsing m => m (Spanned (Term Surface User))
 
