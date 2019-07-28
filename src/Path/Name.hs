@@ -3,13 +3,11 @@ module Path.Name where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Reader hiding (Local)
-import           Control.Monad.Fail
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Data.Validation
 import           Path.Pretty
 import           Path.Stack
-import           Prelude hiding (fail)
 
 newtype N = N { unN :: Int }
   deriving (Enum, Eq, Ord, Show)
@@ -84,9 +82,6 @@ name _     global (Global n) = global n
 
 close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
 close = traverse (name (const empty) pure)
-
-closeFail :: (MonadFail m, Show a, Traversable t) => t (Name a) -> m (t Qualified)
-closeFail = traverse (name (fail . ("free variable: " ++) . show) pure)
 
 
 weaken :: Functor f => f Qualified -> f (Name a)
