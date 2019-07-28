@@ -34,7 +34,7 @@ assume :: ( Carrier sig m
        -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
 assume v = asks (Stack.find ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (F v) :::) . fmap F . typedType)
 
-intro :: Carrier sig m
+intro :: Monad m
       => (Term (Problem :+: Core) (Var (Fin ('S n)) a) -> m (Term (Problem :+: Core) (Var (Fin ('S n)) a) ::: Term (Problem :+: Core) (Var (Fin ('S n)) a)))
       -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
 intro body = do
@@ -43,7 +43,7 @@ intro body = do
   u <- goalIs _B (body (first FS <$> _A))
   pure (lamFin u ::: piFin _A _B)
 
-(-->) :: Carrier sig m
+(-->) :: Monad m
       => m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
       -> (Term (Problem :+: Core) (Var (Fin ('S n)) a) -> m (Term (Problem :+: Core) (Var (Fin ('S n)) a) ::: Term (Problem :+: Core) (Var (Fin ('S n)) a)))
       -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
@@ -52,7 +52,7 @@ t --> body = do
   b' <- goalIs type' (body (first FS <$> t'))
   pure (piFin t' b' ::: type')
 
-app :: Carrier sig m
+app :: Monad m
     => m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
     -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
     -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
@@ -65,7 +65,7 @@ app f a = do
   pure (f' $$ a' ::: _F $$ a')
 
 
-goalIs :: Carrier sig m
+goalIs :: Monad m
        => Term (Problem :+: Core) (Var (Fin n) a)
        -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
        -> m (Term (Problem :+: Core) (Var (Fin n) a))
