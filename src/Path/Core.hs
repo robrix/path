@@ -6,7 +6,6 @@ import           Control.Effect.Carrier
 import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
-import           Path.Name
 import           Path.Pretty
 import           Path.Scope
 import           Path.Syntax
@@ -75,11 +74,6 @@ pis names body = foldr pi body names
 unpi :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unpi n (Term t) | Just (Pi t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                                 = empty
-
-
-generalizeType :: Ord n => Term Core (Name n) -> Term Core Qualified
-generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
-  where f name = (Set.singleton (Local name ::: type'), name)
 
 
 instance Pretty a => Pretty (Term Core a) where
