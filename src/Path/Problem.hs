@@ -3,13 +3,9 @@ module Path.Problem where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
-import           Control.Effect.Reader hiding (Local)
-import           Control.Effect.Writer
 import           Control.Monad.Module
-import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Core
-import           Path.Name
 import           Path.Pretty
 import           Path.Scope
 import           Path.Syntax
@@ -17,20 +13,26 @@ import           Path.Term
 import           Prelude hiding (pi)
 
 instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = prettyTerm (\ go -> \case
-    L p -> prettyProblem go p
-    R c -> prettyCore    go c)
+  pretty = prettyTerm (\ go ctx -> \case
+    L p -> prettyProblem go ctx p
+    R c -> prettyCore    go ctx c)
 
-prettyProblem :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> Problem f (m Prec) -> m Prec
-prettyProblem go = \case
-  Ex t b -> do
-    t' <- withPrec 1 <$> go t
-    (n, b') <- binding go prettyMeta b
-    pure (prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> withPrec 0 b'))
-  p1 :===: p2 -> do
-    p1' <- withPrec 1 <$> go p1
-    p2' <- withPrec 1 <$> go p2
-    pure (prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2'))))
+prettyProblem
+  :: Monad f
+  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
+  -> Vec n Doc
+  -> Problem f (Var (Fin n) a)
+  -> Prec
+prettyProblem go ctx = \case
+  Ex t b ->
+    let t' = withPrec 1 (go ctx t)
+        n  = prettyMeta (prettyVar (length ctx))
+        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+    in prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
+  p1 :===: p2 ->
+    let p1' = withPrec 1 (go ctx p1)
+        p2' = withPrec 1 (go ctx p2)
+    in prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
   where eq' = magenta (pretty "≡")
 
 

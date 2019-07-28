@@ -3,8 +3,6 @@ module Path.Core where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
-import           Control.Effect.Reader hiding (Local)
-import           Control.Effect.Writer
 import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
@@ -81,26 +79,36 @@ generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
 instance Pretty a => Pretty (Term Core a) where
   pretty = prettyTerm prettyCore
 
-prettyCore :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> Core f (m Prec) -> m Prec
-prettyCore go = \case
-  Lam b -> do
-    (n, b') <- binding go pretty b
-    pure (prec 0 (pretty (cyan backslash) <+> pretty n </> cyan dot <+> withPrec 0 b'))
-  f :$ a -> do
-    f' <- withPrec 10 <$> go f
-    a' <- withPrec 11 <$> go a
-    pure (prec 10 (f' <+> a'))
-  Let v b -> do
-    v' <- withPrec 0 <$> go v
-    (n, b') <- binding go prettyMeta b
-    pure (prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> withPrec 0 b'))
-  Type -> pure (atom (yellow (pretty "Type")))
-  Pi t b -> do
-    t' <- withPrec 1 <$> go t
-    (fvs, (n, b')) <- listen (binding go pretty b)
-    let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
-            | otherwise          = t'
-    pure (prec 0 (t'' </> arrow <+> withPrec 0 b'))
+prettyCore
+  :: (Foldable f, Monad f)
+  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
+  -> Vec n Doc
+  -> Core f (Var (Fin n) a)
+  -> Prec
+prettyCore go ctx = \case
+  Lam b ->
+    let n  = prettyVar (length ctx)
+        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+    in prec 0 (pretty (cyan backslash) <+> n </> cyan dot <+> b')
+  f :$ a ->
+    let f' = withPrec 10 (go ctx f)
+        a' = withPrec 11 (go ctx a)
+    in prec 10 (f' <+> a')
+  Let v b ->
+    let v' = withPrec 0 (go ctx v)
+        n  = prettyVar (length ctx)
+        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+    in prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> b')
+  Type -> atom (yellow (pretty "Type"))
+  Pi t b ->
+    let t'  = withPrec 1 (go ctx t)
+        n   = prettyVar (length ctx)
+        b'  = fromScopeFin b
+        fvs = foldMap (var Set.singleton (const Set.empty)) b'
+        b'' = withPrec 0 (go (VS n ctx) b')
+        t'' | FZ `Set.member` fvs = parens (pretty (n ::: t'))
+            | otherwise           = t'
+    in prec 0 (t'' </> arrow <+> b'')
   where arrow = blue (pretty "→")
 
 
