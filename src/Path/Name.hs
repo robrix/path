@@ -85,10 +85,6 @@ global :: Applicative m => Qualified -> m (Name a)
 global = pure . Global
 
 
-localNames :: Ord a => Set.Set (Name a) -> Set.Set a
-localNames = foldMap (name Set.singleton (const Set.empty))
-
-
 close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
 close = traverse (name (const empty) pure)
 
