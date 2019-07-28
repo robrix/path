@@ -31,7 +31,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-assume v = asks (Stack.find ((== Global @N v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
+assume v = asks (Stack.find ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . typedType)
 
 intro :: ( Carrier sig m
          , Member (Reader N) sig
@@ -118,7 +118,7 @@ elabDecl :: ( Carrier sig m
 elabDecl (Decl name d tm ty) = runReader (N 0) $ do
   ty' <- runSpanned (goalIs type' . elab) ty
   moduleName <- ask
-  tm' <- runSpanned (local (:> Global @N (moduleName :.: name) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
+  tm' <- runSpanned (local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (unSpanned ty') . elab) tm
   ty'' <- runSpanned (either freeVariables pure . strengthen) ty'
   tm'' <- runSpanned (either freeVariables pure . strengthen) tm'
   pure (Decl name d tm'' ty'')
@@ -149,14 +149,14 @@ inContext m = do
   runReader @Globals ctx m
   where toContext g = foldl' definitions Nil (modules g)
         definitions ctx m = foldl' define ctx (moduleDecls m)
-          where define ctx d = ctx :> (Global @N (moduleName m :.: declName d) ::: inst (declType d))
+          where define ctx d = ctx :> (moduleName m :.: declName d) ::: inst (declType d)
                 inst t = instantiateEither (pure . Global . either (moduleName m :.:) id) (unSpanned t)
 
 logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = tell . (Nil :>)
 
 
-type Globals = Stack (Name N ::: Term (Problem :+: Core) (Name N))
+type Globals = Stack (Qualified ::: Term (Problem :+: Core) (Name N))
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
