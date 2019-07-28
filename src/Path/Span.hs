@@ -4,6 +4,7 @@ module Path.Span
 , Pos(..)
 , advancePos
 , Excerpt(..)
+, excerptHere
 , Spanned(..)
 , unSpanned
 , runSpanned
@@ -13,6 +14,8 @@ module Path.Span
 ) where
 
 import Control.Effect.Reader
+import Data.Maybe (listToMaybe)
+import GHC.Stack
 import Text.PrettyPrint.ANSI.Leijen
 
 data Span = Span
@@ -51,6 +54,10 @@ data Excerpt = Excerpt
 
 instance Semigroup Excerpt where
   Excerpt _ l s1 <> Excerpt p _ s2 = Excerpt p l (s1 <> s2)
+
+excerptHere :: HasCallStack => Excerpt
+excerptHere = maybe (Excerpt "(unknown)" "" (Span (Pos 0 0) (Pos 0 0))) (mk . snd) (listToMaybe (getCallStack callStack))
+  where mk s = Excerpt (srcLocFile s) "" (Span (Pos (pred (srcLocStartLine s)) (pred (srcLocStartCol s))) (Pos (pred (srcLocEndLine s)) (pred (srcLocEndCol s))))
 
 
 data Spanned a = a :~ Excerpt
