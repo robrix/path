@@ -77,7 +77,7 @@ goalIs ty2 m = do
 meta
   :: Term (Problem :+: Core) (Var (Fin n) a)
   -> Term (Problem :+: Core) (Var (Fin n) a)
-meta ty = Term (L (Ex ty (toScopeFin (pure (B FZ)))))
+meta ty = send (Ex ty (toScopeFin (pure (B FZ))))
 
 
 elab
