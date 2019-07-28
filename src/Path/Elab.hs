@@ -38,8 +38,8 @@ intro :: Monad m
       => (Term (Problem :+: Core) (Var (Fin ('S n)) a) -> m (Term (Problem :+: Core) (Var (Fin ('S n)) a) ::: Term (Problem :+: Core) (Var (Fin ('S n)) a)))
       -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
 intro body = do
-  _A <- meta type'
-  _B <- meta type'
+  let _A = meta type'
+      _B = meta type'
   u <- goalIs _B (body (first FS <$> _A))
   pure (lamFin u ::: piFin _A _B)
 
@@ -57,9 +57,9 @@ app :: Monad m
     -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
     -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
 app f a = do
-  _A <- meta type'
-  _B <- meta type'
-  let _F = piFin _A _B
+  let _A = meta type'
+      _B = meta type'
+      _F = piFin _A _B
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' $$ a' ::: _F $$ a')
@@ -71,14 +71,13 @@ goalIs :: Monad m
        -> m (Term (Problem :+: Core) (Var (Fin n) a))
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
-  tm2 <- meta (ty1 === ty2)
+  let tm2 = meta (ty1 === ty2)
   pure (tm1 === tm2)
 
 meta
-  :: Monad m
-  => Term (Problem :+: Core) (Var (Fin n) a)
-  -> m (Term (Problem :+: Core) (Var (Fin n) a))
-meta ty = pure (Term (L (Ex ty (toScopeFin (pure (B FZ))))))
+  :: Term (Problem :+: Core) (Var (Fin n) a)
+  -> Term (Problem :+: Core) (Var (Fin n) a)
+meta ty = Term (L (Ex ty (toScopeFin (pure (B FZ)))))
 
 
 elab
