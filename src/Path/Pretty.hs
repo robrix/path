@@ -10,9 +10,9 @@ module Path.Pretty
 , tabulate2
 , tracePrettyM
 , Prec(..)
-, prettyPrec
 , prec
 , atom
+, withPrec
 , module PP
 ) where
 
@@ -117,5 +117,5 @@ prec = Prec . Just
 atom :: a -> Prec a
 atom = Prec Nothing
 
-prettyPrec :: Int -> Prec Doc -> Doc
-prettyPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a
+withPrec :: Int -> Prec Doc -> Doc
+withPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a

@@ -10,7 +10,7 @@ import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Core
 import           Path.Name
-import           Path.Pretty hiding (prec)
+import           Path.Pretty hiding (prec, withPrec)
 import           Path.Scope
 import           Path.Syntax
 import           Path.Term
