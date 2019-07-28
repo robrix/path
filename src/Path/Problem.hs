@@ -12,30 +12,6 @@ import           Path.Syntax
 import           Path.Term
 import           Prelude hiding (pi)
 
-instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = prettyTerm (\ go ctx -> \case
-    L p -> prettyProblem go ctx p
-    R c -> prettyCore    go ctx c)
-
-prettyProblem
-  :: Monad f
-  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
-  -> Vec n Doc
-  -> Problem f (Var (Fin n) a)
-  -> Prec
-prettyProblem go ctx = \case
-  Ex t b ->
-    let t' = withPrec 1 (go ctx t)
-        n  = prettyMeta (prettyVar (length ctx))
-        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
-    in prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
-  p1 :===: p2 ->
-    let p1' = withPrec 1 (go ctx p1)
-        p2' = withPrec 1 (go ctx p2)
-    in prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
-  where eq' = magenta (pretty "≡")
-
-
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
 data Problem f a
@@ -66,3 +42,27 @@ unexists _ _                                 = empty
 p === q = send (p :===: q)
 
 infixr 3 ===
+
+
+instance Pretty a => Pretty (Term (Problem :+: Core) a) where
+  pretty = prettyTerm (\ go ctx -> \case
+    L p -> prettyProblem go ctx p
+    R c -> prettyCore    go ctx c)
+
+prettyProblem
+  :: Monad f
+  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
+  -> Vec n Doc
+  -> Problem f (Var (Fin n) a)
+  -> Prec
+prettyProblem go ctx = \case
+  Ex t b ->
+    let t' = withPrec 1 (go ctx t)
+        n  = prettyMeta (prettyVar (length ctx))
+        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+    in prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
+  p1 :===: p2 ->
+    let p1' = withPrec 1 (go ctx p1)
+        p2' = withPrec 1 (go ctx p2)
+    in prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
+  where eq' = magenta (pretty "≡")
