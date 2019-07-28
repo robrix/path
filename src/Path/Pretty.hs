@@ -1,18 +1,18 @@
-{-# LANGUAGE DeriveTraversable #-}
 module Path.Pretty
 ( prettyPrint
 , putDoc
 , Level(..)
 , Notice(..)
 , prettyVar
+, prettyMeta
 , prettyParens
 , prettyBraces
 , tabulate2
 , tracePrettyM
 , Prec(..)
-, prettyPrec
 , prec
 , atom
+, withPrec
 , module PP
 ) where
 
@@ -68,6 +68,10 @@ prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")
   where (q, r) = i `divMod` 26
         alphabet = ['a'..'z']
 
+prettyMeta :: Pretty a => a -> Doc
+prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
+
+
 tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
 tabulate2 _ [] = mempty
 tabulate2 s cs = vsep (map (uncurry entry) cs')
@@ -102,20 +106,17 @@ tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
 tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
 
 
-data Prec a = Prec
+data Prec = Prec
   { precPrecedence :: Maybe Int
-  , precDoc        :: a
+  , precDoc        :: Doc
   }
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+  deriving (Show)
 
-instance Pretty a => Pretty (Prec a) where
-  pretty = pretty . precDoc
-
-prec :: Int -> a -> Prec a
+prec :: Int -> Doc -> Prec
 prec = Prec . Just
 
-atom :: a -> Prec a
+atom :: Doc -> Prec
 atom = Prec Nothing
 
-prettyPrec :: Int -> Prec Doc -> Doc
-prettyPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a
+withPrec :: Int -> Prec -> Doc
+withPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a

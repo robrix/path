@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DataKinds, DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
 module Path.Core where
 
 import           Control.Applicative (Alternative (..))
@@ -6,7 +6,7 @@ import           Control.Effect.Carrier
 import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
-import           Path.Name
+import           Path.Pretty
 import           Path.Scope
 import           Path.Syntax
 import           Path.Term
@@ -36,6 +36,9 @@ instance RightModule Core where
 lam :: (Eq a, Carrier sig m, Member Core sig) => a -> m a -> m a
 lam n b = send (Lam (bind1 n b))
 
+lamFin :: (Carrier sig m, Member Core sig) => m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+lamFin b = send (Lam (toScopeFin b))
+
 lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
@@ -61,6 +64,9 @@ type' = send Type
 pi :: (Eq a, Carrier sig m, Member Core sig) => a ::: m a -> m a -> m a
 pi (n ::: t) b = send (Pi t (bind1 n b))
 
+piFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+piFin t b = send (Pi t (toScopeFin b))
+
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
@@ -70,9 +76,40 @@ unpi n (Term t) | Just (Pi t b) <- prj t = pure (n ::: t, instantiate1 (pure n) 
 unpi _ _                                 = empty
 
 
-generalizeType :: Ord n => Term Core (Name n) -> Term Core Qualified
-generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
-  where f name = (Set.singleton (Local name ::: type'), name)
+instance Pretty a => Pretty (Term Core a) where
+  pretty = prettyTerm prettyCore
+
+prettyCore
+  :: (Foldable f, Monad f)
+  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
+  -> Vec n Doc
+  -> Core f (Var (Fin n) a)
+  -> Prec
+prettyCore go ctx = \case
+  Lam b ->
+    let n  = prettyVar (length ctx)
+        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+    in prec 0 (pretty (cyan backslash) <+> n </> cyan dot <+> b')
+  f :$ a ->
+    let f' = withPrec 10 (go ctx f)
+        a' = withPrec 11 (go ctx a)
+    in prec 10 (f' <+> a')
+  Let v b ->
+    let v' = withPrec 0 (go ctx v)
+        n  = prettyVar (length ctx)
+        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+    in prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> b')
+  Type -> atom (yellow (pretty "Type"))
+  Pi t b ->
+    let t'  = withPrec 1 (go ctx t)
+        n   = prettyVar (length ctx)
+        b'  = fromScopeFin b
+        fvs = foldMap (var Set.singleton (const Set.empty)) b'
+        b'' = withPrec 0 (go (VS n ctx) b')
+        t'' | FZ `Set.member` fvs = parens (pretty (n ::: t'))
+            | otherwise           = t'
+    in prec 0 (t'' </> arrow <+> b'')
+  where arrow = blue (pretty "→")
 
 
 -- $setup

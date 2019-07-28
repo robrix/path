@@ -5,7 +5,7 @@ import Control.Applicative (Alternative(..))
 import Control.Effect
 import Control.Monad.IO.Class
 import qualified Path.Module as Module
-import Path.Name hiding (name)
+import Path.Name
 import Path.Parser
 import Path.Parser.Term
 import Path.Pretty (Doc)
