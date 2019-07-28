@@ -6,12 +6,18 @@ import Control.Effect.Carrier
 import Control.Monad ((>=>), guard)
 import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
+import Data.Bifunctor
 import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
 
 data Var a b = B a | F b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+instance Bifunctor Var where
+  bimap f g = \case
+    B a -> B (f a)
+    F a -> F (g a)
 
 instance Applicative (Var a) where
   pure = F
