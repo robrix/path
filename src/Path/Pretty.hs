@@ -1,4 +1,3 @@
-{-# LANGUAGE DeriveTraversable #-}
 module Path.Pretty
 ( prettyPrint
 , putDoc
@@ -102,17 +101,17 @@ tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
 tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
 
 
-data Prec a = Prec
+data Prec = Prec
   { precPrecedence :: Maybe Int
-  , precDoc        :: a
+  , precDoc        :: Doc
   }
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+  deriving (Show)
 
-prec :: Int -> a -> Prec a
+prec :: Int -> Doc -> Prec
 prec = Prec . Just
 
-atom :: a -> Prec a
+atom :: Doc -> Prec
 atom = Prec Nothing
 
-withPrec :: Int -> Prec Doc -> Doc
+withPrec :: Int -> Prec -> Doc
 withPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a
