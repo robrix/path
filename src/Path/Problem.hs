@@ -41,9 +41,6 @@ prec d' doc = do
 withPrec :: (Carrier sig m, Member (Reader P) sig) => Int -> m a -> m a
 withPrec i = local (const (P i))
 
-prettyMeta :: Pretty a => a -> Doc
-prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
-
 binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Doc) -> m Doc) -> (N -> Doc) -> Scope a f (m Doc) -> m (N, Doc)
 binding go pretty m = bindN $ \ n ->
   (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m)

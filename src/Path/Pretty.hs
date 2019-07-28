@@ -4,6 +4,7 @@ module Path.Pretty
 , Level(..)
 , Notice(..)
 , prettyVar
+, prettyMeta
 , prettyParens
 , prettyBraces
 , tabulate2
@@ -66,6 +67,10 @@ prettyVar :: Int -> Doc
 prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")
   where (q, r) = i `divMod` 26
         alphabet = ['a'..'z']
+
+prettyMeta :: Pretty a => a -> Doc
+prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
+
 
 tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
 tabulate2 _ [] = mempty
