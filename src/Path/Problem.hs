@@ -1,16 +1,16 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Problem where
 
-import           Control.Applicative (Alternative (..))
-import           Control.Effect.Carrier
-import           Control.Monad.Module
-import           GHC.Generics (Generic1)
-import           Path.Core
-import           Path.Pretty
-import           Path.Scope
-import           Path.Syntax
-import           Path.Term
-import           Prelude hiding (pi)
+import Control.Applicative (Alternative (..))
+import Control.Effect.Carrier
+import Control.Monad.Module
+import GHC.Generics (Generic1)
+import Path.Core
+import Path.Pretty
+import Path.Scope
+import Path.Syntax
+import Path.Term
+import Prelude hiding (pi)
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
