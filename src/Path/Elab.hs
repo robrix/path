@@ -126,17 +126,18 @@ elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+:
   -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?
   decls <- foldM go mempty (moduleDecls m)
   pure m { moduleDecls = decls }
-  where go decls decl = local (extendGraph decls) . inContext $ do
+  where go decls decl = local (extendGraph decls) . withGlobals $ do
           (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
         extendModule decls decl = Map.insert (declName decl) (bind (Just . unqualified) <$> decl) decls
         extendGraph decls (ModuleGraph g) = ModuleGraph @(Term (Problem :+: Core)) @Void (Map.insert (moduleName m) (bindTEither Left m { moduleDecls = decls }) g)
         qualified = (moduleName m :.:) . declName
         unqualified (_ :.: u) = u
 
-inContext :: (Carrier sig m, Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig)
-          => ReaderC Globals m a
-          -> m a
-inContext m = do
+withGlobals
+  :: (Carrier sig m, Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig)
+  => ReaderC Globals m a
+  -> m a
+withGlobals m = do
   ctx <- asks @(ModuleGraph (Term (Problem :+: Core)) Void) toContext
   runReader @Globals ctx m
   where toContext g = foldl' definitions Nil (modules g)

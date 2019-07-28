@@ -135,7 +135,7 @@ script packageSources
           Quit -> throwError ()
           Help -> print helpDoc
           TypeOf tm -> elaborate tm >>= print . pretty . unSpanned
-          Command.Decl decl -> void $ runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= flip renameDecl decl >>= inContext . elabDecl)
+          Command.Decl decl -> void $ runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= flip renameDecl decl >>= withGlobals . elabDecl)
           Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print . pretty
           ShowModules -> do
             ms <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Map.toList . unModuleGraph)
@@ -173,7 +173,7 @@ elaborate :: ( Carrier sig m
           -> m (Spanned (Term (Problem :+: Core) Qualified))
 elaborate = runSpanned $ \ tm -> fmap (var absurdFin id) <$> do
   ty <- meta type'
-  runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab VZ . fmap F)
+  runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= withGlobals . goalIs ty . elab VZ . fmap F)
 
 -- | Evaluate a term to weak head normal form.
 --
