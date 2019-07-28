@@ -6,6 +6,7 @@ import Control.Effect.Carrier
 import Control.Monad ((>=>), guard)
 import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
+import Data.Bifoldable
 import Data.Bifunctor
 import Data.Function (on)
 import Data.List (elemIndex)
@@ -19,6 +20,11 @@ instance (Pretty b, Pretty f) => Pretty (Var b f) where
   pretty = \case
     B b -> pretty b
     F f -> pretty f
+
+instance Bifoldable Var where
+  bifoldMap f g = \case
+    B a -> f a
+    F a -> g a
 
 instance Bifunctor Var where
   bimap f g = \case
