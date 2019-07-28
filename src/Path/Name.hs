@@ -63,17 +63,6 @@ instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
 
 
-data Name a
-  = Global Qualified
-  | Local a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Pretty a => Pretty (Name a) where
-  pretty = \case
-    Global n -> pretty n
-    Local  n -> pretty n
-
-
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a
 fvs = foldMap Set.singleton
 
