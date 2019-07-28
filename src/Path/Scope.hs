@@ -68,6 +68,10 @@ finToInt :: Fin n -> Int
 finToInt FZ     = 0
 finToInt (FS n) = 1 + finToInt n
 
+strengthenFin :: Fin ('S n) -> Maybe (Fin n)
+strengthenFin FZ     = Nothing
+strengthenFin (FS n) = Just n
+
 
 newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
