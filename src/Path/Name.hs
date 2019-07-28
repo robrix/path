@@ -73,10 +73,6 @@ instance Pretty a => Pretty (Name a) where
     Global n -> pretty n
     Local  n -> pretty n
 
-name :: (a -> b) -> (Qualified -> b) -> Name a -> b
-name local _      (Local  n) = local n
-name _     global (Global n) = global n
-
 
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a
 fvs = foldMap Set.singleton

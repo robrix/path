@@ -3,7 +3,7 @@ module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
 import Control.Effect.Reader
-import Path.Name hiding (name)
+import Path.Name
 import Path.Parser as Parser
 import Path.Plicity
 import Path.Span (Spanned(..), unSpanned)
