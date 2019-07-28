@@ -8,6 +8,7 @@ import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Bifoldable
 import Data.Bifunctor
+import Data.Bitraversable
 import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
@@ -25,6 +26,11 @@ instance Bifoldable Var where
   bifoldMap f g = \case
     B a -> f a
     F a -> g a
+
+instance Bitraversable Var where
+  bitraverse f g = \case
+    B a -> B <$> f a
+    F a -> F <$> g a
 
 instance Bifunctor Var where
   bimap f g = \case
