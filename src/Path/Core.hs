@@ -78,6 +78,9 @@ generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
   where f name = (Set.singleton (Local name ::: type'), name)
 
 
+instance Pretty a => Pretty (Term Core a) where
+  pretty = prettyTerm prettyCore
+
 prettyCore :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> Core f (m Prec) -> m Prec
 prettyCore go = \case
   Lam b -> do
