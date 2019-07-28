@@ -78,10 +78,6 @@ name local _      (Local  n) = local n
 name _     global (Global n) = global n
 
 
-weaken :: Functor f => f Qualified -> f (Name a)
-weaken = fmap Global
-
-
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a
 fvs = foldMap Set.singleton
 
