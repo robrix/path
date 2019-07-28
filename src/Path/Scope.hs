@@ -59,6 +59,10 @@ matchMaybe :: (b -> Maybe a) -> (b -> Either a b)
 matchMaybe f a = maybe (Right a) Left (f a)
 
 
+strengthen :: Functor f => f (Var (Fin 'Z) a) -> f a
+strengthen = fmap (var absurdFin id)
+
+
 data Nat = Z | S Nat
   deriving (Eq, Ord, Show)
 
