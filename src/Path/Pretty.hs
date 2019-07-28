@@ -108,9 +108,6 @@ data Prec a = Prec
   }
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance Pretty a => Pretty (Prec a) where
-  pretty = pretty . precDoc
-
 prec :: Int -> a -> Prec a
 prec = Prec . Just
 
