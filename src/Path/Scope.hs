@@ -10,6 +10,7 @@ import Data.Bifunctor
 import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
+import Path.Pretty
 
 data Var a b = B a | F b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
@@ -51,6 +52,9 @@ data Fin n where
 deriving instance Eq   (Fin n)
 deriving instance Ord  (Fin n)
 deriving instance Show (Fin n)
+
+instance Pretty (Fin n) where
+  pretty = prettyVar . finToInt
 
 absurdFin :: Fin 'Z -> a
 absurdFin v = case v of {}
