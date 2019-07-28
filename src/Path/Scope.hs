@@ -85,6 +85,11 @@ strengthenFin FZ     = Nothing
 strengthenFin (FS n) = Just n
 
 
+data Vec n a where
+  VZ :: Vec 'Z a
+  VS :: a -> Vec n a -> Vec ('S n) a
+
+
 newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
 
