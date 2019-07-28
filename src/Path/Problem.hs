@@ -21,10 +21,6 @@ instance Pretty a => Pretty (Term (Problem :+: Core) a) where
     L p -> prettyProblem go p
     R c -> prettyCore    go c)
 
-binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> (N -> Doc) -> Scope a f (m Prec) -> m (N, Prec)
-binding go pretty m = bindN $ \ n ->
-  (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (atom (pretty n)))) m)
-
 prettyCore :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> Core f (m Prec) -> m Prec
 prettyCore go = \case
   Lam b -> do
