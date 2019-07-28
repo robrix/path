@@ -1,34 +1,10 @@
-{-# LANGUAGE DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, TypeApplications #-}
+{-# LANGUAGE DeriveTraversable, LambdaCase #-}
 module Path.Name where
 
-import           Control.Applicative (Alternative (..))
-import           Control.Effect.Reader hiding (Local)
-import           Control.Effect.Writer
-import           Control.Monad.Fail
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
-import           Data.Validation
 import           Path.Pretty
-import           Path.Scope
 import           Path.Stack
-import           Prelude hiding (fail)
-
-newtype N = N { unN :: Int }
-  deriving (Enum, Eq, Ord, Show)
-
-instance Pretty N where
-  pretty (N i) = prettyVar i
-
-bindN :: (Carrier sig m, Member (Reader N) sig) => (N -> m a) -> m a
-bindN f = do
-  n <- ask
-  local @N succ (f n)
-
-binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> (N -> Doc) -> Scope a f (m Prec) -> m (N, Prec)
-binding go pretty m = bindN $ \ n ->
-  (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (atom (pretty n)))) m)
-
-
 
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
 un from = unEither (\ t -> maybe (Left t) Right (from t))
@@ -72,42 +48,6 @@ infixl 5 :.:
 
 instance Pretty Qualified where
   pretty (m :.: n) = pretty m <> dot <> pretty n
-
-
-data Name a
-  = Global Qualified
-  | Local a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance Pretty a => Pretty (Name a) where
-  pretty = \case
-    Global n -> pretty n
-    Local  n -> pretty n
-
-name :: (a -> b) -> (Qualified -> b) -> Name a -> b
-name local _      (Local  n) = local n
-name _     global (Global n) = global n
-
-global :: Applicative m => Qualified -> m (Name a)
-global = pure . Global
-
-
-localNames :: Ord a => Set.Set (Name a) -> Set.Set a
-localNames = foldMap (name Set.singleton (const Set.empty))
-
-
-close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
-close = traverse (name (const empty) pure)
-
-closeFail :: (MonadFail m, Show a, Traversable t) => t (Name a) -> m (t Qualified)
-closeFail = traverse (name (fail . ("free variable: " ++) . show) pure)
-
-
-weaken :: Functor f => f Qualified -> f (Name a)
-weaken = fmap Global
-
-strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
-strengthen = toEither . traverse (name (Failure . pure) Success)
 
 
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a

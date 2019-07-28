@@ -102,6 +102,8 @@ VS h _ ! FZ   = h
 VS _ t ! FS n = t ! n
 VZ     ! n    = absurdFin n
 
+infixl 9 !
+
 
 newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
@@ -176,9 +178,7 @@ toScope :: Applicative f => f (Var a b) -> Scope a f b
 toScope = Scope . fmap (fmap pure)
 
 toScopeFin :: Applicative f => f (Var (Fin ('S n)) b) -> Scope () f (Var (Fin n) b)
-toScopeFin = Scope . fmap (match (var (\case
-  FZ -> Left ()
-  FS n -> Right (B n)) (Right . F)))
+toScopeFin = Scope . fmap (match (var (maybe (Left ()) (Right . B) . strengthenFin) (Right . F)))
 
 
 -- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
