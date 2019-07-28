@@ -26,7 +26,6 @@ import Path.Parser (parseString, whole)
 import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
-import Path.Problem
 import Path.REPL.Command as Command
 import Path.Scope
 import Path.Span
@@ -121,7 +120,7 @@ script :: ( Carrier sig m
        => [FilePath]
        -> m ()
 script packageSources
-  = evalState (ModuleGraph mempty :: ModuleGraph (Term (Problem :+: Core)) Void)
+  = evalState (ModuleGraph mempty :: ModuleGraph (Term Core) Void)
   . evalState (mempty @(Set.Set ModuleName))
   . runReader (ModuleName "(interpreter)")
   . fmap (either id id)
@@ -135,21 +134,21 @@ script packageSources
           Quit -> throwError ()
           Help -> print helpDoc
           TypeOf tm -> elaborate tm >>= print . pretty . unSpanned
-          Command.Decl decl -> void $ runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= flip renameDecl decl >>= withGlobals . elabDecl)
+          Command.Decl decl -> void $ runSubgraph (asks @(ModuleGraph (Term Core) Void) (fmap unScopeT . unModuleGraph) >>= flip renameDecl decl >>= withGlobals . elabDecl)
           Eval tm -> elaborate tm >>= gets . flip whnf . unSpanned >>= print . pretty
           ShowModules -> do
-            ms <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Map.toList . unModuleGraph)
+            ms <- gets @(ModuleGraph (Term Core) Void) (Map.toList . unModuleGraph)
             unless (Prelude.null ms) $ print (tabulate2 space (map (fmap (parens . pretty . modulePath . unScopeT)) ms))
           Reload -> reload
           Command.Import i -> modify (Set.insert (unSpanned i))
           Command.Doc moduleName -> do
             m <- get >>= lookupModule moduleName
-            case moduleDocs (unScopeT (m :: ScopeT Qualified Module (Term (Problem :+: Core)) Void)) of
+            case moduleDocs (unScopeT (m :: ScopeT Qualified Module (Term Core) Void)) of
               Just d  -> print (pretty d)
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
         reload = do
           sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateTEither (either pure absurd))) . loadOrder
-          checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term (Problem :+: Core)) Void)) (zip [(1 :: Int)..] sorted)
+          checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term Core) Void)) (zip [(1 :: Int)..] sorted)
           put checked
         load n graph (i, m) = skipDeps graph m $ do
           let name    = moduleName m
@@ -165,28 +164,29 @@ script packageSources
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
 elaborate :: ( Carrier sig m
+             , Effect sig
              , Member (Error Doc) sig
-             , Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig
+             , Member (State (ModuleGraph (Term Core) Void)) sig
              , Member (State (Set.Set ModuleName)) sig
              )
           => Spanned (Term Surface.Surface User)
-          -> m (Spanned (Term (Problem :+: Core) Qualified))
+          -> m (Spanned (Term Core Qualified))
 elaborate = runSpanned $ \ tm -> fmap (var absurdFin id) <$> do
   let ty = meta type'
-  runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= withGlobals . goalIs ty . elab VZ . fmap F)
+  runSubgraph (asks @(ModuleGraph (Term Core) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= withGlobals . goalIs ty . elab VZ . fmap F >>= solve)
 
 -- | Evaluate a term to weak head normal form.
 --
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
-whnf :: ModuleGraph (Term (Problem :+: Core)) Void -> Term (Problem :+: Core) Qualified -> Term (Problem :+: Core) Qualified
+whnf :: ModuleGraph (Term Core) Void -> Term Core Qualified -> Term Core Qualified
 whnf graph = go where
-  go (Term (R (Var n :$ a))) = maybe (Var n $$ a) (go . ($$ a) . unSpanned . declTerm) (Module.lookup n graph)
-  go v                       = v
+  go (Term (Var n :$ a)) = maybe (Var n $$ a) (go . ($$ a) . unSpanned . declTerm) (Module.lookup n graph)
+  go v                   = v
 
-runSubgraph :: (Carrier sig m, Member (State (ModuleGraph (Term (Problem :+: Core)) Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph (Term (Problem :+: Core)) Void) m a -> m a
+runSubgraph :: (Carrier sig m, Member (State (ModuleGraph (Term Core) Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph (Term Core) Void) m a -> m a
 runSubgraph m = do
   imported <- get
-  subgraph <- gets @(ModuleGraph (Term (Problem :+: Core)) Void) (Module.restrict imported)
+  subgraph <- gets @(ModuleGraph (Term Core) Void) (Module.restrict imported)
   runReader subgraph m
 
 basePackage :: Package
