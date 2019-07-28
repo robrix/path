@@ -31,9 +31,6 @@ matchM f x = either B (F . pure) <$> f x
 matchMaybe :: (b -> Maybe a) -> (b -> Either a b)
 matchMaybe f a = maybe (Right a) Left (f a)
 
-fromIncr :: (a -> b) -> Var a b -> b
-fromIncr a = incr a id
-
 incr :: (a -> c) -> (b -> c) -> Var a b -> c
 incr z s = \case { B a -> z a ; F b -> s b }
 
