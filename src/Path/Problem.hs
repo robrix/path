@@ -20,7 +20,9 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = prettyTerm (foldSum prettyProblem prettyCore)
+  pretty = prettyTerm (\ go -> \case
+    L p -> prettyProblem go p
+    R c -> prettyCore    go c)
 
 prettyTerm
   :: forall a syntax . (Pretty a, RightModule syntax)
@@ -44,14 +46,6 @@ withPrec i = local (const (P i))
 binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Doc) -> m Doc) -> (N -> Doc) -> Scope a f (m Doc) -> m (N, Doc)
 binding go pretty m = bindN $ \ n ->
   (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m)
-
-foldSum
-  :: ((f a -> a) ->  l        f a -> a)
-  -> ((f a -> a) ->        r  f a -> a)
-  -> ((f a -> a) -> (l :+: r) f a -> a)
-foldSum f g go = \case
-  L l -> f go l
-  R r -> g go r
 
 prettyCore :: (Carrier sig m, Member (Reader N) sig, Member (Reader P) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Doc) -> m Doc) -> Core f (m Doc) -> m Doc
 prettyCore go = \case
