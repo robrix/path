@@ -1,9 +1,14 @@
-{-# LANGUAGE DeriveTraversable, FlexibleInstances, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, UndecidableInstances #-}
+{-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, UndecidableInstances #-}
 module Path.Term where
 
 import Control.Effect.Carrier
+import Control.Effect.Reader
+import Control.Effect.Writer
 import Control.Monad (ap)
 import Control.Monad.Module
+import qualified Data.Set as Set
+import Path.Name
+import Path.Pretty
 
 data Term sig a
   = Var a
@@ -39,3 +44,15 @@ instance RightModule sig => Monad (Term sig) where
 
 instance RightModule sig => Carrier sig (Term sig) where
   eff = Term
+
+
+prettyTerm
+  :: forall a syntax . (Pretty a, RightModule syntax)
+  => (forall f sig m . (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> syntax f (m Prec) -> m Prec)
+  -> Term syntax a
+  -> Doc
+prettyTerm alg = precDoc . snd . run . runWriter @(Set.Set N) . runReader (N 0) . go . fmap (pure . atom . pretty)
+  where go :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig) => Term syntax (m Prec) -> m Prec
+        go = \case
+          Var v -> v
+          Term t -> alg go t
