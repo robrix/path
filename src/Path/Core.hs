@@ -3,10 +3,13 @@ module Path.Core where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
+import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.Writer
 import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Name
+import           Path.Pretty
 import           Path.Scope
 import           Path.Syntax
 import           Path.Term
@@ -73,6 +76,29 @@ unpi _ _                                 = empty
 generalizeType :: Ord n => Term Core (Name n) -> Term Core Qualified
 generalizeType ty = name undefined id <$> uncurry pis (traverse (traverse f) ty)
   where f name = (Set.singleton (Local name ::: type'), name)
+
+
+prettyCore :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> Core f (m Prec) -> m Prec
+prettyCore go = \case
+  Lam b -> do
+    (n, b') <- binding go pretty b
+    pure (prec 0 (pretty (cyan backslash) <+> pretty n </> cyan dot <+> withPrec 0 b'))
+  f :$ a -> do
+    f' <- withPrec 10 <$> go f
+    a' <- withPrec 11 <$> go a
+    pure (prec 10 (f' <+> a'))
+  Let v b -> do
+    v' <- withPrec 0 <$> go v
+    (n, b') <- binding go prettyMeta b
+    pure (prec 0 (magenta (pretty "let") <+> pretty (n := v') </> magenta dot <+> withPrec 0 b'))
+  Type -> pure (atom (yellow (pretty "Type")))
+  Pi t b -> do
+    t' <- withPrec 1 <$> go t
+    (fvs, (n, b')) <- listen (binding go pretty b)
+    let t'' | n `Set.member` fvs = parens (pretty (n ::: t'))
+            | otherwise          = t'
+    pure (prec 0 (t'' </> arrow <+> withPrec 0 b'))
+  where arrow = blue (pretty "→")
 
 
 -- $setup
