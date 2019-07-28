@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, ScopedTypeVariables, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
 import Control.Effect.Carrier
@@ -81,21 +81,19 @@ meta
 meta ty = pure (Term (L (Ex ty (toScopeFin (pure (B FZ))))))
 
 
-elab :: ( Carrier sig m
-        , Member (Error Doc) sig
-        , Member (Reader Globals) sig
-        , Member (Reader Excerpt) sig
-        )
-     => Term Surface.Surface Qualified
-     -> m (Term (Problem :+: Core) (Var (Fin 'Z) Qualified) ::: Term (Problem :+: Core) (Var (Fin 'Z) Qualified))
+elab
+  :: forall sig m
+  .  ( Carrier sig m
+     , Member (Error Doc) sig
+     , Member (Reader Globals) sig
+     , Member (Reader Excerpt) sig
+     )
+  => Term Surface.Surface Qualified
+  -> m (Term (Problem :+: Core) (Var (Fin 'Z) Qualified) ::: Term (Problem :+: Core) (Var (Fin 'Z) Qualified))
 elab = go VZ . fmap F
   where go
-          :: ( Carrier sig m
-             , Member (Error Doc) sig
-             , Member (Reader Globals) sig
-             , Member (Reader Excerpt) sig
-             )
-          => Vec n (Term (Problem :+: Core) (Var (Fin n) Qualified))
+          :: forall n
+          .  Vec n (Term (Problem :+: Core) (Var (Fin n) Qualified))
           -> Term Surface.Surface (Var (Fin n) Qualified)
           -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
         go ctx = \case
