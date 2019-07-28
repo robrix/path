@@ -94,7 +94,7 @@ elab ctx = \case
     Var (B n) -> pure (pure (B n) ::: ctx ! n)
     Var (F n) -> assume n
     Term t -> case t of
-      Surface.Lam _ b -> intro (\ t -> spanIs (elab (VS t (fmap (first FS) <$> ctx)) . fromScopeFin <$> b))
+      Surface.Lam _ b -> intro (\ t -> elab' (VS t (fmap (first FS) <$> ctx)) (fromScopeFin <$> b))
       f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
       Surface.Type -> pure (type' ::: type')
       Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (VS t' (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
