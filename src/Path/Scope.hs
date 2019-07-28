@@ -29,6 +29,9 @@ instance Monad (Var a) where
   B e >>= _ = B e
   F a >>= f = f a
 
+incr :: (a -> c) -> (b -> c) -> Var a b -> c
+incr z s = \case { B a -> z a ; F b -> s b }
+
 match :: Applicative f => (b -> Either a c) -> b -> Var a (f c)
 match f x = either B (F . pure) (f x)
 
@@ -37,9 +40,6 @@ matchM f x = either B (F . pure) <$> f x
 
 matchMaybe :: (b -> Maybe a) -> (b -> Either a b)
 matchMaybe f a = maybe (Right a) Left (f a)
-
-incr :: (a -> c) -> (b -> c) -> Var a b -> c
-incr z s = \case { B a -> z a ; F b -> s b }
 
 
 data Nat = Z | S Nat
