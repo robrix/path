@@ -45,7 +45,12 @@ binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) si
 binding go pretty m = bindN $ \ n ->
   (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m)
 
-prettySum :: ((f (m Doc) -> m Doc) -> l f (m Doc) -> m Doc) -> ((f (m Doc) -> m Doc) -> r f (m Doc) -> m Doc) -> (f (m Doc) -> m Doc) -> (l :+: r) f (m Doc) -> m Doc
+prettySum
+  :: ((f (m Doc) -> m Doc) -> l f (m Doc) -> m Doc)
+  -> ((f (m Doc) -> m Doc) -> r f (m Doc) -> m Doc)
+  -> (f (m Doc) -> m Doc)
+  -> (l :+: r) f (m Doc)
+  -> m Doc
 prettySum f g go = \case
   L l -> f go l
   R r -> g go r
