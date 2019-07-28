@@ -45,9 +45,8 @@ prettyMeta :: Pretty a => a -> Doc
 prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
 
 binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Doc) -> m Doc) -> (N -> Doc) -> Scope a f (m Doc) -> m (N, Doc)
-binding go pretty m = do
-  n <- ask @N
-  (,) n <$> local @N succ (go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m))
+binding go pretty m = bindN $ \ n ->
+  (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m)
 
 prettySum :: ((f (m Doc) -> m Doc) -> l f (m Doc) -> m Doc) -> ((f (m Doc) -> m Doc) -> r f (m Doc) -> m Doc) -> (f (m Doc) -> m Doc) -> (l :+: r) f (m Doc) -> m Doc
 prettySum f g go = \case
