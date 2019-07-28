@@ -10,23 +10,23 @@ import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
 
-data Var a b = Z a | S b
+data Var a b = B a | F b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
 instance Applicative (Var a) where
-  pure = S
-  Z e <*> _ = Z e
-  S f <*> a = f <$> a
+  pure = F
+  B e <*> _ = B e
+  F f <*> a = f <$> a
 
 instance Monad (Var a) where
-  Z e >>= _ = Z e
-  S a >>= f = f a
+  B e >>= _ = B e
+  F a >>= f = f a
 
 match :: Applicative f => (b -> Either a c) -> b -> Var a (f c)
-match f x = either Z (S . pure) (f x)
+match f x = either B (F . pure) (f x)
 
 matchM :: (Applicative f, Functor m) => (b -> m (Either a c)) -> b -> m (Var a (f c))
-matchM f x = either Z (S . pure) <$> f x
+matchM f x = either B (F . pure) <$> f x
 
 matchMaybe :: (b -> Maybe a) -> (b -> Either a b)
 matchMaybe f a = maybe (Right a) Left (f a)
@@ -35,7 +35,7 @@ fromIncr :: (a -> b) -> Var a b -> b
 fromIncr a = incr a id
 
 incr :: (a -> c) -> (b -> c) -> Var a b -> c
-incr z s = \case { Z a -> z a ; S b -> s b }
+incr z s = \case { B a -> z a ; F b -> s b }
 
 
 newtype Scope a f b = Scope (f (Var a (f b)))
@@ -54,17 +54,17 @@ instance (Monad f, Ord a, Ord b, forall a . Eq  a => Eq  (f a)
 deriving instance (Show a, Show b, forall a . Show a => Show (f a)) => Show (Scope a f b)
 
 instance Applicative f => Applicative (Scope a f) where
-  pure = Scope . pure . S . pure
+  pure = Scope . pure . F . pure
   Scope f <*> Scope a = Scope (liftA2 (liftA2 (<*>)) f a)
 
 instance Monad f => Monad (Scope a f) where
-  Scope e >>= f = Scope (e >>= incr (pure . Z) (>>= unScope . f))
+  Scope e >>= f = Scope (e >>= incr (pure . B) (>>= unScope . f))
 
 instance RightModule (Scope a) where
   Scope m >>=* f = Scope (fmap (>>= f) <$> m)
 
 instance MonadTrans (Scope a) where
-  lift = Scope . pure . S
+  lift = Scope . pure . F
 
 instance HFunctor (Scope a) where
   hmap f = Scope . f . fmap (fmap f) . unScope
@@ -118,17 +118,17 @@ deriving instance (Show a, Show b, forall a . Show a => Show (t f a)
                                  , forall a . Show a => Show (f a)) => Show (ScopeT a t f b)
 
 instance (Applicative (t f), Applicative f) => Applicative (ScopeT a t f) where
-  pure = ScopeT . pure . S . pure
+  pure = ScopeT . pure . F . pure
   ScopeT f <*> ScopeT a = ScopeT (liftA2 (liftA2 (<*>)) f a)
 
 instance (Monad (t f), MonadTrans t, Monad f) => Monad (ScopeT a t f) where
-  ScopeT e >>= f = ScopeT (e >>= incr (pure . Z) ((>>= unScopeT . f) . lift))
+  ScopeT e >>= f = ScopeT (e >>= incr (pure . B) ((>>= unScopeT . f) . lift))
 
 instance (HFunctor t, forall g . Functor g => Functor (t g)) => RightModule (ScopeT b t) where
   ScopeT s >>=* k = ScopeT (fmap (>>= k) <$> s)
 
 instance MonadTrans f => MonadTrans (ScopeT a f) where
-  lift = ScopeT . lift . pure . S
+  lift = ScopeT . lift . pure . F
 
 instance (HFunctor t, forall g . Functor g => Functor (t g)) => HFunctor (ScopeT a t) where
   hmap f = ScopeT . hmap f . fmap (fmap f) . unScopeT
