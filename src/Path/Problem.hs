@@ -20,11 +20,18 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty (Term (Problem :+: Core) Qualified) where
-  pretty = snd . run . runWriter @(Set.Set N) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty)
-    where go = \case
-            Var v -> v
-            Term (R c) -> prettyCore go c
-            Term (L p) -> prettyProblem go p
+  pretty = prettyTerm (prettySum prettyProblem prettyCore)
+
+prettyTerm
+  :: forall a syntax . (Pretty a, RightModule syntax)
+  => (forall f sig m . (Carrier sig m, Member (Reader N) sig, Member (Reader P) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Doc) -> m Doc) -> syntax f (m Doc) -> m Doc)
+  -> Term syntax a
+  -> Doc
+prettyTerm alg = snd . run . runWriter @(Set.Set N) . runReader (P 0) . runReader (N 0) . go . fmap (pure . pretty)
+  where go :: (Carrier sig m, Member (Reader N) sig, Member (Reader P) sig, Member (Writer (Set.Set N)) sig) => Term syntax (m Doc) -> m Doc
+        go = \case
+          Var v -> v
+          Term t -> alg go t
 
 prec :: (Carrier sig m, Member (Reader P) sig) => Int -> Doc -> m Doc
 prec d' doc = do
@@ -41,6 +48,11 @@ binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) si
 binding go pretty m = do
   n <- ask @N
   (,) n <$> local @N succ (go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m))
+
+prettySum :: ((f (m Doc) -> m Doc) -> l f (m Doc) -> m Doc) -> ((f (m Doc) -> m Doc) -> r f (m Doc) -> m Doc) -> (f (m Doc) -> m Doc) -> (l :+: r) f (m Doc) -> m Doc
+prettySum f g go = \case
+  L l -> f go l
+  R r -> g go r
 
 prettyCore :: (Carrier sig m, Member (Reader N) sig, Member (Reader P) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Doc) -> m Doc) -> Core f (m Doc) -> m Doc
 prettyCore go = \case
