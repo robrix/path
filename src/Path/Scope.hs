@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, DeriveGeneric, DeriveTraversable, FlexibleInstances, GADTs, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
+{-# LANGUAGE DataKinds, DeriveGeneric, DeriveTraversable, EmptyCase, FlexibleInstances, GADTs, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
 module Path.Scope where
 
 import Control.Applicative (liftA2)
@@ -51,6 +51,9 @@ data Fin n where
 deriving instance Eq   (Fin n)
 deriving instance Ord  (Fin n)
 deriving instance Show (Fin n)
+
+absurdFin :: Fin 'Z -> a
+absurdFin v = case v of {}
 
 
 newtype Scope a f b = Scope (f (Var a (f b)))
