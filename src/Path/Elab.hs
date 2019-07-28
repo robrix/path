@@ -99,7 +99,8 @@ elab = go VZ . fmap F
           -> Term Surface.Surface (Var (Fin n) Qualified)
           -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
         go ctx = \case
-          Var v -> var (\ n -> pure (pure (B n) ::: ctx ! n)) assume v
+          Var (B n) -> pure (pure (B n) ::: ctx ! n)
+          Var (F n) -> assume n
           Term t -> case t of
             Surface.Lam _ b -> intro (\ t -> spanIs (go (VS t (fmap (first FS) <$> ctx)) . fromScopeFin <$> b))
             f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
