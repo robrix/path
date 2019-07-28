@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
+{-# LANGUAGE DataKinds, DeriveGeneric, DeriveTraversable, FlexibleInstances, GADTs, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, StandaloneDeriving #-}
 module Path.Scope where
 
 import Control.Applicative (liftA2)
@@ -43,6 +43,14 @@ incr z s = \case { B a -> z a ; F b -> s b }
 
 data Nat = Z | S Nat
   deriving (Eq, Ord, Show)
+
+data Fin n where
+  FZ :: Fin ('S n)
+  FS :: Fin n -> Fin ('S n)
+
+deriving instance Eq   (Fin n)
+deriving instance Ord  (Fin n)
+deriving instance Show (Fin n)
 
 
 newtype Scope a f b = Scope (f (Var a (f b)))
