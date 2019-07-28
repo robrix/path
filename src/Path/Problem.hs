@@ -20,7 +20,7 @@ newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
 instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = prettyTerm (prettySum prettyProblem prettyCore)
+  pretty = prettyTerm (foldSum prettyProblem prettyCore)
 
 prettyTerm
   :: forall a syntax . (Pretty a, RightModule syntax)
@@ -45,13 +45,13 @@ binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) si
 binding go pretty m = bindN $ \ n ->
   (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m)
 
-prettySum
+foldSum
   :: ((f a -> a) -> l f a -> a)
   -> ((f a -> a) -> r f a -> a)
   -> (f a -> a)
   -> (l :+: r) f a
   -> a
-prettySum f g go = \case
+foldSum f g go = \case
   L l -> f go l
   R r -> g go r
 
