@@ -55,6 +55,10 @@ deriving instance Show (Fin n)
 absurdFin :: Fin 'Z -> a
 absurdFin v = case v of {}
 
+finToInt :: Fin n -> Int
+finToInt FZ     = 0
+finToInt (FS n) = 1 + finToInt n
+
 
 newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
