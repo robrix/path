@@ -3,11 +3,13 @@ module Path.Name where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Reader hiding (Local)
+import           Control.Effect.Writer
 import           Control.Monad.Fail
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Data.Validation
 import           Path.Pretty
+import           Path.Scope
 import           Path.Stack
 import           Prelude hiding (fail)
 
@@ -21,6 +23,11 @@ bindN :: (Carrier sig m, Member (Reader N) sig) => (N -> m a) -> m a
 bindN f = do
   n <- ask
   local @N succ (f n)
+
+binding :: (Carrier sig m, Member (Reader N) sig, Member (Writer (Set.Set N)) sig, Monad f) => (f (m Prec) -> m Prec) -> (N -> Doc) -> Scope a f (m Prec) -> m (N, Prec)
+binding go pretty m = bindN $ \ n ->
+  (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (atom (pretty n)))) m)
+
 
 
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
