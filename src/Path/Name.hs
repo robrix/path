@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, TypeApplications #-}
 module Path.Name where
 
-import           Control.Effect.Reader hiding (Local)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Path.Pretty
@@ -12,11 +11,6 @@ newtype N = N { unN :: Int }
 
 instance Pretty N where
   pretty (N i) = prettyVar i
-
-bindN :: (Carrier sig m, Member (Reader N) sig) => (N -> m a) -> m a
-bindN f = do
-  n <- ask
-  local @N succ (f n)
 
 
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
