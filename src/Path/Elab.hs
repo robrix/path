@@ -113,7 +113,7 @@ elabDecl (Decl name d tm ty) = do
   moduleName <- ask
   tm' <- runSpanned (fmap strengthen . local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (F <$> unSpanned ty') . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
-  where strengthen :: Term (Problem :+: Core) (Var (Fin 'Z) Qualified) -> Term (Problem :+: Core) Qualified
+  where strengthen :: Term (Problem :+: Core) (Var (Fin 'Z) a) -> Term (Problem :+: Core) a
         strengthen = fmap (var absurdFin id)
 
 elabModule :: ( Carrier sig m
