@@ -19,7 +19,7 @@ import           Prelude hiding (pi)
 newtype P = P { unP :: Int }
   deriving (Eq, Ord, Show)
 
-instance Pretty (Term (Problem :+: Core) Qualified) where
+instance Pretty a => Pretty (Term (Problem :+: Core) a) where
   pretty = prettyTerm (prettySum prettyProblem prettyCore)
 
 prettyTerm
