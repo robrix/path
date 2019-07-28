@@ -114,8 +114,16 @@ instantiateEither f = unScope >=> incr (f . Left) (>>= f . Right)
 fromScope :: Monad f => Scope a f b -> f (Var a b)
 fromScope = unScope >=> sequenceA
 
+fromScopeFin :: Monad f => Scope () f (Var (Fin n) b) -> f (Var (Fin ('S n)) b)
+fromScopeFin = unScope >=> incr (const (pure (B FZ))) (fmap (first FS))
+
 toScope :: Applicative f => f (Var a b) -> Scope a f b
 toScope = Scope . fmap (fmap pure)
+
+toScopeFin :: Applicative f => f (Var (Fin ('S n)) b) -> Scope () f (Var (Fin n) b)
+toScopeFin = Scope . fmap (match (incr (\case
+  FZ -> Left ()
+  FS n -> Right (B n)) (Right . F)))
 
 
 -- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
