@@ -89,6 +89,10 @@ data Vec n a where
   VZ :: Vec 'Z a
   VS :: a -> Vec n a -> Vec ('S n) a
 
+deriving instance Eq   a => Eq   (Vec n a)
+deriving instance Ord  a => Ord  (Vec n a)
+deriving instance Show a => Show (Vec n a)
+
 (!) :: Vec n a -> Fin n -> a
 VS h _ ! FZ   = h
 VS _ t ! FS n = t ! n
