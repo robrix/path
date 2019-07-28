@@ -43,6 +43,21 @@ instance RightModule sig => Carrier sig (Term sig) where
   eff = Term
 
 
+hoistTerm
+  :: forall sig sig' a
+  .  ( HFunctor sig
+     , forall g . Functor g => Functor (sig g)
+     )
+  => (forall m x . sig m x -> sig' m x)
+  -> Term sig a
+  -> Term sig' a
+hoistTerm f = go
+  where go :: Term sig x -> Term sig' x
+        go = \case
+          Var v  -> Var v
+          Term t -> Term (f (hmap go t))
+
+
 prettyTerm
   :: forall sig a
   .  (forall g . Foldable g => Foldable (sig g), Pretty a, RightModule sig)
