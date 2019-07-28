@@ -29,8 +29,8 @@ instance Monad (Var a) where
   B e >>= _ = B e
   F a >>= f = f a
 
-incr :: (a -> c) -> (b -> c) -> Var a b -> c
-incr z s = \case { B a -> z a ; F b -> s b }
+var :: (a -> c) -> (b -> c) -> Var a b -> c
+var z s = \case { B a -> z a ; F b -> s b }
 
 match :: Applicative f => (b -> Either a c) -> b -> Var a (f c)
 match f x = either B (F . pure) (f x)
@@ -84,7 +84,7 @@ instance Applicative f => Applicative (Scope a f) where
   Scope f <*> Scope a = Scope (liftA2 (liftA2 (<*>)) f a)
 
 instance Monad f => Monad (Scope a f) where
-  Scope e >>= f = Scope (e >>= incr (pure . B) (>>= unScope . f))
+  Scope e >>= f = Scope (e >>= var (pure . B) (>>= unScope . f))
 
 instance RightModule (Scope a) where
   Scope m >>=* f = Scope (fmap (>>= f) <$> m)
@@ -117,19 +117,19 @@ instantiate :: Monad f => (a -> f b) -> Scope a f b -> f b
 instantiate f = instantiateEither (either f pure)
 
 instantiateEither :: Monad f => (Either a b -> f c) -> Scope a f b -> f c
-instantiateEither f = unScope >=> incr (f . Left) (>>= f . Right)
+instantiateEither f = unScope >=> var (f . Left) (>>= f . Right)
 
 fromScope :: Monad f => Scope a f b -> f (Var a b)
 fromScope = unScope >=> sequenceA
 
 fromScopeFin :: Monad f => Scope () f (Var (Fin n) b) -> f (Var (Fin ('S n)) b)
-fromScopeFin = unScope >=> incr (const (pure (B FZ))) (fmap (first FS))
+fromScopeFin = unScope >=> var (const (pure (B FZ))) (fmap (first FS))
 
 toScope :: Applicative f => f (Var a b) -> Scope a f b
 toScope = Scope . fmap (fmap pure)
 
 toScopeFin :: Applicative f => f (Var (Fin ('S n)) b) -> Scope () f (Var (Fin n) b)
-toScopeFin = Scope . fmap (match (incr (\case
+toScopeFin = Scope . fmap (match (var (\case
   FZ -> Left ()
   FS n -> Right (B n)) (Right . F)))
 
@@ -156,7 +156,7 @@ instance (Applicative (t f), Applicative f) => Applicative (ScopeT a t f) where
   ScopeT f <*> ScopeT a = ScopeT (liftA2 (liftA2 (<*>)) f a)
 
 instance (Monad (t f), MonadTrans t, Monad f) => Monad (ScopeT a t f) where
-  ScopeT e >>= f = ScopeT (e >>= incr (pure . B) ((>>= unScopeT . f) . lift))
+  ScopeT e >>= f = ScopeT (e >>= var (pure . B) ((>>= unScopeT . f) . lift))
 
 instance (HFunctor t, forall g . Functor g => Functor (t g)) => RightModule (ScopeT b t) where
   ScopeT s >>=* k = ScopeT (fmap (>>= k) <$> s)
@@ -186,7 +186,7 @@ instantiateT :: (RightModule t, Monad f) => (a -> f b) -> ScopeT a t f b -> t f 
 instantiateT f = instantiateTEither (either f pure)
 
 instantiateTEither :: (RightModule t, Monad f) => (Either a b -> f c) -> ScopeT a t f b -> t f c
-instantiateTEither f = unScopeT >=>* incr (f . Left) (>>= f . Right)
+instantiateTEither f = unScopeT >=>* var (f . Left) (>>= f . Right)
 
 fromScopeT :: (RightModule t, Monad f) => ScopeT a t f b -> t f (Var a b)
 fromScopeT = unScopeT >=>* sequenceA
