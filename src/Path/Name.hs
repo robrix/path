@@ -81,9 +81,6 @@ name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
 name _     global (Global n) = global n
 
-global :: Applicative m => Qualified -> m (Name a)
-global = pure . Global
-
 
 close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
 close = traverse (name (const empty) pure)
