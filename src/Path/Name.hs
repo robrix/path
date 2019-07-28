@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, LambdaCase, TypeApplications #-}
 module Path.Name where
 
-import           Control.Applicative (Alternative (..))
 import           Control.Effect.Reader hiding (Local)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
@@ -78,10 +77,6 @@ instance Pretty a => Pretty (Name a) where
 name :: (a -> b) -> (Qualified -> b) -> Name a -> b
 name local _      (Local  n) = local n
 name _     global (Global n) = global n
-
-
-close :: (Alternative m, Traversable t) => t (Name a) -> m (t Qualified)
-close = traverse (name (const empty) pure)
 
 
 weaken :: Functor f => f Qualified -> f (Name a)
