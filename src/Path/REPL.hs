@@ -19,7 +19,6 @@ import Data.Void
 import GHC.Generics (Generic1)
 import Path.Core
 import Path.Elab
-import Path.Error
 import Path.Module as Module
 import Path.Name
 import Path.Package
@@ -172,10 +171,9 @@ elaborate :: ( Carrier sig m
              )
           => Spanned (Term Surface.Surface User)
           -> m (Spanned (Term (Problem :+: Core) Qualified))
-elaborate = runSpanned $ \ tm -> runReader (N 0) $ do
+elaborate = runSpanned $ \ tm -> fmap (var absurdFin id) <$> do
   ty <- meta type'
-  tm' <- runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
-  either freeVariables pure (strengthen tm')
+  runSubgraph (asks @(ModuleGraph (Term (Problem :+: Core)) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= inContext . goalIs ty . elab)
 
 -- | Evaluate a term to weak head normal form.
 --

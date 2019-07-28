@@ -1,11 +1,12 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Reader hiding (Local)
 import Control.Effect.Writer
-import Control.Monad ((<=<), foldM)
+import Control.Monad (foldM)
+import Data.Bifunctor (Bifunctor (..))
 import Data.Foldable (foldl')
 import qualified Data.Map as Map
 import Data.Void
@@ -30,83 +31,81 @@ assume :: ( Carrier sig m
           , Member (Reader Excerpt) sig
           )
        => Qualified
-       -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-assume v = asks (Stack.find ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (Global v) :::) . fmap (Global @N) . typedType)
+       -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
+assume v = asks (Stack.find ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (F v) :::) . fmap F . typedType)
 
-intro :: ( Carrier sig m
-         , Member (Reader N) sig
-         )
-      => (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N) -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N)))
-      -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+intro :: Carrier sig m
+      => (Term (Problem :+: Core) (Var (Fin ('S n)) a) -> m (Term (Problem :+: Core) (Var (Fin ('S n)) a) ::: Term (Problem :+: Core) (Var (Fin ('S n)) a)))
+      -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
 intro body = do
   _A <- meta type'
   _B <- meta type'
-  bindN $ \ x -> do
-    u <- goalIs _B (body (pure (Local x) ::: _A))
-    pure (lam (Local x) u ::: pi (Local x ::: _A) _B)
+  u <- goalIs _B (body (first FS <$> _A))
+  pure (send (Lam (toScopeFin u)) ::: send (Pi _A (toScopeFin _B)))
 
-(-->) :: ( Carrier sig m
-         , Member (Reader N) sig
-         )
-      => m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-      -> (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N) -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N)))
-      -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+(-->) :: Carrier sig m
+      => m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
+      -> (Term (Problem :+: Core) (Var (Fin ('S n)) a) -> m (Term (Problem :+: Core) (Var (Fin ('S n)) a) ::: Term (Problem :+: Core) (Var (Fin ('S n)) a)))
+      -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
 t --> body = do
   t' <- goalIs type' t
-  bindN $ \ x -> do
-    b' <- goalIs type' (body (pure (Local x) ::: t'))
-    pure (pi (Local x ::: t') b' ::: type')
+  b' <- goalIs type' (body (first FS <$> t'))
+  pure (send (Pi t' (toScopeFin b')) ::: type')
 
-app :: ( Carrier sig m
-       , Member (Reader N) sig
-       )
-    => m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-    -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-    -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
+app :: Carrier sig m
+    => m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
+    -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
+    -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
 app f a = do
   _A <- meta type'
-  x <- ask @N
   _B <- meta type'
-  let _F = pi (Local x ::: _A) _B
+  let _F = send (Pi _A (toScopeFin _B))
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' $$ a' ::: _F $$ a')
 
 
-goalIs :: ( Carrier sig m
-          , Member (Reader N) sig
-          )
-       => Term (Problem :+: Core) (Name N)
-       -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-       -> m (Term (Problem :+: Core) (Name N))
+goalIs :: Carrier sig m
+       => Term (Problem :+: Core) (Var (Fin n) a)
+       -> m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
+       -> m (Term (Problem :+: Core) (Var (Fin n) a))
 goalIs ty2 m = do
   tm1 ::: ty1 <- m
   tm2 <- meta (ty1 === ty2)
   pure (tm1 === tm2)
 
-meta :: (Carrier sig m, Member (Reader N) sig) => Term (Problem :+: Core) (Name N) -> m (Term (Problem :+: Core) (Name N))
-meta ty = do
-  n <- ask @N
-  pure (exists (Local n ::: ty) (pure (Local n)))
+meta
+  :: Monad m
+  => Term (Problem :+: Core) (Var (Fin n) a)
+  -> m (Term (Problem :+: Core) (Var (Fin n) a))
+meta ty = pure (Term (L (Ex ty (toScopeFin (pure (B FZ))))))
 
 
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
         , Member (Reader Globals) sig
-        , Member (Reader N) sig
         , Member (Reader Excerpt) sig
         )
      => Term Surface.Surface Qualified
-     -> m (Term (Problem :+: Core) (Name N) ::: Term (Problem :+: Core) (Name N))
-elab = go <=< traverse assume
-  where go = \case
-          Var v -> pure v
+     -> m (Term (Problem :+: Core) (Var (Fin 'Z) Qualified) ::: Term (Problem :+: Core) (Var (Fin 'Z) Qualified))
+elab = go VZ . fmap F
+  where go
+          :: ( Carrier sig m
+             , Member (Error Doc) sig
+             , Member (Reader Globals) sig
+             , Member (Reader Excerpt) sig
+             )
+          => Vec n (Term (Problem :+: Core) (Var (Fin n) Qualified))
+          -> Term Surface.Surface (Var (Fin n) Qualified)
+          -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
+        go ctx = \case
+          Var v -> var (\ n -> pure (pure (B n) ::: ctx ! n)) assume v
           Term t -> case t of
-            Surface.Lam _ b -> intro (\ t -> elab' (instantiate1 (pure t) <$> b))
-            f Surface.:$ (_ :< a) -> app (elab' f) (elab' a)
+            Surface.Lam _ b -> intro (\ t -> spanIs (go (VS t (fmap (first FS) <$> ctx)) . fromScopeFin <$> b))
+            f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
             Surface.Type -> pure (type' ::: type')
-            Surface.Pi (_ :< _ ::: t) b -> elab' t --> \ t' -> elab' (instantiate1 (pure t') <$> b)
-        elab' m = spanIs (go <$> m)
+            Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (VS t' (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
+        elab' ctx m = spanIs (go ctx <$> m)
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
@@ -115,13 +114,13 @@ elabDecl :: ( Carrier sig m
             )
          => Decl (Term Surface.Surface Qualified)
          -> m (Decl (Term (Problem :+: Core) Qualified))
-elabDecl (Decl name d tm ty) = runReader (N 0) $ do
-  ty' <- runSpanned (goalIs type' . elab) ty
-  ty'' <- runSpanned (either freeVariables pure . strengthen) ty'
+elabDecl (Decl name d tm ty) = do
+  ty' <- runSpanned (fmap strengthen . goalIs type' . elab) ty
   moduleName <- ask
-  tm' <- runSpanned (local (:> (moduleName :.: name) ::: unSpanned ty'') . goalIs (unSpanned ty') . elab) tm
-  tm'' <- runSpanned (either freeVariables pure . strengthen) tm'
-  pure (Decl name d tm'' ty'')
+  tm' <- runSpanned (fmap strengthen . local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (F <$> unSpanned ty') . elab) tm
+  pure (Decl name d tm' ty')
+  where strengthen :: Term (Problem :+: Core) (Var (Fin 'Z) Qualified) -> Term (Problem :+: Core) Qualified
+        strengthen = fmap (var absurdFin id)
 
 elabModule :: ( Carrier sig m
               , Member (Error Doc) sig
