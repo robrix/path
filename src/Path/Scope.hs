@@ -10,38 +10,38 @@ import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
 
-data Incr a b = Z a | S b
+data Var a b = Z a | S b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
-instance Applicative (Incr a) where
+instance Applicative (Var a) where
   pure = S
   Z e <*> _ = Z e
   S f <*> a = f <$> a
 
-instance Monad (Incr a) where
+instance Monad (Var a) where
   Z e >>= _ = Z e
   S a >>= f = f a
 
-match :: Applicative f => (b -> Either a c) -> b -> Incr a (f c)
+match :: Applicative f => (b -> Either a c) -> b -> Var a (f c)
 match f x = either Z (S . pure) (f x)
 
-matchM :: (Applicative f, Functor m) => (b -> m (Either a c)) -> b -> m (Incr a (f c))
+matchM :: (Applicative f, Functor m) => (b -> m (Either a c)) -> b -> m (Var a (f c))
 matchM f x = either Z (S . pure) <$> f x
 
 matchMaybe :: (b -> Maybe a) -> (b -> Either a b)
 matchMaybe f a = maybe (Right a) Left (f a)
 
-fromIncr :: (a -> b) -> Incr a b -> b
+fromIncr :: (a -> b) -> Var a b -> b
 fromIncr a = incr a id
 
-incr :: (a -> c) -> (b -> c) -> Incr a b -> c
+incr :: (a -> c) -> (b -> c) -> Var a b -> c
 incr z s = \case { Z a -> z a ; S b -> s b }
 
 
-newtype Scope a f b = Scope (f (Incr a (f b)))
+newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
 
-unScope :: Scope a f b -> f (Incr a (f b))
+unScope :: Scope a f b -> f (Var a (f b))
 unScope (Scope s) = s
 
 instance (Monad f, Eq  a, Eq  b, forall a . Eq  a => Eq  (f a)) => Eq  (Scope a f b) where
@@ -93,18 +93,18 @@ instantiate f = instantiateEither (either f pure)
 instantiateEither :: Monad f => (Either a b -> f c) -> Scope a f b -> f c
 instantiateEither f = unScope >=> incr (f . Left) (>>= f . Right)
 
-fromScope :: Monad f => Scope a f b -> f (Incr a b)
+fromScope :: Monad f => Scope a f b -> f (Var a b)
 fromScope = unScope >=> sequenceA
 
-toScope :: Applicative f => f (Incr a b) -> Scope a f b
+toScope :: Applicative f => f (Var a b) -> Scope a f b
 toScope = Scope . fmap (fmap pure)
 
 
 -- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
-newtype ScopeT a t f b = ScopeT (t f (Incr a (f b)))
+newtype ScopeT a t f b = ScopeT (t f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
 
-unScopeT :: ScopeT a t f b -> t f (Incr a (f b))
+unScopeT :: ScopeT a t f b -> t f (Var a (f b))
 unScopeT (ScopeT s) = s
 
 instance (RightModule t, Monad f, Eq  a, Eq  b, forall a . Eq  a => Eq  (t f a)) => Eq  (ScopeT a t f b) where
@@ -154,8 +154,8 @@ instantiateT f = instantiateTEither (either f pure)
 instantiateTEither :: (RightModule t, Monad f) => (Either a b -> f c) -> ScopeT a t f b -> t f c
 instantiateTEither f = unScopeT >=>* incr (f . Left) (>>= f . Right)
 
-fromScopeT :: (RightModule t, Monad f) => ScopeT a t f b -> t f (Incr a b)
+fromScopeT :: (RightModule t, Monad f) => ScopeT a t f b -> t f (Var a b)
 fromScopeT = unScopeT >=>* sequenceA
 
-toScopeT :: (Functor (t f), Applicative f) => t f (Incr a b) -> ScopeT a t f b
+toScopeT :: (Functor (t f), Applicative f) => t f (Var a b) -> ScopeT a t f b
 toScopeT = ScopeT . fmap (fmap pure)
