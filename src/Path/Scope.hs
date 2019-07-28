@@ -15,6 +15,11 @@ import Path.Pretty
 data Var a b = B a | F b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
 
+instance (Pretty b, Pretty f) => Pretty (Var b f) where
+  pretty = \case
+    B b -> pretty b
+    F f -> pretty f
+
 instance Bifunctor Var where
   bimap f g = \case
     B a -> B (f a)
