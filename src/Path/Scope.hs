@@ -102,6 +102,8 @@ VS h _ ! FZ   = h
 VS _ t ! FS n = t ! n
 VZ     ! n    = absurdFin n
 
+infixl 9 !
+
 
 newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
