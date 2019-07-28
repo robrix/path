@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, QuantifiedConstraints, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
 import Control.Effect.Carrier
@@ -113,7 +113,7 @@ elabDecl (Decl name d tm ty) = do
   moduleName <- ask
   tm' <- runSpanned (fmap strengthen . local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (F <$> unSpanned ty') . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
-  where strengthen :: Term (Problem :+: Core) (Var (Fin 'Z) a) -> Term (Problem :+: Core) a
+  where strengthen :: (forall g . Functor g => Functor (sig g)) => Term sig (Var (Fin 'Z) a) -> Term sig a
         strengthen = fmap (var absurdFin id)
 
 elabModule :: ( Carrier sig m
