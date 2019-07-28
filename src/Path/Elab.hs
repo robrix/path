@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, ScopedTypeVariables, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
 import Control.Effect.Carrier
@@ -82,29 +82,23 @@ meta ty = pure (Term (L (Ex ty (toScopeFin (pure (B FZ))))))
 
 
 elab
-  :: forall sig m
-  .  ( Carrier sig m
+  :: ( Carrier sig m
      , Member (Error Doc) sig
      , Member (Reader Globals) sig
      , Member (Reader Excerpt) sig
      )
-  => Term Surface.Surface Qualified
-  -> m (Term (Problem :+: Core) (Var (Fin 'Z) Qualified) ::: Term (Problem :+: Core) (Var (Fin 'Z) Qualified))
-elab = go VZ . fmap F
-  where go
-          :: forall n
-          .  Vec n (Term (Problem :+: Core) (Var (Fin n) Qualified))
-          -> Term Surface.Surface (Var (Fin n) Qualified)
-          -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
-        go ctx = \case
-          Var (B n) -> pure (pure (B n) ::: ctx ! n)
-          Var (F n) -> assume n
-          Term t -> case t of
-            Surface.Lam _ b -> intro (\ t -> spanIs (go (VS t (fmap (first FS) <$> ctx)) . fromScopeFin <$> b))
-            f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
-            Surface.Type -> pure (type' ::: type')
-            Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (VS t' (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
-        elab' ctx m = spanIs (go ctx <$> m)
+  => Vec n (Term (Problem :+: Core) (Var (Fin n) Qualified))
+  -> Term Surface.Surface (Var (Fin n) Qualified)
+  -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
+elab ctx = \case
+    Var (B n) -> pure (pure (B n) ::: ctx ! n)
+    Var (F n) -> assume n
+    Term t -> case t of
+      Surface.Lam _ b -> intro (\ t -> spanIs (elab (VS t (fmap (first FS) <$> ctx)) . fromScopeFin <$> b))
+      f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
+      Surface.Type -> pure (type' ::: type')
+      Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (VS t' (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
+  where elab' ctx m = spanIs (elab ctx <$> m)
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
@@ -114,9 +108,9 @@ elabDecl :: ( Carrier sig m
          => Decl (Term Surface.Surface Qualified)
          -> m (Decl (Term (Problem :+: Core) Qualified))
 elabDecl (Decl name d tm ty) = do
-  ty' <- runSpanned (fmap strengthen . goalIs type' . elab) ty
+  ty' <- runSpanned (fmap strengthen . goalIs type' . elab VZ . fmap F) ty
   moduleName <- ask
-  tm' <- runSpanned (fmap strengthen . local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (F <$> unSpanned ty') . elab) tm
+  tm' <- runSpanned (fmap strengthen . local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (F <$> unSpanned ty') . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
   where strengthen :: Term (Problem :+: Core) (Var (Fin 'Z) Qualified) -> Term (Problem :+: Core) Qualified
         strengthen = fmap (var absurdFin id)
