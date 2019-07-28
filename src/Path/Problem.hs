@@ -46,11 +46,9 @@ binding go pretty m = bindN $ \ n ->
   (,) n <$> go (instantiate1 (pure (tell (Set.singleton n) *> pure (pretty n))) m)
 
 foldSum
-  :: ((f a -> a) -> l f a -> a)
-  -> ((f a -> a) -> r f a -> a)
-  -> (f a -> a)
-  -> (l :+: r) f a
-  -> a
+  :: ((f a -> a) ->  l        f a -> a)
+  -> ((f a -> a) ->        r  f a -> a)
+  -> ((f a -> a) -> (l :+: r) f a -> a)
 foldSum f g go = \case
   L l -> f go l
   R r -> g go r
