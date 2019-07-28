@@ -4,7 +4,6 @@ module Path.Name where
 import           Control.Effect.Reader hiding (Local)
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
-import           Data.Validation
 import           Path.Pretty
 import           Path.Stack
 
@@ -81,9 +80,6 @@ name _     global (Global n) = global n
 
 weaken :: Functor f => f Qualified -> f (Name a)
 weaken = fmap Global
-
-strengthen :: Traversable t => t (Name n) -> Either (NonEmpty n) (t Qualified)
-strengthen = toEither . traverse (name (Failure . pure) Success)
 
 
 fvs :: (Foldable t, Ord a) => t a -> Set.Set a
