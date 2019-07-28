@@ -41,6 +41,10 @@ incr :: (a -> c) -> (b -> c) -> Var a b -> c
 incr z s = \case { B a -> z a ; F b -> s b }
 
 
+data Nat = Z | S Nat
+  deriving (Eq, Ord, Show)
+
+
 newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
 
