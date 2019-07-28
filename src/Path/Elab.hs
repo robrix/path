@@ -26,7 +26,7 @@ import Prelude hiding (pi)
 
 assume :: ( Carrier sig m
           , Member (Error Doc) sig
-          , Member (Reader Context) sig
+          , Member (Reader Globals) sig
           , Member (Reader Excerpt) sig
           )
        => Qualified
@@ -92,7 +92,7 @@ meta ty = do
 
 elab :: ( Carrier sig m
         , Member (Error Doc) sig
-        , Member (Reader Context) sig
+        , Member (Reader Globals) sig
         , Member (Reader N) sig
         , Member (Reader Excerpt) sig
         )
@@ -110,7 +110,7 @@ elab = go <=< traverse assume
 
 elabDecl :: ( Carrier sig m
             , Member (Error Doc) sig
-            , Member (Reader Context) sig
+            , Member (Reader Globals) sig
             , Member (Reader ModuleName) sig
             )
          => Decl (Term Surface.Surface Qualified)
@@ -142,11 +142,11 @@ elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term (Problem :+:
         unqualified (_ :.: u) = u
 
 inContext :: (Carrier sig m, Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig)
-          => ReaderC Context m a
+          => ReaderC Globals m a
           -> m a
 inContext m = do
   ctx <- asks @(ModuleGraph (Term (Problem :+: Core)) Void) toContext
-  runReader @Context ctx m
+  runReader @Globals ctx m
   where toContext g = foldl' definitions Nil (modules g)
         definitions ctx m = foldl' define ctx (moduleDecls m)
           where define ctx d = ctx :> (Global @N (moduleName m :.: declName d) ::: inst (declType d))
@@ -156,7 +156,7 @@ logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
 logError = tell . (Nil :>)
 
 
-type Context = Stack (Name N ::: Term (Problem :+: Core) (Name N))
+type Globals = Stack (Name N ::: Term (Problem :+: Core) (Name N))
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
