@@ -41,7 +41,7 @@ intro body = do
   _A <- meta type'
   _B <- meta type'
   u <- goalIs _B (body (first FS <$> _A))
-  pure (send (Lam (toScopeFin u)) ::: send (Pi _A (toScopeFin _B)))
+  pure (lamFin u ::: piFin _A _B)
 
 (-->) :: Carrier sig m
       => m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
@@ -50,7 +50,7 @@ intro body = do
 t --> body = do
   t' <- goalIs type' t
   b' <- goalIs type' (body (first FS <$> t'))
-  pure (send (Pi t' (toScopeFin b')) ::: type')
+  pure (piFin t' b' ::: type')
 
 app :: Carrier sig m
     => m (Term (Problem :+: Core) (Var (Fin n) a) ::: Term (Problem :+: Core) (Var (Fin n) a))
@@ -59,7 +59,7 @@ app :: Carrier sig m
 app f a = do
   _A <- meta type'
   _B <- meta type'
-  let _F = send (Pi _A (toScopeFin _B))
+  let _F = piFin _A _B
   f' <- goalIs _F f
   a' <- goalIs _A a
   pure (f' $$ a' ::: _F $$ a')

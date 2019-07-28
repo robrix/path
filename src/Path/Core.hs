@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
+{-# LANGUAGE DataKinds, DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
 module Path.Core where
 
 import           Control.Applicative (Alternative (..))
@@ -37,6 +37,9 @@ instance RightModule Core where
 lam :: (Eq a, Carrier sig m, Member Core sig) => a -> m a -> m a
 lam n b = send (Lam (bind1 n b))
 
+lamFin :: (Carrier sig m, Member Core sig) => m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+lamFin b = send (Lam (toScopeFin b))
+
 lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
@@ -61,6 +64,9 @@ type' = send Type
 
 pi :: (Eq a, Carrier sig m, Member Core sig) => a ::: m a -> m a -> m a
 pi (n ::: t) b = send (Pi t (bind1 n b))
+
+piFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+piFin t b = send (Pi t (toScopeFin b))
 
 -- | Wrap a type in a sequence of pi bindings.
 pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
