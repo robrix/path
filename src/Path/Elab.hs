@@ -110,9 +110,9 @@ elabDecl :: ( Carrier sig m
          => Decl (Term Surface.Surface Qualified)
          -> m (Decl (Term Core Qualified))
 elabDecl (Decl name d tm ty) = do
-  ty' <- runSpanned (fmap strengthen . solve <=< goalIs type' . elab VZ . fmap F) ty
+  ty' <- runSpanned (fmap strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
   moduleName <- ask
-  tm' <- runSpanned (fmap strengthen . solve <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
+  tm' <- runSpanned (fmap strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
 
 elabModule :: ( Carrier sig m
@@ -161,15 +161,16 @@ solve
      , Member (Reader Excerpt) sig
      , Pretty a
      )
-  => Term (Problem :+: Core) (Var (Fin n) a)
+  => Vec n Bool
+  -> Term (Problem :+: Core) (Var (Fin n) a)
   -> m (Term Core (Var (Fin n) a))
-solve = \case
+solve ctx = \case
   Var v -> pure (Var v)
   Term (L p) -> case p of
     Ex t b -> do
-      _ <- solve t
+      _ <- solve ctx t
       -- push the fact that this is a metavar
-      (soln, b') <- runState Nothing (solve (fromScopeFin b))
+      (soln, b') <- runState Nothing (solve (VS True ctx) (fromScopeFin b))
       case traverse (bitraverse strengthenFin Just) b' of
         Just b' -> pure b' -- the existential isn’t used, so there’s nothing to solve for
         -- check to see if we have a solution or not
@@ -177,23 +178,23 @@ solve = \case
           Just soln' -> pure (Term (Let soln' (toScopeFin b')))
           -- FIXME: float if necessary
           Nothing    -> throwError (pretty "no local solution")
-    Term (R (Lam    b1)) :===: Term (R (Lam    b2)) -> Term . Lam . toScopeFin <$> solve (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))
+    Term (R (Lam    b1)) :===: Term (R (Lam    b2)) -> Term . Lam . toScopeFin <$> solve (VS False ctx) (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))
     -- Term (R (f1 :$ a1))  :===: Term (R (f2 :$ a2))  -> _ -- FIXME: do some sort of unapplies thing and hereditary substitution to get to this point
-    Term (R (Let v1 b1)) :===: Term (R (Let v2 b2)) -> Term <$> (Let <$> solve (Term (L (v1 :===: v2))) <*> (toScopeFin <$> solve (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))))
-    Term (R (Pi  t1 b1)) :===: Term (R (Pi  t2 b2)) -> Term <$> (Pi <$> solve (Term (L (t1 :===: t2))) <*> (toScopeFin <$> solve (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))))
+    Term (R (Let v1 b1)) :===: Term (R (Let v2 b2)) -> Term <$> (Let <$> solve ctx (Term (L (v1 :===: v2))) <*> (toScopeFin <$> solve (VS False ctx) (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))))
+    Term (R (Pi  t1 b1)) :===: Term (R (Pi  t2 b2)) -> Term <$> (Pi <$> solve ctx (Term (L (t1 :===: t2))) <*> (toScopeFin <$> solve (VS False ctx) (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))))
     p1 :===: p2 -> do
-      p1' <- solve p1
-      p2' <- solve p2
+      p1' <- solve ctx p1
+      p2' <- solve ctx p2
       if p1' == p2' then
         pure p1'
       else
         unsolvableConstraint p1' p2'
   Term (R c) -> case c of
-    Lam   b -> Term <$> (Lam <$>             (toScopeFin <$> solve (fromScopeFin b)))
-    f :$ a  -> ($$) <$> solve f <*> solve a
-    Let v b -> Term <$> (Let <$> solve v <*> (toScopeFin <$> solve (fromScopeFin b)))
+    Lam   b -> Term <$> (Lam <$>                 (toScopeFin <$> solve (VS False ctx) (fromScopeFin b)))
+    f :$ a  -> ($$) <$> solve ctx f <*> solve ctx a
+    Let v b -> Term <$> (Let <$> solve ctx v <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b)))
     Type    -> pure type'
-    Pi  t b -> Term <$> (Pi  <$> solve t <*> (toScopeFin <$> solve (fromScopeFin b)))
+    Pi  t b -> Term <$> (Pi  <$> solve ctx t <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b)))
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String

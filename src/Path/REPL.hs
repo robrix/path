@@ -173,7 +173,7 @@ elaborate :: ( Carrier sig m
           -> m (Spanned (Term Core Qualified))
 elaborate = runSpanned $ \ tm -> fmap (var absurdFin id) <$> do
   let ty = meta type'
-  runSubgraph (asks @(ModuleGraph (Term Core) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= withGlobals . goalIs ty . elab VZ . fmap F >>= solve)
+  runSubgraph (asks @(ModuleGraph (Term Core) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= withGlobals . goalIs ty . elab VZ . fmap F >>= solve VZ)
 
 -- | Evaluate a term to weak head normal form.
 --
