@@ -1,3 +1,4 @@
+{-# LANGUAGE TypeApplications #-}
 module Path.CLI where
 
 import Control.Effect.Error (runError)
@@ -24,7 +25,7 @@ argumentsParser = info
 
 options :: Parser (IO ())
 options
-  =   flag' (either (putDoc . prettyNotice) repl =<<) (short 'i' <> long "interactive" <> help "run interactively")
+  =   flag' (either (prettyPrint @Notice) repl =<<) (short 'i' <> long "interactive" <> help "run interactively")
   <*> (pure . Right <$> some source <|> parsePackage <$> strOption (long "package-path" <> metavar "FILE" <> help "source file"))
   where parsePackage = fmap (fmap packageSources) . runM . runError . parseFile (whole Parser.package)
 

@@ -126,8 +126,8 @@ script packageSources
   . runReader (ModuleName "(interpreter)")
   . fmap (either id id)
   . runError @()
-  $ runError loop >>= either (print . prettyNotice) pure
-  where loop = (prompt "λ: " >>= parseCommand >>= maybe (pure ()) runCommand . join) `catchError` (print . prettyNotice) >> loop
+  $ runError loop >>= either (print . pretty @Notice) pure
+  where loop = (prompt "λ: " >>= parseCommand >>= maybe (pure ()) runCommand . join) `catchError` (print . pretty @Notice) >> loop
         parseCommand str = do
           l <- askLine
           traverse (parseString (whole command) (linePos l)) str
@@ -160,7 +160,7 @@ script packageSources
           if Prelude.null errs then
             pure (ModuleGraph (Map.insert name (bindTEither Left res) (unModuleGraph graph)))
           else do
-            for_ @Stack errs (print . prettyNotice)
+            for_ @Stack errs (print . pretty @Notice)
             pure graph
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
