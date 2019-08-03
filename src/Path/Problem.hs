@@ -63,9 +63,9 @@ prettyProblem go ctx = \case
     let t' = withPrec 1 (go ctx t)
         n  = prettyMeta (prettyVar (length ctx))
         b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
-    in prec 0 (magenta (pretty "∃") <+> pretty (n ::: t') </> magenta dot <+> b')
+    in prec 0 (group (vsep [magenta (pretty "∃") <+> pretty (n ::: t'), magenta dot <+> b']))
   p1 :===: p2 ->
     let p1' = withPrec 1 (go ctx p1)
         p2' = withPrec 1 (go ctx p2)
-    in prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (space <+> p1' </> eq' <+> p2')))
+    in prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (group (vsep [space <+> p1', eq' <+> p2']))))
   where eq' = magenta (pretty "≡")
