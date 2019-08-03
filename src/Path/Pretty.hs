@@ -5,7 +5,9 @@ module Path.Pretty
 , putDoc
 -- * Errors
 , Level(..)
+, prettyLevel
 , Notice(..)
+, prettyNotice
 -- * Combinators
 , prettyVar
 , prettyMeta
@@ -59,15 +61,15 @@ data Notice = Notice
   }
   deriving (Show)
 
-instance Pretty Notice where
-  pretty (Notice level (Excerpt path line span) reason context) = vsep
-    ( nest 2 (group (vsep [bold (pretty path) <> colon <> bold (pretty (succ (posLine (spanStart span)))) <> colon <> bold (pretty (succ (posColumn (spanStart span)))) <> colon <> maybe mempty ((space <>) . (<> colon) . prettyLevel) level, pretty reason]))
-    : blue (pretty (succ (posLine (spanStart span)))) <+> align (fold
-      [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
-      , blue (pretty '|') <+> caret span
-      ])
-    : context)
-    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> prettySpan span
+prettyNotice :: Notice -> Doc
+prettyNotice (Notice level (Excerpt path line span) reason context) = vsep
+  ( nest 2 (group (vsep [bold (pretty path) <> colon <> bold (pretty (succ (posLine (spanStart span)))) <> colon <> bold (pretty (succ (posColumn (spanStart span)))) <> colon <> maybe mempty ((space <>) . (<> colon) . prettyLevel) level, pretty reason]))
+  : blue (pretty (succ (posLine (spanStart span)))) <+> align (fold
+    [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
+    , blue (pretty '|') <+> caret span
+    ])
+  : context)
+  where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> prettySpan span
 
 
 prettyVar :: Int -> Doc
