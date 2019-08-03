@@ -4,11 +4,11 @@ module Path.Parser.Module where
 import Control.Applicative (Alternative(..))
 import Control.Effect
 import Control.Monad.IO.Class
+import Path.Error (Notice)
 import qualified Path.Module as Module
 import Path.Name
 import Path.Parser
 import Path.Parser.Term
-import Path.Pretty (Notice)
 import Path.Span (Spanned(..))
 import Path.Surface
 import Path.Term

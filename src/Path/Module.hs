@@ -18,7 +18,6 @@ import Data.Void
 import GHC.Generics (Generic1)
 import Path.Error
 import Path.Name
-import Path.Pretty
 import Path.Scope
 import Path.Span
 

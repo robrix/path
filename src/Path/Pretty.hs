@@ -7,9 +7,6 @@ module Path.Pretty
 -- * Output
 , prettyPrint
 , putDoc
--- * Errors
-, Level(..)
-, Notice(..)
 -- * Combinators
 , prettyVar
 , prettyMeta
@@ -41,8 +38,6 @@ module Path.Pretty
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
-import Data.Foldable (fold)
-import Data.List (isSuffixOf)
 import Path.Span
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
@@ -80,34 +75,6 @@ putDoc :: MonadIO m => Doc -> m ()
 putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
   liftIO (ANSI.renderIO stdout (layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine s 0.8 } (doc <> line)))
-
-data Level
-  = Warn
-  | Error
-  deriving (Eq, Ord, Show)
-
-instance Pretty Level where
-  pretty Warn  = magenta (pretty "warning")
-  pretty Error = red (pretty "error")
-
-
-data Notice = Notice
-  { noticeLevel   :: Maybe Level
-  , noticeExcerpt :: {-# UNPACK #-} !Excerpt
-  , noticeReason  :: Doc
-  , noticeContext :: [Doc]
-  }
-  deriving (Show)
-
-instance Pretty Notice where
-  pretty (Notice level (Excerpt path line span) reason context) = vsep
-    ( nest 2 (group (vsep [bold (pretty path) <> colon <> bold (pretty (succ (posLine (spanStart span)))) <> colon <> bold (pretty (succ (posColumn (spanStart span)))) <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) level, reason]))
-    : blue (pretty (succ (posLine (spanStart span)))) <+> align (fold
-      [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
-      , blue (pretty '|') <+> caret span
-      ])
-    : context)
-    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> prettySpan span
 
 
 prettyVar :: Int -> Doc

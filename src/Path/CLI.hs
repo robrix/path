@@ -6,6 +6,7 @@ import Control.Effect.Lift (runM)
 import Control.Monad (join)
 import Data.Version (showVersion)
 import Options.Applicative as Options
+import Path.Error
 import Path.Package
 import Path.Parser (parseFile, whole)
 import Path.Parser.Package as Parser (package)

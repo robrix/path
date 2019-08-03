@@ -15,7 +15,6 @@ import Path.Error
 import Path.Module as Module
 import Path.Name
 import Path.Plicity (Plicit (..))
-import Path.Pretty
 import Path.Problem
 import Path.Scope
 import Path.Span

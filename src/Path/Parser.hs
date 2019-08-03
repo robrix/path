@@ -21,7 +21,8 @@ import Control.Monad (MonadPlus(..), ap)
 import Control.Monad.IO.Class
 import qualified Data.HashSet as HashSet
 import Data.Maybe (fromMaybe)
-import Path.Pretty (Doc, Level(..), Notice(..), pretty)
+import Path.Error (Level(..), Notice(..))
+import Path.Pretty (Doc, pretty)
 import Path.Span hiding (spanned)
 import Text.Parser.Char
 import Text.Parser.Combinators
