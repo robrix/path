@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts #-}
 module Path.Span
 ( Span(..)
+, prettySpan
 , Pos(..)
 , advancePos
 , Excerpt(..)
