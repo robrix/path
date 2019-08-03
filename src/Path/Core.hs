@@ -89,7 +89,7 @@ prettyCore go ctx = \case
   Lam b ->
     let n  = prettyVar (length ctx)
         b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
-    in prec 0 (group (vsep [pretty (cyan backslash) <+> n, cyan dot <+> b']))
+    in prec 0 (group (vsep [cyan backslash <+> n, cyan dot <+> b']))
   f :$ a ->
     let f' = withPrec 10 (go ctx f)
         a' = withPrec 11 (go ctx a)
