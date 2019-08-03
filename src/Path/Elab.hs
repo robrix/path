@@ -26,7 +26,7 @@ import Path.Term
 import Prelude hiding (pi)
 
 assume :: ( Carrier sig m
-          , Member (Error Doc) sig
+          , Member (Error Notice) sig
           , Member (Reader Globals) sig
           , Member (Reader Excerpt) sig
           )
@@ -82,7 +82,7 @@ meta ty = existsFin ty (pure (B FZ))
 
 elab
   :: ( Carrier sig m
-     , Member (Error Doc) sig
+     , Member (Error Notice) sig
      , Member (Reader Globals) sig
      , Member (Reader Excerpt) sig
      )
@@ -100,7 +100,7 @@ elab ctx = \case
   where elab' ctx m = spanIs (elab ctx <$> m)
 
 elabDecl :: ( Carrier sig m
-            , Member (Error Doc) sig
+            , Member (Error Notice) sig
             , Member (Reader Globals) sig
             , Member (Reader ModuleName) sig
             )
@@ -115,9 +115,9 @@ elabDecl (Decl name d tm ty) = do
         strengthen = fmap (var absurdFin id)
 
 elabModule :: ( Carrier sig m
-              , Member (Error Doc) sig
+              , Member (Error Notice) sig
               , Member (Reader (ModuleGraph (Term (Problem :+: Core)) Void)) sig
-              , Member (Writer (Stack Doc)) sig
+              , Member (Writer (Stack Notice)) sig
               )
            => Module (Term Surface.Surface) Qualified
            -> m (Module (Term (Problem :+: Core)) Qualified)
@@ -144,7 +144,7 @@ withGlobals m = do
           where define ctx d = ctx :> (moduleName m :.: declName d) ::: inst (declType d)
                 inst t = instantiateEither (pure . either (moduleName m :.:) id) (unSpanned t)
 
-logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
+logError :: (Member (Writer (Stack Notice)) sig, Carrier sig m) => Notice -> m ()
 logError = tell . (Nil :>)
 
 

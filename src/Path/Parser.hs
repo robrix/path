@@ -102,13 +102,13 @@ runParser path pos input m = runReader inputLines (runReader path (runParserC m 
         takeLine ('\n':rest) = ("\n", rest)
         takeLine (c   :rest) = let (cs, rest') = takeLine rest in (c:cs, rest')
 
-parseString :: (Carrier sig m, Member (Error Doc) sig) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> Pos -> String -> m a
-parseString p pos input = runParser "(interactive)" pos input p >>= either (throwError . pretty) pure
+parseString :: (Carrier sig m, Member (Error Notice) sig) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> Pos -> String -> m a
+parseString p pos input = runParser "(interactive)" pos input p >>= either throwError pure
 
-parseFile :: (Carrier sig m, Member (Error Doc) sig, MonadIO m) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> FilePath -> m a
+parseFile :: (Carrier sig m, Member (Error Notice) sig, MonadIO m) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
-  runParser path (Pos 0 0) input p >>= either (throwError . pretty) pure
+  runParser path (Pos 0 0) input p >>= either throwError pure
 
 newtype ParserC m a = ParserC
   { runParserC
