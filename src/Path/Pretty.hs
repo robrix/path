@@ -1,14 +1,34 @@
+{-# LANGUAGE DefaultSignatures, FlexibleInstances #-}
 module Path.Pretty
-( prettyPrint
+(
+-- * Styled pretty-printing class
+  Doc
+, Pretty(..)
+-- * Output
+, prettyPrint
 , putDoc
-, Level(..)
-, Notice(..)
+-- * Combinators
 , prettyVar
 , prettyMeta
+, prettySpan
+, tabulate2
 , prettyParens
 , prettyBraces
-, tabulate2
+-- * Foreground colours
+, red
+, yellow
+, green
+, cyan
+, blue
+, magenta
+-- * Foreground colours (dull)
+, dullblack
+-- * Styling
+, bold
+, plain
+-- * Debugging
 , tracePrettyM
+-- * Pretty-printing with precedence
 , Prec(..)
 , prec
 , atom
@@ -18,13 +38,35 @@ module Path.Pretty
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
-import Data.Foldable (fold)
-import Data.List (isSuffixOf)
 import Path.Span
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
-import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
+import qualified Data.Text as Text
+import Data.Text.Prettyprint.Doc as PP hiding (Doc, Pretty (..), column)
+import qualified Data.Text.Prettyprint.Doc as PP
+import Data.Text.Prettyprint.Doc.Internal (unsafeTextWithoutNewlines)
+import Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle, Color (..), color, colorDull)
+import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
+
+type Doc = PP.Doc AnsiStyle
+
+class Pretty a where
+  pretty :: a -> Doc
+  default pretty :: PP.Pretty a => a -> Doc
+  pretty = PP.pretty
+
+  prettyList :: [a] -> Doc
+  prettyList = align . list . map pretty
+
+instance Pretty Char where
+  prettyList = pretty . Text.pack
+
+instance Pretty Text.Text where pretty = vsep . map unsafeTextWithoutNewlines . Text.splitOn (Text.pack "\n")
+instance Pretty (PP.Doc AnsiStyle) where pretty = id
+instance Pretty Int
+instance Pretty a => Pretty [a] where
+  pretty = prettyList
 
 prettyPrint :: (Pretty a, MonadIO m) => a -> m ()
 prettyPrint = putDoc . pretty
@@ -32,35 +74,7 @@ prettyPrint = putDoc . pretty
 putDoc :: MonadIO m => Doc -> m ()
 putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
-  liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
-
-data Level
-  = Warn
-  | Error
-  deriving (Eq, Ord, Show)
-
-instance Pretty Level where
-  pretty Warn  = magenta (pretty "warning")
-  pretty Error = red (pretty "error")
-
-
-data Notice = Notice
-  { noticeLevel   :: Maybe Level
-  , noticeExcerpt :: {-# UNPACK #-} !Excerpt
-  , noticeReason  :: Doc
-  , noticeContext :: [Doc]
-  }
-  deriving (Show)
-
-instance Pretty Notice where
-  pretty (Notice level (Excerpt path line span) reason context) = vsep
-    ( nest 2 (group (bold (pretty path) <> colon <> bold (pretty (succ (posLine (spanStart span)))) <> colon <> bold (pretty (succ (posColumn (spanStart span)))) <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) level </> pretty reason))
-    : blue (pretty (succ (posLine (spanStart span)))) <+> align (fold
-      [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
-      , blue (pretty '|') <+> caret span
-      ])
-    : context)
-    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> pretty span
+  liftIO (ANSI.renderIO stdout (layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine s 0.8 } (doc <> line)))
 
 
 prettyVar :: Int -> Doc
@@ -72,10 +86,17 @@ prettyMeta :: Pretty a => a -> Doc
 prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
 
 
+prettySpan :: Span -> Doc
+prettySpan (Span start end)
+  | start == end                 = green (pretty '^')
+  | posLine start == posLine end = green (pretty (replicate (posColumn end - posColumn start) '~'))
+  | otherwise                    = green (pretty "^…")
+
+
 tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
 tabulate2 _ [] = mempty
 tabulate2 s cs = vsep (map (uncurry entry) cs')
-  where entry a b = fill w (pretty a) <> s <> pretty b
+  where entry a b = fill w (pretty a) <> s <> b
         w = maximum (map (columnWidth . fst) cs')
         cs' = map (column *** pretty) cs
 
@@ -92,13 +113,29 @@ instance Pretty Column where
   pretty = snd . unColumn
 
 
-prettyParens :: Bool -> Doc -> Doc
+prettyParens :: Bool -> PP.Doc ann -> PP.Doc ann
 prettyParens True = parens
 prettyParens False = id
 
-prettyBraces :: Bool -> Doc -> Doc
+prettyBraces :: Bool -> PP.Doc ann -> PP.Doc ann
 prettyBraces True = braces
 prettyBraces False = id
+
+
+red, yellow, green, cyan, blue, magenta :: Doc -> Doc
+red     = annotate $ color Red
+yellow  = annotate $ color Yellow
+green   = annotate $ color Green
+cyan    = annotate $ color Cyan
+blue    = annotate $ color Blue
+magenta = annotate $ color Magenta
+
+dullblack :: Doc -> Doc
+dullblack = annotate $ colorDull Black
+
+bold, plain :: Doc -> Doc
+bold = annotate ANSI.bold
+plain = unAnnotate
 
 
 -- | Debugging helper.

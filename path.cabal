@@ -42,8 +42,7 @@ library
                      , Path.Usage
   other-modules:       Paths_path
   -- other-extensions:
-  build-depends:       ansi-wl-pprint
-                     , base >=4.11 && <4.13
+  build-depends:       base >=4.11 && <4.13
                      , bytestring
                      , containers
                      , directory
@@ -53,6 +52,8 @@ library
                      , mtl
                      , optparse-applicative
                      , parsers
+                     , prettyprinter
+                     , prettyprinter-ansi-terminal
                      , terminal-size
                      , text
                      , unordered-containers
