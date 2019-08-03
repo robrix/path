@@ -61,5 +61,5 @@ prettyTermInContext
 prettyTermInContext alg = go
   where go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec
         go ctx = \case
-          Var v -> atom (var (pretty . (ctx !)) pretty v)
+          Var v -> atom (var (ctx !) pretty v)
           Term t -> alg go ctx t
