@@ -60,7 +60,7 @@ instance Pretty Notice where
       , blue (pretty '|') <+> caret span
       ])
     : context)
-    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> pretty span
+    where caret span = pretty (replicate (posColumn (spanStart span)) ' ') <> prettySpan span
 
 
 prettyVar :: Int -> Doc
