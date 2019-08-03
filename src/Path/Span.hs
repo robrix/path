@@ -25,10 +25,13 @@ instance Semigroup Span where
   Span s1 e1 <> Span s2 e2 = Span (min s1 s2) (max e1 e2)
 
 instance Pretty Span where
-  pretty (Span start end)
-    | start == end                 = green (pretty '^')
-    | posLine start == posLine end = green (pretty (replicate (posColumn end - posColumn start) '~'))
-    | otherwise                    = green (pretty "^…")
+  pretty = prettySpan
+
+prettySpan :: Span -> Doc
+prettySpan (Span start end)
+  | start == end                 = green (pretty '^')
+  | posLine start == posLine end = green (pretty (replicate (posColumn end - posColumn start) '~'))
+  | otherwise                    = green (pretty "^…")
 
 
 data Pos = Pos
