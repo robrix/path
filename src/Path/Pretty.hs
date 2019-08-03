@@ -1,7 +1,11 @@
+{-# LANGUAGE DefaultSignatures, FlexibleInstances #-}
 module Path.Pretty
 (
+-- * Styled pretty-printing class
+  Doc
+, Pretty(..)
 -- * Output
-  prettyPrint
+, prettyPrint
 , putDoc
 -- * Errors
 , Level(..)
@@ -15,6 +19,18 @@ module Path.Pretty
 , tabulate2
 , prettyParens
 , prettyBraces
+-- * Foreground colours
+, red
+, yellow
+, green
+, cyan
+, blue
+, magenta
+-- * Foreground colours (dull)
+, dullblack
+-- * Styling
+, bold
+, plain
 -- * Debugging
 , tracePrettyM
 -- * Pretty-printing with precedence
@@ -33,7 +49,31 @@ import Path.Span
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
-import Text.PrettyPrint.ANSI.Leijen as PP hiding ((<$>), bool, column, empty, putDoc)
+import qualified Data.Text as Text
+import Data.Text.Prettyprint.Doc as PP hiding (Doc, Pretty (..), column)
+import qualified Data.Text.Prettyprint.Doc as PP
+import Data.Text.Prettyprint.Doc.Internal (unsafeTextWithoutNewlines)
+import Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle, Color (..), color, colorDull)
+import qualified Data.Text.Prettyprint.Doc.Render.Terminal as ANSI
+
+type Doc = PP.Doc AnsiStyle
+
+class Pretty a where
+  pretty :: a -> Doc
+  default pretty :: PP.Pretty a => a -> Doc
+  pretty = PP.pretty
+
+  prettyList :: [a] -> Doc
+  prettyList = align . list . map pretty
+
+instance Pretty Char where
+  prettyList = pretty . Text.pack
+
+instance Pretty Text.Text where pretty = vsep . map unsafeTextWithoutNewlines . Text.splitOn (Text.pack "\n")
+instance Pretty (PP.Doc AnsiStyle) where pretty = id
+instance Pretty Int
+instance Pretty a => Pretty [a] where
+  pretty = prettyList
 
 prettyPrint :: (Pretty a, MonadIO m) => a -> m ()
 prettyPrint = putDoc . pretty
@@ -41,7 +81,7 @@ prettyPrint = putDoc . pretty
 putDoc :: MonadIO m => Doc -> m ()
 putDoc doc = do
   s <- maybe 80 Size.width <$> liftIO size
-  liftIO (displayIO stdout (renderPretty 0.8 s (doc <> linebreak)))
+  liftIO (ANSI.renderIO stdout (layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine s 0.8 } (doc <> line)))
 
 data Level
   = Warn
@@ -108,13 +148,29 @@ instance Pretty Column where
   pretty = snd . unColumn
 
 
-prettyParens :: Bool -> Doc -> Doc
+prettyParens :: Bool -> PP.Doc ann -> PP.Doc ann
 prettyParens True = parens
 prettyParens False = id
 
-prettyBraces :: Bool -> Doc -> Doc
+prettyBraces :: Bool -> PP.Doc ann -> PP.Doc ann
 prettyBraces True = braces
 prettyBraces False = id
+
+
+red, yellow, green, cyan, blue, magenta :: Doc -> Doc
+red     = annotate $ color Red
+yellow  = annotate $ color Yellow
+green   = annotate $ color Green
+cyan    = annotate $ color Cyan
+blue    = annotate $ color Blue
+magenta = annotate $ color Magenta
+
+dullblack :: Doc -> Doc
+dullblack = annotate $ colorDull Black
+
+bold, plain :: Doc -> Doc
+bold = annotate ANSI.bold
+plain = unAnnotate
 
 
 -- | Debugging helper.
