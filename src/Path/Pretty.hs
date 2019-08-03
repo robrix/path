@@ -6,9 +6,9 @@ module Path.Pretty
 , prettyVar
 , prettyMeta
 , prettySpan
+, tabulate2
 , prettyParens
 , prettyBraces
-, tabulate2
 , tracePrettyM
 , Prec(..)
 , prec
