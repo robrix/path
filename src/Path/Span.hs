@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts #-}
 module Path.Span
 ( Span(..)
-, prettySpan
 , Pos(..)
 , advancePos
 , Excerpt(..)
@@ -14,7 +13,6 @@ module Path.Span
 ) where
 
 import Control.Effect.Reader
-import Text.PrettyPrint.ANSI.Leijen
 
 data Span = Span
   { spanStart :: {-# UNPACK #-} !Pos
@@ -24,12 +22,6 @@ data Span = Span
 
 instance Semigroup Span where
   Span s1 e1 <> Span s2 e2 = Span (min s1 s2) (max e1 e2)
-
-prettySpan :: Span -> Doc
-prettySpan (Span start end)
-  | start == end                 = green (pretty '^')
-  | posLine start == posLine end = green (pretty (replicate (posColumn end - posColumn start) '~'))
-  | otherwise                    = green (pretty "^…")
 
 
 data Pos = Pos

@@ -5,6 +5,7 @@ module Path.Pretty
 , Notice(..)
 , prettyVar
 , prettyMeta
+, prettySpan
 , prettyParens
 , prettyBraces
 , tabulate2
@@ -70,6 +71,13 @@ prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")
 
 prettyMeta :: Pretty a => a -> Doc
 prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
+
+
+prettySpan :: Span -> Doc
+prettySpan (Span start end)
+  | start == end                 = green (pretty '^')
+  | posLine start == posLine end = green (pretty (replicate (posColumn end - posColumn start) '~'))
+  | otherwise                    = green (pretty "^…")
 
 
 tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
