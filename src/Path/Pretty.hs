@@ -9,7 +9,6 @@ module Path.Pretty
 , putDoc
 -- * Errors
 , Level(..)
-, prettyLevel
 , Notice(..)
 , prettyNotice
 -- * Combinators
@@ -88,9 +87,9 @@ data Level
   | Error
   deriving (Eq, Ord, Show)
 
-prettyLevel :: Level -> Doc
-prettyLevel Warn  = magenta (pretty "warning")
-prettyLevel Error = red (pretty "error")
+instance Pretty Level where
+  pretty Warn  = magenta (pretty "warning")
+  pretty Error = red (pretty "error")
 
 
 data Notice = Notice
@@ -103,7 +102,7 @@ data Notice = Notice
 
 prettyNotice :: Notice -> Doc
 prettyNotice (Notice level (Excerpt path line span) reason context) = vsep
-  ( nest 2 (group (vsep [bold (pretty path) <> colon <> bold (pretty (succ (posLine (spanStart span)))) <> colon <> bold (pretty (succ (posColumn (spanStart span)))) <> colon <> maybe mempty ((space <>) . (<> colon) . prettyLevel) level, reason]))
+  ( nest 2 (group (vsep [bold (pretty path) <> colon <> bold (pretty (succ (posLine (spanStart span)))) <> colon <> bold (pretty (succ (posColumn (spanStart span)))) <> colon <> maybe mempty ((space <>) . (<> colon) . pretty) level, reason]))
   : blue (pretty (succ (posLine (spanStart span)))) <+> align (fold
     [ blue (pretty '|') <+> pretty line <> if "\n" `isSuffixOf` line then mempty else blue (pretty "<EOF>") <> hardline
     , blue (pretty '|') <+> caret span
