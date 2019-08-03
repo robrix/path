@@ -1,15 +1,21 @@
 module Path.Pretty
-( prettyPrint
+(
+-- * Output
+  prettyPrint
 , putDoc
+-- * Errors
 , Level(..)
 , Notice(..)
+-- * Combinators
 , prettyVar
 , prettyMeta
 , prettySpan
 , tabulate2
 , prettyParens
 , prettyBraces
+-- * Debugging
 , tracePrettyM
+-- * Pretty-printing with precedence
 , Prec(..)
 , prec
 , atom
