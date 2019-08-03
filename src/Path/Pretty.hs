@@ -89,7 +89,7 @@ prettySpan (Span start end)
 tabulate2 :: (Pretty a, Pretty b) => Doc -> [(a, b)] -> Doc
 tabulate2 _ [] = mempty
 tabulate2 s cs = vsep (map (uncurry entry) cs')
-  where entry a b = fill w (pretty a) <> s <> pretty b
+  where entry a b = fill w (pretty a) <> s <> b
         w = maximum (map (columnWidth . fst) cs')
         cs' = map (column *** pretty) cs
 
