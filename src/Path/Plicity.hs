@@ -41,4 +41,4 @@ data Plicit a
 infixr 6 :<
 
 instance Pretty a => Pretty (Plicit a) where
-  pretty = prettyPlicity True . fmap pretty
+  pretty = prettyPlicity True

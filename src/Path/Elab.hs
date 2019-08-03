@@ -28,7 +28,7 @@ import Path.Term
 import Prelude hiding (pi)
 
 assume :: ( Carrier sig m
-          , Member (Error Doc) sig
+          , Member (Error Notice) sig
           , Member (Reader Globals) sig
           , Member (Reader Excerpt) sig
           )
@@ -84,7 +84,7 @@ meta ty = existsFin ty (pure (B FZ))
 
 elab
   :: ( Carrier sig m
-     , Member (Error Doc) sig
+     , Member (Error Notice) sig
      , Member (Reader Globals) sig
      , Member (Reader Excerpt) sig
      )
@@ -103,7 +103,7 @@ elab ctx = \case
 
 elabDecl :: ( Carrier sig m
             , Effect sig
-            , Member (Error Doc) sig
+            , Member (Error Notice) sig
             , Member (Reader Globals) sig
             , Member (Reader ModuleName) sig
             )
@@ -117,9 +117,9 @@ elabDecl (Decl name d tm ty) = do
 
 elabModule :: ( Carrier sig m
               , Effect sig
-              , Member (Error Doc) sig
+              , Member (Error Notice) sig
               , Member (Reader (ModuleGraph (Term Core) Void)) sig
-              , Member (Writer (Stack Doc)) sig
+              , Member (Writer (Stack Notice)) sig
               )
            => Module (Term Surface.Surface) Qualified
            -> m (Module (Term Core) Qualified)
@@ -146,7 +146,7 @@ withGlobals m = do
           where define ctx d = ctx :> (moduleName m :.: declName d) ::: inst (declType d)
                 inst t = instantiateEither (pure . either (moduleName m :.:) id) (unSpanned t)
 
-logError :: (Member (Writer (Stack Doc)) sig, Carrier sig m) => Doc -> m ()
+logError :: (Member (Writer (Stack Notice)) sig, Carrier sig m) => Notice -> m ()
 logError = tell . (Nil :>)
 
 
@@ -157,7 +157,7 @@ solve
   :: ( Carrier sig m
      , Effect sig
      , Eq a
-     , Member (Error Doc) sig
+     , Member (Error Notice) sig
      , Member (Reader Excerpt) sig
      , Pretty a
      )
@@ -177,7 +177,7 @@ solve ctx = \case
         Nothing -> case soln of
           Just soln' -> pure (Term (Let soln' (toScopeFin b')))
           -- FIXME: float if necessary
-          Nothing    -> throwError (pretty "no local solution")
+          Nothing    -> ask >>= \ e -> throwError (Notice (Just Error) e (pretty "no local solution") [])
     Term (R (Lam    b1)) :===: Term (R (Lam    b2)) -> Term . Lam . toScopeFin <$> solve (VS False ctx) (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))
     -- Term (R (f1 :$ a1))  :===: Term (R (f2 :$ a2))  -> _ -- FIXME: do some sort of unapplies thing and hereditary substitution to get to this point
     Term (R (Let v1 b1)) :===: Term (R (Let v2 b2)) -> Term <$> (Let <$> solve ctx (Term (L (v1 :===: v2))) <*> (toScopeFin <$> solve (VS False ctx) (Term (L (fromScopeFin b1 :===: fromScopeFin b2)))))
