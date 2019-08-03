@@ -28,7 +28,5 @@ unknownModule (name :~ excerpt) = throwError (pretty (Notice (Just Error) excerp
 
 cyclicImport :: (Carrier sig m, Member (Error Doc) sig) => NonEmpty (Spanned ModuleName) -> m a
 cyclicImport (name :~ span :| [])    = throwError (pretty (Notice (Just Error) span (pretty "Cyclic import of" <+> squotes (pretty name)) []))
-cyclicImport (name :~ span :| names) = throwError (vsep
-  ( pretty (Notice (Just Error) span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) [])
-  : foldr ((:) . whichImports) [ whichImports (name :~ span) ] names))
+cyclicImport (name :~ span :| names) = throwError (pretty (Notice (Just Error) span (pretty "Cyclic import of" <+> squotes (pretty name) <> colon) (foldr ((:) . whichImports) [ whichImports (name :~ span) ] names)))
   where whichImports (name :~ excerpt) = pretty (Notice Nothing excerpt (pretty "which imports" <+> squotes (pretty name) <> colon) [])
