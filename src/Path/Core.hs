@@ -53,6 +53,9 @@ f $$ a = send (f :$ a)
 let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
 let' (n := v) b = send (Let v (bind1 n b))
 
+letFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+letFin v b = send (Let v (toScopeFin b))
+
 unlet' :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
 unlet' n (Term t) | Just (Let v b) <- prj t = pure (n := v, instantiate1 (pure n) b)
 unlet' _ _                                  = empty
