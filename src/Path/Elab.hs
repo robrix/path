@@ -180,11 +180,11 @@ solve ctx = \case
           Nothing    -> ask >>= \ e -> throwError (Notice (Just Error) e (pretty "no local solution") [])
     Unify q -> simplify ctx q
   Term (R c) -> case c of
-    Lam   b -> Term <$> (Lam <$>                 (toScopeFin <$> solve (VS False ctx) (fromScopeFin b)))
+    Lam   b -> lamFin <$>                 solve (VS False ctx) (fromScopeFin b)
     f :$ a  -> ($$) <$> solve ctx f <*> solve ctx a
-    Let v b -> Term <$> (Let <$> solve ctx v <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b)))
+    Let v b -> letFin <$> solve ctx v <*> solve (VS False ctx) (fromScopeFin b)
     Type    -> pure type'
-    Pi  t b -> Term <$> (Pi  <$> solve ctx t <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b)))
+    Pi  t b -> piFin  <$> solve ctx t <*> solve (VS False ctx) (fromScopeFin b)
 
 simplify
   :: ( Carrier sig m
