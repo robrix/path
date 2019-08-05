@@ -48,6 +48,12 @@ instance (Pretty a, Pretty b) => Pretty (a := b) where
   pretty (a := b) = pretty a <+> magenta (pretty "=") <+> pretty b
 
 
+data Equation a = a :===: a
+  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
+
+infix 3 :===:
+
+
 -- | A functor composing two functors on the inside of a bifunctor. Can be used with @-XDerivingVia@ to derive 'Foldable', 'Functor', and 'Traversable' instances given 'Bifoldable', 'Bifunctor', and 'Bitraversable' instances for @p@ respectively.
 newtype Comp2 p f g a = Comp2 { unComp2 :: p (f a) (g a) }
 

@@ -178,17 +178,18 @@ solve ctx = \case
           Just soln' -> pure (Term (Let soln' (toScopeFin b')))
           -- FIXME: float if necessary
           Nothing    -> ask >>= \ e -> throwError (Notice (Just Error) e (pretty "no local solution") [])
-    Term (R (Lam    b1)) :===: Term (R (Lam    b2)) -> Term . Lam . toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)
-    -- Term (R (f1 :$ a1))  :===: Term (R (f2 :$ a2))  -> _ -- FIXME: do some sort of unapplies thing and hereditary substitution to get to this point
-    Term (R (Let v1 b1)) :===: Term (R (Let v2 b2)) -> Term <$> (Let <$> solve ctx (v1 === v2) <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)))
-    Term (R (Pi  t1 b1)) :===: Term (R (Pi  t2 b2)) -> Term <$> (Pi <$> solve ctx (t1 === t2) <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)))
-    p1 :===: p2 -> do
-      p1' <- solve ctx p1
-      p2' <- solve ctx p2
-      if p1' == p2' then
-        pure p1'
-      else
-        unsolvableConstraint p1' p2'
+    Unify q -> case q of
+      Term (R (Lam    b1)) :===: Term (R (Lam    b2)) -> Term . Lam . toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)
+      -- Term (R (f1 :$ a1))  :===: Term (R (f2 :$ a2))  -> _ -- FIXME: do some sort of unapplies thing and hereditary substitution to get to this point
+      Term (R (Let v1 b1)) :===: Term (R (Let v2 b2)) -> Term <$> (Let <$> solve ctx (v1 === v2) <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)))
+      Term (R (Pi  t1 b1)) :===: Term (R (Pi  t2 b2)) -> Term <$> (Pi <$> solve ctx (t1 === t2) <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)))
+      p1 :===: p2 -> do
+        p1' <- solve ctx p1
+        p2' <- solve ctx p2
+        if p1' == p2' then
+          pure p1'
+        else
+          unsolvableConstraint p1' p2'
   Term (R c) -> case c of
     Lam   b -> Term <$> (Lam <$>                 (toScopeFin <$> solve (VS False ctx) (fromScopeFin b)))
     f :$ a  -> ($$) <$> solve ctx f <*> solve ctx a

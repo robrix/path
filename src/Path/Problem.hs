@@ -16,10 +16,8 @@ import Prelude hiding (pi)
 -- FIXME: represent spans explicitly in the tree
 data Problem f a
   = Ex (f a) (Scope () f a)
-  | f a :===: f a
+  | Unify (Equation (f a))
   deriving (Foldable, Functor, Generic1, HFunctor, Traversable)
-
-infix 3 :===:
 
 deriving instance (Eq   a, forall a . Eq   a => Eq   (f a), Monad f) => Eq   (Problem f a)
 deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
@@ -27,8 +25,8 @@ deriving instance (Ord  a, forall a . Eq   a => Eq   (f a)
 deriving instance (Show a, forall a . Show a => Show (f a))          => Show (Problem f a)
 
 instance RightModule Problem where
-  Ex t b    >>=* f = Ex (t >>= f) (b >>=* f)
-  p :===: q >>=* f = (p >>= f) :===: (q >>= f)
+  Ex t b  >>=* f = Ex (t >>= f) (b >>=* f)
+  Unify q >>=* f = Unify ((>>= f) <$> q)
 
 
 exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
@@ -42,7 +40,7 @@ unexists n (Term t) | Just (Ex t b) <- prj t = pure (n ::: t, instantiate1 (pure
 unexists _ _                                 = empty
 
 (===) :: (Carrier sig m, Member Problem sig) => m a -> m a -> m a
-p === q = send (p :===: q)
+p === q = send (Unify (p :===: q))
 
 infixr 3 ===
 
@@ -64,7 +62,7 @@ prettyProblem go ctx = \case
         n  = prettyMeta (prettyVar (length ctx))
         b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "∃") <+> pretty (n ::: t'), magenta dot <+> b']))
-  p1 :===: p2 ->
+  Unify (p1 :===: p2) ->
     let p1' = withPrec 1 (go ctx p1)
         p2' = withPrec 1 (go ctx p2)
     in prec 0 (flatAlt (p1' <+> eq' <+> p2') (align (group (vsep [space <+> p1', eq' <+> p2']))))
