@@ -140,14 +140,6 @@ instance MonadTrans (Scope a) where
 instance HFunctor (Scope a) where
   hmap f = Scope . f . fmap (fmap f) . unScope
 
-handleScope
-  :: (Traversable f, Monad m, Monad n)
-  => f ()
-  -> (forall x . f (m x) -> n (f x))
-  -> Scope b m a
-  -> Scope b n (f a)
-handleScope state handler = toScope . fmap sequenceA . handler . (<$ state) . fromScope
-
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
 bind1 :: (Applicative f, Eq a) => a -> f a -> Scope () f a
