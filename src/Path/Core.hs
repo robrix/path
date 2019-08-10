@@ -89,6 +89,10 @@ unpi :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> 
 unpi n (Term t) | Just (Pi t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                                 = empty
 
+unpiFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unpiFin (Term t) | Just (Pi t b) <- prj t = pure (t, fromScopeFin b)
+unpiFin _                                 = empty
+
 
 instance Pretty a => Pretty (Term Core a) where
   pretty = prettyTerm prettyCore
