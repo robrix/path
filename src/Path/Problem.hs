@@ -63,7 +63,7 @@ prettyProblem go ctx = \case
   Ex t b ->
     let t' = withPrec 1 (go ctx t)
         n  = prettyMeta (prettyVar (length ctx))
-        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "∃") <+> pretty (n ::: t'), magenta dot <+> b']))
   Unify (p1 :===: p2) ->
     let p1' = withPrec 1 (go ctx p1)

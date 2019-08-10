@@ -98,10 +98,10 @@ elab ctx = \case
     Var (B n) -> pure (pure (B n) ::: ctx ! n)
     Var (F n) -> assume n
     Term t -> case t of
-      Surface.Lam _ b -> intro (\ t -> elab' (VS t (fmap (first FS) <$> ctx)) (fromScopeFin <$> b))
+      Surface.Lam _ b -> intro (\ t -> elab' (t :# (fmap (first FS) <$> ctx)) (fromScopeFin <$> b))
       f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
       Surface.Type -> pure (type' ::: type')
-      Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (VS t' (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
+      Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (t' :# (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
   where elab' ctx m = spanIs (elab ctx <$> m)
 
 elabDecl :: ( Carrier sig m
@@ -173,7 +173,7 @@ solve ctx = \case
     Ex t b -> do
       _ <- solve ctx t
       -- push the fact that this is a metavar
-      (soln, b') <- runState Nothing (solve (VS True ctx) (fromScopeFin b))
+      (soln, b') <- runState Nothing (solve (True :# ctx) (fromScopeFin b))
       case traverse (bitraverse strengthenFin Just) b' of
         Just b' -> pure b' -- the existential isn’t used, so there’s nothing to solve for
         -- check to see if we have a solution or not
@@ -183,11 +183,11 @@ solve ctx = \case
           Nothing    -> ask >>= \ e -> throwError (Notice (Just Error) e (pretty "no local solution") [])
     Unify q -> simplify ctx q
   Term (R c) -> case c of
-    Lam   b -> lamFin <$>                 solve (VS False ctx) (fromScopeFin b)
+    Lam   b -> lamFin <$>                 solve (False :# ctx) (fromScopeFin b)
     f :$ a  -> ($$) <$> solve ctx f <*> solve ctx a
-    Let v b -> letFin <$> solve ctx v <*> solve (VS False ctx) (fromScopeFin b)
+    Let v b -> letFin <$> solve ctx v <*> solve (False :# ctx) (fromScopeFin b)
     Type    -> pure type'
-    Pi  t b -> piFin  <$> solve ctx t <*> solve (VS False ctx) (fromScopeFin b)
+    Pi  t b -> piFin  <$> solve ctx t <*> solve (False :# ctx) (fromScopeFin b)
 
 simplify
   :: ( Carrier sig m
@@ -201,10 +201,10 @@ simplify
   -> Equation (Term (Problem :+: Core) (Var (Fin n) a))
   -> m (Term Core (Var (Fin n) a))
 simplify ctx = \case
-  Term (R (Lam    b1)) :===: Term (R (Lam    b2)) -> Term . Lam . toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)
+  Term (R (Lam    b1)) :===: Term (R (Lam    b2)) -> Term . Lam . toScopeFin <$> solve (False :# ctx) (fromScopeFin b1 === fromScopeFin b2)
   -- Term (R (f1 :$ a1))  :===: Term (R (f2 :$ a2))  -> _ -- FIXME: do some sort of unapplies thing and hereditary substitution to get to this point
-  Term (R (Let v1 b1)) :===: Term (R (Let v2 b2)) -> Term <$> (Let <$> solve ctx (v1 === v2) <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)))
-  Term (R (Pi  t1 b1)) :===: Term (R (Pi  t2 b2)) -> Term <$> (Pi <$> solve ctx (t1 === t2) <*> (toScopeFin <$> solve (VS False ctx) (fromScopeFin b1 === fromScopeFin b2)))
+  Term (R (Let v1 b1)) :===: Term (R (Let v2 b2)) -> Term <$> (Let <$> solve ctx (v1 === v2) <*> (toScopeFin <$> solve (False :# ctx) (fromScopeFin b1 === fromScopeFin b2)))
+  Term (R (Pi  t1 b1)) :===: Term (R (Pi  t2 b2)) -> Term <$> (Pi <$> solve ctx (t1 === t2) <*> (toScopeFin <$> solve (False :# ctx) (fromScopeFin b1 === fromScopeFin b2)))
   p1 :===: p2 -> do
     p1' <- solve ctx p1
     p2' <- solve ctx p2

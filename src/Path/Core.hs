@@ -94,7 +94,7 @@ prettyCore
 prettyCore go ctx = \case
   Lam b ->
     let n  = prettyVar (length ctx)
-        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [cyan backslash <+> n, cyan dot <+> b']))
   f :$ a ->
     let f' = withPrec 10 (go ctx f)
@@ -103,7 +103,7 @@ prettyCore go ctx = \case
   Let v b ->
     let v' = withPrec 0 (go ctx v)
         n  = prettyVar (length ctx)
-        b' = withPrec 0 (go (VS n ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "let") <+> pretty (n := v'), magenta dot <+> b']))
   Type -> atom (yellow (pretty "Type"))
   Pi t b ->
@@ -111,7 +111,7 @@ prettyCore go ctx = \case
         n   = prettyVar (length ctx)
         b'  = fromScopeFin b
         fvs = foldMap (var Set.singleton (const Set.empty)) b'
-        b'' = withPrec 0 (go (VS n ctx) b')
+        b'' = withPrec 0 (go (n :# ctx) b')
         t'' | FZ `Set.member` fvs = parens (pretty (n ::: t'))
             | otherwise           = t'
     in prec 0 (group (vsep [t'', arrow <+> b'']))
