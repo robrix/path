@@ -67,6 +67,10 @@ unlet' :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -
 unlet' n (Term t) | Just (Let v b) <- prj t = pure (n := v, instantiate1 (pure n) b)
 unlet' _ _                                  = empty
 
+unletFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unletFin (Term t) | Just (Let v b) <- prj t = pure (v, fromScopeFin b)
+unletFin _                                  = empty
+
 
 type' :: (Carrier sig m, Member Core sig) => m a
 type' = send Type
