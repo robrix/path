@@ -14,6 +14,7 @@ import qualified Data.Map as Map
 import Data.Void
 import Path.Core
 import Path.Error
+import Path.Fin
 import Path.Module as Module
 import Path.Name
 import Path.Nat

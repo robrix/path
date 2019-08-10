@@ -20,6 +20,7 @@ import GHC.Generics (Generic1)
 import Path.Core
 import Path.Elab
 import Path.Error
+import Path.Fin
 import Path.Module as Module
 import Path.Name
 import Path.Package

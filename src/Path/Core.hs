@@ -6,6 +6,7 @@ import           Control.Effect.Carrier
 import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
+import           Path.Fin
 import           Path.Nat
 import           Path.Pretty
 import           Path.Scope

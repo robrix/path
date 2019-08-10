@@ -19,6 +19,7 @@ library
                      , Path.Core
                      , Path.Elab
                      , Path.Error
+                     , Path.Fin
                      , Path.Module
                      , Path.Name
                      , Path.Nat

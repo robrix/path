@@ -12,6 +12,7 @@ import Data.Bitraversable
 import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
+import Path.Fin
 import Path.Nat
 import Path.Pretty
 
@@ -62,29 +63,6 @@ matchMaybe f a = maybe (Right a) Left (f a)
 
 strengthen :: Functor f => f (Var (Fin 'Z) a) -> f a
 strengthen = fmap (var absurdFin id)
-
-
-data Fin n where
-  FZ :: Fin ('S n)
-  FS :: Fin n -> Fin ('S n)
-
-deriving instance Eq   (Fin n)
-deriving instance Ord  (Fin n)
-deriving instance Show (Fin n)
-
-instance Pretty (Fin n) where
-  pretty = prettyVar . finToInt
-
-absurdFin :: Fin 'Z -> a
-absurdFin v = case v of {}
-
-finToInt :: Fin n -> Int
-finToInt FZ     = 0
-finToInt (FS n) = 1 + finToInt n
-
-strengthenFin :: Fin ('S n) -> Maybe (Fin n)
-strengthenFin FZ     = Nothing
-strengthenFin (FS n) = Just n
 
 
 data Vec n a where
