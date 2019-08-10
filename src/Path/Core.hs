@@ -53,6 +53,7 @@ unlamFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (
 unlamFin (Term t) | Just (Lam b) <- prj t = pure (fromScopeFin b)
 unlamFin _                                = empty
 
+
 ($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
 
