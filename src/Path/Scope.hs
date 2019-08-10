@@ -12,6 +12,7 @@ import Data.Bitraversable
 import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
+import Path.Nat
 import Path.Pretty
 
 data Var a b = B a | F b
@@ -62,9 +63,6 @@ matchMaybe f a = maybe (Right a) Left (f a)
 strengthen :: Functor f => f (Var (Fin 'Z) a) -> f a
 strengthen = fmap (var absurdFin id)
 
-
-data Nat = Z | S Nat
-  deriving (Eq, Ord, Show)
 
 data Fin n where
   FZ :: Fin ('S n)

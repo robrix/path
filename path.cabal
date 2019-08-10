@@ -21,6 +21,7 @@ library
                      , Path.Error
                      , Path.Module
                      , Path.Name
+                     , Path.Nat
                      , Path.Package
                      , Path.Parser
                      , Path.Parser.Module
