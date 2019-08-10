@@ -49,6 +49,10 @@ unlam :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a ->
 unlam n (Term t) | Just (Lam b) <- prj t = pure (n, instantiate1 (pure n) b)
 unlam _ _                                = empty
 
+unlamFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin ('S n)) a))
+unlamFin (Term t) | Just (Lam b) <- prj t = pure (fromScopeFin b)
+unlamFin _                                = empty
+
 ($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
 
