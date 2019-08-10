@@ -12,6 +12,7 @@ import Path.Pretty
 import Path.Scope
 import Path.Syntax
 import Path.Term
+import Path.Vec
 import Prelude hiding (pi)
 
 -- FIXME: represent errors explicitly in the tree

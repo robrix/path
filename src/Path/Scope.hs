@@ -65,26 +65,6 @@ strengthen :: Functor f => f (Var (Fin 'Z) a) -> f a
 strengthen = fmap (var absurdFin id)
 
 
-data Vec n a where
-  VZ :: Vec 'Z a
-  VS :: a -> Vec n a -> Vec ('S n) a
-
-deriving instance Eq   a => Eq   (Vec n a)
-deriving instance Ord  a => Ord  (Vec n a)
-deriving instance Show a => Show (Vec n a)
-
-deriving instance Foldable    (Vec n)
-deriving instance Functor     (Vec n)
-deriving instance Traversable (Vec n)
-
-(!) :: Vec n a -> Fin n -> a
-VS h _ ! FZ   = h
-VS _ t ! FS n = t ! n
-VZ     ! n    = absurdFin n
-
-infixl 9 !
-
-
 newtype Scope a f b = Scope (f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
 

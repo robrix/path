@@ -7,6 +7,7 @@ import Control.Monad.Module
 import Path.Fin
 import Path.Pretty
 import Path.Scope
+import Path.Vec
 
 data Term sig a
   = Var a

@@ -42,6 +42,7 @@ library
                      , Path.Syntax
                      , Path.Term
                      , Path.Usage
+                     , Path.Vec
   other-modules:       Paths_path
   -- other-extensions:
   build-depends:       base >=4.11 && <4.13
