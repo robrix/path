@@ -57,6 +57,10 @@ unlamFin _                                = empty
 ($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
 
+unapply :: (Alternative m, Member Core sig) => Term sig a -> m (Term sig a, Term sig a)
+unapply (Term t) | Just (f :$ a) <- prj t = pure (f, a)
+unapply _                                 = empty
+
 
 let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
 let' (n := v) b = send (Let v (bind1 n b))
