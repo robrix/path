@@ -201,10 +201,10 @@ simplify
   -> Equation (Term (Problem :+: Core) (Var (Fin n) a))
   -> m (Term Core (Var (Fin n) a))
 simplify ctx (p1 :===: p2)
-  | Just b1 <- unlamFin p1, Just b2 <- unlamFin p2 = lamFin <$> solve (False :# ctx) (b1 === b2)
-  -- | Term (R (f1 :$ a1)) <- p1, Term (R (f2 :$ a2)) <- p2 = _ -- FIXME: do some sort of unapplies thing and hereditary substitution to get to this point
+  | Just b1 <- unlamFin p1,       Just b2 <- unlamFin p2       = lamFin <$> solve (False :# ctx) (b1 === b2)
+  -- | Term (R (f1 :$ a1)) <- p1,    Term (R (f2 :$ a2)) <- p2    = _ -- FIXME: do some sort of unapplies thing and hereditary substitution to get to this point
   | Just (v1, b1) <- unletFin p1, Just (v2, b2) <- unletFin p2 = letFin <$> solve ctx (v1 === v2) <*> solve (False :# ctx) (b1 === b2)
-  | Just (t1, b1) <- unpiFin p1, Just (t2, b2) <- unpiFin p2 = piFin  <$> solve ctx (t1 === t2) <*> solve (False :# ctx) (b1 === b2)
+  | Just (t1, b1) <- unpiFin p1,  Just (t2, b2) <- unpiFin p2  = piFin  <$> solve ctx (t1 === t2) <*> solve (False :# ctx) (b1 === b2)
   | otherwise = do
     p1' <- solve ctx p1
     p2' <- solve ctx p2
