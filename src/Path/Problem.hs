@@ -42,6 +42,7 @@ unexists :: (Alternative m, Member Problem sig, RightModule sig) => a -> Term si
 unexists n (Term t) | Just (Ex t b) <- prj t = pure (n ::: t, instantiate1 (pure n) b)
 unexists _ _                                 = empty
 
+
 (===) :: (Carrier sig m, Member Problem sig) => m a -> m a -> m a
 p === q = send (Unify (p :===: q))
 
