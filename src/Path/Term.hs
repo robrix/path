@@ -3,7 +3,7 @@ module Path.Term where
 
 import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
-import Control.Monad (ap)
+import Control.Monad ((<=<), ap)
 import Control.Monad.Module
 import Path.Fin
 import Path.Pretty
@@ -63,6 +63,9 @@ hoistTerm f = go
 unTerm :: Alternative m => Term sig a -> m (sig (Term sig) a)
 unTerm (Term t) = pure t
 unTerm _        = empty
+
+prjTerm :: (Alternative m, Member sub sig) => Term sig a -> m (sub (Term sig) a)
+prjTerm = maybe empty pure . (prj <=< unTerm)
 
 
 prettyTerm
