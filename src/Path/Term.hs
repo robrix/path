@@ -1,6 +1,7 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
+import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
 import Control.Monad (ap)
 import Control.Monad.Module
@@ -58,6 +59,10 @@ hoistTerm f = go
         go = \case
           Var v  -> Var v
           Term t -> Term (f (hmap go t))
+
+unTerm :: Alternative m => Term sig a -> m (sig (Term sig) a)
+unTerm (Term t) = pure t
+unTerm _        = empty
 
 
 prettyTerm
