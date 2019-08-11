@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveAnyClass, DeriveGeneric, DeriveTraversable, DerivingStrategies, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeOperators, UndecidableInstances #-}
 module Path.Surface where
 
-import Control.Applicative
 import Control.Effect.Carrier
-import Control.Monad (join)
 import Control.Monad.Module
 import Control.Monad.Trans
 import GHC.Generics (Generic1)
@@ -12,7 +10,6 @@ import Path.Plicity
 import Path.Scope
 import Path.Span
 import Path.Syntax
-import Path.Term
 
 data Surface f a
   = Lam (Plicit (Ignored (Maybe User))) (Spanned (Scope () f a))
@@ -31,27 +28,6 @@ instance RightModule Surface where
   g :$ a  >>=* f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
   Type    >>=* _ = Type
   Pi t b  >>=* f = Pi (fmap (fmap (fmap (>>= f))) t) (fmap (>>=* f) b)
-
-newtype SurfaceC m a = SurfaceC { runSurfaceC :: m (Term Surface a) }
-  deriving (Functor)
-
-instance Applicative m => Applicative (SurfaceC m) where
-  pure = SurfaceC . pure . Var
-  SurfaceC f <*> SurfaceC a = SurfaceC (liftA2 (<*>) f a)
-
-instance Monad m => Monad (SurfaceC m) where
-  -- FIXME: is this valid?
-  SurfaceC m >>= f = SurfaceC (m >>= fmap join . traverse (runSurfaceC . f))
-
-instance (Carrier sig m, Effect sig) => Carrier (Surface :+: sig) (SurfaceC m) where
-  eff (L s) = SurfaceC . fmap Term $ case s of
-    f :$ a -> (:$) <$> traverse runSurfaceC f <*> traverse (traverse runSurfaceC) a
-    Lam p b -> Lam p <$> traverse recur b
-    Type -> pure Type
-    Pi t b -> Pi <$> traverse (traverse (traverse runSurfaceC)) t <*> traverse recur b
-    where recur = fmap Scope . (>>= traverse (traverse runSurfaceC)) . runSurfaceC . unScope
-  -- FIXME: is this valid?
-  eff (R other) = SurfaceC (eff (handle (Var ()) (fmap join . traverse runSurfaceC) other))
 
 
 lam :: (Eq a, Carrier sig m, Member Surface sig) => Plicit (Named (Maybe User) a) -> Spanned (m a) -> m a
