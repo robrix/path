@@ -92,16 +92,15 @@ elab
      , Member (Reader Excerpt) sig
      )
   => Vec n (Term (Problem :+: Core) (Var (Fin n) Qualified))
-  -> Term Surface.Surface (Var (Fin n) Qualified)
+  -> Surface.Surface (Var (Fin n) Qualified)
   -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
 elab ctx = \case
-    Var (B n) -> pure (pure (B n) ::: ctx ! n)
-    Var (F n) -> assume n
-    Term t -> case t of
-      Surface.Lam _ b -> intro (\ t -> elab' (t :# (fmap (first FS) <$> ctx)) (fromScopeFin <$> b))
-      f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
-      Surface.Type -> pure (type' ::: type')
-      Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (t' :# (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
+  Surface.Var (B n) -> pure (pure (B n) ::: ctx ! n)
+  Surface.Var (F n) -> assume n
+  Surface.Lam _ b -> intro (\ t -> elab' (t :# (fmap (first FS) <$> ctx)) (fromScopeFin <$> b))
+  f Surface.:$ (_ :< a) -> app (elab' ctx f) (elab' ctx a)
+  Surface.Type -> pure (type' ::: type')
+  Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (t' :# (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
   where elab' ctx m = spanIs (elab ctx <$> m)
 
 elabDecl :: ( Carrier sig m
@@ -110,7 +109,7 @@ elabDecl :: ( Carrier sig m
             , Member (Reader Globals) sig
             , Member (Reader ModuleName) sig
             )
-         => Decl (Term Surface.Surface Qualified)
+         => Decl (Surface.Surface Qualified)
          -> m (Decl (Term Core Qualified))
 elabDecl (Decl name d tm ty) = do
   ty' <- runSpanned (fmap strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
@@ -124,7 +123,7 @@ elabModule :: ( Carrier sig m
               , Member (Reader (ModuleGraph (Term Core) Void)) sig
               , Member (Writer (Stack Notice)) sig
               )
-           => Module (Term Surface.Surface) Qualified
+           => Module (Surface.Surface) Qualified
            -> m (Module (Term Core) Qualified)
 elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term Core) Void) (Module.restrict (Map.keysSet (moduleImports m))) $ do
   -- FIXME: do a topo sort on the decls? or at least make their types known first? or…?

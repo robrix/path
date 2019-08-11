@@ -10,19 +10,18 @@ import Path.Span (Spanned(..), unSpanned)
 import Path.Surface (Surface)
 import qualified Path.Surface as Surface
 import Path.Syntax
-import Path.Term
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.Token
 
-type', var, term, application, piType, functionType, lambda, atom :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned (Term Surface User))
+type', var, term, application, piType, functionType, lambda, atom :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned (Surface User))
 
 term = functionType
 
 application = foldl app <$> atom <*> many (spanned (plicit term atom)) <?> "function application"
-  where app f@(_ :~ s1) (a :~ s2) = (f Surface.$$ a) :~ (s1 <> s2)
+  where app f@(_ :~ s1) (a :~ s2) = (f Surface.:$ a) :~ (s1 <> s2)
 
-type' = spanned (Surface.type' <$ keyword "Type")
+type' = spanned (Surface.Type <$ keyword "Type")
 
 piType = spanned (do
   p :< (v, ty) <- plicit binding (parens binding) <* op "->"

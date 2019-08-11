@@ -11,16 +11,15 @@ import Path.Parser
 import Path.Parser.Term
 import Path.Span (Spanned(..))
 import Path.Surface
-import Path.Term
 import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.Token
 
-parseModule :: (Carrier sig m, Effect sig, Member (Error Notice) sig, MonadIO m) => FilePath -> m (Module.Module (Term Surface) User)
+parseModule :: (Carrier sig m, Effect sig, Member (Error Notice) sig, MonadIO m) => FilePath -> m (Module.Module Surface User)
 parseModule path = parseFile (whole (module' path)) path
 
 
-module' :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => FilePath -> m (Module.Module (Term Surface) User)
+module' :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => FilePath -> m (Module.Module Surface User)
 module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (try import') <*> many declaration
   where make comment name = Module.module' name comment path
 
@@ -30,7 +29,7 @@ moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` d
 import' :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned ModuleName)
 import' = spanned (keyword "import" *> moduleName) <* semi
 
-declaration :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Module.Decl (Term Surface User))
+declaration :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Module.Decl (Surface User))
 declaration = do
   docs <- optional docs
   name <- name

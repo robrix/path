@@ -172,7 +172,7 @@ elaborate :: ( Carrier sig m
              , Member (State (ModuleGraph (Term Core) Void)) sig
              , Member (State (Set.Set ModuleName)) sig
              )
-          => Spanned (Term Surface.Surface User)
+          => Spanned (Surface.Surface User)
           -> m (Spanned (Term Core Qualified))
 elaborate = runSpanned $ \ tm -> fmap (var absurdFin id) <$> do
   let ty = meta type'
