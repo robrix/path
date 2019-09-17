@@ -13,9 +13,10 @@ module Path.Parser
 
 import Control.Applicative (Alternative(..))
 import Control.Effect.Carrier
+import Control.Effect.Choose hiding (optional)
 import Control.Effect.Cut
+import Control.Effect.Empty
 import Control.Effect.Error
-import Control.Effect.NonDet
 import Control.Effect.Reader
 import Control.Monad (MonadPlus(..), ap)
 import Control.Monad.IO.Class
@@ -149,7 +150,7 @@ instance (Carrier sig m, Effect sig) => CharParsing (ParserC m) where
 
 instance (Carrier sig m, Effect sig) => TokenParsing (ParserC m)
 
-instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: sig) (ParserC m) where
+instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: Empty :+: Choose :+: sig) (ParserC m) where
   eff = \case
     L parser -> case parser of
       Accept p k -> ParserC (\ just nothing _ pos input -> case input of
@@ -162,10 +163,9 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     R (L cut) -> case cut of
       Cutfail -> ParserC $ \ _ _ fail pos _ -> fail pos Nothing
       Call m k -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
-    R (R (L nondet)) -> case nondet of
-      Empty -> empty
-      Choose k -> k True <|> k False
-    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (success pos input ()) (result runParser failure) other) >>= result just nothing
+    R (R (L Empty)) -> empty
+    R (R (R (L (Choose k)))) -> k True <|> k False
+    R (R (R (R other))) -> ParserC $ \ just nothing _ pos input -> eff (handle (success pos input ()) (result runParser failure) other) >>= result just nothing
     where runParser p s m = runParserC m (\ p s -> pure . success p s) failure failure p s
           success pos input a = Result pos (Right (input, a))
           failure pos reason = pure (Result pos (Left reason))
