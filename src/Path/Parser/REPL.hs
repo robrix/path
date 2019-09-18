@@ -2,7 +2,7 @@
 module Path.Parser.REPL where
 
 import Control.Applicative (Alternative(..))
-import Control.Effect.Reader
+import Control.Carrier.Reader
 import Path.Parser
 import qualified Path.Parser.Module as M
 import Path.Parser.Term

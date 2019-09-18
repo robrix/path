@@ -2,7 +2,7 @@
 module Path.Problem where
 
 import Control.Applicative (Alternative (..))
-import Control.Effect.Carrier
+import Control.Carrier.Class
 import Control.Monad.Module
 import GHC.Generics (Generic1)
 import Path.Core

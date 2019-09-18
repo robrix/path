@@ -12,12 +12,12 @@ module Path.Parser
 ) where
 
 import Control.Applicative (Alternative(..))
-import Control.Effect.Carrier
+import Control.Carrier.Class
+import Control.Carrier.Reader
 import Control.Effect.Choose hiding (optional)
 import Control.Effect.Cut
 import Control.Effect.Empty
 import Control.Effect.Error
-import Control.Effect.Reader
 import Control.Monad (MonadPlus(..), ap)
 import Control.Monad.IO.Class
 import qualified Data.HashSet as HashSet

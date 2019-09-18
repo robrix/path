@@ -2,7 +2,7 @@
 module Path.Scope where
 
 import Control.Applicative (liftA2)
-import Control.Effect.Carrier
+import Control.Carrier.Class
 import Control.Monad ((>=>), guard)
 import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))

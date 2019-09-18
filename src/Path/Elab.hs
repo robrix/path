@@ -1,10 +1,10 @@
 {-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
-import Control.Effect.Carrier
-import Control.Effect.Error
-import Control.Effect.Reader hiding (Local)
-import Control.Effect.Writer
+import Control.Carrier.Class
+import Control.Carrier.Error.Either
+import Control.Carrier.Reader hiding (Local)
+import Control.Carrier.Writer.Strict
 import Control.Monad (foldM)
 import Data.Bifunctor (Bifunctor (..))
 import Data.Foldable (foldl')

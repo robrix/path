@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveTraversable, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, UndecidableInstances #-}
 module Path.Term where
 
-import Control.Effect.Carrier
+import Control.Carrier.Class
 import Control.Monad (ap)
 import Control.Monad.Module
 import Path.Pretty

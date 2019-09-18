@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveAnyClass, DeriveFunctor, DeriveGeneric, DerivingStrategies, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
-import Control.Effect.Carrier
-import Control.Effect.Error
-import Control.Effect.Lift
-import Control.Effect.Reader
-import Control.Effect.State
-import Control.Effect.Writer
+import Control.Carrier.Class
+import Control.Carrier.Error.Either
+import Control.Carrier.Lift
+import Control.Carrier.Reader
+import Control.Carrier.State.Strict
+import Control.Carrier.Writer.Strict
 import Control.Monad (foldM, join, unless, void)
 import Control.Monad.Fix
 import Control.Monad.IO.Class
