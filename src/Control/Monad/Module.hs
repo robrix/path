@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances, QuantifiedConstraints, MultiParamTypeClasses, TypeOperators #-}
 module Control.Monad.Module where
 
-import Control.Effect.Carrier
+import Control.Carrier.Class
 
 class (forall g . Functor g => Functor (f g), HFunctor f) => RightModule f where
   (>>=*) :: Monad m => f m a -> (a -> m b) -> f m b

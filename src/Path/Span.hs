@@ -12,7 +12,7 @@ module Path.Span
 , spanIs
 ) where
 
-import Control.Effect.Reader
+import Control.Carrier.Reader
 
 data Span = Span
   { spanStart :: {-# UNPACK #-} !Pos

@@ -2,7 +2,7 @@
 module Path.Core where
 
 import           Control.Applicative (Alternative (..))
-import           Control.Effect.Carrier
+import           Control.Carrier.Class
 import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)

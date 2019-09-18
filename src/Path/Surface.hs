@@ -2,7 +2,7 @@
 module Path.Surface where
 
 import Control.Applicative
-import Control.Effect.Carrier
+import Control.Carrier.Class
 import Control.Monad (join)
 import Control.Monad.Module
 import Control.Monad.Trans

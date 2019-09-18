@@ -1,11 +1,12 @@
 {-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving, TypeOperators #-}
 module Path.Module where
 
-import Control.Effect.Carrier
-import Control.Effect.Cull (runNonDetOnce)
-import Control.Effect.Error
-import Control.Effect.Reader
-import Control.Effect.State
+import Control.Carrier.Class
+import Control.Carrier.Cull
+import Control.Carrier.Error.Either
+import Control.Carrier.NonDet.Church
+import Control.Carrier.Reader
+import Control.Carrier.State.Strict
 import Control.Monad (unless, when)
 import Control.Monad.Module
 import Data.Foldable (for_, toList)
@@ -125,7 +126,7 @@ lookupModule :: (Carrier sig m, Member (Error Notice) sig) => Spanned ModuleName
 lookupModule i g = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
 
 cycleFrom :: (Carrier sig m, Effect sig, Member (Error Notice) sig) => ModuleGraph f a -> Spanned ModuleName -> m ()
-cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
+cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDet (runCull (cull (go m)))) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do
