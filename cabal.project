@@ -1,4 +1,4 @@
-packages: path.cabal ../fused-effects/fused-effects.cabal
+packages: path.cabal
 jobs: $ncpus
 package path
   ghc-options: -Werror
