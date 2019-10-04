@@ -1,4 +1,1 @@
 packages: path.cabal
-
-package path
-  ghc-options: -Werror
