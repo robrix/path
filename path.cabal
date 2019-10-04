@@ -51,6 +51,7 @@ library
                      , directory
                      , filepath
                      , fused-effects ^>= 0.5
+                     , fused-syntax
                      , haskeline
                      , mtl
                      , optparse-applicative
