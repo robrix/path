@@ -114,11 +114,11 @@ instance Pretty Column where
 
 
 prettyParens :: Bool -> PP.Doc ann -> PP.Doc ann
-prettyParens True = parens
+prettyParens True  = parens
 prettyParens False = id
 
 prettyBraces :: Bool -> PP.Doc ann -> PP.Doc ann
-prettyBraces True = braces
+prettyBraces True  = braces
 prettyBraces False = id
 
 
