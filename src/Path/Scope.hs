@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, DeriveGeneric, DeriveTraversable, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, StandaloneDeriving #-}
+{-# LANGUAGE DataKinds #-}
 module Path.Scope where
 
 import Data.Bifunctor
