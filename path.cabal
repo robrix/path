@@ -34,6 +34,7 @@ common common
 library
   import: common
   exposed-modules:
+    Control.Carrier.Parser.Church
     Control.Carrier.Readline.Haskeline
     Control.Effect.Parser
     Control.Effect.Readline
