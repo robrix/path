@@ -101,7 +101,7 @@ unpiFin _                              = empty
 
 
 instance Pretty a => Pretty (Term Core a) where
-  pretty = unPrec . prettyTerm (atom . pretty) prettyCore
+  pretty = unPrec . foldTerm (atom . pretty) prettyCore VZ . fmap F
 
 prettyCore
   :: (Foldable f, Monad f)

@@ -55,9 +55,9 @@ infixr 3 ===
 
 
 instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = unPrec . prettyTerm (atom . pretty) (\ go ctx -> \case
+  pretty = unPrec . foldTerm (atom . pretty) (\ go ctx -> \case
     L p -> prettyProblem go ctx p
-    R c -> prettyCore    go ctx c)
+    R c -> prettyCore    go ctx c) VZ . fmap F
 
 prettyProblem
   :: Monad f
