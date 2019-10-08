@@ -150,7 +150,7 @@ script packageSources
               Just d  -> print (pretty d)
               Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
         reload = do
-          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateTVar (var pure absurd))) . loadOrder
+          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateVarT (var pure absurd))) . loadOrder
           checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term Core) Void)) (zip [(1 :: Int)..] sorted)
           put checked
         load n graph (i, m) = skipDeps graph m $ do
@@ -160,7 +160,7 @@ script packageSources
           print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
           (errs, res) <- runWriter (runReader graph (elabModule m))
           if Prelude.null errs then
-            pure (ModuleGraph (Map.insert name (abstractTEither Left res) (unModuleGraph graph)))
+            pure (ModuleGraph (Map.insert name (abstractEitherT Left res) (unModuleGraph graph)))
           else do
             for_ @Stack errs (print . pretty @Notice)
             pure graph

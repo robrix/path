@@ -132,7 +132,7 @@ elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term Core) Void) 
   where go decls decl = local (extendGraph decls) . withGlobals $ do
           (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
         extendModule decls decl = Map.insert (declName decl) (abstract (Just . unqualified) <$> decl) decls
-        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term Core) @Void (Map.insert (moduleName m) (abstractTEither Left m { moduleDecls = decls }) g)
+        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term Core) @Void (Map.insert (moduleName m) (abstractEitherT Left m { moduleDecls = decls }) g)
         qualified = (moduleName m :.:) . declName
         unqualified (_ :.: u) = u
 

@@ -172,20 +172,20 @@ abstract1T :: (Functor (t f), Applicative f, Eq a) => a -> t f a -> ScopeT () t 
 abstract1T n = abstractT (guard . (== n))
 
 abstractT :: (Functor (t f), Applicative f) => (b -> Maybe a) -> t f b -> ScopeT a t f b
-abstractT f = abstractTEither (matchMaybe f)
+abstractT f = abstractEitherT (matchMaybe f)
 
-abstractTEither :: (Functor (t f), Applicative f) => (b -> Either a c) -> t f b -> ScopeT a t f c
-abstractTEither f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+abstractEitherT :: (Functor (t f), Applicative f) => (b -> Either a c) -> t f b -> ScopeT a t f c
+abstractEitherT f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate1T :: (RightModule t, Monad f) => f b -> ScopeT a t f b -> t f b
 instantiate1T t = instantiateT (const t)
 
 instantiateT :: (RightModule t, Monad f) => (a -> f b) -> ScopeT a t f b -> t f b
-instantiateT f = instantiateTVar (var f pure)
+instantiateT f = instantiateVarT (var f pure)
 
-instantiateTVar :: (RightModule t, Monad f) => (Var a b -> f c) -> ScopeT a t f b -> t f c
-instantiateTVar f = unScopeT >=>* var (f . B) (>>= f . F)
+instantiateVarT :: (RightModule t, Monad f) => (Var a b -> f c) -> ScopeT a t f b -> t f c
+instantiateVarT f = unScopeT >=>* var (f . B) (>>= f . F)
 
 fromScopeT :: (RightModule t, Monad f) => ScopeT a t f b -> t f (Var a b)
 fromScopeT = unScopeT >=>* sequenceA

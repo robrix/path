@@ -69,7 +69,7 @@ instance RightModule ModuleGraph where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
-moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractTEither Left) ms))
+moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractEitherT Left) ms))
 
 restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
 restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
@@ -106,17 +106,17 @@ renameModule ms m = do
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Notice) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> renameModule (imported m) m) ms
-  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractTEither Left) ms')))
+  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractEitherT Left) ms')))
   where imported m = filter (flip Set.member imports . moduleName) ms
           where imports = Map.keysSet (moduleImports m)
 
 modules :: Monad f => ModuleGraph f Void -> [Module f Qualified]
-modules (ModuleGraph m) = map (instantiateTVar (var pure absurd)) (Map.elems m)
+modules (ModuleGraph m) = map (instantiateVarT (var pure absurd)) (Map.elems m)
 
 lookup :: Monad f => Qualified -> ModuleGraph f Void -> Maybe (Decl (f Qualified))
 lookup (mn :.: n) (ModuleGraph g) = do
   sm <- Map.lookup mn g
-  let m = instantiateTVar (var pure absurd) sm
+  let m = instantiateVarT (var pure absurd) sm
   decl <- Map.lookup n (moduleDecls m)
   pure (instantiate (pure . (moduleName m :.:)) <$> decl)
 
