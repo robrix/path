@@ -14,24 +14,24 @@ import qualified Data.Map as Map
 import Data.Void
 import Path.Core
 import Path.Error
-import Path.Fin
 import Path.Module as Module
 import Path.Name
-import Path.Nat
 import Path.Plicity (Plicit (..))
 import Path.Pretty
 import Path.Problem
-import Path.Scope
+import Path.Scope as Scope
 import Path.Span
 import qualified Path.Surface as Surface
 import Path.Syntax
-import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Fin as Fin
+import Syntax.Nat
 import Syntax.Scope
 import Syntax.Stack
 import Syntax.Term
 import Syntax.Trans.Scope
 import Syntax.Var
+import Syntax.Vec
 
 assume :: ( Carrier sig m
           , Member (Error Notice) sig
@@ -115,9 +115,9 @@ elabDecl :: ( Carrier sig m
          => Decl (Surface.Surface Qualified)
          -> m (Decl (Term Core Qualified))
 elabDecl (Decl name d tm ty) = do
-  ty' <- runSpanned (fmap strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
+  ty' <- runSpanned (fmap Scope.strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
   moduleName <- ask
-  tm' <- runSpanned (fmap strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
+  tm' <- runSpanned (fmap Scope.strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
 
 elabModule :: ( Carrier sig m
@@ -176,7 +176,7 @@ solve ctx = \case
       _ <- solve ctx t
       -- push the fact that this is a metavar
       (soln, b') <- runState Nothing (solve (True :# ctx) (fromScopeFin b))
-      case traverse (bitraverse strengthenFin Just) b' of
+      case traverse (bitraverse Fin.strengthen Just) b' of
         Just b' -> pure b' -- the existential isn’t used, so there’s nothing to solve for
         -- check to see if we have a solution or not
         Nothing -> case soln of
@@ -213,7 +213,8 @@ simplify ctx (p1 :===: p2)
     if p1' == p2' then
       pure p1'
     else
-      unsolvableConstraint (unVar (prettyVar . finToInt) pretty <$> p1') (unVar (prettyVar . finToInt) pretty <$> p2')
+      unsolvableConstraint (pvar <$> p1') (pvar <$> p2') where
+  pvar = unVar (prettyVar . toNum) pretty
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String

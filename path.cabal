@@ -21,10 +21,8 @@ library
     Path.Core
     Path.Elab
     Path.Error
-    Path.Fin
     Path.Module
     Path.Name
-    Path.Nat
     Path.Package
     Path.Parser
     Path.Parser.Module
@@ -42,7 +40,6 @@ library
     Path.Surface
     Path.Syntax
     Path.Usage
-    Path.Vec
   other-modules:       Paths_path
   build-depends:
       base >=4.11 && <4.13

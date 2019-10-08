@@ -29,7 +29,6 @@ import Path.REPL.Command as Command
 import Path.Scope
 import Path.Span
 import qualified Path.Surface as Surface
-import Path.Vec
 import Prelude hiding (print)
 import Syntax.Stack
 import Syntax.Term
@@ -37,6 +36,7 @@ import Syntax.Trans.Scope
 import Syntax.Var
 import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
+import Syntax.Vec
 
 repl :: MonadIO m => [FilePath] -> m ()
 repl packageSources = liftIO $ do

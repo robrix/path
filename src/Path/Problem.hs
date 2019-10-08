@@ -5,18 +5,18 @@ import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
 import GHC.Generics (Generic1)
 import Path.Core
-import Path.Fin
-import Path.Nat
 import Path.Pretty
 import Path.Scope
 import Path.Syntax
-import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Fin
 import Syntax.Module
+import Syntax.Nat
 import Syntax.Scope
 import Syntax.Sum
 import Syntax.Term
 import Syntax.Var
+import Syntax.Vec
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
@@ -57,21 +57,21 @@ infixr 3 ===
 
 
 instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = prettyTerm pretty (\ go ctx -> \case
+  pretty = unPrec . prettyTerm (atom . pretty) (\ go ctx -> \case
     L p -> prettyProblem go ctx p
     R c -> prettyCore    go ctx c)
 
 prettyProblem
   :: Monad f
-  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc)
-  -> Vec n Doc
+  => (forall n . Vec n (Prec Doc) -> f (Var (Fin n) a) -> Prec Doc)
+  -> Vec n (Prec Doc)
   -> Problem f (Var (Fin n) a)
   -> Prec Doc
 prettyProblem go ctx = \case
   Ex t b ->
     let t' = withPrec 1 (go ctx t)
         n  = prettyMeta @Doc (prettyVar (length ctx))
-        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (atom n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "∃") <+> pretty (n ::: t'), magenta dot <+> b']))
   Unify (p1 :===: p2) ->
     let p1' = withPrec 1 (go ctx p1)

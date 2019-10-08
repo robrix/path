@@ -5,18 +5,18 @@ import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
-import           Path.Fin
-import           Path.Nat
 import           Path.Pretty
 import           Path.Scope
 import           Path.Syntax
-import           Path.Vec
 import           Prelude hiding (pi)
+import           Syntax.Fin
 import           Syntax.Module
+import           Syntax.Nat
 import           Syntax.Scope
 import           Syntax.Sum
 import           Syntax.Term
 import           Syntax.Var
+import           Syntax.Vec
 
 data Core f a
   = Lam (Scope () f a)
@@ -103,18 +103,18 @@ unpiFin _                              = empty
 
 
 instance Pretty a => Pretty (Term Core a) where
-  pretty = prettyTerm pretty prettyCore
+  pretty = unPrec . prettyTerm (atom . pretty) prettyCore
 
 prettyCore
   :: (Foldable f, Monad f)
-  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc)
-  -> Vec n Doc
+  => (forall n . Vec n (Prec Doc) -> f (Var (Fin n) a) -> Prec Doc)
+  -> Vec n (Prec Doc)
   -> Core f (Var (Fin n) a)
   -> Prec Doc
 prettyCore go ctx = \case
   Lam b ->
     let n  = prettyVar (length ctx)
-        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (atom n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [cyan backslash <+> n, cyan dot <+> b']))
   f :$ a ->
     let f' = withPrec 10 (go ctx f)
@@ -123,7 +123,7 @@ prettyCore go ctx = \case
   Let v b ->
     let v' = withPrec 0 (go ctx v)
         n  = prettyVar (length ctx)
-        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (atom n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "let") <+> pretty (n := v'), magenta dot <+> b']))
   Type -> atom (yellow (pretty "Type"))
   Pi t b ->
@@ -131,7 +131,7 @@ prettyCore go ctx = \case
         n   = prettyVar (length ctx)
         b'  = fromScopeFin b
         fvs = foldMap (unVar Set.singleton (const Set.empty)) b'
-        b'' = withPrec 0 (go (n :# ctx) b')
+        b'' = withPrec 0 (go (atom n :# ctx) b')
         t'' | FZ `Set.member` fvs = parens (pretty (n ::: t'))
             | otherwise           = t'
     in prec 0 (group (vsep [t'', arrow <+> b'']))

@@ -42,12 +42,8 @@ module Path.Pretty
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
 import Path.Span
-import Path.Fin
-import Path.Vec
-import Syntax.Module
 import Syntax.Pretty
 import Syntax.Term
-import Syntax.Var
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
@@ -141,26 +137,3 @@ plain = unAnnotate
 -- | Debugging helper.
 tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
 tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
-
-
-prettyTerm
-  :: (forall g . Foldable g => Foldable (sig g), RightModule sig)
-  => (a -> doc)
-  -> (forall f n . (Foldable f, Monad f) => (forall n . Vec n doc -> f (Var (Fin n) a) -> Prec doc) -> Vec n doc -> sig f (Var (Fin n) a) -> Prec doc)
-  -> Term sig a
-  -> doc
-prettyTerm var alg = unPrec . prettyTermInContext var alg VZ . fmap F
-
-prettyTermInContext
-  :: forall sig n a doc
-  .  (forall g . Foldable g => Foldable (sig g), RightModule sig)
-  => (a -> doc)
-  -> (forall f n . (Foldable f, Monad f) => (forall n . Vec n doc -> f (Var (Fin n) a) -> Prec doc) -> Vec n doc -> sig f (Var (Fin n) a) -> Prec doc)
-  -> Vec n doc
-  -> Term sig (Var (Fin n) a)
-  -> Prec doc
-prettyTermInContext var alg = go where
-  go :: forall n . Vec n doc -> Term sig (Var (Fin n) a) -> Prec doc
-  go ctx = \case
-    Var v -> atom (unVar (ctx !) var v)
-    Alg t -> alg go ctx t
