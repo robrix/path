@@ -2,6 +2,7 @@
 module Path.Parser.Term where
 
 import Control.Applicative (Alternative(..), (<**>))
+import Control.Effect.Parser
 import Control.Effect.Reader
 import Path.Name
 import Path.Parser as Parser

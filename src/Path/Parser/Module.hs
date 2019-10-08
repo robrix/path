@@ -3,6 +3,7 @@ module Path.Parser.Module where
 
 import Control.Applicative (Alternative(..))
 import Control.Effect
+import Control.Effect.Parser
 import Control.Monad.IO.Class
 import Path.Error (Notice)
 import qualified Path.Module as Module

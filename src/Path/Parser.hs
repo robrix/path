@@ -1,7 +1,6 @@
 {-# LANGUAGE DeriveGeneric, DeriveTraversable, ExistentialQuantification, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, LambdaCase, MultiParamTypeClasses, RankNTypes, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Parser
-( Parser(..)
-, parseFile
+( parseFile
 , parseString
 , whole
 , keyword
@@ -16,6 +15,7 @@ import Control.Effect.Carrier
 import Control.Effect.Cut
 import Control.Effect.Error
 import Control.Effect.NonDet
+import Control.Effect.Parser
 import Control.Effect.Reader
 import Control.Monad (MonadPlus(..), ap)
 import Control.Monad.IO.Class
@@ -47,40 +47,8 @@ keyword s = token (highlight ReservedIdentifier (try (string s <* notFollowedBy 
 op s = token (highlight Operator (string s)) <?> s
 
 
-data Parser m k
-  = forall a . Accept (Char -> Maybe a) (a -> m k)
-  | forall a . Label (m a) String (a -> m k)
-  | Unexpected String
-  | Position (Pos -> m k)
-
-deriving instance Functor m => Functor (Parser m)
-
-instance HFunctor Parser where
-  hmap f (Accept p   k) = Accept p      (f . k)
-  hmap f (Label m s  k) = Label (f m) s (f . k)
-  hmap _ (Unexpected s) = Unexpected s
-  hmap f (Position   k) = Position      (f . k)
-
-instance Effect Parser where
-  handle state handler (Accept p   k) = Accept p (handler . (<$ state) . k)
-  handle state handler (Label m s  k) = Label (handler (m <$ state)) s (handler . fmap k)
-  handle _     _       (Unexpected s) = Unexpected s
-  handle state handler (Position   k) = Position (handler . (<$ state) . k)
-
-
-accept :: (Carrier sig m, Member Parser sig) => (Char -> Maybe a) -> m a
-accept p = send (Accept p pure)
-
 path :: (Carrier sig m, Member (Reader FilePath) sig) => m FilePath
 path = ask
-
-line :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig) => m String
-line = do
-  pos <- position
-  asks (!! posLine pos)
-
-position :: (Carrier sig m, Member Parser sig) => m Pos
-position = send (Position pure)
 
 spanned :: (Carrier sig m, Member (Reader [String]) sig, Member (Reader FilePath) sig, Member Parser sig) => m a -> m (Spanned a)
 spanned m = do
