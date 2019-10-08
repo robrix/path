@@ -7,7 +7,6 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
-import Control.Monad.Module
 import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..), (<|), nub)
 import qualified Data.Map as Map
@@ -20,6 +19,7 @@ import Path.Error
 import Path.Name
 import Path.Scope
 import Path.Span
+import Syntax.Module
 
 data Module f a = Module
   { moduleName    :: ModuleName

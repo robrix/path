@@ -4,11 +4,11 @@ module Path.Term where
 import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
 import Control.Monad ((<=<), ap)
-import Control.Monad.Module
 import Path.Fin
 import Path.Pretty
 import Path.Scope
 import Path.Vec
+import Syntax.Module
 
 data Term sig a
   = Var a

@@ -4,7 +4,6 @@ module Path.Scope where
 import Control.Applicative (liftA2)
 import Control.Effect.Carrier
 import Control.Monad ((>=>), guard)
-import Control.Monad.Module
 import Control.Monad.Trans (MonadTrans (..))
 import Data.Bifoldable
 import Data.Bifunctor
@@ -15,6 +14,7 @@ import GHC.Generics (Generic1)
 import Path.Fin
 import Path.Nat
 import Path.Pretty
+import Syntax.Module
 
 data Var a b = B a | F b
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)

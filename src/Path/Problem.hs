@@ -3,7 +3,6 @@ module Path.Problem where
 
 import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
-import Control.Monad.Module
 import GHC.Generics (Generic1)
 import Path.Core
 import Path.Fin
@@ -14,6 +13,7 @@ import Path.Syntax
 import Path.Term
 import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Module
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree

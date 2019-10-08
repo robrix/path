@@ -14,8 +14,7 @@ build-type:          Simple
 extra-source-files:  README.md
 
 library
-  exposed-modules:     Control.Monad.Module
-                     , Path.CLI
+  exposed-modules:     Path.CLI
                      , Path.Core
                      , Path.Elab
                      , Path.Error

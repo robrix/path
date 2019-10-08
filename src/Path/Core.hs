@@ -3,7 +3,6 @@ module Path.Core where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
-import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Fin
@@ -14,6 +13,7 @@ import           Path.Syntax
 import           Path.Term
 import           Path.Vec
 import           Prelude hiding (pi)
+import           Syntax.Module
 
 data Core f a
   = Lam (Scope () f a)

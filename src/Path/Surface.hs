@@ -2,7 +2,6 @@
 module Path.Surface where
 
 import Control.Monad (ap)
-import Control.Monad.Module
 import Control.Monad.Trans
 import GHC.Generics (Generic1)
 import Path.Name
@@ -10,6 +9,7 @@ import Path.Plicity
 import Path.Scope
 import Path.Span
 import Path.Syntax
+import Syntax.Module
 
 data Surface a
   = Var a
