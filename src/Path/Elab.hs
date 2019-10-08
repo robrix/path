@@ -213,7 +213,7 @@ simplify ctx (p1 :===: p2)
     if p1' == p2' then
       pure p1'
     else
-      unsolvableConstraint (unVar pretty pretty <$> p1') (unVar pretty pretty <$> p2')
+      unsolvableConstraint (unVar (prettyVar . finToInt) pretty <$> p1') (unVar (prettyVar . finToInt) pretty <$> p2')
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String

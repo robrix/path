@@ -10,7 +10,6 @@ import Path.Nat
 import Path.Pretty
 import Path.Scope
 import Path.Syntax
-import Path.Term
 import Path.Vec
 import Prelude hiding (pi)
 import Syntax.Module

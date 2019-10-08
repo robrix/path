@@ -2,7 +2,6 @@
 module Path.Fin where
 
 import Path.Nat
-import Path.Pretty
 
 data Fin n where
   FZ :: Fin ('S n)
@@ -11,9 +10,6 @@ data Fin n where
 deriving instance Eq   (Fin n)
 deriving instance Ord  (Fin n)
 deriving instance Show (Fin n)
-
-instance Pretty (Fin n) where
-  pretty = prettyVar . finToInt
 
 absurdFin :: Fin 'Z -> a
 absurdFin v = case v of {}

@@ -39,7 +39,6 @@ library
     Path.Span
     Path.Surface
     Path.Syntax
-    Path.Term
     Path.Usage
     Path.Vec
   other-modules:       Paths_path
