@@ -150,7 +150,7 @@ script packageSources
               Just d  -> pretty d
               Nothing -> pretty "no docs for" <+> squotes (pretty (unSpanned moduleName))
         reload = do
-          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateVarT (var pure absurd))) . loadOrder
+          sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateVarT (unVar pure absurd))) . loadOrder
           checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term Core) Void)) (zip [(1 :: Int)..] sorted)
           put checked
         load n graph (i, m) = skipDeps graph m $ do

@@ -6,7 +6,6 @@ import Control.Effect.Carrier
 import Control.Monad ((<=<), ap)
 import Path.Fin
 import Path.Pretty
-import Path.Scope
 import Path.Vec
 import Syntax.Module
 import Syntax.Var
@@ -87,5 +86,5 @@ prettyTermInContext
 prettyTermInContext alg = go
   where go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec
         go ctx = \case
-          Var v -> atom (var (ctx !) pretty v)
+          Var v -> atom (unVar (ctx !) pretty v)
           Term t -> alg go ctx t

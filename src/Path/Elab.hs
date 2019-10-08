@@ -147,7 +147,7 @@ withGlobals m = do
   where toContext g = foldl' definitions Nil (modules g)
         definitions ctx m = foldl' define ctx (moduleDecls m)
           where define ctx d = ctx :> (moduleName m :.: declName d) ::: inst (declType d)
-                inst t = instantiateVar (pure . var (moduleName m :.:) id) (unSpanned t)
+                inst t = instantiateVar (pure . unVar (moduleName m :.:) id) (unSpanned t)
 
 logError :: (Member (Writer (Stack Notice)) sig, Carrier sig m) => Notice -> m ()
 logError = tell . (Nil :>)
@@ -211,7 +211,7 @@ simplify ctx (p1 :===: p2)
     if p1' == p2' then
       pure p1'
     else
-      unsolvableConstraint (var pretty pretty <$> p1') (var pretty pretty <$> p2')
+      unsolvableConstraint (unVar pretty pretty <$> p1') (unVar pretty pretty <$> p2')
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String
