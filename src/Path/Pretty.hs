@@ -45,6 +45,7 @@ import Path.Span
 import Path.Fin
 import Path.Vec
 import Syntax.Module
+import Syntax.Pretty
 import Syntax.Term
 import Syntax.Var
 import System.Console.Terminal.Size as Size
@@ -85,11 +86,6 @@ putDoc doc = do
   liftIO (ANSI.renderIO stdout (layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine s 0.8 } (doc <> line)))
 
 
-prettyVar :: Int -> Doc
-prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")
-  where (q, r) = i `divMod` 26
-        alphabet = ['a'..'z']
-
 prettyMeta :: Pretty a => a -> Doc
 prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
 
@@ -121,10 +117,6 @@ instance Pretty Column where
   pretty = snd . unColumn
 
 
-prettyParens :: Bool -> PP.Doc ann -> PP.Doc ann
-prettyParens True  = parens
-prettyParens False = id
-
 prettyBraces :: Bool -> PP.Doc ann -> PP.Doc ann
 prettyBraces True  = braces
 prettyBraces False = id
@@ -151,39 +143,23 @@ tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
 tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
 
 
-data Prec = Prec
-  { precPrecedence :: Maybe Int
-  , precDoc        :: Doc
-  }
-  deriving (Show)
-
-prec :: Int -> Doc -> Prec
-prec = Prec . Just
-
-atom :: Doc -> Prec
-atom = Prec Nothing
-
-withPrec :: Int -> Prec -> Doc
-withPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a
-
-
 prettyTerm
   :: forall sig a
   .  (forall g . Foldable g => Foldable (sig g), Pretty a, RightModule sig)
-  => (forall f n . (Foldable f, Monad f) => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec) -> Vec n Doc -> sig f (Var (Fin n) a) -> Prec)
+  => (forall f n . (Foldable f, Monad f) => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc) -> Vec n Doc -> sig f (Var (Fin n) a) -> Prec Doc)
   -> Term sig a
   -> Doc
-prettyTerm alg = precDoc . prettyTermInContext alg VZ . fmap F
+prettyTerm alg = unPrec . prettyTermInContext alg VZ . fmap F
 
 prettyTermInContext
   :: forall sig n a
   .  (forall g . Foldable g => Foldable (sig g), Pretty a, RightModule sig)
-  => (forall f n . (Foldable f, Monad f) => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec) -> Vec n Doc -> sig f (Var (Fin n) a) -> Prec)
+  => (forall f n . (Foldable f, Monad f) => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc) -> Vec n Doc -> sig f (Var (Fin n) a) -> Prec Doc)
   -> Vec n Doc
   -> Term sig (Var (Fin n) a)
-  -> Prec
+  -> Prec Doc
 prettyTermInContext alg = go where
-  go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec
+  go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec Doc
   go ctx = \case
     Var v -> atom (unVar (ctx !) pretty v)
     Alg t -> alg go ctx t

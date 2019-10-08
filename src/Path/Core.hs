@@ -107,10 +107,10 @@ instance Pretty a => Pretty (Term Core a) where
 
 prettyCore
   :: (Foldable f, Monad f)
-  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
+  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc)
   -> Vec n Doc
   -> Core f (Var (Fin n) a)
-  -> Prec
+  -> Prec Doc
 prettyCore go ctx = \case
   Lam b ->
     let n  = prettyVar (length ctx)

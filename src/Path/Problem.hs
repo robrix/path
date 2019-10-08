@@ -63,14 +63,14 @@ instance Pretty a => Pretty (Term (Problem :+: Core) a) where
 
 prettyProblem
   :: Monad f
-  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
+  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc)
   -> Vec n Doc
   -> Problem f (Var (Fin n) a)
-  -> Prec
+  -> Prec Doc
 prettyProblem go ctx = \case
   Ex t b ->
     let t' = withPrec 1 (go ctx t)
-        n  = prettyMeta (prettyVar (length ctx))
+        n  = prettyMeta @Doc (prettyVar (length ctx))
         b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "∃") <+> pretty (n ::: t'), magenta dot <+> b']))
   Unify (p1 :===: p2) ->
