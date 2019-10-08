@@ -7,14 +7,12 @@ module Control.Effect.Readline
   -- * Line numbers
 , Line(..)
 , increment
-, linePos
 ) where
 
 import Control.Effect.Carrier
 import Data.Text.Prettyprint.Doc (Doc)
 import Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 import GHC.Generics (Generic1)
-import Path.Span
 import Prelude hiding (print)
 
 data Readline m k
@@ -37,6 +35,3 @@ newtype Line = Line Int
 
 increment :: Line -> Line
 increment (Line n) = Line (n + 1)
-
-linePos :: Line -> Pos
-linePos (Line l) = Pos l 0
