@@ -3,9 +3,9 @@ module Path.Parser
 ( parseFile
 , parseString
 , whole
-, keyword
 , identifier
 , reservedWords
+, keyword
 , op
 ) where
 
