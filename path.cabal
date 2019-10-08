@@ -42,7 +42,6 @@ library
                      , Path.Usage
                      , Path.Vec
   other-modules:       Paths_path
-  -- other-extensions:
   build-depends:       base >=4.11 && <4.13
                      , bytestring
                      , containers
