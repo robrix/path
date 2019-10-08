@@ -33,7 +33,7 @@ instance RightModule Problem where
 
 
 exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
-exists (n ::: t) b = send (Ex t (bind1 n b))
+exists (n ::: t) b = send (Ex t (abstract1 n b))
 
 existsFin :: (Carrier sig m, Member Problem sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 existsFin t b = send (Ex t (toScopeFin b))

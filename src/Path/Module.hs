@@ -42,9 +42,9 @@ instance RightModule Module where
 
 module' :: Applicative f => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [Decl (f User)] -> Module f User
 module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) decls
-  where bind' (Decl u d tm ty) = Decl u d (bind (fmap declName . flip Map.lookup decls) <$> tm) (bind (fmap declName . flip Map.lookup decls) <$> ty)
+  where abstract' (Decl u d tm ty) = Decl u d (abstract (fmap declName . flip Map.lookup decls) <$> tm) (abstract (fmap declName . flip Map.lookup decls) <$> ty)
         unSpan (i :~ s) = (i, s)
-        decls = Map.fromList (map ((,) . declName <*> bind') ds)
+        decls = Map.fromList (map ((,) . declName <*> abstract') ds)
 
 data Decl a = Decl
   { declName :: User
@@ -69,7 +69,7 @@ instance RightModule ModuleGraph where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
-moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindTEither Left) ms))
+moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractTEither Left) ms))
 
 restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
 restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
@@ -106,7 +106,7 @@ renameModule ms m = do
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Notice) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> renameModule (imported m) m) ms
-  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindTEither Left) ms')))
+  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractTEither Left) ms')))
   where imported m = filter (flip Set.member imports . moduleName) ms
           where imports = Map.keysSet (moduleImports m)
 

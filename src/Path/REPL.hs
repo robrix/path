@@ -160,7 +160,7 @@ script packageSources
           print (ordinal <+> pretty "Compiling" <+> pretty name <+> path)
           (errs, res) <- runWriter (runReader graph (elabModule m))
           if Prelude.null errs then
-            pure (ModuleGraph (Map.insert name (bindTEither Left res) (unModuleGraph graph)))
+            pure (ModuleGraph (Map.insert name (abstractTEither Left res) (unModuleGraph graph)))
           else do
             for_ @Stack errs (print . pretty @Notice)
             pure graph

@@ -37,7 +37,7 @@ instance RightModule Core where
 
 
 lam :: (Eq a, Carrier sig m, Member Core sig) => a -> m a -> m a
-lam n b = send (Lam (bind1 n b))
+lam n b = send (Lam (abstract1 n b))
 
 lamFin :: (Carrier sig m, Member Core sig) => m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 lamFin b = send (Lam (toScopeFin b))
@@ -63,7 +63,7 @@ unapply _                              = empty
 
 
 let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
-let' (n := v) b = send (Let v (bind1 n b))
+let' (n := v) b = send (Let v (abstract1 n b))
 
 letFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 letFin v b = send (Let v (toScopeFin b))
@@ -81,12 +81,12 @@ type' :: (Carrier sig m, Member Core sig) => m a
 type' = send Type
 
 pi :: (Eq a, Carrier sig m, Member Core sig) => a ::: m a -> m a -> m a
-pi (n ::: t) b = send (Pi t (bind1 n b))
+pi (n ::: t) b = send (Pi t (abstract1 n b))
 
 piFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 piFin t b = send (Pi t (toScopeFin b))
 
--- | Wrap a type in a sequence of pi bindings.
+-- | Wrap a type in a sequence of pi abstractings.
 pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 

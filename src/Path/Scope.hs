@@ -98,17 +98,17 @@ instance HFunctor (Scope a) where
 
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
-bind1 :: (Applicative f, Eq a) => a -> f a -> Scope () f a
-bind1 n = bind (guard . (== n))
+abstract1 :: (Applicative f, Eq a) => a -> f a -> Scope () f a
+abstract1 n = abstract (guard . (== n))
 
-bind :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
-bind f = bindEither (matchMaybe f)
+abstract :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
+abstract f = abstractEither (matchMaybe f)
 
-bindEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
-bindEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+abstractEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
+abstractEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
-bindSimultaneous :: (Applicative f, Eq a) => [(a, f a)] -> [Scope Int f a]
-bindSimultaneous bs = map (bind (`elemIndex` map fst bs) . snd) bs
+abstractSimultaneous :: (Applicative f, Eq a) => [(a, f a)] -> [Scope Int f a]
+abstractSimultaneous bs = map (abstract (`elemIndex` map fst bs) . snd) bs
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate1 :: Monad f => f b -> Scope a f b -> f b
@@ -133,7 +133,7 @@ toScopeFin :: Applicative f => f (Var (Fin ('S n)) b) -> Scope () f (Var (Fin n)
 toScopeFin = Scope . fmap (match (var (maybe (Left ()) (Right . B) . strengthenFin) (Right . F)))
 
 
--- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can bind variables, but cannot (directly) consist solely of them.
+-- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can abstract variables, but cannot (directly) consist solely of them.
 newtype ScopeT a t f b = ScopeT (t f (Var a (f b)))
   deriving (Foldable, Functor, Generic1, Traversable)
 
@@ -168,14 +168,14 @@ instance (HFunctor t, forall g . Functor g => Functor (t g)) => HFunctor (ScopeT
 
 
 -- | Bind occurrences of a variable in a term, producing a term in which the variable is bound.
-bind1T :: (Functor (t f), Applicative f, Eq a) => a -> t f a -> ScopeT () t f a
-bind1T n = bindT (guard . (== n))
+abstract1T :: (Functor (t f), Applicative f, Eq a) => a -> t f a -> ScopeT () t f a
+abstract1T n = abstractT (guard . (== n))
 
-bindT :: (Functor (t f), Applicative f) => (b -> Maybe a) -> t f b -> ScopeT a t f b
-bindT f = bindTEither (matchMaybe f)
+abstractT :: (Functor (t f), Applicative f) => (b -> Maybe a) -> t f b -> ScopeT a t f b
+abstractT f = abstractTEither (matchMaybe f)
 
-bindTEither :: (Functor (t f), Applicative f) => (b -> Either a c) -> t f b -> ScopeT a t f c
-bindTEither f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+abstractTEither :: (Functor (t f), Applicative f) => (b -> Either a c) -> t f b -> ScopeT a t f c
+abstractTEither f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate1T :: (RightModule t, Monad f) => f b -> ScopeT a t f b -> t f b
