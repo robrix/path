@@ -4,16 +4,6 @@ module Path.Name where
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Path.Pretty
-import           Syntax.Stack
-
-unEither :: Monad m => (t -> Either b (m (a, t))) -> t -> m (Stack a, b)
-unEither from = go Nil
-  where go names value = case from value of
-          Right a -> do
-            (name, body) <- a
-            go (names :> name) body
-          Left  b -> pure (names, b)
-
 
 type User = String
 
