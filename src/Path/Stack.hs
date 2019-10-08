@@ -1,20 +1,7 @@
 {-# LANGUAGE DeriveTraversable, LambdaCase #-}
 module Path.Stack where
 
-data Stack a = Nil | Stack a :> a
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-infixl 5 :>
-
-instance Semigroup (Stack a) where
-  as  <> Nil       = as
-  Nil <> bs        = bs
-  as  <> (bs :> b) = (as <> bs) :> b
-
-instance Monoid (Stack a) where
-  mempty = Nil
-  mappend = (<>)
-
+import Syntax.Stack
 
 find :: (a -> Bool) -> Stack a -> Maybe a
 find p = \case

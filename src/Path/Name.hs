@@ -4,7 +4,7 @@ module Path.Name where
 import           Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.Set as Set
 import           Path.Pretty
-import           Path.Stack
+import           Syntax.Stack
 
 un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
 un from = unEither (\ t -> maybe (Left t) Right (from t))

@@ -30,10 +30,10 @@ import Path.Pretty
 import Path.REPL.Command as Command
 import Path.Scope
 import Path.Span
-import Path.Stack
 import qualified Path.Surface as Surface
 import Path.Vec
 import Prelude hiding (print)
+import Syntax.Stack
 import Syntax.Term
 import Syntax.Trans.Scope
 import Syntax.Var

@@ -29,6 +29,7 @@ import Path.Syntax
 import Path.Vec
 import Prelude hiding (pi)
 import Syntax.Scope
+import Syntax.Stack
 import Syntax.Term
 import Syntax.Trans.Scope
 import Syntax.Var
