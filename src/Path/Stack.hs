@@ -29,11 +29,3 @@ find p = \case
     | p a       -> Just a
     | otherwise -> find p b
   Nil           -> Nothing
-
-
-filter :: (a -> Bool) -> Stack a -> Stack a
-filter keep = \case
-  as :> a
-    | keep a    -> filter keep as :> a
-    | otherwise -> filter keep as
-  Nil           -> Nil
