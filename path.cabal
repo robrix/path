@@ -35,6 +35,7 @@ library
   import: common
   exposed-modules:
     Control.Carrier.Readline.Haskeline
+    Control.Effect.Parser
     Control.Effect.Readline
     Path.CLI
     Path.Core
