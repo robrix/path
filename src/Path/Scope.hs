@@ -14,9 +14,6 @@ match f x = unVar B (F . pure) (f x)
 matchM :: (Applicative f, Functor m) => (b -> m (Var a c)) -> b -> m (Var a (f c))
 matchM f x = unVar B (F . pure) <$> f x
 
-matchMaybe :: (b -> Maybe a) -> (b -> Var a b)
-matchMaybe f a = maybe (F a) B (f a)
-
 
 strengthen :: Functor f => f (Var (Fin 'Z) a) -> f a
 strengthen = fmap (unVar absurdFin id)
