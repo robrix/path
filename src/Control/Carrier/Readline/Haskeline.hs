@@ -39,9 +39,6 @@ instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) 
 newtype ControlIOC m a = ControlIOC { runControlIO :: m a }
   deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance Carrier sig m => Carrier sig (ControlIOC m) where
-  eff op = ControlIOC (eff (handleCoercible op))
-
 instance MonadUnliftIO m => MonadUnliftIO (ControlIOC m) where
   withRunInIO inner = ControlIOC $ withRunInIO $ \go -> inner (go . runControlIO)
 
