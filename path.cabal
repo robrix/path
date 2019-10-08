@@ -14,33 +14,34 @@ build-type:          Simple
 extra-source-files:  README.md
 
 library
-  exposed-modules:     Path.CLI
-                     , Path.Core
-                     , Path.Elab
-                     , Path.Error
-                     , Path.Fin
-                     , Path.Module
-                     , Path.Name
-                     , Path.Nat
-                     , Path.Package
-                     , Path.Parser
-                     , Path.Parser.Module
-                     , Path.Parser.Package
-                     , Path.Parser.REPL
-                     , Path.Parser.Term
-                     , Path.Plicity
-                     , Path.Pretty
-                     , Path.Problem
-                     , Path.REPL
-                     , Path.REPL.Command
-                     , Path.Scope
-                     , Path.Semiring
-                     , Path.Span
-                     , Path.Surface
-                     , Path.Syntax
-                     , Path.Term
-                     , Path.Usage
-                     , Path.Vec
+  exposed-modules:
+    Path.CLI
+    Path.Core
+    Path.Elab
+    Path.Error
+    Path.Fin
+    Path.Module
+    Path.Name
+    Path.Nat
+    Path.Package
+    Path.Parser
+    Path.Parser.Module
+    Path.Parser.Package
+    Path.Parser.REPL
+    Path.Parser.Term
+    Path.Plicity
+    Path.Pretty
+    Path.Problem
+    Path.REPL
+    Path.REPL.Command
+    Path.Scope
+    Path.Semiring
+    Path.Span
+    Path.Surface
+    Path.Syntax
+    Path.Term
+    Path.Usage
+    Path.Vec
   other-modules:       Paths_path
   build-depends:       base >=4.11 && <4.13
                      , bytestring
