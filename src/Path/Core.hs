@@ -134,7 +134,3 @@ prettyCore go ctx = \case
             | otherwise           = t'
     in prec 0 (group (vsep [t'', arrow <+> b'']))
   where arrow = blue (pretty "→")
-
-
--- $setup
--- >>> import Test.QuickCheck
