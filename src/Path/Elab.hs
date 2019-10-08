@@ -19,7 +19,6 @@ import Path.Name
 import Path.Plicity (Plicit (..))
 import Path.Pretty
 import Path.Problem
-import Path.Scope as Scope
 import Path.Span
 import qualified Path.Surface as Surface
 import Path.Syntax
@@ -30,7 +29,7 @@ import Syntax.Scope
 import Syntax.Stack
 import Syntax.Term
 import Syntax.Trans.Scope
-import Syntax.Var
+import Syntax.Var as Var
 import Syntax.Vec
 
 assume :: ( Carrier sig m
@@ -115,9 +114,9 @@ elabDecl :: ( Carrier sig m
          => Decl (Surface.Surface Qualified)
          -> m (Decl (Term Core Qualified))
 elabDecl (Decl name d tm ty) = do
-  ty' <- runSpanned (fmap Scope.strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
+  ty' <- runSpanned (fmap Var.strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
   moduleName <- ask
-  tm' <- runSpanned (fmap Scope.strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
+  tm' <- runSpanned (fmap Var.strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
 
 elabModule :: ( Carrier sig m

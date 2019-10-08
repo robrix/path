@@ -6,7 +6,6 @@ import           Control.Effect.Carrier
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Pretty
-import           Path.Scope
 import           Path.Syntax
 import           Prelude hiding (pi)
 import           Syntax.Fin

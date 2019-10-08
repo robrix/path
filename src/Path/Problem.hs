@@ -6,7 +6,6 @@ import Control.Effect.Carrier
 import GHC.Generics (Generic1)
 import Path.Core
 import Path.Pretty
-import Path.Scope
 import Path.Syntax
 import Prelude hiding (pi)
 import Syntax.Fin

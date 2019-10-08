@@ -26,7 +26,6 @@ import Path.Parser.Module (parseModule)
 import Path.Parser.REPL (command)
 import Path.Pretty
 import Path.REPL.Command as Command
-import Path.Scope
 import Path.Span
 import qualified Path.Surface as Surface
 import Prelude hiding (print)

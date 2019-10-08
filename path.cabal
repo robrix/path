@@ -34,7 +34,6 @@ library
     Path.Problem
     Path.REPL
     Path.REPL.Command
-    Path.Scope
     Path.Semiring
     Path.Span
     Path.Surface
