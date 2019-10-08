@@ -20,7 +20,6 @@ import GHC.Generics (Generic1)
 import Path.Core
 import Path.Elab
 import Path.Error
-import Path.Fin
 import Path.Module as Module
 import Path.Name
 import Path.Package
@@ -175,7 +174,7 @@ elaborate :: ( Carrier sig m
              )
           => Spanned (Surface.Surface User)
           -> m (Spanned (Term Core Qualified))
-elaborate = runSpanned $ \ tm -> fmap (var absurdFin id) <$> do
+elaborate = runSpanned $ \ tm -> strengthen <$> do
   let ty = meta type'
   runSubgraph (asks @(ModuleGraph (Term Core) Void) (fmap unScopeT . unModuleGraph) >>= for tm . rename >>= withGlobals . goalIs ty . elab VZ . fmap F >>= solve VZ)
 
