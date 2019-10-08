@@ -26,7 +26,7 @@ instance Applicative Surface where
 instance Monad Surface where
   Var a   >>= f = f a
   Lam p b >>= f = Lam p (fmap (>>=* f) b)
-  g :$ a  >>= f = (fmap (>>= f) g) :$ (fmap (fmap (>>= f)) a)
+  g :$ a  >>= f = fmap (>>= f) g :$ fmap (fmap (>>= f)) a
   Type    >>= _ = Type
   Pi t b  >>= f = Pi (fmap (fmap (fmap (>>= f))) t) (fmap (>>=* f) b)
 
