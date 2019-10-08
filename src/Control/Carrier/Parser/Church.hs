@@ -99,10 +99,10 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     R (R (L nondet)) -> case nondet of
       Empty -> empty
       Choose k -> k True <|> k False
-    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (success pos input ()) (result runParser failure) other) >>= result just nothing
-    where runParser p s m = runParserC m (\ p s -> pure . success p s) failure failure p s
-          success pos input a = Result pos (Right (input, a))
-          failure pos reason = pure (Result pos (Left reason))
+    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (success pos input ()) (result runParser failure) other) >>= result just nothing where
+      runParser p s m = runParserC m (\ p s -> pure . success p s) failure failure p s
+      success pos input a = Result pos (Right (input, a))
+      failure pos reason = pure (Result pos (Left reason))
 
 
 data Result a = Result
