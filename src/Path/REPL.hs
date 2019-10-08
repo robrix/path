@@ -183,7 +183,7 @@ elaborate = runSpanned $ \ tm -> strengthen <$> do
 --   This involves looking up variables at the head of neutral terms in the environment, but will leave other values alone, as they’re already constructor-headed.
 whnf :: ModuleGraph (Term Core) Void -> Term Core Qualified -> Term Core Qualified
 whnf graph = go where
-  go (Term (Var n :$ a)) = maybe (Var n $$ a) (go . ($$ a) . unSpanned . declTerm) (Module.lookup n graph)
+  go (Alg (Var n :$ a)) = maybe (Var n $$ a) (go . ($$ a) . unSpanned . declTerm) (Module.lookup n graph)
   go v                   = v
 
 runSubgraph :: (Carrier sig m, Member (State (ModuleGraph (Term Core) Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph (Term Core) Void) m a -> m a

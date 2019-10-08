@@ -12,7 +12,7 @@ import Syntax.Var
 
 data Term sig a
   = Var a
-  | Term (sig (Term sig) a)
+  | Alg (sig (Term sig) a)
 
 deriving instance ( Eq a
                   , RightModule sig
@@ -39,11 +39,11 @@ instance RightModule sig => Applicative (Term sig) where
   (<*>) = ap
 
 instance RightModule sig => Monad (Term sig) where
-  Var  a >>= f = f a
-  Term t >>= f = Term (t >>=* f)
+  Var a >>= f = f a
+  Alg t >>= f = Alg (t >>=* f)
 
 instance RightModule sig => Carrier sig (Term sig) where
-  eff = Term
+  eff = Alg
 
 
 hoistTerm
@@ -57,12 +57,12 @@ hoistTerm
 hoistTerm f = go
   where go :: Term sig x -> Term sig' x
         go = \case
-          Var v  -> Var v
-          Term t -> Term (f (hmap go t))
+          Var v -> Var v
+          Alg t -> Alg (f (hmap go t))
 
 unTerm :: Alternative m => Term sig a -> m (sig (Term sig) a)
-unTerm (Term t) = pure t
-unTerm _        = empty
+unTerm (Alg t) = pure t
+unTerm _       = empty
 
 prjTerm :: (Alternative m, Member sub sig) => Term sig a -> m (sub (Term sig) a)
 prjTerm = maybe empty pure . (prj <=< unTerm)
@@ -87,4 +87,4 @@ prettyTermInContext alg = go
   where go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec
         go ctx = \case
           Var v -> atom (unVar (ctx !) pretty v)
-          Term t -> alg go ctx t
+          Alg t -> alg go ctx t

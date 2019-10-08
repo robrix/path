@@ -169,7 +169,7 @@ solve
   -> m (Term Core (Var (Fin n) a))
 solve ctx = \case
   Var v -> pure (Var v)
-  Term (L p) -> case p of
+  Alg (L p) -> case p of
     Ex t b -> do
       _ <- solve ctx t
       -- push the fact that this is a metavar
@@ -178,11 +178,11 @@ solve ctx = \case
         Just b' -> pure b' -- the existential isn’t used, so there’s nothing to solve for
         -- check to see if we have a solution or not
         Nothing -> case soln of
-          Just soln' -> pure (Term (Let soln' (toScopeFin b')))
+          Just soln' -> pure (Alg (Let soln' (toScopeFin b')))
           -- FIXME: float if necessary
           Nothing    -> ask >>= \ e -> throwError (Notice (Just Error) e (pretty "no local solution") [])
     Unify q -> simplify ctx q
-  Term (R c) -> case c of
+  Alg (R c) -> case c of
     Lam   b -> lamFin <$>                 solve (False :# ctx) (fromScopeFin b)
     f :$ a  -> ($$) <$> solve ctx f <*> solve ctx a
     Let v b -> letFin <$> solve ctx v <*> solve (False :# ctx) (fromScopeFin b)
