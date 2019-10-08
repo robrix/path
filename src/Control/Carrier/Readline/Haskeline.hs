@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, RankNTypes, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Control.Carrier.Readline.Haskeline
 ( -- * Readline effect
   module Control.Effect.Readline
@@ -15,7 +15,6 @@ import Control.Effect.Reader
 import Control.Effect.Readline
 import Control.Monad.Fix
 import Control.Monad.IO.Unlift
-import Control.Monad.Trans
 import Data.Coerce
 import Path.Pretty
 import System.Console.Haskeline hiding (Handler, handle)
@@ -28,7 +27,7 @@ newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT 
 
 instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) (ReadlineC m) where
   eff (L (Prompt prompt k)) = ReadlineC $ do
-    str <- lift (lift (getInputLine (cyan <> prompt <> plain)))
+    str <- sendM @(InputT (ControlIOC m)) (getInputLine (cyan <> prompt <> plain))
     line <- ask
     local increment (runReadlineC (k line str))
     where cyan = "\ESC[1;36m\STX"
