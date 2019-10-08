@@ -34,16 +34,12 @@ module Path.Pretty
 , atom
 , withPrec
 , module PP
-  -- * Pretty-printing terms
-, prettyTerm
-, prettyTermInContext
 ) where
 
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
 import Path.Span
 import Syntax.Pretty
-import Syntax.Term
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
