@@ -149,17 +149,18 @@ prettyTerm
   => (forall f n . (Foldable f, Monad f) => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc) -> Vec n Doc -> sig f (Var (Fin n) a) -> Prec Doc)
   -> Term sig a
   -> Doc
-prettyTerm alg = unPrec . prettyTermInContext alg VZ . fmap F
+prettyTerm alg = unPrec . prettyTermInContext pretty alg VZ . fmap F
 
 prettyTermInContext
-  :: forall sig n a
-  .  (forall g . Foldable g => Foldable (sig g), Pretty a, RightModule sig)
-  => (forall f n . (Foldable f, Monad f) => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc) -> Vec n Doc -> sig f (Var (Fin n) a) -> Prec Doc)
-  -> Vec n Doc
+  :: forall sig n a doc
+  .  (forall g . Foldable g => Foldable (sig g), RightModule sig)
+  => (a -> doc)
+  -> (forall f n . (Foldable f, Monad f) => (forall n . Vec n doc -> f (Var (Fin n) a) -> Prec doc) -> Vec n doc -> sig f (Var (Fin n) a) -> Prec doc)
+  -> Vec n doc
   -> Term sig (Var (Fin n) a)
-  -> Prec Doc
-prettyTermInContext alg = go where
-  go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec Doc
+  -> Prec doc
+prettyTermInContext var alg = go where
+  go :: forall n . Vec n doc -> Term sig (Var (Fin n) a) -> Prec doc
   go ctx = \case
-    Var v -> atom (unVar (ctx !) pretty v)
+    Var v -> atom (unVar (ctx !) var v)
     Alg t -> alg go ctx t
