@@ -1,10 +1,11 @@
-{-# LANGUAGE DeriveAnyClass, DeriveFunctor, DeriveGeneric, DerivingStrategies, FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleContexts, FlexibleInstances, GeneralizedNewtypeDeriving, KindSignatures, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.REPL where
 
 import Control.Effect.Carrier
 import Control.Effect.Error
 import Control.Effect.Lift
 import Control.Effect.Reader
+import Control.Effect.Readline
 import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad (foldM, join, unless, void)
@@ -16,7 +17,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import Data.Traversable (for)
 import Data.Void
-import GHC.Generics (Generic1)
 import Path.Core
 import Path.Elab
 import Path.Error
@@ -40,31 +40,13 @@ import Syntax.Var
 import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 
-data REPL m k
-  = Prompt String (Maybe String -> m k)
-  | Print Doc (m k)
-  | AskLine (Line -> m k)
-  deriving stock (Functor, Generic1)
-  deriving anyclass (Effect, HFunctor)
-
-
-prompt :: (Carrier sig m, Member REPL sig) => String -> m (Maybe String)
-prompt p = send (Prompt p pure)
-
-print :: (Carrier sig m, Member REPL sig) => Doc -> m ()
-print s = send (Print s (pure ()))
-
-askLine :: (Carrier sig m, Member REPL sig) => m Line
-askLine = send (AskLine pure)
-
-
 runREPL :: MonadException m => Prefs -> Settings m -> REPLC m a -> m a
 runREPL prefs settings = runInputTWithPrefs prefs settings . runM . runReader (Line 0) . runREPLC
 
 newtype REPLC m a = REPLC { runREPLC :: ReaderC Line (LiftC (InputT m)) a }
-  deriving newtype (Applicative, Functor, Monad, MonadFix, MonadIO)
+  deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance (MonadException m, MonadIO m) => Carrier (REPL :+: Lift (InputT m)) (REPLC m) where
+instance (MonadException m, MonadIO m) => Carrier (Readline :+: Lift (InputT m)) (REPLC m) where
   eff (L (Prompt prompt k)) = REPLC $ do
     str <- lift (lift (getInputLine (cyan <> prompt <> plain)))
     local increment (runREPLC (k str))
@@ -78,7 +60,7 @@ runControlIO :: (forall x . m x -> IO x) -> ControlIOC m a -> m a
 runControlIO handler = runReader (Handler handler) . runControlIOC
 
 newtype ControlIOC m a = ControlIOC { runControlIOC :: ReaderC (Handler m) m a }
-  deriving newtype (Applicative, Functor, Monad, MonadFix, MonadIO)
+  deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
 newtype Handler m = Handler (forall x . m x -> IO x)
 
@@ -108,17 +90,9 @@ repl packageSources = liftIO $ do
        (runREPL prefs settings
        (script packageSources)))
 
-newtype Line = Line Int
-
-increment :: Line -> Line
-increment (Line n) = Line (n + 1)
-
-linePos :: Line -> Pos
-linePos (Line l) = Pos l 0
-
 script :: ( Carrier sig m
           , Effect sig
-          , Member REPL sig
+          , Member Readline sig
           , MonadIO m
           )
        => [FilePath]
