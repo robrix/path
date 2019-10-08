@@ -15,6 +15,7 @@ extra-source-files:  README.md
 
 library
   exposed-modules:
+    Control.Carrier.Readline.Haskeline
     Control.Effect.Readline
     Path.CLI
     Path.Core
