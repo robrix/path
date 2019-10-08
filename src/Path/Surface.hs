@@ -2,14 +2,14 @@
 module Path.Surface where
 
 import Control.Monad (ap)
-import Control.Monad.Module
 import Control.Monad.Trans
 import GHC.Generics (Generic1)
 import Path.Name
 import Path.Plicity
-import Path.Scope
 import Path.Span
 import Path.Syntax
+import Syntax.Module
+import Syntax.Scope
 
 data Surface a
   = Var a
@@ -32,7 +32,7 @@ instance Monad Surface where
 
 
 lam :: Eq a => Plicit (Named (Maybe User) a) -> Spanned (Surface a) -> Surface a
-lam (p :< Named u n) b = Lam (p :< u) (bind1 n <$> b)
+lam (p :< Named u n) b = Lam (p :< u) (abstract1 n <$> b)
 
 lam' :: Plicit (Maybe User) -> Spanned (Surface User) -> Surface User
 lam' (p :< Nothing) b = Lam (p :< Ignored Nothing) (lift <$> b)
@@ -40,7 +40,7 @@ lam' (p :< Just n)  b = lam (p :< named (Just n) n) b
 
 
 pi :: Eq a => Plicit (Named (Maybe User) a ::: Spanned (Surface a)) -> Spanned (Surface a) -> Surface a
-pi (p :< Named u n ::: t) b = Pi (p :< u ::: t) (bind1 n <$> b)
+pi (p :< Named u n ::: t) b = Pi (p :< u ::: t) (abstract1 n <$> b)
 
 (-->) :: Spanned (Surface a) -> Spanned (Surface a) -> Surface a
 t --> b = Pi (Ex :< Ignored Nothing ::: t) (lift <$> b)

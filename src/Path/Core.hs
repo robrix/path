@@ -3,17 +3,18 @@ module Path.Core where
 
 import           Control.Applicative (Alternative (..))
 import           Control.Effect.Carrier
-import           Control.Monad.Module
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
-import           Path.Fin
-import           Path.Nat
 import           Path.Pretty
-import           Path.Scope
 import           Path.Syntax
-import           Path.Term
-import           Path.Vec
 import           Prelude hiding (pi)
+import           Syntax.Fin
+import           Syntax.Module
+import           Syntax.Scope
+import           Syntax.Sum
+import           Syntax.Term
+import           Syntax.Var
+import           Syntax.Vec
 
 data Core f a
   = Lam (Scope () f a)
@@ -37,7 +38,7 @@ instance RightModule Core where
 
 
 lam :: (Eq a, Carrier sig m, Member Core sig) => a -> m a -> m a
-lam n b = send (Lam (bind1 n b))
+lam n b = send (Lam (abstract1 n b))
 
 lamFin :: (Carrier sig m, Member Core sig) => m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 lamFin b = send (Lam (toScopeFin b))
@@ -45,11 +46,11 @@ lamFin b = send (Lam (toScopeFin b))
 lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
-unlam :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a, Term sig a)
+unlam :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a, Term sig a)
 unlam n t | Just (Lam b) <- prjTerm t = pure (n, instantiate1 (pure n) b)
 unlam _ _                             = empty
 
-unlamFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin ('S n)) a))
+unlamFin :: (Alternative m, Project Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin ('S n)) a))
 unlamFin t | Just (Lam b) <- prjTerm t = pure (fromScopeFin b)
 unlamFin _                             = empty
 
@@ -57,22 +58,22 @@ unlamFin _                             = empty
 ($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
 
-unapply :: (Alternative m, Member Core sig) => Term sig a -> m (Term sig a, Term sig a)
+unapply :: (Alternative m, Project Core sig) => Term sig a -> m (Term sig a, Term sig a)
 unapply t | Just (f :$ a) <- prjTerm t = pure (f, a)
 unapply _                              = empty
 
 
 let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
-let' (n := v) b = send (Let v (bind1 n b))
+let' (n := v) b = send (Let v (abstract1 n b))
 
 letFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 letFin v b = send (Let v (toScopeFin b))
 
-unlet' :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
+unlet' :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
 unlet' n t | Just (Let v b) <- prjTerm t = pure (n := v, instantiate1 (pure n) b)
 unlet' _ _                               = empty
 
-unletFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unletFin :: (Alternative m, Project Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
 unletFin t | Just (Let v b) <- prjTerm t = pure (v, fromScopeFin b)
 unletFin _                               = empty
 
@@ -81,37 +82,37 @@ type' :: (Carrier sig m, Member Core sig) => m a
 type' = send Type
 
 pi :: (Eq a, Carrier sig m, Member Core sig) => a ::: m a -> m a -> m a
-pi (n ::: t) b = send (Pi t (bind1 n b))
+pi (n ::: t) b = send (Pi t (abstract1 n b))
 
 piFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 piFin t b = send (Pi t (toScopeFin b))
 
--- | Wrap a type in a sequence of pi bindings.
+-- | Wrap a type in a sequence of pi abstractings.
 pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 
-unpi :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unpi :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unpi n t | Just (Pi t b) <- prjTerm t = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                              = empty
 
-unpiFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unpiFin :: (Alternative m, Project Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
 unpiFin t | Just (Pi t b) <- prjTerm t = pure (t, fromScopeFin b)
 unpiFin _                              = empty
 
 
 instance Pretty a => Pretty (Term Core a) where
-  pretty = prettyTerm prettyCore
+  pretty = unPrec . foldTerm (\ ctx -> unVar (ctx !) (atom . pretty)) prettyCore VZ . fmap F
 
 prettyCore
   :: (Foldable f, Monad f)
-  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
-  -> Vec n Doc
+  => (forall n . Vec n (Prec Doc) -> f (Var (Fin n) a) -> Prec Doc)
+  -> Vec n (Prec Doc)
   -> Core f (Var (Fin n) a)
-  -> Prec
+  -> Prec Doc
 prettyCore go ctx = \case
   Lam b ->
     let n  = prettyVar (length ctx)
-        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (atom n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [cyan backslash <+> n, cyan dot <+> b']))
   f :$ a ->
     let f' = withPrec 10 (go ctx f)
@@ -120,20 +121,16 @@ prettyCore go ctx = \case
   Let v b ->
     let v' = withPrec 0 (go ctx v)
         n  = prettyVar (length ctx)
-        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
+        b' = withPrec 0 (go (atom n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "let") <+> pretty (n := v'), magenta dot <+> b']))
   Type -> atom (yellow (pretty "Type"))
   Pi t b ->
     let t'  = withPrec 1 (go ctx t)
         n   = prettyVar (length ctx)
         b'  = fromScopeFin b
-        fvs = foldMap (var Set.singleton (const Set.empty)) b'
-        b'' = withPrec 0 (go (n :# ctx) b')
+        fvs = foldMap (unVar Set.singleton (const Set.empty)) b'
+        b'' = withPrec 0 (go (atom n :# ctx) b')
         t'' | FZ `Set.member` fvs = parens (pretty (n ::: t'))
             | otherwise           = t'
     in prec 0 (group (vsep [t'', arrow <+> b'']))
   where arrow = blue (pretty "→")
-
-
--- $setup
--- >>> import Test.QuickCheck

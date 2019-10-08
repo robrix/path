@@ -1,4 +1,4 @@
-{-# LANGUAGE DefaultSignatures, FlexibleInstances #-}
+{-# LANGUAGE DefaultSignatures, FlexibleInstances, LambdaCase, QuantifiedConstraints, RankNTypes, ScopedTypeVariables #-}
 module Path.Pretty
 (
 -- * Styled pretty-printing class
@@ -39,6 +39,7 @@ module Path.Pretty
 import Control.Arrow ((***))
 import Control.Monad.IO.Class
 import Path.Span
+import Syntax.Pretty
 import System.Console.Terminal.Size as Size
 import System.IO (stdout)
 import System.IO.Unsafe
@@ -77,11 +78,6 @@ putDoc doc = do
   liftIO (ANSI.renderIO stdout (layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine s 0.8 } (doc <> line)))
 
 
-prettyVar :: Int -> Doc
-prettyVar i = pretty (alphabet !! r : if q > 0 then show q else "")
-  where (q, r) = i `divMod` 26
-        alphabet = ['a'..'z']
-
 prettyMeta :: Pretty a => a -> Doc
 prettyMeta n = dullblack (bold (pretty '?' <> pretty n))
 
@@ -113,12 +109,8 @@ instance Pretty Column where
   pretty = snd . unColumn
 
 
-prettyParens :: Bool -> PP.Doc ann -> PP.Doc ann
-prettyParens True = parens
-prettyParens False = id
-
 prettyBraces :: Bool -> PP.Doc ann -> PP.Doc ann
-prettyBraces True = braces
+prettyBraces True  = braces
 prettyBraces False = id
 
 
@@ -141,19 +133,3 @@ plain = unAnnotate
 -- | Debugging helper.
 tracePrettyM :: (Applicative m, Pretty a) => a -> m ()
 tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
-
-
-data Prec = Prec
-  { precPrecedence :: Maybe Int
-  , precDoc        :: Doc
-  }
-  deriving (Show)
-
-prec :: Int -> Doc -> Prec
-prec = Prec . Just
-
-atom :: Doc -> Prec
-atom = Prec Nothing
-
-withPrec :: Int -> Prec -> Doc
-withPrec d (Prec d' a) = prettyParens (maybe False (d >) d') a

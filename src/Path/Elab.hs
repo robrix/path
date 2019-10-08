@@ -9,26 +9,27 @@ import Control.Effect.Writer
 import Control.Monad ((<=<), foldM)
 import Data.Bifunctor (Bifunctor (..))
 import Data.Bitraversable
-import Data.Foldable (foldl')
+import Data.Foldable (find, foldl')
 import qualified Data.Map as Map
 import Data.Void
 import Path.Core
 import Path.Error
-import Path.Fin
 import Path.Module as Module
 import Path.Name
-import Path.Nat
 import Path.Plicity (Plicit (..))
 import Path.Pretty
 import Path.Problem
-import Path.Scope
 import Path.Span
-import Path.Stack as Stack
 import qualified Path.Surface as Surface
 import Path.Syntax
-import Path.Term
-import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Fin as Fin
+import Syntax.Scope
+import Syntax.Stack
+import Syntax.Term
+import Syntax.Trans.Scope
+import Syntax.Var as Var
+import Syntax.Vec
 
 assume :: ( Carrier sig m
           , Member (Error Notice) sig
@@ -37,7 +38,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
-assume v = asks (Stack.find ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (F v) :::) . hoistTerm R . fmap F . typedType)
+assume v = asks (find @Stack ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (F v) :::) . hoistTerm R . fmap F . typedType)
 
 intro :: Monad m
       => (Term (Problem :+: Core) (Var (Fin ('S n)) a) -> m (Term (Problem :+: Core) (Var (Fin ('S n)) a) ::: Term (Problem :+: Core) (Var (Fin ('S n)) a)))
@@ -112,9 +113,9 @@ elabDecl :: ( Carrier sig m
          => Decl (Surface.Surface Qualified)
          -> m (Decl (Term Core Qualified))
 elabDecl (Decl name d tm ty) = do
-  ty' <- runSpanned (fmap strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
+  ty' <- runSpanned (fmap Var.strengthen . solve VZ <=< goalIs type' . elab VZ . fmap F) ty
   moduleName <- ask
-  tm' <- runSpanned (fmap strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
+  tm' <- runSpanned (fmap Var.strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
 
 elabModule :: ( Carrier sig m
@@ -131,8 +132,8 @@ elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term Core) Void) 
   pure m { moduleDecls = decls }
   where go decls decl = local (extendGraph decls) . withGlobals $ do
           (extendModule decls <$> elabDecl (instantiate (pure . qualified . (moduleDecls m Map.!)) <$> decl)) `catchError` ((decls <$) . logError)
-        extendModule decls decl = Map.insert (declName decl) (bind (Just . unqualified) <$> decl) decls
-        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term Core) @Void (Map.insert (moduleName m) (bindTEither Left m { moduleDecls = decls }) g)
+        extendModule decls decl = Map.insert (declName decl) (abstract (Just . unqualified) <$> decl) decls
+        extendGraph decls (ModuleGraph g) = ModuleGraph @(Term Core) @Void (Map.insert (moduleName m) (abstractVarT B m { moduleDecls = decls }) g)
         qualified = (moduleName m :.:) . declName
         unqualified (_ :.: u) = u
 
@@ -146,7 +147,7 @@ withGlobals m = do
   where toContext g = foldl' definitions Nil (modules g)
         definitions ctx m = foldl' define ctx (moduleDecls m)
           where define ctx d = ctx :> (moduleName m :.: declName d) ::: inst (declType d)
-                inst t = instantiateEither (pure . either (moduleName m :.:) id) (unSpanned t)
+                inst t = instantiateVar (pure . unVar (moduleName m :.:) id) (unSpanned t)
 
 logError :: (Member (Writer (Stack Notice)) sig, Carrier sig m) => Notice -> m ()
 logError = tell . (Nil :>)
@@ -168,20 +169,20 @@ solve
   -> m (Term Core (Var (Fin n) a))
 solve ctx = \case
   Var v -> pure (Var v)
-  Term (L p) -> case p of
+  Alg (L p) -> case p of
     Ex t b -> do
       _ <- solve ctx t
       -- push the fact that this is a metavar
       (soln, b') <- runState Nothing (solve (True :# ctx) (fromScopeFin b))
-      case traverse (bitraverse strengthenFin Just) b' of
+      case traverse (bitraverse Fin.strengthen Just) b' of
         Just b' -> pure b' -- the existential isn’t used, so there’s nothing to solve for
         -- check to see if we have a solution or not
         Nothing -> case soln of
-          Just soln' -> pure (Term (Let soln' (toScopeFin b')))
+          Just soln' -> pure (Alg (Let soln' (toScopeFin b')))
           -- FIXME: float if necessary
           Nothing    -> ask >>= \ e -> throwError (Notice (Just Error) e (pretty "no local solution") [])
     Unify q -> simplify ctx q
-  Term (R c) -> case c of
+  Alg (R c) -> case c of
     Lam   b -> lamFin <$>                 solve (False :# ctx) (fromScopeFin b)
     f :$ a  -> ($$) <$> solve ctx f <*> solve ctx a
     Let v b -> letFin <$> solve ctx v <*> solve (False :# ctx) (fromScopeFin b)
@@ -210,7 +211,8 @@ simplify ctx (p1 :===: p2)
     if p1' == p2' then
       pure p1'
     else
-      unsolvableConstraint p1' p2'
+      unsolvableConstraint (pvar <$> p1') (pvar <$> p2') where
+  pvar = unVar (prettyVar . toNum) pretty
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String

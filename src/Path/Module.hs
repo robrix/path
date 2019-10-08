@@ -7,7 +7,6 @@ import Control.Effect.Error
 import Control.Effect.Reader
 import Control.Effect.State
 import Control.Monad (unless, when)
-import Control.Monad.Module
 import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..), (<|), nub)
 import qualified Data.Map as Map
@@ -18,8 +17,11 @@ import Data.Void
 import GHC.Generics (Generic1)
 import Path.Error
 import Path.Name
-import Path.Scope
 import Path.Span
+import Syntax.Module
+import Syntax.Scope
+import Syntax.Trans.Scope
+import Syntax.Var hiding (fromMaybe)
 
 data Module f a = Module
   { moduleName    :: ModuleName
@@ -42,9 +44,9 @@ instance RightModule Module where
 
 module' :: Applicative f => ModuleName -> Maybe String -> FilePath -> [Spanned ModuleName] -> [Decl (f User)] -> Module f User
 module' n d p is ds = Module n d p (Map.fromList (map unSpan is)) decls
-  where bind' (Decl u d tm ty) = Decl u d (bind (fmap declName . flip Map.lookup decls) <$> tm) (bind (fmap declName . flip Map.lookup decls) <$> ty)
+  where abstract' (Decl u d tm ty) = Decl u d (abstract (fmap declName . flip Map.lookup decls) <$> tm) (abstract (fmap declName . flip Map.lookup decls) <$> ty)
         unSpan (i :~ s) = (i, s)
-        decls = Map.fromList (map ((,) . declName <*> bind') ds)
+        decls = Map.fromList (map ((,) . declName <*> abstract') ds)
 
 data Decl a = Decl
   { declName :: User
@@ -69,7 +71,7 @@ instance RightModule ModuleGraph where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
-moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindTEither Left) ms))
+moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractVarT B) ms))
 
 restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
 restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
@@ -106,17 +108,17 @@ renameModule ms m = do
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Notice) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> renameModule (imported m) m) ms
-  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> bindTEither Left) ms')))
+  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractVarT B) ms')))
   where imported m = filter (flip Set.member imports . moduleName) ms
           where imports = Map.keysSet (moduleImports m)
 
 modules :: Monad f => ModuleGraph f Void -> [Module f Qualified]
-modules (ModuleGraph m) = map (instantiateTEither (either pure absurd)) (Map.elems m)
+modules (ModuleGraph m) = map (instantiateVarT (unVar pure absurd)) (Map.elems m)
 
 lookup :: Monad f => Qualified -> ModuleGraph f Void -> Maybe (Decl (f Qualified))
 lookup (mn :.: n) (ModuleGraph g) = do
   sm <- Map.lookup mn g
-  let m = instantiateTEither (either pure absurd) sm
+  let m = instantiateVarT (unVar pure absurd) sm
   decl <- Map.lookup n (moduleDecls m)
   pure (instantiate (pure . (moduleName m :.:)) <$> decl)
 

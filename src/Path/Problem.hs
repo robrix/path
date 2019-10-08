@@ -3,17 +3,18 @@ module Path.Problem where
 
 import Control.Applicative (Alternative (..))
 import Control.Effect.Carrier
-import Control.Monad.Module
 import GHC.Generics (Generic1)
 import Path.Core
-import Path.Fin
-import Path.Nat
 import Path.Pretty
-import Path.Scope
 import Path.Syntax
-import Path.Term
-import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Fin
+import Syntax.Module
+import Syntax.Scope
+import Syntax.Sum
+import Syntax.Term
+import Syntax.Var
+import Syntax.Vec
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree
@@ -33,16 +34,16 @@ instance RightModule Problem where
 
 
 exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
-exists (n ::: t) b = send (Ex t (bind1 n b))
+exists (n ::: t) b = send (Ex t (abstract1 n b))
 
 existsFin :: (Carrier sig m, Member Problem sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 existsFin t b = send (Ex t (toScopeFin b))
 
-unexists :: (Alternative m, Member Problem sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unexists :: (Alternative m, Project Problem sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unexists n t | Just (Ex t b) <- prjTerm t = pure (n ::: t, instantiate1 (pure n) b)
 unexists _ _                              = empty
 
-unexistsFin :: (Alternative m, Member Problem sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unexistsFin :: (Alternative m, Project Problem sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
 unexistsFin t | Just (Ex t b) <- prjTerm t = pure (t, fromScopeFin b)
 unexistsFin _                              = empty
 
@@ -54,21 +55,21 @@ infixr 3 ===
 
 
 instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = prettyTerm (\ go ctx -> \case
+  pretty = unPrec . foldTerm (\ ctx -> unVar (ctx !) (atom . pretty)) (\ go ctx -> \case
     L p -> prettyProblem go ctx p
-    R c -> prettyCore    go ctx c)
+    R c -> prettyCore    go ctx c) VZ . fmap F
 
 prettyProblem
   :: Monad f
-  => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec)
-  -> Vec n Doc
+  => (forall n . Vec n (Prec Doc) -> f (Var (Fin n) a) -> Prec Doc)
+  -> Vec n (Prec Doc)
   -> Problem f (Var (Fin n) a)
-  -> Prec
+  -> Prec Doc
 prettyProblem go ctx = \case
   Ex t b ->
     let t' = withPrec 1 (go ctx t)
-        n  = prettyMeta (prettyVar (length ctx))
-        b' = withPrec 0 (go (n :# ctx) (fromScopeFin b))
+        n  = prettyMeta @Doc (prettyVar (length ctx))
+        b' = withPrec 0 (go (atom n :# ctx) (fromScopeFin b))
     in prec 0 (group (vsep [magenta (pretty "∃") <+> pretty (n ::: t'), magenta dot <+> b']))
   Unify (p1 :===: p2) ->
     let p1' = withPrec 1 (go ctx p1)
