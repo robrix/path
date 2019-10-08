@@ -15,4 +15,4 @@ fromScopeFin :: Monad f => Scope () f (Var (Fin n) b) -> f (Var (Fin ('S n)) b)
 fromScopeFin = instantiateVar (unVar (const (pure (B FZ))) (pure . first FS))
 
 toScopeFin :: Applicative f => f (Var (Fin ('S n)) b) -> Scope () f (Var (Fin n) b)
-toScopeFin = Scope . fmap (unVar (maybe (B ()) (F . pure . B) . Fin.strengthen) (F . pure . F))
+toScopeFin = abstractVar (unVar (maybe (B ()) (F . B) . Fin.strengthen) (F . F))
