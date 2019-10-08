@@ -47,5 +47,5 @@ instance Carrier sig m => Carrier sig (ControlIOC m) where
 instance MonadUnliftIO m => MonadUnliftIO (ControlIOC m) where
   withRunInIO inner = ControlIOC $ withRunInIO $ \go -> inner (go . runControlIO)
 
-instance (Carrier sig m, MonadUnliftIO m) => MonadException (ControlIOC m) where
+instance MonadUnliftIO m => MonadException (ControlIOC m) where
   controlIO f = withRunInIO (\ runInIO -> f (RunIO (fmap pure . runInIO)) >>= runInIO)
