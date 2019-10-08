@@ -4,7 +4,6 @@ module Control.Effect.Readline
   Readline(..)
 , prompt
 , print
-, askLine
   -- * Line numbers
 , Line(..)
 , increment
@@ -18,23 +17,19 @@ import Path.Span
 import Prelude hiding (print)
 
 data Readline m k
-  = Prompt String (Maybe String -> m k)
+  = Prompt String ((Line, Maybe String) -> m k)
   | Print Doc (m k)
-  | AskLine (Line -> m k)
   deriving (Functor, Generic1)
 
 instance HFunctor Readline
 instance Effect   Readline
 
 
-prompt :: (Carrier sig m, Member Readline sig) => String -> m (Maybe String)
+prompt :: (Carrier sig m, Member Readline sig) => String -> m (Line, Maybe String)
 prompt p = send (Prompt p pure)
 
 print :: (Carrier sig m, Member Readline sig) => Doc -> m ()
 print s = send (Print s (pure ()))
-
-askLine :: (Carrier sig m, Member Readline sig) => m Line
-askLine = send (AskLine pure)
 
 
 newtype Line = Line Int

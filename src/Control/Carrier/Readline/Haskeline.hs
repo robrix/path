@@ -29,11 +29,11 @@ newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT 
 instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) (ReadlineC m) where
   eff (L (Prompt prompt k)) = ReadlineC $ do
     str <- lift (lift (getInputLine (cyan <> prompt <> plain)))
-    local increment (runReadlineC (k str))
+    line <- ask
+    local increment (runReadlineC (k (line, str)))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
   eff (L (Print text k)) = putDoc text *> k
-  eff (L (AskLine k)) = ReadlineC ask >>= k
   eff (R other) = ReadlineC (eff (R (handleCoercible other)))
 
 

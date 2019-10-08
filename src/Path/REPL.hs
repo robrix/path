@@ -66,10 +66,8 @@ script packageSources
   . fmap (either id id)
   . runError @()
   $ runError loop >>= either (print . pretty @Notice) pure
-  where loop = (prompt "λ: " >>= parseCommand >>= maybe (pure ()) runCommand . join) `catchError` (print . pretty @Notice) >> loop
-        parseCommand str = do
-          l <- askLine
-          traverse (parseString (whole command) (linePos l)) str
+  where loop = (prompt "λ: " >>= uncurry parseCommand >>= maybe (pure ()) runCommand . join) `catchError` (print . pretty @Notice) >> loop
+        parseCommand l = traverse (parseString (whole command) (linePos l))
         runCommand = \case
           Quit -> throwError ()
           Help -> print helpDoc
