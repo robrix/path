@@ -5,11 +5,13 @@ module Control.Effect.Parser
 , accept
 , line
 , position
+, path
+, spanned
 ) where
 
 import Control.Effect.Carrier
 import Control.Effect.Reader
-import Path.Span
+import Path.Span hiding (spanned)
 
 data Parser m k
   = forall a . Accept (Char -> Maybe a) (a -> m k)
@@ -42,3 +44,15 @@ line = do
 
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
+
+path :: (Carrier sig m, Member (Reader FilePath) sig) => m FilePath
+path = ask
+
+spanned :: (Carrier sig m, Member (Reader [String]) sig, Member (Reader FilePath) sig, Member Parser sig) => m a -> m (Spanned a)
+spanned m = do
+  path <- path
+  line <- line
+  start <- position
+  a <- m
+  end <- position
+  pure (a :~ Excerpt path line (Span start end))

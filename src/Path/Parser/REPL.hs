@@ -4,7 +4,6 @@ module Path.Parser.REPL where
 import Control.Applicative (Alternative(..))
 import Control.Effect.Parser
 import Control.Effect.Reader
-import Path.Parser
 import qualified Path.Parser.Module as M
 import Path.Parser.Term
 import Path.REPL.Command
