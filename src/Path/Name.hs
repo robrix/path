@@ -6,9 +6,6 @@ import qualified Data.Set as Set
 import           Path.Pretty
 import           Syntax.Stack
 
-un :: Monad m => (t -> Maybe (m (a, t))) -> t -> m (Stack a, t)
-un from = unEither (\ t -> maybe (Left t) Right (from t))
-
 unEither :: Monad m => (t -> Either b (m (a, t))) -> t -> m (Stack a, b)
 unEither from = go Nil
   where go names value = case from value of
