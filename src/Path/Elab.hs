@@ -26,9 +26,9 @@ import Path.Span
 import Path.Stack as Stack
 import qualified Path.Surface as Surface
 import Path.Syntax
-import Path.Term
 import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Term
 import Syntax.Var
 
 assume :: ( Carrier sig m

@@ -14,6 +14,8 @@ import           Path.Term
 import           Path.Vec
 import           Prelude hiding (pi)
 import           Syntax.Module
+import           Syntax.Sum
+import           Syntax.Term
 import           Syntax.Var
 
 data Core f a
@@ -46,11 +48,11 @@ lamFin b = send (Lam (toScopeFin b))
 lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
 lams names body = foldr lam body names
 
-unlam :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a, Term sig a)
+unlam :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a, Term sig a)
 unlam n t | Just (Lam b) <- prjTerm t = pure (n, instantiate1 (pure n) b)
 unlam _ _                             = empty
 
-unlamFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin ('S n)) a))
+unlamFin :: (Alternative m, Project Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin ('S n)) a))
 unlamFin t | Just (Lam b) <- prjTerm t = pure (fromScopeFin b)
 unlamFin _                             = empty
 
@@ -58,7 +60,7 @@ unlamFin _                             = empty
 ($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
 f $$ a = send (f :$ a)
 
-unapply :: (Alternative m, Member Core sig) => Term sig a -> m (Term sig a, Term sig a)
+unapply :: (Alternative m, Project Core sig) => Term sig a -> m (Term sig a, Term sig a)
 unapply t | Just (f :$ a) <- prjTerm t = pure (f, a)
 unapply _                              = empty
 
@@ -69,11 +71,11 @@ let' (n := v) b = send (Let v (abstract1 n b))
 letFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 letFin v b = send (Let v (toScopeFin b))
 
-unlet' :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
+unlet' :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
 unlet' n t | Just (Let v b) <- prjTerm t = pure (n := v, instantiate1 (pure n) b)
 unlet' _ _                               = empty
 
-unletFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unletFin :: (Alternative m, Project Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
 unletFin t | Just (Let v b) <- prjTerm t = pure (v, fromScopeFin b)
 unletFin _                               = empty
 
@@ -91,11 +93,11 @@ piFin t b = send (Pi t (toScopeFin b))
 pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 
-unpi :: (Alternative m, Member Core sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unpi :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unpi n t | Just (Pi t b) <- prjTerm t = pure (n ::: t, instantiate1 (pure n) b)
 unpi _ _                              = empty
 
-unpiFin :: (Alternative m, Member Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unpiFin :: (Alternative m, Project Core sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
 unpiFin t | Just (Pi t b) <- prjTerm t = pure (t, fromScopeFin b)
 unpiFin _                              = empty
 

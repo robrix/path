@@ -14,6 +14,8 @@ import Path.Term
 import Path.Vec
 import Prelude hiding (pi)
 import Syntax.Module
+import Syntax.Sum
+import Syntax.Term
 import Syntax.Var
 
 -- FIXME: represent errors explicitly in the tree
@@ -39,11 +41,11 @@ exists (n ::: t) b = send (Ex t (abstract1 n b))
 existsFin :: (Carrier sig m, Member Problem sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 existsFin t b = send (Ex t (toScopeFin b))
 
-unexists :: (Alternative m, Member Problem sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
+unexists :: (Alternative m, Project Problem sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
 unexists n t | Just (Ex t b) <- prjTerm t = pure (n ::: t, instantiate1 (pure n) b)
 unexists _ _                              = empty
 
-unexistsFin :: (Alternative m, Member Problem sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
+unexistsFin :: (Alternative m, Project Problem sig, RightModule sig) => Term sig (Var (Fin n) a) -> m (Term sig (Var (Fin n) a), Term sig (Var (Fin ('S n)) a))
 unexistsFin t | Just (Ex t b) <- prjTerm t = pure (t, fromScopeFin b)
 unexistsFin _                              = empty
 
