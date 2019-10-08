@@ -49,9 +49,8 @@ repl packageSources = liftIO $ do
         , autoAddHistory = True
         }
   createDirectoryIfMissing True settingsDir
-  runM (runControlIO
-       (runReadline prefs settings
-       (script packageSources)))
+  runM (runReadline prefs settings
+       (script packageSources))
 
 script :: ( Carrier sig m
           , Effect sig

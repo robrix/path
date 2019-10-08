@@ -5,8 +5,6 @@ module Control.Carrier.Readline.Haskeline
   -- * Readline carrier
 , runReadline
 , ReadlineC(..)
-  -- * MonadException
-, ControlIOC(..)
   -- * Re-exports
 , Carrier
 ) where
@@ -18,16 +16,17 @@ import Control.Effect.Readline
 import Control.Monad.Fix
 import Control.Monad.IO.Unlift
 import Control.Monad.Trans
+import Data.Coerce
 import Path.Pretty
 import System.Console.Haskeline hiding (Handler, handle)
 
-runReadline :: MonadException m => Prefs -> Settings m -> ReadlineC m a -> m a
-runReadline prefs settings = runInputTWithPrefs prefs settings . runM . runReader (Line 0) . runReadlineC
+runReadline :: MonadUnliftIO m => Prefs -> Settings m -> ReadlineC m a -> m a
+runReadline prefs settings = runControlIO . runInputTWithPrefs prefs (coerce settings) . runM . runReader (Line 0) . runReadlineC
 
-newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT m)) a }
+newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT (ControlIOC m))) a }
   deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance (MonadException m, MonadIO m) => Carrier (Readline :+: Lift (InputT m)) (ReadlineC m) where
+instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) (ReadlineC m) where
   eff (L (Prompt prompt k)) = ReadlineC $ do
     str <- lift (lift (getInputLine (cyan <> prompt <> plain)))
     local increment (runReadlineC (k str))
