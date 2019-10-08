@@ -57,7 +57,7 @@ infixr 3 ===
 
 
 instance Pretty a => Pretty (Term (Problem :+: Core) a) where
-  pretty = prettyTerm (\ go ctx -> \case
+  pretty = prettyTerm pretty (\ go ctx -> \case
     L p -> prettyProblem go ctx p
     R c -> prettyCore    go ctx c)
 

@@ -144,12 +144,12 @@ tracePrettyM a = unsafePerformIO (pure () <$ prettyPrint a)
 
 
 prettyTerm
-  :: forall sig a
-  .  (forall g . Foldable g => Foldable (sig g), Pretty a, RightModule sig)
-  => (forall f n . (Foldable f, Monad f) => (forall n . Vec n Doc -> f (Var (Fin n) a) -> Prec Doc) -> Vec n Doc -> sig f (Var (Fin n) a) -> Prec Doc)
+  :: (forall g . Foldable g => Foldable (sig g), RightModule sig)
+  => (a -> doc)
+  -> (forall f n . (Foldable f, Monad f) => (forall n . Vec n doc -> f (Var (Fin n) a) -> Prec doc) -> Vec n doc -> sig f (Var (Fin n) a) -> Prec doc)
   -> Term sig a
-  -> Doc
-prettyTerm alg = unPrec . prettyTermInContext pretty alg VZ . fmap F
+  -> doc
+prettyTerm var alg = unPrec . prettyTermInContext var alg VZ . fmap F
 
 prettyTermInContext
   :: forall sig n a doc

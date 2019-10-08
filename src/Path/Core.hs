@@ -103,7 +103,7 @@ unpiFin _                              = empty
 
 
 instance Pretty a => Pretty (Term Core a) where
-  pretty = prettyTerm prettyCore
+  pretty = prettyTerm pretty prettyCore
 
 prettyCore
   :: (Foldable f, Monad f)
