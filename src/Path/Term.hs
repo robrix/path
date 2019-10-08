@@ -23,8 +23,8 @@ prettyTermInContext
   -> Vec n Doc
   -> Term sig (Var (Fin n) a)
   -> Prec
-prettyTermInContext alg = go
-  where go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec
-        go ctx = \case
-          Var v -> atom (unVar (ctx !) pretty v)
-          Alg t -> alg go ctx t
+prettyTermInContext alg = go where
+  go :: forall n . Vec n Doc -> Term sig (Var (Fin n) a) -> Prec
+  go ctx = \case
+    Var v -> atom (unVar (ctx !) pretty v)
+    Alg t -> alg go ctx t
