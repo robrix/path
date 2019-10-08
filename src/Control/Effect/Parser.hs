@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, StandaloneDeriving #-}
+{-# LANGUAGE DeriveFunctor, ExistentialQuantification, FlexibleContexts, LambdaCase, StandaloneDeriving #-}
 module Control.Effect.Parser
 ( -- * Parser effect
   Parser(..)
@@ -24,16 +24,18 @@ data Parser m k
 deriving instance Functor m => Functor (Parser m)
 
 instance HFunctor Parser where
-  hmap f (Accept p   k) = Accept p      (f . k)
-  hmap f (Label m s  k) = Label (f m) s (f . k)
-  hmap _ (Unexpected s) = Unexpected s
-  hmap f (Position   k) = Position      (f . k)
+  hmap f = \case
+    Accept p   k -> Accept p      (f . k)
+    Label m s  k -> Label (f m) s (f . k)
+    Unexpected s -> Unexpected s
+    Position   k -> Position      (f . k)
 
 instance Effect Parser where
-  handle state handler (Accept p   k) = Accept p (handler . (<$ state) . k)
-  handle state handler (Label m s  k) = Label (handler (m <$ state)) s (handler . fmap k)
-  handle _     _       (Unexpected s) = Unexpected s
-  handle state handler (Position   k) = Position (handler . (<$ state) . k)
+  handle state handler = \case
+    Accept p   k -> Accept p (handler . (<$ state) . k)
+    Label m s  k -> Label (handler (m <$ state)) s (handler . fmap k)
+    Unexpected s -> Unexpected s
+    Position   k -> Position (handler . (<$ state) . k)
 
 
 accept :: (Carrier sig m, Member Parser sig) => (Char -> Maybe a) -> m a
