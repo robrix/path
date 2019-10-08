@@ -27,7 +27,7 @@ newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT 
 
 instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) (ReadlineC m) where
   eff (L (Prompt prompt k)) = ReadlineC $ do
-    str <- sendM @(InputT (ControlIOC m)) (getInputLine (cyan <> prompt <> plain))
+    str <- sendM (getInputLine @(ControlIOC m) (cyan <> prompt <> plain))
     line <- ask
     local increment (runReadlineC (k line str))
     where cyan = "\ESC[1;36m\STX"
