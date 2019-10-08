@@ -22,12 +22,12 @@ import System.Console.Haskeline hiding (Handler, handle)
 runReadline :: MonadUnliftIO m => Prefs -> Settings m -> ReadlineC m a -> m a
 runReadline prefs settings = runControlIO . runInputTWithPrefs prefs (coerce settings) . runM . runReader (Line 0) . runReadlineC
 
-newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT (ControlIOC m))) a }
+newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT (ControlIO m))) a }
   deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) (ReadlineC m) where
+instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIO m))) (ReadlineC m) where
   eff (L (Prompt prompt k)) = ReadlineC $ do
-    str <- sendM (getInputLine @(ControlIOC m) (cyan <> prompt <> plain))
+    str <- sendM (getInputLine @(ControlIO m) (cyan <> prompt <> plain))
     line <- ask
     local increment (runReadlineC (k line str))
     where cyan = "\ESC[1;36m\STX"
@@ -36,11 +36,11 @@ instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) 
   eff (R other) = ReadlineC (eff (R (handleCoercible other)))
 
 
-newtype ControlIOC m a = ControlIOC { runControlIO :: m a }
+newtype ControlIO m a = ControlIO { runControlIO :: m a }
   deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance MonadUnliftIO m => MonadUnliftIO (ControlIOC m) where
-  withRunInIO inner = ControlIOC $ withRunInIO $ \go -> inner (go . runControlIO)
+instance MonadUnliftIO m => MonadUnliftIO (ControlIO m) where
+  withRunInIO inner = ControlIO $ withRunInIO $ \go -> inner (go . runControlIO)
 
-instance MonadUnliftIO m => MonadException (ControlIOC m) where
+instance MonadUnliftIO m => MonadException (ControlIO m) where
   controlIO f = withRunInIO (\ runInIO -> f (RunIO (fmap pure . runInIO)) >>= runInIO)
