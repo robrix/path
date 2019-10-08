@@ -3,7 +3,6 @@ module Path.Stack where
 
 import Data.Foldable (toList)
 import Path.Pretty
-import Prelude hiding (drop, filter, lookup)
 
 data Stack a = Nil | Stack a :> a
   deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
