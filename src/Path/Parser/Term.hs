@@ -15,7 +15,7 @@ import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.Token
 
-type', var, term, application, piType, functionType, lambda, atom :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned (Surface User))
+type', var, term, application, piType, functionType, lambda, atom :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader Path) sig, TokenParsing m) => m (Spanned (Surface User))
 
 term = functionType
 

@@ -6,6 +6,7 @@ module Control.Effect.Parser
 , Lines(..)
 , line
 , position
+, Path(..)
 , path
 , spanned
 ) where
@@ -48,10 +49,12 @@ line = do
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
 
-path :: (Carrier sig m, Member (Reader FilePath) sig) => m FilePath
-path = ask
+newtype Path = Path { unPath :: FilePath }
 
-spanned :: (Carrier sig m, Member (Reader Lines) sig, Member (Reader FilePath) sig, Member Parser sig) => m a -> m (Spanned a)
+path :: (Carrier sig m, Member (Reader Path) sig) => m FilePath
+path = asks unPath
+
+spanned :: (Carrier sig m, Member (Reader Lines) sig, Member (Reader Path) sig, Member Parser sig) => m a -> m (Spanned a)
 spanned m = do
   path <- path
   line <- line
