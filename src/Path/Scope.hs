@@ -51,14 +51,14 @@ instance Monad (Var a) where
 var :: (a -> c) -> (b -> c) -> Var a b -> c
 var z s = \case { B a -> z a ; F b -> s b }
 
-match :: Applicative f => (b -> Either a c) -> b -> Var a (f c)
-match f x = either B (F . pure) (f x)
+match :: Applicative f => (b -> Var a c) -> b -> Var a (f c)
+match f x = var B (F . pure) (f x)
 
-matchM :: (Applicative f, Functor m) => (b -> m (Either a c)) -> b -> m (Var a (f c))
-matchM f x = either B (F . pure) <$> f x
+matchM :: (Applicative f, Functor m) => (b -> m (Var a c)) -> b -> m (Var a (f c))
+matchM f x = var B (F . pure) <$> f x
 
-matchMaybe :: (b -> Maybe a) -> (b -> Either a b)
-matchMaybe f a = maybe (Right a) Left (f a)
+matchMaybe :: (b -> Maybe a) -> (b -> Var a b)
+matchMaybe f a = maybe (F a) B (f a)
 
 
 strengthen :: Functor f => f (Var (Fin 'Z) a) -> f a
@@ -102,10 +102,10 @@ abstract1 :: (Applicative f, Eq a) => a -> f a -> Scope () f a
 abstract1 n = abstract (guard . (== n))
 
 abstract :: Applicative f => (b -> Maybe a) -> f b -> Scope a f b
-abstract f = abstractEither (matchMaybe f)
+abstract f = abstractVar (matchMaybe f)
 
-abstractEither :: Applicative f => (b -> Either a c) -> f b -> Scope a f c
-abstractEither f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+abstractVar :: Applicative f => (b -> Var a c) -> f b -> Scope a f c
+abstractVar f = Scope . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 abstractSimultaneous :: (Applicative f, Eq a) => [(a, f a)] -> [Scope Int f a]
 abstractSimultaneous bs = map (abstract (`elemIndex` map fst bs) . snd) bs
@@ -130,7 +130,7 @@ toScope :: Applicative f => f (Var a b) -> Scope a f b
 toScope = Scope . fmap (fmap pure)
 
 toScopeFin :: Applicative f => f (Var (Fin ('S n)) b) -> Scope () f (Var (Fin n) b)
-toScopeFin = Scope . fmap (match (var (maybe (Left ()) (Right . B) . strengthenFin) (Right . F)))
+toScopeFin = Scope . fmap (match (var (maybe (B ()) (F . B) . strengthenFin) (F . F)))
 
 
 -- | Like 'Scope', but allows the inner functor to vary. Useful for syntax like declaration scopes, case alternatives, etc., which can abstract variables, but cannot (directly) consist solely of them.
@@ -172,10 +172,10 @@ abstract1T :: (Functor (t f), Applicative f, Eq a) => a -> t f a -> ScopeT () t 
 abstract1T n = abstractT (guard . (== n))
 
 abstractT :: (Functor (t f), Applicative f) => (b -> Maybe a) -> t f b -> ScopeT a t f b
-abstractT f = abstractEitherT (matchMaybe f)
+abstractT f = abstractVarT (matchMaybe f)
 
-abstractEitherT :: (Functor (t f), Applicative f) => (b -> Either a c) -> t f b -> ScopeT a t f c
-abstractEitherT f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
+abstractVarT :: (Functor (t f), Applicative f) => (b -> Var a c) -> t f b -> ScopeT a t f c
+abstractVarT f = ScopeT . fmap (match f) -- FIXME: succ as little of the expression as possible, cf https://twitter.com/ollfredo/status/1145776391826358273
 
 -- | Substitute a term for the free variable in a given term, producing a closed term.
 instantiate1T :: (RightModule t, Monad f) => f b -> ScopeT a t f b -> t f b

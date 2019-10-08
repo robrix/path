@@ -69,7 +69,7 @@ instance RightModule ModuleGraph where
   ModuleGraph ms >>=* f = ModuleGraph (fmap (>>=* f) ms)
 
 moduleGraph :: Applicative f => [Module f Qualified] -> ModuleGraph f Void
-moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractEitherT Left) ms))
+moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractVarT B) ms))
 
 restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
 restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
@@ -106,7 +106,7 @@ renameModule ms m = do
 renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Notice) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> renameModule (imported m) m) ms
-  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractEitherT Left) ms')))
+  pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractVarT B) ms')))
   where imported m = filter (flip Set.member imports . moduleName) ms
           where imports = Map.keysSet (moduleImports m)
 
