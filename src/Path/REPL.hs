@@ -36,6 +36,7 @@ import qualified Path.Surface as Surface
 import Path.Term
 import Path.Vec
 import Prelude hiding (print)
+import Syntax.Var
 import System.Console.Haskeline hiding (Handler, handle)
 import System.Directory (createDirectoryIfMissing, getHomeDirectory)
 

@@ -20,6 +20,7 @@ import Path.Name
 import Path.Scope
 import Path.Span
 import Syntax.Module
+import Syntax.Var hiding (fromMaybe)
 
 data Module f a = Module
   { moduleName    :: ModuleName

@@ -5,48 +5,14 @@ import Control.Applicative (liftA2)
 import Control.Effect.Carrier
 import Control.Monad ((>=>), guard)
 import Control.Monad.Trans (MonadTrans (..))
-import Data.Bifoldable
 import Data.Bifunctor
-import Data.Bitraversable
 import Data.Function (on)
 import Data.List (elemIndex)
 import GHC.Generics (Generic1)
 import Path.Fin
 import Path.Nat
-import Path.Pretty
 import Syntax.Module
-
-data Var a b = B a | F b
-  deriving (Eq, Foldable, Functor, Ord, Show, Traversable)
-
-instance (Pretty b, Pretty f) => Pretty (Var b f) where
-  pretty = \case
-    B b -> pretty b
-    F f -> pretty f
-
-instance Bifoldable Var where
-  bifoldMap f g = \case
-    B a -> f a
-    F a -> g a
-
-instance Bitraversable Var where
-  bitraverse f g = \case
-    B a -> B <$> f a
-    F a -> F <$> g a
-
-instance Bifunctor Var where
-  bimap f g = \case
-    B a -> B (f a)
-    F a -> F (g a)
-
-instance Applicative (Var a) where
-  pure = F
-  B e <*> _ = B e
-  F f <*> a = f <$> a
-
-instance Monad (Var a) where
-  B e >>= _ = B e
-  F a >>= f = f a
+import Syntax.Var
 
 var :: (a -> c) -> (b -> c) -> Var a b -> c
 var z s = \case { B a -> z a ; F b -> s b }

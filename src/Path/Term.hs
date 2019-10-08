@@ -9,6 +9,7 @@ import Path.Pretty
 import Path.Scope
 import Path.Vec
 import Syntax.Module
+import Syntax.Var
 
 data Term sig a
   = Var a

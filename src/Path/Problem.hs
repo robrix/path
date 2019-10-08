@@ -14,6 +14,7 @@ import Path.Term
 import Path.Vec
 import Prelude hiding (pi)
 import Syntax.Module
+import Syntax.Var
 
 -- FIXME: represent errors explicitly in the tree
 -- FIXME: represent spans explicitly in the tree

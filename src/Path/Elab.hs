@@ -29,6 +29,7 @@ import Path.Syntax
 import Path.Term
 import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Var
 
 assume :: ( Carrier sig m
           , Member (Error Notice) sig
@@ -210,7 +211,7 @@ simplify ctx (p1 :===: p2)
     if p1' == p2' then
       pure p1'
     else
-      unsolvableConstraint p1' p2'
+      unsolvableConstraint (var pretty pretty <$> p1') (var pretty pretty <$> p2')
 
 
 identity, identityT, constant, constantT, constantTQ :: Term (Problem :+: Core) String

@@ -14,6 +14,7 @@ import           Path.Term
 import           Path.Vec
 import           Prelude hiding (pi)
 import           Syntax.Module
+import           Syntax.Var
 
 data Core f a
   = Lam (Scope () f a)
