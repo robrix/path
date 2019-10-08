@@ -37,7 +37,3 @@ filter keep = \case
     | keep a    -> filter keep as :> a
     | otherwise -> filter keep as
   Nil           -> Nil
-
-drop :: Int -> Stack a -> Stack a
-drop n (xs :> _) | n > 0 = drop (pred n) xs
-drop _ xs                = xs
