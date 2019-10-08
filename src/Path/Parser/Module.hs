@@ -20,17 +20,17 @@ parseModule :: (Carrier sig m, Effect sig, Member (Error Notice) sig, MonadIO m)
 parseModule path = parseFile (whole (module' path)) path
 
 
-module' :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => FilePath -> m (Module.Module Surface User)
+module' :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader FilePath) sig, TokenParsing m) => FilePath -> m (Module.Module Surface User)
 module' path = make <$> optional docs <* keyword "module" <*> moduleName <*> many (try import') <*> many declaration
   where make comment name = Module.module' name comment path
 
 moduleName :: (Monad m, TokenParsing m) => m ModuleName
 moduleName = makeModuleName <$> token (runUnspaced (identifier `sepByNonEmpty` dot))
 
-import' :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned ModuleName)
+import' :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Spanned ModuleName)
 import' = spanned (keyword "import" *> moduleName) <* semi
 
-declaration :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Module.Decl (Surface User))
+declaration :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader FilePath) sig, TokenParsing m) => m (Module.Decl (Surface User))
 declaration = do
   docs <- optional docs
   name <- name

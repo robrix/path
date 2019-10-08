@@ -3,6 +3,7 @@ module Control.Effect.Parser
 ( -- * Parser effect
   Parser(..)
 , accept
+, Lines(..)
 , line
 , position
 , path
@@ -37,10 +38,12 @@ instance Effect Parser where
 accept :: (Carrier sig m, Member Parser sig) => (Char -> Maybe a) -> m a
 accept p = send (Accept p pure)
 
-line :: (Carrier sig m, Member Parser sig, Member (Reader [String]) sig) => m String
+newtype Lines = Lines { unLines :: [String] }
+
+line :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig) => m String
 line = do
   pos <- position
-  asks (!! posLine pos)
+  asks ((!! posLine pos) . unLines)
 
 position :: (Carrier sig m, Member Parser sig) => m Pos
 position = send (Position pure)
@@ -48,7 +51,7 @@ position = send (Position pure)
 path :: (Carrier sig m, Member (Reader FilePath) sig) => m FilePath
 path = ask
 
-spanned :: (Carrier sig m, Member (Reader [String]) sig, Member (Reader FilePath) sig, Member Parser sig) => m a -> m (Spanned a)
+spanned :: (Carrier sig m, Member (Reader Lines) sig, Member (Reader FilePath) sig, Member Parser sig) => m a -> m (Spanned a)
 spanned m = do
   path <- path
   line <- line

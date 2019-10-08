@@ -26,16 +26,16 @@ import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.Token
 
-parseString :: (Carrier sig m, Member (Error Notice) sig) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> Pos -> String -> m a
+parseString :: (Carrier sig m, Member (Error Notice) sig) => ParserC (ReaderC FilePath (ReaderC Lines m)) a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either throwError pure
 
-parseFile :: (Carrier sig m, Member (Error Notice) sig, MonadIO m) => ParserC (ReaderC FilePath (ReaderC [String] m)) a -> FilePath -> m a
+parseFile :: (Carrier sig m, Member (Error Notice) sig, MonadIO m) => ParserC (ReaderC FilePath (ReaderC Lines m)) a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
   runParser path (Pos 0 0) input p >>= either throwError pure
 
-runParser :: Applicative m => FilePath -> Pos -> String -> ParserC (ReaderC FilePath (ReaderC [String] m)) a -> m (Either Notice a)
-runParser path pos input m = runReader inputLines (runReader path (runParserC m success failure failure pos input)) where
+runParser :: Applicative m => FilePath -> Pos -> String -> ParserC (ReaderC FilePath (ReaderC Lines m)) a -> m (Either Notice a)
+runParser path pos input m = runReader (Lines inputLines) (runReader path (runParserC m success failure failure pos input)) where
   success _ _ a = pure (Right a)
   failure pos reason = pure (Left (Notice (Just Error) (Excerpt path (inputLines !! posLine pos) (Span pos pos)) (fromMaybe (pretty "unknown error") reason) []))
   inputLines = lines input
