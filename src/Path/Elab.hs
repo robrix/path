@@ -9,7 +9,7 @@ import Control.Effect.Writer
 import Control.Monad ((<=<), foldM)
 import Data.Bifunctor (Bifunctor (..))
 import Data.Bitraversable
-import Data.Foldable (foldl')
+import Data.Foldable (find, foldl')
 import qualified Data.Map as Map
 import Data.Void
 import Path.Core
@@ -23,7 +23,6 @@ import Path.Pretty
 import Path.Problem
 import Path.Scope
 import Path.Span
-import Path.Stack as Stack
 import qualified Path.Surface as Surface
 import Path.Syntax
 import Path.Vec
@@ -41,7 +40,7 @@ assume :: ( Carrier sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
-assume v = asks (Stack.find ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (F v) :::) . hoistTerm R . fmap F . typedType)
+assume v = asks (find @Stack ((== v) . typedTerm)) >>= maybe (freeVariables (pure v)) (pure . (Var (F v) :::) . hoistTerm R . fmap F . typedType)
 
 intro :: Monad m
       => (Term (Problem :+: Core) (Var (Fin ('S n)) a) -> m (Term (Problem :+: Core) (Var (Fin ('S n)) a) ::: Term (Problem :+: Core) (Var (Fin ('S n)) a)))

@@ -36,7 +36,6 @@ library
                      , Path.Scope
                      , Path.Semiring
                      , Path.Span
-                     , Path.Stack
                      , Path.Surface
                      , Path.Syntax
                      , Path.Term
