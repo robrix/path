@@ -17,9 +17,9 @@ import Data.Void
 import GHC.Generics (Generic1)
 import Path.Error
 import Path.Name
-import Path.Scope
 import Path.Span
 import Syntax.Module
+import Syntax.Scope
 import Syntax.Trans.Scope
 import Syntax.Var hiding (fromMaybe)
 

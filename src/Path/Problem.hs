@@ -14,6 +14,7 @@ import Path.Term
 import Path.Vec
 import Prelude hiding (pi)
 import Syntax.Module
+import Syntax.Scope
 import Syntax.Sum
 import Syntax.Term
 import Syntax.Var

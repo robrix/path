@@ -28,6 +28,7 @@ import qualified Path.Surface as Surface
 import Path.Syntax
 import Path.Vec
 import Prelude hiding (pi)
+import Syntax.Scope
 import Syntax.Term
 import Syntax.Trans.Scope
 import Syntax.Var
