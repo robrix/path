@@ -49,7 +49,7 @@ repl packageSources = liftIO $ do
         , autoAddHistory = True
         }
   createDirectoryIfMissing True settingsDir
-  runM (runControlIO runM
+  runM (runControlIO
        (runReadline prefs settings
        (script packageSources)))
 
