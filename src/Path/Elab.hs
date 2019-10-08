@@ -24,7 +24,6 @@ import qualified Path.Surface as Surface
 import Path.Syntax
 import Prelude hiding (pi)
 import Syntax.Fin as Fin
-import Syntax.Nat
 import Syntax.Scope
 import Syntax.Stack
 import Syntax.Term

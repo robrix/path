@@ -10,7 +10,6 @@ import Path.Syntax
 import Prelude hiding (pi)
 import Syntax.Fin
 import Syntax.Module
-import Syntax.Nat
 import Syntax.Scope
 import Syntax.Sum
 import Syntax.Term
