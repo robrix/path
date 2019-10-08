@@ -30,7 +30,7 @@ instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIOC m))) 
   eff (L (Prompt prompt k)) = ReadlineC $ do
     str <- lift (lift (getInputLine (cyan <> prompt <> plain)))
     line <- ask
-    local increment (runReadlineC (k (line, str)))
+    local increment (runReadlineC (k line str))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
   eff (L (Print text k)) = putDoc text *> k
