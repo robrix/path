@@ -8,7 +8,7 @@ license:             BSD-3-Clause
 license-file:        LICENSE
 author:              Rob Rix
 maintainer:          rob.rix@me.com
-copyright:           2018 Rob Rix
+copyright:           2018-2019 Rob Rix
 category:            Language
 build-type:          Simple
 extra-source-files:  README.md
