@@ -146,9 +146,9 @@ script packageSources
           Command.Import i -> modify (Set.insert (unSpanned i))
           Command.Doc moduleName -> do
             m <- get >>= lookupModule moduleName
-            case moduleDocs (unScopeT (m :: ScopeT Qualified Module (Term Core) Void)) of
-              Just d  -> print (pretty d)
-              Nothing -> print (pretty "no docs for" <+> squotes (pretty (unSpanned moduleName)))
+            print $ case moduleDocs (unScopeT (m :: ScopeT Qualified Module (Term Core) Void)) of
+              Just d  -> pretty d
+              Nothing -> pretty "no docs for" <+> squotes (pretty (unSpanned moduleName))
         reload = do
           sorted <- traverse parseModule packageSources >>= renameModuleGraph >>= fmap (map (instantiateVarT (var pure absurd))) . loadOrder
           checked <- foldM (load (length packageSources)) (mempty @(ModuleGraph (Term Core) Void)) (zip [(1 :: Int)..] sorted)
