@@ -146,7 +146,7 @@ withGlobals m = do
   where toContext g = foldl' definitions Nil (modules g)
         definitions ctx m = foldl' define ctx (moduleDecls m)
           where define ctx d = ctx :> (moduleName m :.: declName d) ::: inst (declType d)
-                inst t = instantiateEither (pure . either (moduleName m :.:) id) (unSpanned t)
+                inst t = instantiateVar (pure . var (moduleName m :.:) id) (unSpanned t)
 
 logError :: (Member (Writer (Stack Notice)) sig, Carrier sig m) => Notice -> m ()
 logError = tell . (Nil :>)

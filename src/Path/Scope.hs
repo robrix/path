@@ -115,10 +115,10 @@ instantiate1 :: Monad f => f b -> Scope a f b -> f b
 instantiate1 t = instantiate (const t)
 
 instantiate :: Monad f => (a -> f b) -> Scope a f b -> f b
-instantiate f = instantiateEither (either f pure)
+instantiate f = instantiateVar (var f pure)
 
-instantiateEither :: Monad f => (Either a b -> f c) -> Scope a f b -> f c
-instantiateEither f = unScope >=> var (f . Left) (>>= f . Right)
+instantiateVar :: Monad f => (Var a b -> f c) -> Scope a f b -> f c
+instantiateVar f = unScope >=> var (f . B) (>>= f . F)
 
 fromScope :: Monad f => Scope a f b -> f (Var a b)
 fromScope = unScope >=> sequenceA
@@ -182,10 +182,10 @@ instantiate1T :: (RightModule t, Monad f) => f b -> ScopeT a t f b -> t f b
 instantiate1T t = instantiateT (const t)
 
 instantiateT :: (RightModule t, Monad f) => (a -> f b) -> ScopeT a t f b -> t f b
-instantiateT f = instantiateTEither (either f pure)
+instantiateT f = instantiateTVar (var f pure)
 
-instantiateTEither :: (RightModule t, Monad f) => (Either a b -> f c) -> ScopeT a t f b -> t f c
-instantiateTEither f = unScopeT >=>* var (f . Left) (>>= f . Right)
+instantiateTVar :: (RightModule t, Monad f) => (Var a b -> f c) -> ScopeT a t f b -> t f c
+instantiateTVar f = unScopeT >=>* var (f . B) (>>= f . F)
 
 fromScopeT :: (RightModule t, Monad f) => ScopeT a t f b -> t f (Var a b)
 fromScopeT = unScopeT >=>* sequenceA

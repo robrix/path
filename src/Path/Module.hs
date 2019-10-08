@@ -111,12 +111,12 @@ renameModuleGraph ms = do
           where imports = Map.keysSet (moduleImports m)
 
 modules :: Monad f => ModuleGraph f Void -> [Module f Qualified]
-modules (ModuleGraph m) = map (instantiateTEither (either pure absurd)) (Map.elems m)
+modules (ModuleGraph m) = map (instantiateTVar (var pure absurd)) (Map.elems m)
 
 lookup :: Monad f => Qualified -> ModuleGraph f Void -> Maybe (Decl (f Qualified))
 lookup (mn :.: n) (ModuleGraph g) = do
   sm <- Map.lookup mn g
-  let m = instantiateTEither (either pure absurd) sm
+  let m = instantiateTVar (var pure absurd) sm
   decl <- Map.lookup n (moduleDecls m)
   pure (instantiate (pure . (moduleName m :.:)) <$> decl)
 
