@@ -62,7 +62,7 @@ cyclicImport (name :~ span :| names) = throwError (Notice (Just Error) span (pre
   where whichImports (name :~ excerpt) = pretty (Notice Nothing excerpt (pretty "which imports" <+> squotes (pretty name) <> colon) [])
 
 
-unsolvableConstraint :: (Carrier sig m, Member (Error Notice) sig, Member (Reader Excerpt) sig, Pretty a) => a -> a -> m a
+unsolvableConstraint :: (Carrier sig m, Member (Error Notice) sig, Member (Reader Excerpt) sig, Pretty a) => a -> a -> m b
 unsolvableConstraint t1 t2 = do
   excerpt <- ask
   throwError (Notice (Just Error) excerpt (group (vsep [pretty "Unsolvable constraint:", align (group (vsep [pretty t1, pretty '≡' <+> pretty t2]))])) [])
