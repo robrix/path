@@ -1,13 +1,13 @@
 {-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
 module Path.REPL where
 
+import Control.Carrier
+import Control.Carrier.Error.Either
+import Control.Carrier.Lift
+import Control.Carrier.Reader
 import Control.Carrier.Readline.Haskeline
-import Control.Effect.Carrier
-import Control.Effect.Error
-import Control.Effect.Lift
-import Control.Effect.Reader
-import Control.Effect.State
-import Control.Effect.Writer
+import Control.Carrier.State.Strict
+import Control.Carrier.Writer.Strict
 import Control.Monad (foldM, join, unless, void)
 import Control.Monad.IO.Class
 import Data.Foldable (for_)
@@ -51,9 +51,8 @@ repl packageSources = liftIO $ do
   runM (runReadline prefs settings
        (script packageSources))
 
-script :: ( Carrier sig m
-          , Effect sig
-          , Member Readline sig
+script :: ( Effect sig
+          , Has Readline sig m
           , MonadIO m
           )
        => [FilePath]
@@ -100,11 +99,10 @@ script packageSources
             pure graph
         skipDeps graph m action = if all @Set.Set (flip Set.member (Map.keysSet (unModuleGraph graph))) (Map.keysSet (moduleImports m)) then action else pure graph
 
-elaborate :: ( Carrier sig m
-             , Effect sig
-             , Member (Error Notice) sig
-             , Member (State (ModuleGraph (Term Core) Void)) sig
-             , Member (State (Set.Set ModuleName)) sig
+elaborate :: ( Effect sig
+             , Has (Error Notice) sig m
+             , Has (State (ModuleGraph (Term Core) Void)) sig m
+             , Has (State (Set.Set ModuleName)) sig m
              )
           => Spanned (Surface.Surface User)
           -> m (Spanned (Term Core Qualified))
@@ -118,9 +116,9 @@ elaborate = runSpanned $ \ tm -> strengthen <$> do
 whnf :: ModuleGraph (Term Core) Void -> Term Core Qualified -> Term Core Qualified
 whnf graph = go where
   go (Alg (Var n :$ a)) = maybe (Var n $$ a) (go . ($$ a) . unSpanned . declTerm) (Module.lookup n graph)
-  go v                   = v
+  go v                  = v
 
-runSubgraph :: (Carrier sig m, Member (State (ModuleGraph (Term Core) Void)) sig, Member (State (Set.Set ModuleName)) sig) => ReaderC (ModuleGraph (Term Core) Void) m a -> m a
+runSubgraph :: (Has (State (ModuleGraph (Term Core) Void)) sig m, Has (State (Set.Set ModuleName)) sig m) => ReaderC (ModuleGraph (Term Core) Void) m a -> m a
 runSubgraph m = do
   imported <- get
   subgraph <- gets @(ModuleGraph (Term Core) Void) (Module.restrict imported)

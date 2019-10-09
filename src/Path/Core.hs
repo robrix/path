@@ -2,7 +2,7 @@
 module Path.Core where
 
 import           Control.Applicative (Alternative (..))
-import           Control.Effect.Carrier
+import           Control.Carrier
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Pretty
@@ -37,13 +37,13 @@ instance RightModule Core where
   Pi t b  >>=* f = Pi (t >>= f) (b >>=* f)
 
 
-lam :: (Eq a, Carrier sig m, Member Core sig) => a -> m a -> m a
+lam :: (Eq a, Has Core sig m) => a -> m a -> m a
 lam n b = send (Lam (abstract1 n b))
 
-lamFin :: (Carrier sig m, Member Core sig) => m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+lamFin :: Has Core sig m => m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 lamFin b = send (Lam (toScopeFin b))
 
-lams :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t a -> m a -> m a
+lams :: (Eq a, Foldable t, Has Core sig m) => t a -> m a -> m a
 lams names body = foldr lam body names
 
 unlam :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a, Term sig a)
@@ -55,7 +55,7 @@ unlamFin t | Just (Lam b) <- prjTerm t = pure (fromScopeFin b)
 unlamFin _                             = empty
 
 
-($$) :: (Carrier sig m, Member Core sig) => m a -> m a -> m a
+($$) :: Has Core sig m => m a -> m a -> m a
 f $$ a = send (f :$ a)
 
 unapply :: (Alternative m, Project Core sig) => Term sig a -> m (Term sig a, Term sig a)
@@ -63,10 +63,10 @@ unapply t | Just (f :$ a) <- prjTerm t = pure (f, a)
 unapply _                              = empty
 
 
-let' :: (Eq a, Carrier sig m, Member Core sig) => a := m a -> m a -> m a
+let' :: (Eq a, Has Core sig m) => a := m a -> m a -> m a
 let' (n := v) b = send (Let v (abstract1 n b))
 
-letFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+letFin :: Has Core sig m => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 letFin v b = send (Let v (toScopeFin b))
 
 unlet' :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a := Term sig a, Term sig a)
@@ -78,17 +78,17 @@ unletFin t | Just (Let v b) <- prjTerm t = pure (v, fromScopeFin b)
 unletFin _                               = empty
 
 
-type' :: (Carrier sig m, Member Core sig) => m a
+type' :: Has Core sig m => m a
 type' = send Type
 
-pi :: (Eq a, Carrier sig m, Member Core sig) => a ::: m a -> m a -> m a
+pi :: (Eq a, Has Core sig m) => a ::: m a -> m a -> m a
 pi (n ::: t) b = send (Pi t (abstract1 n b))
 
-piFin :: (Carrier sig m, Member Core sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+piFin :: Has Core sig m => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 piFin t b = send (Pi t (toScopeFin b))
 
 -- | Wrap a type in a sequence of pi abstractings.
-pis :: (Eq a, Foldable t, Carrier sig m, Member Core sig) => t (a ::: m a) -> m a -> m a
+pis :: (Eq a, Foldable t, Has Core sig m) => t (a ::: m a) -> m a -> m a
 pis names body = foldr pi body names
 
 unpi :: (Alternative m, Project Core sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)

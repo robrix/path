@@ -11,9 +11,9 @@ import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.Token
 
-command :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader Path) sig, TokenParsing m) => m (Maybe Command)
-typeof, eval, import', doc :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader Path) sig, TokenParsing m) => m Command
-decl :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig, Member (Reader Path) sig, TokenParsing m) => m Command
+command :: (Has Parser sig m, Has (Reader Lines) sig m, Has (Reader Path) sig m, TokenParsing m) => m (Maybe Command)
+typeof, eval, import', doc :: (Has Parser sig m, Has (Reader Lines) sig m, Has (Reader Path) sig m, TokenParsing m) => m Command
+decl :: (Has Parser sig m, Has (Reader Lines) sig m, Has (Reader Path) sig m, TokenParsing m) => m Command
 quit, help, show', reload :: (Monad m, TokenParsing m) => m Command
 
 command = optional (quit <|> help <|> typeof <|> try decl <|> eval <|> show' <|> reload <|> import' <|> doc) <?> "command; use :? for help"

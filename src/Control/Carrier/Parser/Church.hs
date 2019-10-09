@@ -10,12 +10,12 @@ module Control.Carrier.Parser.Church
 ) where
 
 import Control.Applicative (Alternative(..))
-import Control.Effect.Carrier
+import Control.Carrier
+import Control.Carrier.Reader
 import Control.Effect.Cut
 import Control.Effect.Error
 import Control.Effect.NonDet
 import Control.Effect.Parser
-import Control.Effect.Reader
 import Control.Monad (MonadPlus, ap)
 import Control.Monad.IO.Class
 import Data.Maybe (fromMaybe)
@@ -26,10 +26,10 @@ import Text.Parser.Char
 import Text.Parser.Combinators
 import Text.Parser.Token
 
-parseString :: (Carrier sig m, Member (Error Notice) sig) => ParserC (ReaderC Path (ReaderC Lines m)) a -> Pos -> String -> m a
+parseString :: Has (Error Notice) sig m => ParserC (ReaderC Path (ReaderC Lines m)) a -> Pos -> String -> m a
 parseString p pos input = runParser "(interactive)" pos input p >>= either throwError pure
 
-parseFile :: (Carrier sig m, Member (Error Notice) sig, MonadIO m) => ParserC (ReaderC Path (ReaderC Lines m)) a -> FilePath -> m a
+parseFile :: (Has (Error Notice) sig m, MonadIO m) => ParserC (ReaderC Path (ReaderC Lines m)) a -> FilePath -> m a
 parseFile p path = do
   input <- liftIO (readFile path)
   runParser path (Pos 0 0) input p >>= either throwError pure
@@ -97,8 +97,8 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
       Cutfail -> ParserC $ \ _ _ fail pos _ -> fail pos Nothing
       Call m k -> ParserC (\ just nothing _ -> runParserC m just nothing nothing) >>= k
     R (R (L nondet)) -> case nondet of
-      Empty -> empty
-      Choose k -> k True <|> k False
+      L Empty      -> empty
+      R (Choose k) -> k True <|> k False
     R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (success pos input ()) (result runParser failure) other) >>= result just nothing where
       runParser p s m = runParserC m (\ p s -> pure . success p s) failure failure p s
       success pos input a = Result pos (Right (input, a))

@@ -1,10 +1,10 @@
 {-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
-import Control.Effect.Carrier
+import Control.Carrier
+import Control.Carrier.Reader hiding (Local)
+import Control.Carrier.State.Strict
 import Control.Effect.Error
-import Control.Effect.Reader hiding (Local)
-import Control.Effect.State
 import Control.Effect.Writer
 import Control.Monad ((<=<), foldM)
 import Data.Bifunctor (Bifunctor (..))
@@ -31,10 +31,9 @@ import Syntax.Trans.Scope
 import Syntax.Var as Var
 import Syntax.Vec
 
-assume :: ( Carrier sig m
-          , Member (Error Notice) sig
-          , Member (Reader Globals) sig
-          , Member (Reader Excerpt) sig
+assume :: ( Has (Error Notice) sig m
+          , Has (Reader Globals) sig m
+          , Has (Reader Excerpt) sig m
           )
        => Qualified
        -> m (Term (Problem :+: Core) (Var (Fin n) Qualified) ::: Term (Problem :+: Core) (Var (Fin n) Qualified))
@@ -87,10 +86,9 @@ meta ty = existsFin ty (pure (B FZ))
 
 
 elab
-  :: ( Carrier sig m
-     , Member (Error Notice) sig
-     , Member (Reader Globals) sig
-     , Member (Reader Excerpt) sig
+  :: ( Has (Error Notice) sig m
+     , Has (Reader Globals) sig m
+     , Has (Reader Excerpt) sig m
      )
   => Vec n (Term (Problem :+: Core) (Var (Fin n) Qualified))
   -> Surface.Surface (Var (Fin n) Qualified)
@@ -104,11 +102,10 @@ elab ctx = \case
   Surface.Pi (_ :< _ ::: t) b -> elab' ctx t --> \ t' -> elab' (t' :# (fmap (first FS) <$> ctx)) (fromScopeFin <$> b)
   where elab' ctx m = spanIs (elab ctx <$> m)
 
-elabDecl :: ( Carrier sig m
-            , Effect sig
-            , Member (Error Notice) sig
-            , Member (Reader Globals) sig
-            , Member (Reader ModuleName) sig
+elabDecl :: ( Effect sig
+            , Has (Error Notice) sig m
+            , Has (Reader Globals) sig m
+            , Has (Reader ModuleName) sig m
             )
          => Decl (Surface.Surface Qualified)
          -> m (Decl (Term Core Qualified))
@@ -118,11 +115,10 @@ elabDecl (Decl name d tm ty) = do
   tm' <- runSpanned (fmap Var.strengthen . solve VZ <=< local (:> (moduleName :.: name) ::: unSpanned ty') . goalIs (hoistTerm R (F <$> unSpanned ty')) . elab VZ . fmap F) tm
   pure (Decl name d tm' ty')
 
-elabModule :: ( Carrier sig m
-              , Effect sig
-              , Member (Error Notice) sig
-              , Member (Reader (ModuleGraph (Term Core) Void)) sig
-              , Member (Writer (Stack Notice)) sig
+elabModule :: ( Effect sig
+              , Has (Error Notice) sig m
+              , Has (Reader (ModuleGraph (Term Core) Void)) sig m
+              , Has (Writer (Stack Notice)) sig m
               )
            => Module (Surface.Surface) Qualified
            -> m (Module (Term Core) Qualified)
@@ -138,7 +134,7 @@ elabModule m = runReader (moduleName m) . local @(ModuleGraph (Term Core) Void) 
         unqualified (_ :.: u) = u
 
 withGlobals
-  :: (Carrier sig m, Member (Reader (ModuleGraph (Term Core) Void)) sig)
+  :: Has (Reader (ModuleGraph (Term Core) Void)) sig m
   => ReaderC Globals m a
   -> m a
 withGlobals m = do
@@ -149,7 +145,7 @@ withGlobals m = do
           where define ctx d = ctx :> (moduleName m :.: declName d) ::: inst (declType d)
                 inst t = instantiateVar (pure . unVar (moduleName m :.:) id) (unSpanned t)
 
-logError :: (Member (Writer (Stack Notice)) sig, Carrier sig m) => Notice -> m ()
+logError :: Has (Writer (Stack Notice)) sig m => Notice -> m ()
 logError = tell . (Nil :>)
 
 
@@ -157,11 +153,10 @@ type Globals = Stack (Qualified ::: Term Core Qualified)
 
 
 solve
-  :: ( Carrier sig m
-     , Effect sig
+  :: ( Effect sig
      , Eq a
-     , Member (Error Notice) sig
-     , Member (Reader Excerpt) sig
+     , Has (Error Notice) sig m
+     , Has (Reader Excerpt) sig m
      , Pretty a
      )
   => Vec n Bool
@@ -190,11 +185,10 @@ solve ctx = \case
     Pi  t b -> piFin  <$> solve ctx t <*> solve (False :# ctx) (fromScopeFin b)
 
 simplify
-  :: ( Carrier sig m
-     , Effect sig
+  :: ( Effect sig
      , Eq a
-     , Member (Error Notice) sig
-     , Member (Reader Excerpt) sig
+     , Has (Error Notice) sig m
+     , Has (Reader Excerpt) sig m
      , Pretty a
      )
   => Vec n Bool

@@ -9,9 +9,9 @@ module Control.Carrier.Readline.Haskeline
 , Carrier
 ) where
 
-import Control.Effect.Carrier
-import Control.Effect.Lift
-import Control.Effect.Reader
+import Control.Carrier
+import Control.Carrier.Lift
+import Control.Carrier.Reader
 import Control.Effect.Readline
 import Control.Monad.Fix
 import Control.Monad.IO.Unlift

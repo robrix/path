@@ -2,7 +2,7 @@
 module Path.Problem where
 
 import Control.Applicative (Alternative (..))
-import Control.Effect.Carrier
+import Control.Carrier
 import GHC.Generics (Generic1)
 import Path.Core
 import Path.Pretty
@@ -33,10 +33,10 @@ instance RightModule Problem where
   Unify q >>=* f = Unify ((>>= f) <$> q)
 
 
-exists :: (Eq a, Carrier sig m, Member Problem sig) => a ::: m a -> m a -> m a
+exists :: (Eq a, Has Problem sig m) => a ::: m a -> m a -> m a
 exists (n ::: t) b = send (Ex t (abstract1 n b))
 
-existsFin :: (Carrier sig m, Member Problem sig) => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
+existsFin :: Has Problem sig m => m (Var (Fin n) a) -> m (Var (Fin ('S n)) a) -> m (Var (Fin n) a)
 existsFin t b = send (Ex t (toScopeFin b))
 
 unexists :: (Alternative m, Project Problem sig, RightModule sig) => a -> Term sig a -> m (a ::: Term sig a, Term sig a)
@@ -48,7 +48,7 @@ unexistsFin t | Just (Ex t b) <- prjTerm t = pure (t, fromScopeFin b)
 unexistsFin _                              = empty
 
 
-(===) :: (Carrier sig m, Member Problem sig) => m a -> m a -> m a
+(===) :: Has Problem sig m => m a -> m a -> m a
 p === q = send (Unify (p :===: q))
 
 infixr 3 ===

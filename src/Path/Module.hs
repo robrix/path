@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, QuantifiedConstraints, StandaloneDeriving #-}
 module Path.Module where
 
-import Control.Effect.Carrier
-import Control.Effect.Cull (runNonDetOnce)
+import Control.Carrier
+import Control.Carrier.NonDet.Maybe (runNonDet)
+import Control.Carrier.Reader
+import Control.Carrier.State.Strict
 import Control.Effect.Error
-import Control.Effect.Reader
-import Control.Effect.State
 import Control.Monad (unless, when)
 import Data.Foldable (for_, toList)
 import Data.List.NonEmpty (NonEmpty(..), (<|), nub)
@@ -76,7 +76,7 @@ moduleGraph ms = ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractVa
 restrict :: Set.Set ModuleName -> ModuleGraph f a -> ModuleGraph f a
 restrict keys = ModuleGraph . flip Map.restrictKeys keys . unModuleGraph
 
-rename :: (Carrier sig m, Foldable t, Member (Error Notice) sig, Member (Reader Excerpt) sig)
+rename :: (Foldable t, Has (Error Notice) sig m, Has (Reader Excerpt) sig m)
        => t (Module f a)
        -> User
        -> m Qualified
@@ -91,13 +91,13 @@ runDecl f (Decl n d tm ty) = do
   ty' <- runSpanned f ty
   pure (Decl n d tm' ty')
 
-renameDecl :: (Carrier sig m, Foldable t, Member (Error Notice) sig, Traversable g)
+renameDecl :: (Foldable t, Has (Error Notice) sig m, Traversable g)
            => t (Module f a)
            -> Decl (g User)
            -> m (Decl (g Qualified))
 renameDecl ms = runDecl (traverse (rename ms))
 
-renameModule :: (Carrier sig m, Foldable t, Member (Error Notice) sig, Traversable g)
+renameModule :: (Foldable t, Has (Error Notice) sig m, Traversable g)
              => t (Module f a)
              -> Module g User
              -> m (Module g Qualified)
@@ -105,7 +105,7 @@ renameModule ms m = do
   ds <- traverse (runDecl (traverse (rename ms))) (moduleDecls m)
   pure m { moduleDecls = ds }
 
-renameModuleGraph :: (Applicative f, Carrier sig m, Member (Error Notice) sig, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
+renameModuleGraph :: (Applicative f, Has (Error Notice) sig m, Traversable f) => [Module f User] -> m (ModuleGraph f Void)
 renameModuleGraph ms = do
   ms' <- traverse (\ m -> renameModule (imported m) m) ms
   pure (ModuleGraph (Map.fromList (map ((,) . moduleName <*> abstractVarT B) ms')))
@@ -123,11 +123,11 @@ lookup (mn :.: n) (ModuleGraph g) = do
   pure (instantiate (pure . (moduleName m :.:)) <$> decl)
 
 
-lookupModule :: (Carrier sig m, Member (Error Notice) sig) => Spanned ModuleName -> ModuleGraph f a -> m (ScopeT Qualified Module f a)
+lookupModule :: (Has (Error Notice) sig m) => Spanned ModuleName -> ModuleGraph f a -> m (ScopeT Qualified Module f a)
 lookupModule i g = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
 
-cycleFrom :: (Carrier sig m, Effect sig, Member (Error Notice) sig) => ModuleGraph f a -> Spanned ModuleName -> m ()
-cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m)) >>= cyclicImport . fromMaybe (m :| [])
+cycleFrom :: (Effect sig, Has (Error Notice) sig m) => ModuleGraph f a -> Spanned ModuleName -> m ()
+cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDet (go m)) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do
@@ -137,7 +137,7 @@ cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDetOnce (go m
             pure (n :| [])
 
 
-loadOrder :: (Carrier sig m, Effect sig, Member (Error Notice) sig) => ModuleGraph f Void -> m [ScopeT Qualified Module f Void]
+loadOrder :: (Effect sig, Has (Error Notice) sig m) => ModuleGraph f Void -> m [ScopeT Qualified Module f Void]
 loadOrder g = reverse <$> execState [] (evalState (Set.empty :: Set.Set ModuleName) (runReader (Set.empty :: Set.Set ModuleName) (for_ (unModuleGraph g) loopM)))
   where loopM m = do
           visited <- gets (Set.member (moduleName (unScopeT m)))

@@ -11,7 +11,7 @@ module Control.Effect.Parser
 , spanned
 ) where
 
-import Control.Effect.Carrier
+import Control.Carrier
 import Control.Effect.Reader
 import Path.Span hiding (spanned)
 
@@ -38,25 +38,25 @@ instance Effect Parser where
     Position   k -> Position (handler . (<$ state) . k)
 
 
-accept :: (Carrier sig m, Member Parser sig) => (Char -> Maybe a) -> m a
+accept :: Has Parser sig m => (Char -> Maybe a) -> m a
 accept p = send (Accept p pure)
 
 newtype Lines = Lines { unLines :: [String] }
 
-line :: (Carrier sig m, Member Parser sig, Member (Reader Lines) sig) => m String
+line :: (Has Parser sig m, Has (Reader Lines) sig m) => m String
 line = do
   pos <- position
   asks ((!! posLine pos) . unLines)
 
-position :: (Carrier sig m, Member Parser sig) => m Pos
+position :: Has Parser sig m => m Pos
 position = send (Position pure)
 
 newtype Path = Path { unPath :: FilePath }
 
-path :: (Carrier sig m, Member (Reader Path) sig) => m FilePath
+path :: Has (Reader Path) sig m => m FilePath
 path = asks unPath
 
-spanned :: (Carrier sig m, Member (Reader Lines) sig, Member (Reader Path) sig, Member Parser sig) => m a -> m (Spanned a)
+spanned :: (Has Parser sig m, Has (Reader Lines) sig m, Has (Reader Path) sig m) => m a -> m (Spanned a)
 spanned m = do
   path <- path
   line <- line

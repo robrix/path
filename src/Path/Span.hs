@@ -13,7 +13,7 @@ module Path.Span
 , spanIs
 ) where
 
-import Control.Effect.Reader
+import Control.Carrier.Reader
 import Data.Maybe (listToMaybe)
 import GHC.Stack
 
@@ -66,8 +66,8 @@ runSpanned f v@(_ :~ s) = runReader s (traverse f v)
 runInContext :: Carrier sig m => (a -> ReaderC c m b) -> (c, a) -> m (c, b)
 runInContext f v = runReader (fst v) (traverse f v)
 
-spanned :: (Carrier sig m, Member (Reader Excerpt) sig) => a -> m (Spanned a)
+spanned :: Has (Reader Excerpt) sig m => a -> m (Spanned a)
 spanned a = asks (a :~)
 
-spanIs :: (Carrier sig m, Member (Reader Excerpt) sig) => Spanned (m a) -> m a
+spanIs :: Has (Reader Excerpt) sig m => Spanned (m a) -> m a
 spanIs (m :~ s) = local (const s) m
