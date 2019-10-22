@@ -123,7 +123,7 @@ lookup (mn :.: n) (ModuleGraph g) = do
   pure (instantiate (pure . (moduleName m :.:)) <$> decl)
 
 
-lookupModule :: (Has (Error Notice) sig m) => Spanned ModuleName -> ModuleGraph f a -> m (ScopeT Qualified Module f a)
+lookupModule :: Has (Error Notice) sig m => Spanned ModuleName -> ModuleGraph f a -> m (ScopeT Qualified Module f a)
 lookupModule i g = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
 
 cycleFrom :: (Effect sig, Has (Error Notice) sig m) => ModuleGraph f a -> Spanned ModuleName -> m ()
