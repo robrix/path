@@ -9,6 +9,7 @@ import           Path.Pretty
 import           Path.Syntax
 import           Prelude hiding (pi)
 import           Syntax.Fin
+import           Syntax.Functor
 import           Syntax.Module
 import           Syntax.Scope
 import           Syntax.Sum

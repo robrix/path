@@ -18,6 +18,7 @@ import GHC.Generics (Generic1)
 import Path.Error
 import Path.Name
 import Path.Span
+import Syntax.Functor
 import Syntax.Module
 import Syntax.Scope
 import Syntax.Trans.Scope
