@@ -67,7 +67,7 @@ library
     , containers
     , directory
     , filepath
-    , fused-effects ^>= 0.5
+    , fused-effects ^>= 1
     , fused-syntax
     , haskeline
     , mtl
