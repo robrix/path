@@ -77,7 +77,6 @@ library
     , prettyprinter-ansi-terminal
     , terminal-size
     , text
-    , unliftio-core
     , unordered-containers
   hs-source-dirs:      src
 

@@ -1,7 +1,8 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators, UndecidableInstances #-}
+{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, ScopedTypeVariables, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Control.Carrier.Readline.Haskeline
 ( -- * Readline carrier
   runReadline
+, runReadlineWithHistory
 , ReadlineC(..)
   -- * Readline effect
 , module Control.Effect.Readline
@@ -12,33 +13,50 @@ import Control.Carrier.Lift
 import Control.Carrier.Reader
 import Control.Effect.Readline
 import Control.Monad.Fix
-import Control.Monad.IO.Unlift
+import Control.Monad.IO.Class
 import Data.Coerce
-import Path.Pretty
+import Data.Text.Prettyprint.Doc
+import Data.Text.Prettyprint.Doc.Render.Terminal (renderIO)
 import System.Console.Haskeline hiding (Handler, handle)
+import System.Console.Terminal.Size as Size
+import System.Directory
+import System.FilePath
+import System.IO (stdout)
 
-runReadline :: MonadUnliftIO m => Prefs -> Settings m -> ReadlineC m a -> m a
-runReadline prefs settings = runControlIO . runInputTWithPrefs prefs (coerce settings) . runM . runReader (Line 0) . runReadlineC
+runReadline :: MonadException m => Prefs -> Settings m -> ReadlineC m a -> m a
+runReadline prefs settings = runInputTWithPrefs prefs (coerce settings) . runM . runReader (Line 0) . runReadlineC
 
-newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT (ControlIO m))) a }
+runReadlineWithHistory :: MonadException m => ReadlineC m a -> m a
+runReadlineWithHistory block = do
+  homeDir <- liftIO getHomeDirectory
+  prefs <- liftIO $ readPrefs (homeDir </> ".haskeline")
+  let settingsDir = homeDir </> ".local" </> "semantic-core"
+      settings = Settings
+        { complete = noCompletion
+        , historyFile = Just (settingsDir </> "repl_history")
+        , autoAddHistory = True
+        }
+  liftIO $ createDirectoryIfMissing True settingsDir
+
+  runReadline prefs settings block
+
+newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT m)) a }
   deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance MonadUnliftIO m => Algebra (Readline :+: Lift (InputT (ControlIO m))) (ReadlineC m) where
-  alg (L (Prompt prompt k)) = ReadlineC $ do
-    str <- sendM (getInputLine @(ControlIO m) (cyan <> prompt <> plain))
-    line <- ask
+instance MonadException m => Algebra Readline (ReadlineC m) where
+  alg (Prompt prompt k) = ReadlineC $ do
+    str <- sendM (getInputLine @m (cyan <> prompt <> plain))
+    Line line <- ask
     local increment (runReadlineC (k line str))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
-  alg (L (Print text k)) = putDoc text *> k
-  alg (R other) = ReadlineC (send (handleCoercible other))
+  alg (Print doc k) = do
+    s <- maybe 80 Size.width <$> liftIO size
+    liftIO (renderIO stdout (layoutSmart defaultLayoutOptions { layoutPageWidth = AvailablePerLine s 0.8 } (doc <> line)))
+    k
 
 
-newtype ControlIO m a = ControlIO { runControlIO :: m a }
-  deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
+newtype Line = Line Int
 
-instance MonadUnliftIO m => MonadUnliftIO (ControlIO m) where
-  withRunInIO inner = ControlIO $ withRunInIO $ \go -> inner (go . runControlIO)
-
-instance MonadUnliftIO m => MonadException (ControlIO m) where
-  controlIO f = withRunInIO (\ runInIO -> f (RunIO (fmap pure . runInIO)) >>= runInIO)
+increment :: Line -> Line
+increment (Line n) = Line (n + 1)

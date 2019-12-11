@@ -63,7 +63,7 @@ script packageSources
   . runError @()
   $ runError loop >>= either (print . pretty @Notice) pure
   where loop = (prompt "λ: " >>= uncurry parseCommand >>= maybe (pure ()) runCommand . join) `catchError` (print . pretty @Notice) >> loop
-        parseCommand (Line l) = traverse (parseString (whole command) (Pos l 0))
+        parseCommand l = traverse (parseString (whole command) (Pos l 0))
         runCommand = \case
           Quit -> throwError ()
           Help -> print helpDoc

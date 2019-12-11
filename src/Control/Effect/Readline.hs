@@ -4,9 +4,6 @@ module Control.Effect.Readline
   Readline(..)
 , prompt
 , print
-  -- * Line numbers
-, Line(..)
-, increment
   -- * Re-exports
 , Algebra
 , Has
@@ -20,7 +17,7 @@ import GHC.Generics (Generic1)
 import Prelude hiding (print)
 
 data Readline m k
-  = Prompt String (Line -> Maybe String -> m k)
+  = Prompt String (Int -> Maybe String -> m k)
   | Print (Doc AnsiStyle) (m k)
   deriving (Functor, Generic1)
 
@@ -28,14 +25,8 @@ instance HFunctor Readline
 instance Effect   Readline
 
 
-prompt :: Has Readline sig m => String -> m (Line, Maybe String)
+prompt :: Has Readline sig m => String -> m (Int, Maybe String)
 prompt p = send (Prompt p (curry pure))
 
 print :: Has Readline sig m => Doc AnsiStyle -> m ()
 print s = send (Print s (pure ()))
-
-
-newtype Line = Line Int
-
-increment :: Line -> Line
-increment (Line n) = Line (n + 1)
