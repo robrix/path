@@ -1,7 +1,7 @@
 {-# LANGUAGE DataKinds, DeriveFunctor, FlexibleContexts, LambdaCase, TypeApplications, TypeOperators #-}
 module Path.Elab where
 
-import Control.Carrier
+import Control.Algebra
 import Control.Carrier.Reader hiding (Local)
 import Control.Carrier.State.Strict
 import Control.Effect.Error

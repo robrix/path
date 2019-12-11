@@ -1,15 +1,14 @@
 {-# LANGUAGE DataKinds, DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TupleSections, TypeApplications, TypeOperators #-}
 module Path.Core where
 
+import           Control.Algebra
 import           Control.Applicative (Alternative (..))
-import           Control.Carrier
 import qualified Data.Set as Set
 import           GHC.Generics (Generic1)
 import           Path.Pretty
 import           Path.Syntax
 import           Prelude hiding (pi)
 import           Syntax.Fin
-import           Syntax.Functor
 import           Syntax.Module
 import           Syntax.Scope
 import           Syntax.Sum

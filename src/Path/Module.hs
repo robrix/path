@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveGeneric, DeriveTraversable, FlexibleContexts, GeneralizedNewtypeDeriving, QuantifiedConstraints, StandaloneDeriving #-}
 module Path.Module where
 
-import Control.Carrier
-import Control.Carrier.NonDet.Maybe (runNonDet)
+import Control.Algebra
+import Control.Carrier.Cull.Church (runCullA)
 import Control.Carrier.Reader
 import Control.Carrier.State.Strict
 import Control.Effect.Error
@@ -18,7 +18,6 @@ import GHC.Generics (Generic1)
 import Path.Error
 import Path.Name
 import Path.Span
-import Syntax.Functor
 import Syntax.Module
 import Syntax.Scope
 import Syntax.Trans.Scope
@@ -86,7 +85,7 @@ rename ms n = case foldMap (\ m -> [ moduleName m :.: n | d <- toList (moduleDec
   []   -> freeVariables (pure n)
   x:xs -> ambiguousName n (x:|xs)
 
-runDecl :: Carrier sig m => (a -> ReaderC Excerpt m b) -> Decl a -> m (Decl b)
+runDecl :: Algebra sig m => (a -> ReaderC Excerpt m b) -> Decl a -> m (Decl b)
 runDecl f (Decl n d tm ty) = do
   tm' <- runSpanned f tm
   ty' <- runSpanned f ty
@@ -128,7 +127,7 @@ lookupModule :: Has (Error Notice) sig m => Spanned ModuleName -> ModuleGraph f 
 lookupModule i g = maybe (unknownModule i) pure (Map.lookup (unSpanned i) (unModuleGraph g))
 
 cycleFrom :: (Effect sig, Has (Error Notice) sig m) => ModuleGraph f a -> Spanned ModuleName -> m ()
-cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runNonDet (go m)) >>= cyclicImport . fromMaybe (m :| [])
+cycleFrom g m = runReader (Set.empty :: Set.Set ModuleName) (runCullA (go m)) >>= cyclicImport . fromMaybe (m :| [])
   where go n = do
           notVisited <- asks (Set.notMember (unSpanned n))
           if notVisited then do

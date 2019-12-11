@@ -1,9 +1,8 @@
 {-# LANGUAGE FlexibleContexts, LambdaCase, TypeApplications #-}
 module Path.REPL where
 
-import Control.Carrier
+import Control.Algebra
 import Control.Carrier.Error.Either
-import Control.Carrier.Lift
 import Control.Carrier.Reader
 import Control.Carrier.Readline.Haskeline
 import Control.Carrier.State.Strict
@@ -48,8 +47,7 @@ repl packageSources = liftIO $ do
         , autoAddHistory = True
         }
   createDirectoryIfMissing True settingsDir
-  runM (runReadline prefs settings
-       (script packageSources))
+  runReadline prefs settings (script packageSources)
 
 script :: ( Effect sig
           , Has Readline sig m

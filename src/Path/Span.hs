@@ -60,10 +60,10 @@ unSpanned :: Spanned a -> a
 unSpanned (a :~ _) = a
 
 
-runSpanned :: Carrier sig m => (a -> ReaderC Excerpt m b) -> Spanned a -> m (Spanned b)
+runSpanned :: Algebra sig m => (a -> ReaderC Excerpt m b) -> Spanned a -> m (Spanned b)
 runSpanned f v@(_ :~ s) = runReader s (traverse f v)
 
-runInContext :: Carrier sig m => (a -> ReaderC c m b) -> (c, a) -> m (c, b)
+runInContext :: Algebra sig m => (a -> ReaderC c m b) -> (c, a) -> m (c, b)
 runInContext f v = runReader (fst v) (traverse f v)
 
 spanned :: Has (Reader Excerpt) sig m => a -> m (Spanned a)

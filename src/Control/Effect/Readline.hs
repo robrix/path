@@ -7,9 +7,13 @@ module Control.Effect.Readline
   -- * Line numbers
 , Line(..)
 , increment
+  -- * Re-exports
+, Algebra
+, Has
+, run
 ) where
 
-import Control.Carrier
+import Control.Algebra
 import Data.Text.Prettyprint.Doc (Doc)
 import Data.Text.Prettyprint.Doc.Render.Terminal (AnsiStyle)
 import GHC.Generics (Generic1)

@@ -1,16 +1,16 @@
 {-# LANGUAGE DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, RankNTypes, TypeOperators, UndecidableInstances #-}
 module Control.Carrier.Parser.Church
-( -- * Parser effect
-  module Control.Effect.Parser
-  -- * Parsr carrier
-, parseString
+( -- * Parsr carrier
+  parseString
 , parseFile
 , runParser
 , ParserC(..)
+  -- * Parser effect
+, module Control.Effect.Parser
 ) where
 
+import Control.Algebra
 import Control.Applicative (Alternative(..))
-import Control.Carrier
 import Control.Carrier.Reader
 import Control.Effect.Cut
 import Control.Effect.Error
@@ -71,20 +71,20 @@ instance Monad (ParserC m) where
 
 instance MonadPlus (ParserC m)
 
-instance (Carrier sig m, Effect sig) => Parsing (ParserC m) where
+instance (Algebra sig m, Effect sig) => Parsing (ParserC m) where
   try = call
   eof = notFollowedBy anyChar <?> "end of input"
   unexpected s = send (Unexpected s)
   m <?> s = send (Label m s pure)
   notFollowedBy p = try (optional p >>= maybe (pure ()) (unexpected . show))
 
-instance (Carrier sig m, Effect sig) => CharParsing (ParserC m) where
+instance (Algebra sig m, Effect sig) => CharParsing (ParserC m) where
   satisfy p = accept (\ c -> if p c then Just c else Nothing)
 
-instance (Carrier sig m, Effect sig) => TokenParsing (ParserC m)
+instance (Algebra sig m, Effect sig) => TokenParsing (ParserC m)
 
-instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: sig) (ParserC m) where
-  eff = \case
+instance (Algebra sig m, Effect sig) => Algebra (Parser :+: Cut :+: NonDet :+: sig) (ParserC m) where
+  alg = \case
     L parser -> case parser of
       Accept p k -> ParserC (\ just nothing _ pos input -> case input of
         c:cs | Just a <- p c -> just (advancePos c pos) cs a
@@ -99,7 +99,7 @@ instance (Carrier sig m, Effect sig) => Carrier (Parser :+: Cut :+: NonDet :+: s
     R (R (L nondet)) -> case nondet of
       L Empty      -> empty
       R (Choose k) -> k True <|> k False
-    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> eff (handle (success pos input ()) (result runParser failure) other) >>= result just nothing where
+    R (R (R other)) -> ParserC $ \ just nothing _ pos input -> alg (thread (success pos input ()) (result runParser failure) other) >>= result just nothing where
       runParser p s m = runParserC m (\ p s -> pure . success p s) failure failure p s
       success pos input a = Result pos (Right (input, a))
       failure pos reason = pure (Result pos (Left reason))

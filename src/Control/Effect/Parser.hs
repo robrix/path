@@ -9,9 +9,13 @@ module Control.Effect.Parser
 , Path(..)
 , path
 , spanned
+-- * Re-exports
+, Algebra
+, Has
+, run
 ) where
 
-import Control.Carrier
+import Control.Algebra
 import Control.Effect.Reader
 import Path.Span hiding (spanned)
 
@@ -31,7 +35,7 @@ instance HFunctor Parser where
     Position   k -> Position      (f . k)
 
 instance Effect Parser where
-  handle state handler = \case
+  thread state handler = \case
     Accept p   k -> Accept p (handler . (<$ state) . k)
     Label m s  k -> Label (handler (m <$ state)) s (handler . fmap k)
     Unexpected s -> Unexpected s

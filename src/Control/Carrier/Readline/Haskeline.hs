@@ -1,15 +1,13 @@
 {-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving, MultiParamTypeClasses, RankNTypes, ScopedTypeVariables, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Control.Carrier.Readline.Haskeline
-( -- * Readline effect
-  module Control.Effect.Readline
-  -- * Readline carrier
-, runReadline
+( -- * Readline carrier
+  runReadline
 , ReadlineC(..)
-  -- * Re-exports
-, Carrier
+  -- * Readline effect
+, module Control.Effect.Readline
 ) where
 
-import Control.Carrier
+import Control.Algebra
 import Control.Carrier.Lift
 import Control.Carrier.Reader
 import Control.Effect.Readline
@@ -25,15 +23,15 @@ runReadline prefs settings = runControlIO . runInputTWithPrefs prefs (coerce set
 newtype ReadlineC m a = ReadlineC { runReadlineC :: ReaderC Line (LiftC (InputT (ControlIO m))) a }
   deriving (Applicative, Functor, Monad, MonadFix, MonadIO)
 
-instance MonadUnliftIO m => Carrier (Readline :+: Lift (InputT (ControlIO m))) (ReadlineC m) where
-  eff (L (Prompt prompt k)) = ReadlineC $ do
+instance MonadUnliftIO m => Algebra (Readline :+: Lift (InputT (ControlIO m))) (ReadlineC m) where
+  alg (L (Prompt prompt k)) = ReadlineC $ do
     str <- sendM (getInputLine @(ControlIO m) (cyan <> prompt <> plain))
     line <- ask
     local increment (runReadlineC (k line str))
     where cyan = "\ESC[1;36m\STX"
           plain = "\ESC[0m\STX"
-  eff (L (Print text k)) = putDoc text *> k
-  eff (R other) = ReadlineC (eff (R (handleCoercible other)))
+  alg (L (Print text k)) = putDoc text *> k
+  alg (R other) = ReadlineC (send (handleCoercible other))
 
 
 newtype ControlIO m a = ControlIO { runControlIO :: m a }

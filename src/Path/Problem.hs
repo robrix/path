@@ -1,8 +1,8 @@
 {-# LANGUAGE DataKinds, DeriveAnyClass, DeriveGeneric, DeriveTraversable, FlexibleContexts, FlexibleInstances, LambdaCase, MultiParamTypeClasses, QuantifiedConstraints, RankNTypes, ScopedTypeVariables, StandaloneDeriving, TypeApplications, TypeOperators, UndecidableInstances #-}
 module Path.Problem where
 
+import Control.Algebra
 import Control.Applicative (Alternative (..))
-import Control.Carrier
 import GHC.Generics (Generic1)
 import Path.Core
 import Path.Pretty

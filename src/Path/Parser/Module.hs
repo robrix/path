@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleContexts, TypeOperators #-}
 module Path.Parser.Module where
 
+import Control.Algebra
 import Control.Applicative (Alternative(..))
-import Control.Carrier
 import Control.Effect.Error
 import Control.Effect.Parser
 import Control.Effect.Reader
