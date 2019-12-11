@@ -1,3 +1,2 @@
 packages: .
-          ../fused-effects
           ../fused-syntax
