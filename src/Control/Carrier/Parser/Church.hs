@@ -10,13 +10,12 @@ module Control.Carrier.Parser.Church
 ) where
 
 import Control.Algebra
-import Control.Applicative (Alternative(..))
 import Control.Carrier.Reader
 import Control.Effect.Cut
 import Control.Effect.Error
 import Control.Effect.NonDet
 import Control.Effect.Parser
-import Control.Monad (MonadPlus, ap)
+import Control.Monad (ap)
 import Control.Monad.IO.Class
 import Data.Maybe (fromMaybe)
 import Path.Error (Level(..), Notice(..))
