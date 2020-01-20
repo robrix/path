@@ -1,8 +1,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 module Path.Error where
 
-import Control.Effect.Error
-import Control.Effect.Reader
+import Control.Carrier.Error.Either
+import Control.Carrier.Reader
 import Data.Foldable (fold, toList)
 import Data.List (isSuffixOf)
 import Data.List.NonEmpty (NonEmpty(..))

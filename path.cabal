@@ -62,7 +62,7 @@ library
     Path.Usage
   other-modules:       Paths_path
   build-depends:
-      base >=4.11 && <4.13
+      base >=4.11 && <4.14
     , bytestring
     , containers
     , directory
